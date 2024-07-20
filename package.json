@@ -1,0 +1,39 @@
+{
+  "name": "tn-contracts",
+  "version": "1.0.0",
+  "description": "Telcoin Contracts",
+  "type": "module",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node node/dist/tinker.js",
+    "build-and-start": "npm run build && npm run start",
+    "watch": "tsc --watch",
+    "test": "forge test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Telcoin-Association/tn-contracts.git"
+  },
+  "keywords": [
+    "Telcoin"
+  ],
+  "author": "robriks",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Telcoin-Association/tn-contracts/issues"
+  },
+  "homepage": "https://github.com/Telcoin-Association/tn-contracts#readme",
+  "dependencies": {
+    "@axelar-network/axelar-local-dev": "^2.3.3",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.3"
+  }
+}
