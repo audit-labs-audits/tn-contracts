@@ -1,0 +1,2 @@
+forge-std/=node_modules/forge-std/
+@axelar-cgp-solidity=node_modules/@axelar-network/axelar-cgp-solidity
