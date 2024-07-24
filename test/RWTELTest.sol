@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import { Test, console } from "forge-std/Test.sol";
+import { Test, console2 } from "forge-std/Test.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { WTEL } from "../src/WTEL.sol";
 
 contract RWTELTest is Test {
-
     WTEL wTEL;
     RecoverableWrapper rwTEL;
 
@@ -19,14 +18,15 @@ contract RWTELTest is Test {
     uint16 maxToClean;
 
     function setUp() public {
+        wTEL = new WTEL();
+
         name_ = "Recoverable Wrapped Telcoin";
         symbol_ = "rwTEL";
-        recoverableWindow_ = 86400; // ~1 day; Telcoin Network blocktime is ~1s
+        recoverableWindow_ = 86_400; // ~1 day; Telcoin Network blocktime is ~1s
         governanceAddress_ = address(this); // multisig/council/DAO address in prod
         baseERC20_ = address(wTEL);
         maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
 
-        wTEL = new WTEL();
         rwTEL = new RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean);
     }
 
@@ -45,7 +45,7 @@ contract RWTELTest is Test {
         string memory rwSymbol = rwTEL.symbol();
         assertEq(rwSymbol, "rwTEL");
         uint256 recoverableWindow = rwTEL.recoverableWindow();
-        assertEq(recoverableWindow, 86400);
+        assertEq(recoverableWindow, 86_400);
         address governanceAddress = rwTEL.governanceAddress();
         assertEq(governanceAddress, address(this));
     }

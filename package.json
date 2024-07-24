@@ -34,7 +34,8 @@
     "dotenv": "^16.4.5",
     "forge-std": "github:foundry-rs/forge-std",
     "recoverable-wrapper": "git@github.com:circlefin/recoverable-wrapper.git",
-    "solady": "^0.0.227"
+    "solady": "^0.0.227",
+    "telcoin-contracts": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.11",
