@@ -3,7 +3,8 @@ pragma solidity 0.8.26;
 
 import { Test, console2 } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
-import { LibString } from "solady/utils/LibString.sol";import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { LibString } from "solady/utils/LibString.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
 import { WTEL } from "../src/WTEL.sol";
@@ -83,8 +84,9 @@ contract TestnetDeployTokens is Script {
             TokenMetadata storage metadata = metadatas[i];
             bytes32 salt = bytes32(bytes(metadata.symbol));
             salts.push(salt);
-            
-            bytes memory initCall = abi.encodeWithSelector(Stablecoin.initialize.selector, metadata.name, metadata.symbol, decimals_);
+
+            bytes memory initCall =
+                abi.encodeWithSelector(Stablecoin.initialize.selector, metadata.name, metadata.symbol, decimals_);
             initDatas.push(initCall);
         }
     }
@@ -98,7 +100,7 @@ contract TestnetDeployTokens is Script {
         address[] memory deployedTokens = new address[](numStables);
         for (uint256 i; i < numStables; ++i) {
             address stablecoin = address(new ERC1967Proxy(address(stablecoinImpl), initDatas[i]));
-            
+
             // grant deployer minter, burner & support roles
             bytes32 minterRole = Stablecoin(stablecoin).MINTER_ROLE();
             bytes32 burnerRole = Stablecoin(stablecoin).BURNER_ROLE();
@@ -126,9 +128,19 @@ contract TestnetDeployTokens is Script {
         string memory dest = string.concat(root, "/log/deployments.json");
         vm.writeLine(dest, string.concat("wTEL: ", LibString.toHexString(uint256(uint160(address(wTEL))), 20)));
         vm.writeLine(dest, string.concat("rwTEL: ", LibString.toHexString(uint256(uint160(address(rwTEL))), 20)));
-        vm.writeLine(dest, string.concat("StablecoinImpl: ", LibString.toHexString(uint256(uint160(address(stablecoinImpl))), 20)));
+        vm.writeLine(
+            dest,
+            string.concat("StablecoinImpl: ", LibString.toHexString(uint256(uint160(address(stablecoinImpl))), 20))
+        );
         for (uint256 i; i < numStables; ++i) {
-            vm.writeLine(dest, string.concat(Stablecoin(deployedTokens[i]).symbol(), ": ", LibString.toHexString(uint256(uint160(deployedTokens[i])), 20)));
+            vm.writeLine(
+                dest,
+                string.concat(
+                    Stablecoin(deployedTokens[i]).symbol(),
+                    ": ",
+                    LibString.toHexString(uint256(uint160(deployedTokens[i])), 20)
+                )
+            );
         }
     }
 }

@@ -31,10 +31,12 @@
   "homepage": "https://github.com/Telcoin-Association/tn-contracts#readme",
   "dependencies": {
     "@axelar-network/axelar-local-dev": "^2.3.3",
+    "@uniswap/v2-core": "^1.0.1",
+    "@uniswap/v2-periphery": "^1.1.0-beta.0",
     "dotenv": "^16.4.5",
     "forge-std": "github:foundry-rs/forge-std",
-    "solady": "^0.0.227",
     "recoverable-wrapper": "git@github.com:robriks/recoverable-wrapper.git",
+    "solady": "^0.0.227",
     "telcoin-contracts": "^1.0.0"
   },
   "devDependencies": {
