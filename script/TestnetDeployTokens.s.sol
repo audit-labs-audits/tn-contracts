@@ -1,26 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { console2 } from "forge-std/console2.sol";
+import { Test, console2 } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
-import { LibString } from "solady/utils/LibString.sol";
-import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import { LibString } from "solady/utils/LibString.sol";import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
-import { StablecoinHandler } from "telcoin-contracts/contracts/stablecoin/StablecoinHandler.sol";
-import { ClonableBeaconProxy } from "telcoin-contracts/contracts/external/openzeppelin/ClonableBeaconProxy.sol";
-import { ProxyFactory } from "telcoin-contracts/contracts/factories/ProxyFactory.sol";
-import { AmirX } from "telcoin-contracts/contracts/swap/AmirX.sol";
 import { WTEL } from "../src/WTEL.sol";
 
 contract TestnetDeployTokens is Script {
     WTEL wTEL;
     RecoverableWrapper rwTEL;
-    ProxyFactory proxyFactory;
+
     Stablecoin stablecoinImpl;
-    UpgradeableBeacon stablecoinBeacon;
-    ClonableBeaconProxy beaconProxy;
-    StablecoinHandler stablecoinHandler;
     Stablecoin eAUD; // 0x4392743b97c46c6aa186a7f3d0468fbf177ee70f
     Stablecoin eCAD; // 0xee7ca49702ce61d0a43214b45cf287efa046673a
     Stablecoin eCHF; // 0xabf991e50894174a492dce57e39c70a6344cc9a8
@@ -32,7 +24,6 @@ contract TestnetDeployTokens is Script {
     Stablecoin eJPY; // 0xd38850877acd1180efb17e374bd00da2fdf024d2
     Stablecoin eSDR; // 0x5c32c13671e1805c851f6d4c7d76fd0bdfbfbe54
     Stablecoin eSGD; // 0xb7be13b047e1151649191593c8f7719bb0563609
-    AmirX amirX;
 
     // rwTEL constructor params
     string name_;
@@ -42,15 +33,19 @@ contract TestnetDeployTokens is Script {
     address baseERC20_;
     uint16 maxToClean;
 
-    // factory admin, stablecoin support+maintainer role
+    //  admin, support, minter, burner role
     address admin;
 
     // shared Stablecoin creation params
-    uint256 numClones;
+    uint256 numStables;
     uint8 decimals_;
-    bytes32[] salts_; // bytes32(0...10)
+    uint256 maxLimit;
+    uint256 minLimit;
+
+    // specific Stablecoin creation params
     TokenMetadata[] metadatas;
-    bytes[] initDatas_;
+    bytes32[] salts;
+    bytes[] initDatas; // encoded Stablecoin.initialize() calls using metadatas
 
     struct TokenMetadata {
         string name;
@@ -67,8 +62,10 @@ contract TestnetDeployTokens is Script {
         baseERC20_ = address(wTEL);
         maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
 
-        numClones = 11;
+        numStables = 11;
         decimals_ = 6;
+
+        // populate metadatas
         metadatas.push(TokenMetadata("Telcoin AUD", "eAUD"));
         metadatas.push(TokenMetadata("Telcoin CAD", "eCAD"));
         metadatas.push(TokenMetadata("Telcoin CHF", "eCHF"));
@@ -81,14 +78,14 @@ contract TestnetDeployTokens is Script {
         metadatas.push(TokenMetadata("Telcoin SDR", "eSDR"));
         metadatas.push(TokenMetadata("Telcoin SGD", "eSGD"));
 
-        // populate salts, fetch metadatas and push abi-encoded initialization bytes to storage
-        for (uint256 i; i < numClones; ++i) {
+        // populate deployDatas
+        for (uint256 i; i < numStables; ++i) {
             TokenMetadata storage metadata = metadatas[i];
             bytes32 salt = bytes32(bytes(metadata.symbol));
-            salts_.push(salt);
-
-            // bytes memory initCall = abi.encodeWithSelector(ClonableBeaconProxy.initialize.selector, address());
-            initDatas_.push('');
+            salts.push(salt);
+            
+            bytes memory initCall = abi.encodeWithSelector(Stablecoin.initialize.selector, metadata.name, metadata.symbol, decimals_);
+            initDatas.push(initCall);
         }
     }
 
@@ -96,38 +93,42 @@ contract TestnetDeployTokens is Script {
         wTEL = new WTEL();
         rwTEL = new RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean);
 
-        // deploy beacon impl and proxy
+        // deploy stablecoin impl and proxies
         stablecoinImpl = new Stablecoin();
-        stablecoinBeacon =  new UpgradeableBeacon(address(stablecoinImpl), admin);
+        address[] memory deployedTokens = new address[](numStables);
+        for (uint256 i; i < numStables; ++i) {
+            address stablecoin = address(new ERC1967Proxy(address(stablecoinImpl), initDatas[i]));
+            
+            // grant deployer minter, burner & support roles
+            bytes32 minterRole = Stablecoin(stablecoin).MINTER_ROLE();
+            bytes32 burnerRole = Stablecoin(stablecoin).BURNER_ROLE();
+            bytes32 supportRole = Stablecoin(stablecoin).SUPPORT_ROLE();
+            Stablecoin(stablecoin).grantRole(minterRole, admin);
+            Stablecoin(stablecoin).grantRole(burnerRole, admin);
+            Stablecoin(stablecoin).grantRole(supportRole, admin);
 
-        // beaconProxy = new ClonableBeaconProxy();
-        // beaconProxy.initialize(address(stablecoinImpl), '');
+            // push to array for asserts
+            deployedTokens[i] = stablecoin;
+        }
 
-        // deploy beacon factory
-        proxyFactory = new ProxyFactory();
-        proxyFactory.initialize(admin, address(stablecoinImpl), address(beaconProxy));
+        // asserts
+        for (uint256 i; i < numStables; ++i) {
+            TokenMetadata memory tokenMetadata = metadatas[i];
 
-        // todo
-        // amirXImpl = new AmirX();
-        // amirX = new proxy
+            Stablecoin token = Stablecoin(deployedTokens[i]);
+            assert(keccak256(bytes(token.name())) == keccak256(bytes(tokenMetadata.name)));
+            assert(keccak256(bytes(token.symbol())) == keccak256(bytes(tokenMetadata.symbol)));
+            assert(token.decimals() == decimals_);
+        }
 
         // logs
         string memory root = vm.projectRoot();
-        string memory dest = string.concat(root, "/log/deployment.json");
-        vm.writeFile(dest, string.concat("wTEL: ", LibString.toHexString(uint256(uint160(address(wTEL))), 20)));
-        vm.writeFile(dest, string.concat("rwTEL: ", LibString.toHexString(uint256(uint160(address(rwTEL))), 20)));
-        vm.writeFile(dest, string.concat("ProxyFactory: ", LibString.toHexString(uint256(uint160(address(proxyFactory))), 20)));
-        vm.writeFile(dest, string.concat("StablecoinImpl: ", LibString.toHexString(uint256(uint160(address(stablecoinImpl))), 20)));
-        vm.writeFile(dest, string.concat("eAUD: ", LibString.toHexString(uint256(uint160(address(eAUD))), 20)));
-        vm.writeFile(dest, string.concat("eCAD: ", LibString.toHexString(uint256(uint160(address(eCAD))), 20)));
-        vm.writeFile(dest, string.concat("eCHF: ", LibString.toHexString(uint256(uint160(address(eCHF))), 20)));
-        vm.writeFile(dest, string.concat("eEUR: ", LibString.toHexString(uint256(uint160(address(eEUR))), 20)));
-        vm.writeFile(dest, string.concat("eGBP: ", LibString.toHexString(uint256(uint160(address(eGBP))), 20)));
-        vm.writeFile(dest, string.concat("eHKD: ", LibString.toHexString(uint256(uint160(address(eHKD))), 20)));
-        vm.writeFile(dest, string.concat("eMXN: ", LibString.toHexString(uint256(uint160(address(eMXN))), 20)));
-        vm.writeFile(dest, string.concat("eNOK: ", LibString.toHexString(uint256(uint160(address(eNOK))), 20)));
-        vm.writeFile(dest, string.concat("eJPY: ", LibString.toHexString(uint256(uint160(address(eJPY))), 20)));
-        vm.writeFile(dest, string.concat("eSDR: ", LibString.toHexString(uint256(uint160(address(eSDR))), 20)));
-        vm.writeFile(dest, string.concat("eSGD: ", LibString.toHexString(uint256(uint160(address(eSGD))), 20)));
+        string memory dest = string.concat(root, "/log/deployments.json");
+        vm.writeLine(dest, string.concat("wTEL: ", LibString.toHexString(uint256(uint160(address(wTEL))), 20)));
+        vm.writeLine(dest, string.concat("rwTEL: ", LibString.toHexString(uint256(uint160(address(rwTEL))), 20)));
+        vm.writeLine(dest, string.concat("StablecoinImpl: ", LibString.toHexString(uint256(uint160(address(stablecoinImpl))), 20)));
+        for (uint256 i; i < numStables; ++i) {
+            vm.writeLine(dest, string.concat(Stablecoin(deployedTokens[i]).symbol(), ": ", LibString.toHexString(uint256(uint160(deployedTokens[i])), 20)));
+        }
     }
 }
