@@ -13,9 +13,11 @@
   test = "test"
   libs = ["node_modules"]
   fs_permissions = [
-    { access = "write", path = "./log/deployments.json"}
-]
-
+    { access = "write", path = "./log/deployments.json"},
+    { access = "read", path = "./deployments/deployments.json"},
+    { access = "read", path = "./script/uniswap/precompiles"}
+  ]
+  
 [profile.ci]
   fuzz = { runs = 10_000 }
   verbosity = 4

@@ -9,6 +9,9 @@ import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/Recoverabl
 import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
 import { WTEL } from "../src/WTEL.sol";
 
+/// @dev To deploy the Arachnid deterministic deployment proxy:
+/// `cast send 0x3fab184622dc19b6109349b94811493bf2a45362 --value 0.01ether --rpc-url $TN_RPC_URL --private-key $ADMIN_PK`
+/// `cast publish --rpc-url $TN_RPC_URL 0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222`
 contract TestnetDeployTokens is Script {
     WTEL wTEL;
     RecoverableWrapper rwTEL;
@@ -26,6 +29,8 @@ contract TestnetDeployTokens is Script {
     Stablecoin eSDR; // 0x5c32c13671e1805c851f6d4c7d76fd0bdfbfbe54
     Stablecoin eSGD; // 0xb7be13b047e1151649191593c8f7719bb0563609
 
+    bytes32 wTELsalt;
+
     // rwTEL constructor params
     string name_;
     string symbol_;
@@ -33,6 +38,7 @@ contract TestnetDeployTokens is Script {
     address governanceAddress_;
     address baseERC20_;
     uint16 maxToClean;
+    bytes32 rwTELsalt;
 
     //  admin, support, minter, burner role
     address admin;
@@ -40,8 +46,10 @@ contract TestnetDeployTokens is Script {
     // shared Stablecoin creation params
     uint256 numStables;
     uint8 decimals_;
-    uint256 maxLimit;
-    uint256 minLimit;
+    bytes32 stablecoinSalt;
+    bytes32 minterRole;
+    bytes32 burnerRole;
+    bytes32 supportRole;
 
     // specific Stablecoin creation params
     TokenMetadata[] metadatas;
@@ -56,6 +64,8 @@ contract TestnetDeployTokens is Script {
     function setUp() public {
         admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
 
+        wTELsalt = bytes32(bytes("wTEL"));
+        rwTELsalt = bytes32(bytes("rwTEL"));
         name_ = "Recoverable Wrapped Telcoin";
         symbol_ = "rwTEL";
         recoverableWindow_ = 86_400; // ~1 day; Telcoin Network blocktime is ~1s
@@ -92,19 +102,27 @@ contract TestnetDeployTokens is Script {
     }
 
     function run() public {
-        wTEL = new WTEL();
-        rwTEL = new RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean);
+        vm.startBroadcast();
+
+        wTEL = new WTEL{salt: wTELsalt}();
+        rwTEL = new RecoverableWrapper{salt: rwTELsalt}(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean);
 
         // deploy stablecoin impl and proxies
-        stablecoinImpl = new Stablecoin();
+        stablecoinSalt = bytes32(bytes("Stablecoin"));
+        stablecoinImpl = new Stablecoin{salt: stablecoinSalt}();
         address[] memory deployedTokens = new address[](numStables);
         for (uint256 i; i < numStables; ++i) {
-            address stablecoin = address(new ERC1967Proxy(address(stablecoinImpl), initDatas[i]));
+            bytes32 currentSalt = bytes32(bytes(metadatas[i].symbol));
+            console2.logBytes32(currentSalt);
+            // leave ERC1967 initdata empty to properly set default admin role
+            address stablecoin = address(new ERC1967Proxy{salt: currentSalt}(address(stablecoinImpl), ''));
+            (bool r, ) = stablecoin.call(initDatas[i]); // initialize manually from admin address since adminRole => msg.sender
+            require(r);
 
             // grant deployer minter, burner & support roles
-            bytes32 minterRole = Stablecoin(stablecoin).MINTER_ROLE();
-            bytes32 burnerRole = Stablecoin(stablecoin).BURNER_ROLE();
-            bytes32 supportRole = Stablecoin(stablecoin).SUPPORT_ROLE();
+            minterRole = Stablecoin(stablecoin).MINTER_ROLE();
+            burnerRole = Stablecoin(stablecoin).BURNER_ROLE();
+            supportRole = Stablecoin(stablecoin).SUPPORT_ROLE();
             Stablecoin(stablecoin).grantRole(minterRole, admin);
             Stablecoin(stablecoin).grantRole(burnerRole, admin);
             Stablecoin(stablecoin).grantRole(supportRole, admin);
@@ -112,6 +130,8 @@ contract TestnetDeployTokens is Script {
             // push to array for asserts
             deployedTokens[i] = stablecoin;
         }
+
+        vm.stopBroadcast();
 
         // asserts
         for (uint256 i; i < numStables; ++i) {
@@ -121,6 +141,10 @@ contract TestnetDeployTokens is Script {
             assert(keccak256(bytes(token.name())) == keccak256(bytes(tokenMetadata.name)));
             assert(keccak256(bytes(token.symbol())) == keccak256(bytes(tokenMetadata.symbol)));
             assert(token.decimals() == decimals_);
+            assert(token.hasRole(token.DEFAULT_ADMIN_ROLE(), admin));
+            assert(token.hasRole(minterRole, admin));
+            assert(token.hasRole(burnerRole, admin));
+            assert(token.hasRole(supportRole, admin));
         }
 
         // logs
