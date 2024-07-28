@@ -35,7 +35,7 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         bytes memory data = vm.parseJson(json);
         deployments = abi.decode(data, (Deployments));
 
-        wTEL = deployments.wTEL; 
+        wTEL = deployments.wTEL;
         admin = deployments.admin;
         feeToSetter_ = admin;
         factorySalt = bytes32(bytes("UniswapV2Factory"));
@@ -106,38 +106,16 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         vm.writeJson(
             LibString.toHexString(uint256(uint160(address(uniswapV2Router02))), 20), dest, ".UniswapV2Router02"
         );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[0]))), 20), dest, ".eAUD_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[1]))), 20), dest, ".eCAD_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[2]))), 20), dest, ".eCHF_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[3]))), 20), dest, ".eEUR_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[4]))), 20), dest, ".eGBP_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[5]))), 20), dest, ".eHKD_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[6]))), 20), dest, ".eMXN_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[7]))), 20), dest, ".eNOK_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[8]))), 20), dest, ".eJPY_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[9]))), 20), dest, ".eSDR_wTEL_Pool"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[10]))), 20), dest, ".eSGD_wTEL_Pool"
-        );
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[0]))), 20), dest, ".eAUD_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[1]))), 20), dest, ".eCAD_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[2]))), 20), dest, ".eCHF_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[3]))), 20), dest, ".eEUR_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[4]))), 20), dest, ".eGBP_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[5]))), 20), dest, ".eHKD_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[6]))), 20), dest, ".eMXN_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[7]))), 20), dest, ".eNOK_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[8]))), 20), dest, ".eJPY_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[9]))), 20), dest, ".eSDR_wTEL_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[10]))), 20), dest, ".eSGD_wTEL_Pool");
     }
 }
