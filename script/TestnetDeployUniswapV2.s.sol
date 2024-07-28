@@ -14,28 +14,20 @@ import { WTEL } from "../src/WTEL.sol";
 import { Deployments } from "../deployments/Deployments.sol";
 
 contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Router02Bytecode {
+    
+    // deploys the following:
+    IUniswapV2Factory uniswapV2Factory;
+    IUniswapV2Router02 uniswapV2Router02;
+    IUniswapV2Pair[] pairs; // 11 wTEL - stable pools
+
+    // config
+    Deployments deployments;
     address wTEL;
     address feeToSetter_;
     address admin;
     bytes32 factorySalt;
     bytes32 routerSalt;
-
-    IUniswapV2Factory uniswapV2Factory;
-    IUniswapV2Router02 uniswapV2Router02;
-    // todo convert to array
-    IUniswapV2Pair wTELeAUD;
-    IUniswapV2Pair wTELeCAD;
-    IUniswapV2Pair wTELeCHF;
-    IUniswapV2Pair wTELeEUR;
-    IUniswapV2Pair wTELeGBP;
-    IUniswapV2Pair wTELeHKD;
-    IUniswapV2Pair wTELeJPY;
-    IUniswapV2Pair wTELeMXN;
-    IUniswapV2Pair wTELeNOK;
-    IUniswapV2Pair wTELeSDR;
-    IUniswapV2Pair wTELeSGD;
-
-    Deployments deployments;
+    address[] stables;
 
     function setUp() public {
         string memory root = vm.projectRoot();
@@ -47,9 +39,20 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         wTEL = deployments.wTEL; // 0x5c78ebbcfdc8Fd432C6D7581F6F8E6B82079f24a;
         admin = deployments.admin; // 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
         feeToSetter_ = admin;
-
         factorySalt = bytes32(bytes("UniswapV2Factory"));
         routerSalt = bytes32(bytes("UniswapV2Router02"));
+
+        stables.push(deployments.eAUD);
+        stables.push(deployments.eCAD);
+        stables.push(deployments.eCHF);
+        stables.push(deployments.eEUR);
+        stables.push(deployments.eGBP);
+        stables.push(deployments.eHKD);
+        stables.push(deployments.eJPY);
+        stables.push(deployments.eMXN);
+        stables.push(deployments.eNOK);
+        stables.push(deployments.eSDR);
+        stables.push(deployments.eSGD);
     }
 
     function run() public {
@@ -58,21 +61,18 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         uniswapV2Factory = IUniswapV2Factory(CREATE3.deployDeterministic(factoryInitcode, factorySalt));
 
         // deploy v2 periphery contracts
-        bytes memory router02Initcode = bytes.concat(UNISWAPV2ROUTER02_BYTECODE, bytes32(uint256(uint160(address(uniswapV2Factory)))), bytes32(uint256(uint160(wTEL))));
+        bytes memory router02Initcode = bytes.concat(
+            UNISWAPV2ROUTER02_BYTECODE,
+            bytes32(uint256(uint160(address(uniswapV2Factory)))),
+            bytes32(uint256(uint160(wTEL)))
+        );
         uniswapV2Router02 = IUniswapV2Router02(CREATE3.deployDeterministic(router02Initcode, routerSalt));
 
-        // configure pairs
-        wTELeAUD = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eAUD));
-        wTELeCAD = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eCAD));
-        wTELeCHF = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eCHF));
-        wTELeEUR = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eEUR));
-        wTELeGBP = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eGBP));
-        wTELeHKD = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eHKD));
-        wTELeJPY = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eJPY));
-        wTELeMXN = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eMXN));
-        wTELeNOK = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eNOK));
-        wTELeSDR = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eSDR));
-        wTELeSGD = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eSGD));
+        // deploy v2 pools and record pair
+        for (uint256 i; i < stables.length; ++i) {
+            IUniswapV2Pair currentPair = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, stables[i]));
+            pairs.push(currentPair);
+        }
 
         // asserts
         assert(address(uniswapV2Factory).code.length != 0);
@@ -81,30 +81,23 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         assert(uniswapV2Router02.factory() == address(uniswapV2Factory));
         assert(uniswapV2Router02.WETH() == wTEL);
 
-        assert(wTELeAUD.factory() == address(uniswapV2Factory));
-        assert(wTELeAUD.token0() == deployments.eAUD);
-        assert(wTELeAUD.token1() == wTEL);
-        assert(wTELeCAD.factory() == address(uniswapV2Factory));
-        assert(wTELeCAD.token0() == deployments.eCAD);
-        assert(wTELeCAD.token1() == wTEL);
-        assert(wTELeCHF.factory() == address(uniswapV2Factory));
-        assert(wTELeCHF.token0() == wTEL);
-        assert(wTELeCHF.token1() == deployments.eCHF);
-        //etc (convert to array)
+        for (uint256 i; i < pairs.length; ++i) {
+            IUniswapV2Pair currentPair = pairs[i];
+            bool correctFactory = currentPair.factory() == address(uniswapV2Factory);
+            assert(correctFactory);
+
+            address token0 = currentPair.token0();
+            address token1 = currentPair.token1();
+            bool correctToken0 = token0 == stables[i] || token0 == wTEL;
+            bool correctToken1 = token1 == stables[i] || token1 == wTEL;
+            assert(correctToken0);
+            assert(correctToken1);
+        }
 
         // logs
         string memory root = vm.projectRoot();
-        string memory dest = string.concat(root, "/log/deployments.json");
-        // todo: convert to writeJson
-        vm.writeLine(
-            dest,
-            string.concat("UniswapV2Factory: ", LibString.toHexString(uint256(uint160(address(uniswapV2Factory))), 20))
-        );
-        vm.writeLine(
-            dest,
-            string.concat(
-                "UniswapV2Router02: ", LibString.toHexString(uint256(uint160(address(uniswapV2Router02))), 20)
-            )
-        );
+        string memory dest = string.concat(root, "/deployments/deployments.json");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(uniswapV2Factory))), 20), dest, ".UniswapV2Factory");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(uniswapV2Router02))), 20), dest, ".UniswapV2Router02");
     }
 }
