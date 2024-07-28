@@ -14,6 +14,17 @@
   "eJPY": "0x989251ff79b744736a91c617dde3d3b5da2c09ef",
   "eSDR": "0x356ccc8a7cbe1eadf0282e6c23278b0e67fb3f91",
   "eSGD": "0x5404f8b4f4625cff045a3076bc28c250a71e4507",
-  "UniswapV2Factory": "0x274e19cf1ea9af84c682d0cd6d76ab9dcedc1791",
-  "UniswapV2Router02": "0x2e71a0dbf439e37f72f7a3d3cfc45a53ea3daccd"
+  "UniswapV2Factory": "0x0920e998552f2c41fc22e6a84998bbe843be9508",
+  "UniswapV2Router02": "0xcf1d0042a7417317af6f99e8bb2a16a494738207",
+  "eAUD_wTEL_Pool": "0x193f33a744b56fc9f165d36a9f0fa199365a87bd",
+  "eCAD_wTEL_Pool": "0x6d2f7a56e41df83c1367749d654ddd73d9761a51",
+  "eCHF_wTEL_Pool": "0x2aa5b9c4a6e6ab67c6f43473d4818aef408cb1d0",
+  "eEUR_wTEL_Pool": "0x86bb26e4749f1c347bb4c41abc41b479fb3cacc1",
+  "eGBP_wTEL_Pool": "0xe3f675662567188b2baa10b3f952b88a454218a4",
+  "eHKD_wTEL_Pool": "0xb2403065c2a4358fa901162790e80c7cf991b14a",
+  "eMXN_wTEL_Pool": "0xe680678be11ef709e1d35b196e387c14d1ea2e15",
+  "eNOK_wTEL_Pool": "0x20edc2d76806031d85e2833c395cffc95dfb3834",
+  "eJPY_wTEL_Pool": "0xccdf785610836b7585044c5955cb527140deabaa",
+  "eSDR_wTEL_Pool": "0x8600cfcf977d8e6ca7108d545acdd6f1da51d78b",
+  "eSGD_wTEL_Pool": "0xf8b801fa77e1c5cf5f61265779549bfcf48aa2a0"
 }
