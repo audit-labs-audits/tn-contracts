@@ -155,6 +155,7 @@ contract TestnetDeployTokens is Script {
         // logs
         string memory root = vm.projectRoot();
         string memory dest = string.concat(root, "/log/deployments.json");
+        // todo: convert to writeJson
         vm.writeLine(dest, string.concat("wTEL: ", LibString.toHexString(uint256(uint160(address(wTEL))), 20)));
         vm.writeLine(dest, string.concat("rwTEL: ", LibString.toHexString(uint256(uint160(address(rwTEL))), 20)));
         vm.writeLine(

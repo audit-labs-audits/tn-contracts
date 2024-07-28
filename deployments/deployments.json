@@ -1,4 +1,5 @@
 {
+  "admin": "0xc1612C97537c2CC62a11FC4516367AB6F62d4B23",
   "wTEL": "0x5c78ebbcfdc8fd432c6d7581f6f8e6b82079f24a",
   "rwTEL": "0x06e25e21a0d752424e36589f42a5c9e3b77586c1",
   "StablecoinImpl": "0xd3930b15461fcecff57a4c9bd65abf6fa2a44307",
@@ -12,5 +13,7 @@
   "eNOK": "0xc8156af812714b8cedb540adec69fc104d99930b",
   "eJPY": "0x989251ff79b744736a91c617dde3d3b5da2c09ef",
   "eSDR": "0x356ccc8a7cbe1eadf0282e6c23278b0e67fb3f91",
-  "eSGD": "0x5404f8b4f4625cff045a3076bc28c250a71e4507"
+  "eSGD": "0x5404f8b4f4625cff045a3076bc28c250a71e4507",
+  "UniswapV2Factory": "0x274e19cf1ea9af84c682d0cd6d76ab9dcedc1791",
+  "UniswapV2Router02": "0x2e71a0dbf439e37f72f7a3d3cfc45a53ea3daccd"
 }
