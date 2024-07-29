@@ -10,28 +10,28 @@ import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.so
 import { WTEL } from "../src/WTEL.sol";
 import { Deployments } from "../deployments/Deployments.sol";
 
-/// @dev To deploy the Arachnid deterministic deployment proxy:
+/// @notice To deploy the Arachnid deterministic deployment proxy:
 /// `cast send 0x3fab184622dc19b6109349b94811493bf2a45362 --value 0.01ether --rpc-url $TN_RPC_URL --private-key
 /// $ADMIN_PK`
 /// `cast publish --rpc-url $TN_RPC_URL
 /// 0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222`
+/// @dev Usage: `forge script script/TestnetDeployTokens.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 contract TestnetDeployTokens is Script {
-    
     WTEL wTEL;
     RecoverableWrapper rwTEL;
 
     Stablecoin stablecoinImpl;
     Stablecoin eAUD;
     Stablecoin eCAD;
-    Stablecoin eCHF; 
-    Stablecoin eEUR; 
+    Stablecoin eCHF;
+    Stablecoin eEUR;
     Stablecoin eGBP;
-    Stablecoin eHKD; 
-    Stablecoin eMXN; 
-    Stablecoin eNOK; 
-    Stablecoin eJPY; 
-    Stablecoin eSDR; 
-    Stablecoin eSGD; 
+    Stablecoin eHKD;
+    Stablecoin eMXN;
+    Stablecoin eNOK;
+    Stablecoin eJPY;
+    Stablecoin eSDR;
+    Stablecoin eSGD;
 
     Deployments deployments;
     address admin; // admin, support, minter, burner role
@@ -71,7 +71,7 @@ contract TestnetDeployTokens is Script {
         string memory json = vm.readFile(path);
         bytes memory data = vm.parseJson(json);
         deployments = abi.decode(data, (Deployments));
-        
+
         admin = deployments.admin;
         wTELsalt = bytes32(bytes("wTEL"));
         rwTELsalt = bytes32(bytes("rwTEL"));
@@ -165,13 +165,12 @@ contract TestnetDeployTokens is Script {
         // logs
         string memory root = vm.projectRoot();
         string memory dest = string.concat(root, "/deployments/deployments.json");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(wTEL))), 20), dest,  ".wTEL");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(wTEL))), 20), dest, ".wTEL");
         vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTEL))), 20), dest, ".rwTEL");
         vm.writeJson(LibString.toHexString(uint256(uint160(address(stablecoinImpl))), 20), dest, ".StablecoinImpl");
         for (uint256 i; i < numStables; ++i) {
             string memory jsonKey = string.concat(".", Stablecoin(deployedTokens[i]).symbol());
             vm.writeJson(LibString.toHexString(uint256(uint160(deployedTokens[i])), 20), dest, jsonKey);
         }
-    } 
-} 
- 
+    }
+}
