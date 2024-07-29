@@ -8,6 +8,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
 import { WTEL } from "../src/WTEL.sol";
+import { Deployments } from "../deployments/Deployments.sol";
 
 /// @dev To deploy the Arachnid deterministic deployment proxy:
 /// `cast send 0x3fab184622dc19b6109349b94811493bf2a45362 --value 0.01ether --rpc-url $TN_RPC_URL --private-key
@@ -15,21 +16,25 @@ import { WTEL } from "../src/WTEL.sol";
 /// `cast publish --rpc-url $TN_RPC_URL
 /// 0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222`
 contract TestnetDeployTokens is Script {
+    
     WTEL wTEL;
     RecoverableWrapper rwTEL;
 
     Stablecoin stablecoinImpl;
-    Stablecoin eAUD; // 0x4392743b97c46c6aa186a7f3d0468fbf177ee70f
-    Stablecoin eCAD; // 0xee7ca49702ce61d0a43214b45cf287efa046673a
-    Stablecoin eCHF; // 0xabf991e50894174a492dce57e39c70a6344cc9a8
-    Stablecoin eEUR; // 0x0739349c341319c193aebbd250819fbffd31f0bc
-    Stablecoin eGBP; // 0xa5e5527d947a867ef3d22473c66ce335481545fb
-    Stablecoin eHKD; // 0xfc42b8fa513dd03a13afac0908db61c7d50e9b40
-    Stablecoin eMXN; // 0x89b3d9b5024f889cbca4cfc5fa262f198b967349
-    Stablecoin eNOK; // 0x522d147139d249773e3e49b9b78e0c0c8a3d2ada
-    Stablecoin eJPY; // 0xd38850877acd1180efb17e374bd00da2fdf024d2
-    Stablecoin eSDR; // 0x5c32c13671e1805c851f6d4c7d76fd0bdfbfbe54
-    Stablecoin eSGD; // 0xb7be13b047e1151649191593c8f7719bb0563609
+    Stablecoin eAUD;
+    Stablecoin eCAD;
+    Stablecoin eCHF; 
+    Stablecoin eEUR; 
+    Stablecoin eGBP;
+    Stablecoin eHKD; 
+    Stablecoin eMXN; 
+    Stablecoin eNOK; 
+    Stablecoin eJPY; 
+    Stablecoin eSDR; 
+    Stablecoin eSGD; 
+
+    Deployments deployments;
+    address admin; // admin, support, minter, burner role
 
     bytes32 wTELsalt;
 
@@ -41,9 +46,6 @@ contract TestnetDeployTokens is Script {
     address baseERC20_;
     uint16 maxToClean;
     bytes32 rwTELsalt;
-
-    //  admin, support, minter, burner role
-    address admin;
 
     // shared Stablecoin creation params
     uint256 numStables;
@@ -64,15 +66,19 @@ contract TestnetDeployTokens is Script {
     }
 
     function setUp() public {
-        admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
-
+        string memory root = vm.projectRoot();
+        string memory path = string.concat(root, "/deployments/deployments.json");
+        string memory json = vm.readFile(path);
+        bytes memory data = vm.parseJson(json);
+        deployments = abi.decode(data, (Deployments));
+        
+        admin = deployments.admin;
         wTELsalt = bytes32(bytes("wTEL"));
         rwTELsalt = bytes32(bytes("rwTEL"));
         name_ = "Recoverable Wrapped Telcoin";
         symbol_ = "rwTEL";
         recoverableWindow_ = 86_400; // ~1 day; Telcoin Network blocktime is ~1s
         governanceAddress_ = admin; // multisig/council/DAO address in prod
-        baseERC20_ = address(wTEL);
         maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
 
         numStables = 11;
@@ -107,6 +113,8 @@ contract TestnetDeployTokens is Script {
         vm.startBroadcast();
 
         wTEL = new WTEL{ salt: wTELsalt }();
+        baseERC20_ = address(wTEL);
+
         rwTEL = new RecoverableWrapper{ salt: rwTELsalt }(
             name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
         );
@@ -117,12 +125,11 @@ contract TestnetDeployTokens is Script {
         address[] memory deployedTokens = new address[](numStables);
         for (uint256 i; i < numStables; ++i) {
             bytes32 currentSalt = bytes32(bytes(metadatas[i].symbol));
-            console2.logBytes32(currentSalt);
             // leave ERC1967 initdata empty to properly set default admin role
             address stablecoin = address(new ERC1967Proxy{ salt: currentSalt }(address(stablecoinImpl), ""));
-            (bool r,) = stablecoin.call(initDatas[i]); // initialize manually from admin address since adminRole =>
-                // msg.sender
-            require(r);
+            // initialize manually from admin address since adminRole => msg.sender
+            (bool r,) = stablecoin.call(initDatas[i]);
+            require(r, "Initialization failed");
 
             // grant deployer minter, burner & support roles
             minterRole = Stablecoin(stablecoin).MINTER_ROLE();
@@ -139,6 +146,9 @@ contract TestnetDeployTokens is Script {
         vm.stopBroadcast();
 
         // asserts
+        assert(rwTEL.baseToken() == address(wTEL));
+        assert(rwTEL.governanceAddress() == admin);
+
         for (uint256 i; i < numStables; ++i) {
             TokenMetadata memory tokenMetadata = metadatas[i];
 
@@ -154,23 +164,14 @@ contract TestnetDeployTokens is Script {
 
         // logs
         string memory root = vm.projectRoot();
-        string memory dest = string.concat(root, "/log/deployments.json");
-        // todo: convert to writeJson
-        vm.writeLine(dest, string.concat("wTEL: ", LibString.toHexString(uint256(uint160(address(wTEL))), 20)));
-        vm.writeLine(dest, string.concat("rwTEL: ", LibString.toHexString(uint256(uint160(address(rwTEL))), 20)));
-        vm.writeLine(
-            dest,
-            string.concat("StablecoinImpl: ", LibString.toHexString(uint256(uint160(address(stablecoinImpl))), 20))
-        );
+        string memory dest = string.concat(root, "/deployments/deployments.json");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(wTEL))), 20), dest,  ".wTEL");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTEL))), 20), dest, ".rwTEL");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(stablecoinImpl))), 20), dest, ".StablecoinImpl");
         for (uint256 i; i < numStables; ++i) {
-            vm.writeLine(
-                dest,
-                string.concat(
-                    Stablecoin(deployedTokens[i]).symbol(),
-                    ": ",
-                    LibString.toHexString(uint256(uint160(deployedTokens[i])), 20)
-                )
-            );
+            string memory jsonKey = string.concat(".", Stablecoin(deployedTokens[i]).symbol());
+            vm.writeJson(LibString.toHexString(uint256(uint160(deployedTokens[i])), 20), dest, jsonKey);
         }
-    }
-}
+    } 
+} 
+ 
