@@ -5,11 +5,11 @@ import { Test, console2 } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { CREATE3 } from "solady/utils/CREATE3.sol";
-import { IUniswapV2Factory } from "script/uniswap/interfaces/IUniswapV2Factory.sol";
-import { IUniswapV2Router02 } from "script/uniswap/interfaces/IUniswapV2Router02.sol";
-import { IUniswapV2Pair } from "script/uniswap/interfaces/IUniswapV2Pair.sol";
-import { UniswapV2FactoryBytecode } from "script/uniswap/precompiles/UniswapV2FactoryBytecode.sol";
-import { UniswapV2Router02Bytecode } from "script/uniswap/precompiles/UniswapV2Router02Bytecode.sol";
+import { IUniswapV2Factory } from "external/uniswap/interfaces/IUniswapV2Factory.sol";
+import { IUniswapV2Router02 } from "external/uniswap/interfaces/IUniswapV2Router02.sol";
+import { IUniswapV2Pair } from "external/uniswap/interfaces/IUniswapV2Pair.sol";
+import { UniswapV2FactoryBytecode } from "external/uniswap/precompiles/UniswapV2FactoryBytecode.sol";
+import { UniswapV2Router02Bytecode } from "external/uniswap/precompiles/UniswapV2Router02Bytecode.sol";
 import { WTEL } from "../src/WTEL.sol";
 import { Deployments } from "../deployments/Deployments.sol";
 

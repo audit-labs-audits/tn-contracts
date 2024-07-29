@@ -15,7 +15,7 @@
   fs_permissions = [
     { access = "write", path = "./log/deployments.json"},
     { access = "read-write", path = "./deployments/deployments.json"},
-    { access = "read", path = "./script/uniswap/precompiles"}
+    { access = "read", path = "./external/uniswap/precompiles"}
   ]
   
 [profile.ci]
