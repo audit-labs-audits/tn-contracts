@@ -49,7 +49,7 @@ contract TestnetFundDexGuru is Script {
         vm.startBroadcast(); // must be called by minter role
 
         // wrap $TEL and send $wTEL
-        wTEL.deposit{value: wTelAmount}();
+        wTEL.deposit{ value: wTelAmount }();
         wTEL.transfer(dexGuru, wTelAmount);
 
         // mint and transfer stables
@@ -57,7 +57,7 @@ contract TestnetFundDexGuru is Script {
             stables[i].mint(stablecoinAmount);
             stables[i].transfer(dexGuru, stablecoinAmount);
         }
-        
+
         vm.stopBroadcast();
     }
 }
