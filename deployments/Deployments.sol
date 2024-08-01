@@ -5,6 +5,7 @@ pragma solidity 0.8.26;
 /// therefore upper-case struct member names must come **BEFORE** lower-case ones!
 struct Deployments {
     address StablecoinImpl;
+    address StablecoinManager;
     address UniswapV2Factory;
     address UniswapV2Router02;
     address admin;
