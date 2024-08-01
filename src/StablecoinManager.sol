@@ -13,7 +13,6 @@ import { IStablecoin } from "external/telcoin-contracts/interfaces/IStablecoin.s
  *
  * @notice This contract extends the StablecoinHandler which manages the minting and burning of stablecoins
  */
- 
 contract StablecoinManager is StablecoinHandler {
     using SafeERC20 for IERC20;
 
@@ -36,18 +35,26 @@ contract StablecoinManager is StablecoinHandler {
         address[] _enabledXYZs;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.StablecoinHandler")) - 1)) 
+    // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.StablecoinHandler")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant StablecoinHandlerStorageSlot =
         0x38361881985b0f585e6124dca158a3af102bffba0feb9c42b0b40825f41a3300;
-    
+
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.StablecoinManager")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant StablecoinManagerStorageSlot =
         0x77dc539bf9c224afa178d31bf07d5109c2b5c5e56656e49b25e507fec3a69f00;
 
     /// @dev Invokes `__Pausable_init()`
-    function initialize(address admin_, address maintainer_, address[] calldata tokens_, eXYZ[] calldata eXYZs_) public initializer {
+    function initialize(
+        address admin_,
+        address maintainer_,
+        address[] calldata tokens_,
+        eXYZ[] calldata eXYZs_
+    )
+        public
+        initializer
+    {
         if (tokens_.length != eXYZs_.length) revert TokenArityMismatch();
 
         __StablecoinHandler_init();
@@ -62,7 +69,17 @@ contract StablecoinManager is StablecoinHandler {
         _grantRole(MAINTAINER_ROLE, maintainer_);
     }
 
-    function UpdateXYZ(address token, bool validity, uint256 maxLimit, uint256 minLimit) public virtual override onlyRole(MAINTAINER_ROLE) {
+    function UpdateXYZ(
+        address token,
+        bool validity,
+        uint256 maxLimit,
+        uint256 minLimit
+    )
+        public
+        virtual
+        override
+        onlyRole(MAINTAINER_ROLE)
+    {
         super.UpdateXYZ(token, validity, maxLimit, minLimit);
 
         _recordXYZ(token, validity);
@@ -117,7 +134,6 @@ contract StablecoinManager is StablecoinHandler {
      *   internals
      *
      */
-
     function _recordXYZ(address token, bool validity) internal virtual {
         if (validity == true) {
             _addEnabledXYZ(token);
@@ -146,7 +162,7 @@ contract StablecoinManager is StablecoinHandler {
 
         // in the case no match was found, revert with info detailing invalid state
         if (matchingIndex == type(uint256).max) revert InvalidXYZ(token);
-       
+
         // if match is not the final array member, write final array member into the matching index
         uint256 lastIndex = enabledXYZs.length - 1;
         if (matchingIndex != lastIndex) {

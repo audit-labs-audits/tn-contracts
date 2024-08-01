@@ -12,7 +12,6 @@ import { Deployments } from "../deployments/Deployments.sol";
 
 /// @dev Usage: `forge script script/TestnetDeployTokens.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 contract TestnetDeployStablecoinManager is Script {
-
     StablecoinManager stablecoinManagerImpl;
     StablecoinManager stablecoinManager;
 
@@ -37,7 +36,7 @@ contract TestnetDeployStablecoinManager is Script {
         stablecoinManagerSalt = bytes32(bytes("StablecoinManager"));
         maxLimit = type(uint256).max;
         minLimit = 1000;
-        
+
         // populate stables array
         stables.push(deployments.eAUD);
         stables.push(deployments.eCAD);
@@ -59,13 +58,16 @@ contract TestnetDeployStablecoinManager is Script {
 
     function run() public {
         vm.startBroadcast();
-        
+
         // deploy implementaiton
-        stablecoinManagerImpl = new StablecoinManager{salt: stablecoinManagerSalt}();
+        stablecoinManagerImpl = new StablecoinManager{ salt: stablecoinManagerSalt }();
 
         // deploy proxy with init data
-        bytes memory initData = abi.encodeWithSelector(StablecoinManager.initialize.selector, admin, admin, stables, eXYZs);
-        stablecoinManager = StablecoinManager(address(new ERC1967Proxy{salt: stablecoinManagerSalt}(address(stablecoinManagerImpl), initData)));
+        bytes memory initData =
+            abi.encodeWithSelector(StablecoinManager.initialize.selector, admin, admin, stables, eXYZs);
+        stablecoinManager = StablecoinManager(
+            address(new ERC1967Proxy{ salt: stablecoinManagerSalt }(address(stablecoinManagerImpl), initData))
+        );
 
         vm.stopBroadcast();
 
@@ -76,6 +78,8 @@ contract TestnetDeployStablecoinManager is Script {
         // logs
         string memory root = vm.projectRoot();
         string memory dest = string.concat(root, "/deployments/deployments.json");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(stablecoinManager))), 20), dest, ".StablecoinManager");
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(stablecoinManager))), 20), dest, ".StablecoinManager"
+        );
     }
 }
