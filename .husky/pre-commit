@@ -1,1 +1,1 @@
-forge fmt
+forge fmt --root "$(dirname "$0")/.."
