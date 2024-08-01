@@ -87,14 +87,14 @@ contract StablecoinManagerTest is Test {
 
         uint256 maxSupply = 1000;
         uint256 minSupply = 1;
-        
+
         for (uint256 i; i < numTokens; i++) {
             address token = tokens[i];
             vm.prank(maintainer);
             stablecoinManager.UpdateXYZ(token, true, maxSupply, minSupply);
 
             bool validityStored = stablecoinManager.isXYZ(token);
-            uint256 maxLimitStored = stablecoinManager.getMaxLimit(token); 
+            uint256 maxLimitStored = stablecoinManager.getMaxLimit(token);
             uint256 minLimitStored = stablecoinManager.getMinLimit(token);
             assertTrue(validityStored);
             assertEq(maxLimitStored, maxSupply);
@@ -107,7 +107,7 @@ contract StablecoinManagerTest is Test {
             stablecoinManager.UpdateXYZ(token, false, maxSupply, minSupply);
 
             bool validityStored = stablecoinManager.isXYZ(token);
-            uint256 maxLimitStored = stablecoinManager.getMaxLimit(token); 
+            uint256 maxLimitStored = stablecoinManager.getMaxLimit(token);
             uint256 minLimitStored = stablecoinManager.getMinLimit(token);
             assertFalse(validityStored);
             assertEq(maxLimitStored, maxSupply);
@@ -116,7 +116,7 @@ contract StablecoinManagerTest is Test {
 
         address[] memory enabledXYZs = stablecoinManager.getEnabledXYZs();
         assertEq(enabledXYZs.length, numTokens - numRemove);
-        
+
         for (uint256 i; i < tokens.length; ++i) {
             bool validity = i >= numRemove ? true : false;
             address token = tokens[i];
