@@ -10,9 +10,10 @@
     "esModuleInterop": true /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */,
     // "preserveSymlinks": true,                         /* Disable resolving symlinks to their realpath. This correlates to the same flag in node. */
     "forceConsistentCasingInFileNames": true /* Ensure that casing is correct in imports. */,
+    "declaration": true,
     "outDir": "./node/dist",
-    "rootDir": "./node",
-    "baseUrl": "./node",
+    "rootDir": "./node/src",
+    "baseUrl": "./node/src",
     "paths": {
       "*": ["*"]
     },
@@ -20,6 +21,6 @@
     "strict": true /* Enable all strict type-checking options. */,
     "skipLibCheck": true /* Skip type checking all .d.ts files. */
   },
-  "include": ["node/**/*.ts", "node/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["node/src/**/*.ts"],
+  "exclude": ["node_modules", "node/dist"]
 }

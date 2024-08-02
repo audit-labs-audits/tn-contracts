@@ -4,11 +4,14 @@ import {
   createAndExport,
   getNetwork,
   NetworkSetup,
-  setupNetwork,
   relay,
 } from "@axelar-network/axelar-local-dev";
 import { JsonRpcProvider } from "@ethersproject/providers";
 import { ethers, Wallet } from "ethers";
+import {
+  NetworkExtended,
+  setupNetworkExtended,
+} from "../dist/src/utils/NetworkExtended.js";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -31,7 +34,7 @@ async function main(): Promise<void> {
     // For example, if your chains array is ["Avalanche", "Fantom", "Moonbeam"], then http://localhost:8500/0 is the endpoint for the local Avalanche chain.
     const port = 8500;
 
-    const deployUsdc = async (chain: Network): Promise<void> => {
+    const deployUsdc = async (chain: NetworkExtended): Promise<void> => {
       await chain.deployToken("Axelar Wrapped aUSDC", "aUSDC", 6, BigInt(1e22));
     };
 
@@ -61,7 +64,11 @@ async function main(): Promise<void> {
       chainId: 2017,
       ownerKey: testerWallet,
     };
-    const tn: Network = await setupNetwork(telcoinProvider, networkSetup);
+
+    const tn: NetworkExtended = await setupNetworkExtended(
+      telcoinProvider,
+      networkSetup
+    );
     console.log(tn);
     const tnUSDC = await tn.getTokenContract("aUSDC");
     console.log(tnUSDC);
