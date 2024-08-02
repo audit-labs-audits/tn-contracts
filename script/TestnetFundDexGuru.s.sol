@@ -11,6 +11,7 @@ import { WTEL } from "../src/WTEL.sol";
 contract TestnetFundDexGuru is Script {
     // config: send $wTEL and stables to the following address
     address dexGuru = 0x3da87b1c3743BD2dA60DF2ef1BC6F26Ef9Da6086;
+    uint256 telAmount;
     uint256 wTelAmount;
     uint256 stablecoinAmount;
 
@@ -27,6 +28,7 @@ contract TestnetFundDexGuru is Script {
         bytes memory data = vm.parseJson(json);
         deployments = abi.decode(data, (Deployments));
 
+        telAmount = 1e18;
         wTelAmount = 10_000e18; // wTel.decimals() == 18
         stablecoinAmount = 10_000e6; // stablecoin.decimals() == 6
 
@@ -48,6 +50,10 @@ contract TestnetFundDexGuru is Script {
     function run() public {
         vm.startBroadcast(); // must be called by minter role
 
+        // send $TEL for gas
+        (bool r, ) = dexGuru.call{value: telAmount}('');
+        require(r);
+        
         // wrap $TEL and send $wTEL
         wTEL.deposit{ value: wTelAmount }();
         wTEL.transfer(dexGuru, wTelAmount);
