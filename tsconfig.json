@@ -12,15 +12,13 @@
     "forceConsistentCasingInFileNames": true /* Ensure that casing is correct in imports. */,
     "declaration": true,
     "outDir": "./node/dist",
+    "declarationDir": "./node/dist/types",
     "rootDir": "./node/src",
-    "baseUrl": "./node/src",
-    "paths": {
-      "*": ["*"]
-    },
+    "baseUrl": "./node",
     /* Type Checking */
     "strict": true /* Enable all strict type-checking options. */,
     "skipLibCheck": true /* Skip type checking all .d.ts files. */
   },
-  "include": ["node/src/**/*.ts"],
+  "include": ["node/src/**/*"],
   "exclude": ["node_modules", "node/dist"]
 }

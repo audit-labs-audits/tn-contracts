@@ -8,9 +8,10 @@
     "test": "test"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "npm run clean && tsc",
     "start": "node node/dist/tinker.js",
     "build-and-start": "npm run build && npm run start",
+    "clean": "rm -rf node/dist",
     "watch": "tsc --watch",
     "test": "forge test",
     "prepare": "husky",

@@ -26,7 +26,6 @@ const defaultGasLimit = 1_000_000;
 /// This is because standard gas estimation is not possible on TN due to its consensus
 export class NetworkExtended extends Network {
   async deployConstAddressDeployer(): Promise<Contract> {
-    console.log("YO");
     logger.log(
       `Deploying the ConstAddressDeployer with manual gasLimit for ${this.name}... `
     );
@@ -39,13 +38,18 @@ export class NetworkExtended extends Network {
       this.provider
     );
 
+    console.log("YO");
+
     await this.ownerWallet
       .sendTransaction({
         to: deployerWallet.address,
         value: BigInt(1e18),
-        // funding transaction does not require manual gasLimit
+        gasLimit: defaultGasLimit,
       })
-      .then((tx) => tx.wait());
+      .then((tx) => {
+        console.log(tx);
+        tx.wait();
+      });
 
     console.log("HELLO");
     const constAddressDeployer = await deployContract(

@@ -11,7 +11,7 @@ import { ethers, Wallet } from "ethers";
 import {
   NetworkExtended,
   setupNetworkExtended,
-} from "../dist/src/utils/NetworkExtended.js";
+} from "./utils/NetworkExtended.js";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -65,11 +65,19 @@ async function main(): Promise<void> {
       ownerKey: testerWallet,
     };
 
-    const tn: NetworkExtended = await setupNetworkExtended(
-      telcoinProvider,
-      networkSetup
-    );
-    console.log(tn);
+    console.log("before setup");
+    let tn: NetworkExtended;
+    try {
+      tn = await setupNetworkExtended(telcoinProvider, networkSetup);
+      console.log(tn);
+    } catch (e) {
+      console.log(e);
+      return;
+    }
+    if (tn) {
+      console.log(tn);
+    }
+
     const tnUSDC = await tn.getTokenContract("aUSDC");
     console.log(tnUSDC);
 
