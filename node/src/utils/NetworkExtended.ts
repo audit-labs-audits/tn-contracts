@@ -8,6 +8,7 @@ import {
   NetworkSetup,
 } from "@axelar-network/axelar-local-dev";
 import { Contract, Wallet, ethers, providers } from "ethers";
+import { NonceManager } from "@ethersproject/experimental";
 import {
   ConstAddressDeployer,
   Create3Deployer,
@@ -16,9 +17,13 @@ import {
   InterchainTokenService as InterchainTokenServiceContract,
   InterchainTokenFactory as InterchainTokenFactoryContract,
   InterchainProxy,
+  TokenManagerDeployer,
+  TokenManager,
+  TokenHandler,
 } from "@axelar-network/axelar-local-dev/dist/contracts/index.js";
 import { setupITS } from "@axelar-network/axelar-local-dev/dist/its.js";
 import { text } from "stream/consumers";
+import { InterchainTokenService } from "@axelar-network/axelar-local-dev/dist/types/@axelar-network/interchain-token-service/contracts/InterchainTokenService.js";
 
 const { defaultAbiCoder, arrayify, keccak256, toUtf8Bytes } = ethers.utils;
 const defaultGasLimit = 1_000_000;
@@ -39,13 +44,6 @@ export class NetworkExtended extends Network {
       this.provider
     );
 
-    console.log(this.provider);
-
-    console.log(
-      "owner: " +
-        `${this.ownerWallet.address} ` +
-        (await this.provider.getBalance(this.ownerWallet.address))
-    );
     const tx = await this.ownerWallet.sendTransaction({
       to: deployerWallet.address,
       value: BigInt(1e18),
@@ -108,7 +106,69 @@ export class NetworkExtended extends Network {
 
   // async deployGateway(): Promise<Contract> {}
   // async deployGasReceiver(): Promise<Contract> {}
-  // async deployInterchainTokenService(): Promise<Contract> {}
+  async deployInterchainTokenService(): Promise<InterchainTokenService> {
+    logger.log(`Deploying the InterchainTokenService for ${this.name}...`);
+    const deploymentSalt = keccak256(
+      defaultAbiCoder.encode(["string"], ["interchain-token-service-salt"])
+    );
+    const factorySalt = keccak256(
+      defaultAbiCoder.encode(["string"], ["interchain-token-factory-salt"])
+    );
+    const wallet = new NonceManager(this.ownerWallet);
+    const interchainTokenServiceAddress =
+      await this.create3Deployer.deployedAddress(
+        "0x",
+        await wallet.signer.getAddress(),
+        deploymentSalt
+      );
+    console.log("interchainTokenServiceAddress");
+    console.log(`${interchainTokenServiceAddress}`);
+    const tokenManagerDeployer = await deployContract(
+      wallet.signer,
+      TokenManagerDeployer,
+      [],
+      {
+        gasLimit: defaultGasLimit,
+      }
+    );
+    await tokenManagerDeployer.deployed();
+    console.log("tokenmanagerdeployer");
+    const interchainToken = await deployContract(
+      wallet.signer,
+      InterchainToken,
+      [interchainTokenServiceAddress],
+      {
+        gasLimit: defaultGasLimit,
+      }
+    );
+    await interchainToken.deployed();
+    console.log("interchaintoken");
+    const interchainTokenDeployer = await deployContract(
+      wallet.signer,
+      InterchainTokenDeployer,
+      [interchainToken.address]
+    );
+    await interchainTokenDeployer.deployed();
+    console.log("interchaintokendeployer");
+    const tokenManager = await deployContract(wallet.signer, TokenManager, [
+      interchainTokenServiceAddress,
+    ]);
+    await tokenManager.deployed();
+    console.log("tokenmanager");
+    const tokenHandler = await deployContract(wallet.signer, TokenHandler, []);
+    await tokenHandler.deployed();
+    console.log("tokenhandler");
+    const interchainTokenFactoryAddress =
+      await this.create3Deployer.deployedAddress(
+        "0x",
+        await wallet.signer.getAddress(),
+        factorySalt
+      );
+
+    //todo
+
+    return this.interchainTokenService;
+  }
 }
 
 export async function setupNetworkExtended(

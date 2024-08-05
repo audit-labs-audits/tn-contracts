@@ -76,10 +76,12 @@ async function main(): Promise<void> {
       tn = await setupNetworkExtended(telcoinProvider, networkSetup);
       console.log(tn);
     } catch (e) {
+      console.log("error!");
       console.log(e);
       return;
     }
     if (tn) {
+      console.log("tn truthy");
       console.log(tn);
     }
 
