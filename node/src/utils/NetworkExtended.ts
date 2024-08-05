@@ -18,6 +18,7 @@ import {
   InterchainProxy,
 } from "@axelar-network/axelar-local-dev/dist/contracts/index.js";
 import { setupITS } from "@axelar-network/axelar-local-dev/dist/its.js";
+import { text } from "stream/consumers";
 
 const { defaultAbiCoder, arrayify, keccak256, toUtf8Bytes } = ethers.utils;
 const defaultGasLimit = 1_000_000;
@@ -50,17 +51,13 @@ export class NetworkExtended extends Network {
       value: BigInt(1e18),
       gasLimit: defaultGasLimit,
     });
-    // .then((tx) => {
-    // await tx.wait();
-    console.log(tx);
-    // });
+    await tx.wait();
 
     console.log(
       "deployer: " +
         `${deployerWallet.address} ` +
         (await this.provider.getBalance(deployerWallet.address))
     );
-    console.log("HELLO");
     const constAddressDeployer = await deployContract(
       deployerWallet,
       ConstAddressDeployer,
@@ -69,7 +66,6 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
-    console.log("BYE");
 
     this.constAddressDeployer = new Contract(
       constAddressDeployer.address,
@@ -80,7 +76,36 @@ export class NetworkExtended extends Network {
 
     return this.constAddressDeployer;
   }
-  // async deployCreate3Deployer(): Promise<Contract> {}
+  async deployCreate3Deployer(): Promise<Contract> {
+    logger.log(`Deploying the Create3Deployer for ${this.name}... `);
+    const create3DeployerPrivateKey = keccak256(
+      toUtf8Bytes("const-address-deployer-deployer")
+    );
+    const deployerWallet = new Wallet(create3DeployerPrivateKey, this.provider);
+    const tx = await this.ownerWallet.sendTransaction({
+      to: deployerWallet.address,
+      value: BigInt(1e18),
+    });
+    await tx.wait();
+
+    const create3Deployer = await deployContract(
+      deployerWallet,
+      Create3Deployer,
+      [],
+      {
+        gasLimit: defaultGasLimit,
+      }
+    );
+
+    this.create3Deployer = new Contract(
+      create3Deployer.address,
+      Create3Deployer.abi,
+      this.provider
+    );
+    logger.log(`Deployed at ${this.create3Deployer.address}`);
+    return this.create3Deployer;
+  }
+
   // async deployGateway(): Promise<Contract> {}
   // async deployGasReceiver(): Promise<Contract> {}
   // async deployInterchainTokenService(): Promise<Contract> {}
