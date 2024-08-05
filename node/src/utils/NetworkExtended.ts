@@ -38,28 +38,36 @@ export class NetworkExtended extends Network {
       this.provider
     );
 
-    console.log("YO");
+    console.log(this.provider);
 
-    await this.ownerWallet
-      .sendTransaction({
-        to: deployerWallet.address,
-        value: BigInt(1e18),
-        gasLimit: defaultGasLimit,
-      })
-      .then((tx) => {
-        console.log(tx);
-        tx.wait();
-      });
+    console.log(
+      "owner: " +
+        `${this.ownerWallet.address} ` +
+        (await this.provider.getBalance(this.ownerWallet.address))
+    );
+    const tx = await this.ownerWallet.sendTransaction({
+      to: deployerWallet.address,
+      value: BigInt(1e18),
+      gasLimit: defaultGasLimit,
+    });
+    // .then((tx) => {
+    // await tx.wait();
+    console.log(tx);
+    // });
 
+    console.log(
+      "deployer: " +
+        `${deployerWallet.address} ` +
+        (await this.provider.getBalance(deployerWallet.address))
+    );
     console.log("HELLO");
     const constAddressDeployer = await deployContract(
       deployerWallet,
       ConstAddressDeployer,
-      [
-        {
-          gasLimit: defaultGasLimit,
-        },
-      ]
+      [], // constructor args
+      {
+        gasLimit: defaultGasLimit,
+      }
     );
     console.log("BYE");
 

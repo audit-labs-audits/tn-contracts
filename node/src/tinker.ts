@@ -65,7 +65,13 @@ async function main(): Promise<void> {
       ownerKey: testerWallet,
     };
 
-    console.log("before setup");
+    console.log(
+      "balance: " +
+        (await telcoinProvider.getBalance(
+          "0x6F2D0eB998F77595621DB2805872A894F0F1DEfB"
+        ))
+    );
+    return;
     let tn: NetworkExtended;
     try {
       tn = await setupNetworkExtended(telcoinProvider, networkSetup);
