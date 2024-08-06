@@ -207,6 +207,7 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
+    console.log("tokenManagerDeployer deployed");
 
     const interchainToken = await deployContract(
       wallet,
@@ -216,6 +217,7 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
+    console.log("interchainToken deployed");
 
     const interchainTokenDeployer = await deployContract(
       wallet,
@@ -225,6 +227,7 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
+    console.log("interchainTokenDeployer deployed");
 
     const tokenManager = await deployContract(
       wallet,
@@ -234,9 +237,13 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
+    console.log("tokenManager deployed");
+
     const tokenHandler = await deployContract(wallet, TokenHandler, [], {
       gasLimit: defaultGasLimit,
     });
+    console.log("tokenHandler deployed");
+
     const interchainTokenFactoryAddress =
       await this.create3Deployer.deployedAddress(
         "0x",
@@ -244,7 +251,7 @@ export class NetworkExtended extends Network {
         factorySalt
       );
 
-    let implementation = await deployContract(
+    const serviceImplementation = await deployContract(
       wallet,
       InterchainTokenServiceContract,
       [
@@ -262,51 +269,47 @@ export class NetworkExtended extends Network {
       }
     );
 
-    console.log("implementation deployed");
+    console.log("serviceImplementation deployed");
     const factory = new ContractFactory(
       InterchainProxy.abi,
       InterchainProxy.bytecode
     );
     const ownerAddress = await wallet.getAddress();
-    console.log(ownerAddress);
     let bytecode = factory.getDeployTransaction(
-      implementation.address,
+      serviceImplementation.address,
       ownerAddress,
       defaultAbiCoder.encode(
         ["address", "string", "string[]", "string[]"],
         [ownerAddress, this.name, [], []]
       )
     ).data;
-    console.log(bytecode);
     await this.create3Deployer.connect(wallet).deploy(bytecode, deploymentSalt);
     this.interchainTokenService = InterchainTokenServiceFactory.connect(
       interchainTokenServiceAddress,
       wallet
     );
 
-    console.log("here");
-    implementation = await deployContract(
+    const tokenFactoryimplementation = await deployContract(
       wallet,
       InterchainTokenFactoryContract,
-      [interchainTokenFactoryAddress],
+      [interchainTokenServiceAddress],
       {
         gasLimit: defaultGasLimit,
       }
     );
-    console.log("there");
+    console.log("tokenFactoryImplementation deployed");
+
     bytecode = factory.getDeployTransaction(
-      implementation.address,
+      tokenFactoryimplementation.address,
       ownerAddress,
       "0x"
     ).data;
-    console.log("almost");
 
     await this.create3Deployer.connect(wallet).deploy(bytecode, factorySalt);
     this.interchainTokenFactory = InterchainTokenFactoryFactory.connect(
       interchainTokenFactoryAddress,
       wallet
     );
-    console.log("last");
 
     await setupITS(this);
     logger.log(`Deployed at ${this.interchainTokenService.address}`);

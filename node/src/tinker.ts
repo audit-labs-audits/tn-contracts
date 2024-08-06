@@ -17,9 +17,19 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 /// @dev Basic script to tinker with local bridging via Axelar
+/// @notice initializes an Ethereum network on port 8500, deploys Axelar infra, funds specified address, deploys aUSDC
 async function main(): Promise<void> {
-  // initializes an Ethereum network on port 8500, deploys Axelar infra, funds specified address, deploys aUSDC
-  const setup = async (): Promise<void> => {
+  // connect to TelcoinNetwork running on port 8545
+  const telcoinRpcUrl = "http://localhost:8545/0";
+  const telcoinProvider: JsonRpcProvider = new ethers.providers.JsonRpcProvider(
+    telcoinRpcUrl
+  );
+
+  const pk = process.env.PK;
+  if (!pk) throw new Error("Set private key string in .env");
+  const testerWallet: Wallet = new ethers.Wallet(pk, telcoinProvider); // does wallet need to be connected with provider?
+
+  const setupETH = async (): Promise<void> => {
     // Define the path where chain configuration files with deployed contract addresses will be stored
     const outputPath = "./node/out/output.json";
     // A list of addresses to be funded with 100ether worth of the native token
@@ -30,14 +40,7 @@ async function main(): Promise<void> {
     const relayers = { evm: new EvmRelayer() };
     // Number of milliseconds to periodically trigger the relay function and send all pending crosschain transactions to the destination chain
     const relayInterval = 5000;
-
-    // A port number for the RPC endpoint. The endpoint for each chain can be accessed by the 0-based index of the chains array.
-    // For example, if your chains array is ["Avalanche", "Fantom", "Moonbeam"], then http://localhost:8500/0 is the endpoint for the local Avalanche chain.
     const port = 8500;
-
-    const deployUsdc = async (chain: Network): Promise<void> => {
-      await chain.deployToken("Axelar Wrapped aUSDC", "aUSDC", 6, BigInt(1e22));
-    };
 
     await createAndExport({
       chainOutputPath: outputPath,
@@ -50,38 +53,32 @@ async function main(): Promise<void> {
     });
   };
 
-  const bridge = async () => {
-    // connect to TelcoinNetwork running on port 8545
-    const telcoinRpcUrl = "http://localhost:8545/0";
-    const telcoinProvider: JsonRpcProvider =
-      new ethers.providers.JsonRpcProvider(telcoinRpcUrl);
-
-    // set up Axelar infra and USDC token on TelcoinNetwork, instantiate Axelar <Network> wrapper around TN
-    const pk = process.env.PK;
-    if (!pk) throw new Error("Set private key string in .env");
-    const testerWallet: Wallet = new ethers.Wallet(pk, telcoinProvider); // does wallet need to be connected with provider?
+  const setupTN = async (): Promise<NetworkExtended> => {
     const networkSetup: NetworkSetup = {
       name: "Telcoin Network",
       chainId: 2017,
       ownerKey: testerWallet,
     };
 
-    let tn: NetworkExtended;
     try {
-      tn = await setupNetworkExtended(telcoinProvider, networkSetup);
-      // console.log(tn);
+      const tn: NetworkExtended = await setupNetworkExtended(
+        telcoinProvider,
+        networkSetup
+      );
+      console.log("Deploying USDC to TN");
+      await deployUsdc(tn);
+      return tn;
     } catch (e) {
-      console.log("error!");
-      console.log(e);
-      return;
+      console.error("Error setting up TN", e);
+      throw new Error("Setup Error");
     }
-    if (tn) {
-      console.log("tn truthy");
-      // console.log(tn);
-    }
+  };
 
+  const bridge = async (tn: NetworkExtended) => {
+    console.log("Bridging USDC from Ethereum to Telcoin");
+    console.log(tn.tokens);
     const tnUSDC = await tn.getTokenContract("aUSDC");
-    console.log(tnUSDC);
+    // console.log(tnUSDC);
 
     // mint tokens to testerWallet on ethereum
     const ethRpcUrl = "http://localhost:8500/0";
@@ -116,9 +113,14 @@ async function main(): Promise<void> {
     );
   };
 
+  const deployUsdc = async (chain: Network): Promise<void> => {
+    await chain.deployToken("Axelar Wrapped aUSDC", "aUSDC", 6, BigInt(1e22));
+  };
+
   try {
-    await setup();
-    await bridge();
+    await setupETH();
+    const tn = await setupTN();
+    await bridge(tn);
   } catch (err) {
     console.log(err);
   }
