@@ -159,10 +159,12 @@ export class NetworkExtended extends Network {
 
   async deployGasReceiver(): Promise<Contract> {
     logger.log(`Deploying the Axelar Gas Receiver for ${this.name}...`);
+    const wallet = await this.ownerNonceManager;
+    const ownerAddress = await wallet.getAddress();
     const gasService = await deployContract(
       this.ownerNonceManager,
       AxelarGasServiceFactory,
-      [await this.ownerNonceManager.getAddress()]
+      [ownerAddress]
     );
     const gasReceiverInterchainProxy = await deployContract(
       this.ownerNonceManager,
@@ -170,7 +172,7 @@ export class NetworkExtended extends Network {
     );
     await gasReceiverInterchainProxy.init(
       gasService.address,
-      await this.ownerNonceManager.getAddress(),
+      ownerAddress,
       "0x"
     );
 
@@ -191,11 +193,12 @@ export class NetworkExtended extends Network {
       defaultAbiCoder.encode(["string"], ["interchain-token-factory-salt"])
     );
     const wallet = this.ownerNonceManager;
+    const ownerAddress = await wallet.getAddress();
 
     const interchainTokenServiceAddress =
       await this.create3Deployer.deployedAddress(
         "0x", // deployed address not reliant on bytecode via Create3 so pass empty bytes
-        await wallet.getAddress(),
+        ownerAddress,
         deploymentSalt
       );
 
@@ -247,7 +250,7 @@ export class NetworkExtended extends Network {
     const interchainTokenFactoryAddress =
       await this.create3Deployer.deployedAddress(
         "0x",
-        await wallet.getAddress(),
+        ownerAddress,
         factorySalt
       );
 
@@ -274,7 +277,6 @@ export class NetworkExtended extends Network {
       InterchainProxy.abi,
       InterchainProxy.bytecode
     );
-    const ownerAddress = await wallet.getAddress();
     let bytecode = factory.getDeployTransaction(
       serviceImplementation.address,
       ownerAddress,
@@ -323,9 +325,7 @@ export async function setupNetworkExtended(
 ) {
   const chain = new NetworkExtended();
 
-  chain.name =
-    options.name ??
-    "NO NAME SPECIFIED" /*!= null ? options.name : `Chain ${networks.length + 1}`*/;
+  chain.name = options.name ?? "NO NAME SPECIFIED";
   chain.provider =
     typeof urlOrProvider === "string"
       ? ethers.getDefaultProvider(urlOrProvider)
@@ -370,6 +370,7 @@ export async function setupNetworkExtended(
   await chain.deployGasReceiver();
   await chain.deployInterchainTokenService();
   chain.tokens = {};
+
   networks.push(chain);
   return chain;
 }

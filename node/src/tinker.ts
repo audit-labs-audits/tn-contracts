@@ -11,7 +11,6 @@ import { ethers, Wallet } from "ethers";
 import {
   NetworkExtended,
   setupNetworkExtended,
-  // toNetwork,
 } from "./utils/NetworkExtended.js";
 import * as dotenv from "dotenv";
 dotenv.config();
@@ -20,7 +19,7 @@ dotenv.config();
 /// @notice initializes an Ethereum network on port 8500, deploys Axelar infra, funds specified address, deploys aUSDC
 async function main(): Promise<void> {
   // connect to TelcoinNetwork running on port 8545
-  const telcoinRpcUrl = "http://localhost:8545/0";
+  const telcoinRpcUrl = "http://localhost:8545";
   const telcoinProvider: JsonRpcProvider = new ethers.providers.JsonRpcProvider(
     telcoinRpcUrl
   );
@@ -76,40 +75,43 @@ async function main(): Promise<void> {
 
   const bridge = async (tn: NetworkExtended) => {
     console.log("Bridging USDC from Ethereum to Telcoin");
-    console.log(tn.tokens);
     const tnUSDC = await tn.getTokenContract("aUSDC");
-    // console.log(tnUSDC);
 
     // mint tokens to testerWallet on ethereum
     const ethRpcUrl = "http://localhost:8500/0";
     const eth = await getNetwork(ethRpcUrl);
     await eth.giveToken(testerWallet.address, "aUSDC", BigInt(10e6));
     const ethUSDC = await eth.getTokenContract("aUSDC");
-    console.log(ethUSDC.balanceOf(testerWallet.address));
+    console.log(await ethUSDC.balanceOf(testerWallet.address));
 
     // approve ethereum gateway to manage tokens
     const ethApproveTx = await ethUSDC
       .connect(testerWallet)
       .approve(eth.gateway.address, 10e6);
-    await ethApproveTx.wait();
+    await ethApproveTx.wait(1);
 
     // perform bridge transaction, starting with gateway request
     const ethGatewayTx = await eth.gateway
       .connect(testerWallet)
       .sendToken(tn.name, testerWallet.address, "aUSDC", 10e6);
-    await ethGatewayTx.wait();
+    await ethGatewayTx.wait(1);
 
-    // relay transactions
-    await relay();
+    console.log(await ethUSDC.balanceOf(testerWallet.address));
+    console.log(await tnUSDC.balanceOf(testerWallet.address));
+    // load TN network info and push TN to this instance then relay transactions
+    const tnInfo = tn.getInfo();
+    const tnAsExternalNetwork = await getNetwork(telcoinProvider, tnInfo);
+    await relay({}, [tnAsExternalNetwork]);
 
+    await new Promise((resolve) => setTimeout(resolve, 6000));
     // check token balances in console
     console.log(
       "aUSDC in Ethereum wallet: ",
-      (await ethUSDC.balanceOf(testerWallet.address)) / 1e6
+      await ethUSDC.balanceOf(testerWallet.address)
     );
     console.log(
       "aUSDC in Telcoin wallet: ",
-      (await tnUSDC.balanceOf(testerWallet.address)) / 1e6
+      await tnUSDC.balanceOf(testerWallet.address)
     );
   };
 
@@ -121,9 +123,14 @@ async function main(): Promise<void> {
     await setupETH();
     const tn = await setupTN();
     await bridge(tn);
+    console.log("Completed!");
   } catch (err) {
     console.log(err);
   }
+}
+
+function networkExtendedToNetwork(extended: NetworkExtended): Network {
+  return new Network(extended);
 }
 
 main();
