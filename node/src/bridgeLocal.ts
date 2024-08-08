@@ -11,11 +11,9 @@ import {
   setupNetwork,
 } from "@axelar-network/axelar-local-dev";
 // import { JsonRpcProvider } from "@ethersproject/providers";
-import { ethers, Wallet, providers } from "ethers";
-import {
-  NetworkExtended,
-  setupNetworkExtended,
-} from "./utils/NetworkExtended.js";
+import { ethers, Contract, Wallet, providers } from "ethers";
+import { NetworkExtended } from "./wrappers/NetworkExtended.js";
+import { setupNetworkExtended } from "./wrappers/utils.js";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -42,18 +40,15 @@ async function main(): Promise<void> {
 
     const ethUSDC = await eth.getTokenContract("aUSDC");
     console.log(
-      "eth before transfer" + (await ethUSDC.balanceOf(testerWalletTN.address))
+      "owner ethUSDC before transfer: " +
+        (await ethUSDC.balanceOf(eth.ownerWallet.address))
     );
 
     // approve ethereum gateway to manage tokens
-    console.log(eth.ownerWallet.address);
     const ethApproveTx = await ethUSDC
       .connect(eth.ownerWallet)
       .approve(eth.gateway.address, 10e6);
     await ethApproveTx.wait(1);
-
-    console.log(tn.name + " " + testerWalletTN.address);
-    console.log("usdc:" + (await eth.getTokenContract("aUSDC")));
 
     // perform bridge transaction, starting with gateway request
     const ethGatewayTx = await eth.gateway
@@ -61,12 +56,12 @@ async function main(): Promise<void> {
       .sendToken(tn.name, testerWalletTN.address, "aUSDC", 10e6);
     await ethGatewayTx.wait(1);
     console.log(
-      "eth after transfer" + (await ethUSDC.balanceOf(testerWalletTN.address))
+      "eth after transfer" + (await ethUSDC.balanceOf(eth.ownerWallet.address))
     );
 
     const tnUSDC = await tn.getTokenContract("aUSDC");
     const oldBalance = await tnUSDC.balanceOf(testerWalletTN.address);
-    console.log("tn before relay" + oldBalance);
+    console.log("tn usdc before relay" + oldBalance);
 
     // load network info and push to this instance then relay transactions
     const ethInfo = eth.getInfo();
@@ -86,8 +81,6 @@ async function main(): Promise<void> {
     // wait until relayer succeeds
     while (true) {
       const newBalance = await tnUSDC.balanceOf(testerWalletTN.address);
-      console.log("old: " + oldBalance);
-      console.log("new: " + newBalance);
 
       if (!oldBalance.eq(newBalance)) break;
       await sleep(2000);
@@ -116,7 +109,7 @@ async function main(): Promise<void> {
 
 const setupETH = async (): Promise<Network> => {
   await createAndExport({
-    chainOutputPath: "out",
+    chainOutputPath: "out/output.json",
     accountsToFund: ["0x3DCc9a6f3A71F0A6C8C659c65558321c374E917a"],
     chains: ["Ethereum"],
     relayInterval: 5000,
@@ -131,9 +124,9 @@ const setupETH = async (): Promise<Network> => {
 
   const eth = await getNetwork(ethRpcUrl);
 
-  // deploy and mint tokens to testerWalletTN on ethereum
+  // deploy and mint tokens to ownerWallet on ethereum
   await deployUsdc(eth);
-  await eth.giveToken(testerWalletETH.address, "aUSDC", BigInt(10e6));
+  await eth.giveToken(eth.ownerWallet.address, "aUSDC", BigInt(10e6));
 
   return eth;
 };
@@ -153,7 +146,7 @@ const setupTN = async (
       telcoinProvider,
       networkSetup
     );
-    console.log("Deploying USDC to TN");
+    console.log(await tn.ownerNonceManager.getTransactionCount());
     await deployUsdc(tn);
     return tn;
   } catch (e) {
@@ -162,8 +155,15 @@ const setupTN = async (
   }
 };
 
-const deployUsdc = async (chain: Network): Promise<void> => {
-  await chain.deployToken("Axelar Wrapped aUSDC", "aUSDC", 6, BigInt(1e22));
+const deployUsdc = async (
+  chain: Network | NetworkExtended
+): Promise<Contract> => {
+  return await chain.deployToken(
+    "Axelar Wrapped aUSDC",
+    "aUSDC",
+    6,
+    BigInt(1e22)
+  );
 };
 
 function networkExtendedToNetwork(extended: NetworkExtended): Network {

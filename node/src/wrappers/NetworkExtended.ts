@@ -1,6 +1,8 @@
 "use strict";
 
 import {
+  getRandomID,
+  getSignedExecuteInput,
   logger,
   Network,
   networks,
@@ -30,6 +32,7 @@ import {
   InterchainTokenService as InterchainTokenServiceContract,
   InterchainTokenFactory as InterchainTokenFactoryContract,
   InterchainProxy,
+  BurnableMintableCappedERC20,
 } from "@axelar-network/axelar-local-dev/dist/contracts/index.js";
 import { AxelarGateway__factory as AxelarGatewayFactory } from "@axelar-network/axelar-local-dev/dist/types/factories/@axelar-network/axelar-cgp-solidity/contracts/AxelarGateway__factory.js";
 import { AxelarGasService__factory as AxelarGasServiceFactory } from "@axelar-network/axelar-local-dev/dist/types/factories/@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService__factory.js";
@@ -39,6 +42,7 @@ import {
 } from "@axelar-network/axelar-local-dev/dist/types/factories/@axelar-network/interchain-token-service/contracts/index.js";
 import { setupITS } from "@axelar-network/axelar-local-dev/dist/its.js";
 import { InterchainTokenService } from "@axelar-network/axelar-local-dev/dist/types/@axelar-network/interchain-token-service/contracts/InterchainTokenService.js";
+import { deployContract } from "./utils.js";
 
 const { defaultAbiCoder, arrayify, keccak256, toUtf8Bytes } = ethers.utils;
 const defaultGasLimit = 10_000_000;
@@ -63,10 +67,11 @@ export class NetworkExtended extends Network {
 
     const tx = await this.ownerNonceManager.sendTransaction({
       to: deployerWallet.address,
-      value: BigInt(1e18),
+      value: BigInt(10e18),
       gasLimit: defaultGasLimit,
     });
     await tx.wait();
+    console.log("Funded deployer wallet with 100 TEL");
 
     const constAddressDeployer = await deployContract(
       deployerWallet,
@@ -94,7 +99,7 @@ export class NetworkExtended extends Network {
     const deployerWallet = new Wallet(create3DeployerPrivateKey, this.provider);
     const tx = await this.ownerNonceManager.sendTransaction({
       to: deployerWallet.address,
-      value: BigInt(1e18),
+      value: BigInt(10e18),
     });
     await tx.wait();
 
@@ -327,92 +332,48 @@ export class NetworkExtended extends Network {
     logger.log(`Deployed at ${this.interchainTokenService.address}`);
     return this.interchainTokenService;
   }
-}
 
-export async function setupNetworkExtended(
-  urlOrProvider: string | providers.Provider,
-  options: NetworkSetup
-) {
-  const chain = new NetworkExtended();
+  deployToken = async (
+    name: string,
+    symbol: string,
+    decimals: number,
+    cap: bigint
+    // address: string = ADDRESS_ZERO,
+    // alias: string = symbol
+  ) => {
+    logger.log(`Deploying ${name} for ${this.name}...`);
+    const data = arrayify(
+      defaultAbiCoder.encode(
+        ["uint256", "bytes32[]", "string[]", "bytes[]"],
+        [
+          this.chainId,
+          [getRandomID()],
+          ["deployToken"],
+          [
+            defaultAbiCoder.encode(
+              ["string", "string", "uint8", "uint256", "address", "uint256"],
+              [name, symbol, decimals, cap, ethers.constants.AddressZero, 0]
+            ),
+          ],
+        ]
+      )
+    );
+    const signedData = await getSignedExecuteInput(data, this.operatorWallet);
 
-  chain.name = options.name ?? "NO NAME SPECIFIED";
-  chain.provider =
-    typeof urlOrProvider === "string"
-      ? ethers.getDefaultProvider(urlOrProvider)
-      : urlOrProvider;
-  chain.chainId = (await chain.provider.getNetwork()).chainId;
-
-  const defaultWallets = getDefaultLocalWallets();
-
-  logger.log(
-    `Setting up ${chain.name} on a network with a chainId of ${chain.chainId}...`
-  );
-  if (options.userKeys == null)
-    options.userKeys = options.userKeys || defaultWallets.slice(5, 10);
-  if (options.relayerKey == null)
-    options.relayerKey = options.ownerKey || defaultWallets[2];
-  if (options.operatorKey == null)
-    options.operatorKey = options.ownerKey || defaultWallets[3];
-  if (options.adminKeys == null)
-    options.adminKeys = options.ownerKey
-      ? [options.ownerKey]
-      : [defaultWallets[4]];
-
-  options.ownerKey = options.ownerKey || defaultWallets[0];
-
-  chain.userWallets = options.userKeys.map(
-    (x) => new Wallet(x, chain.provider)
-  );
-  chain.ownerWallet = new Wallet(options.ownerKey, chain.provider);
-  chain.ownerNonceManager = new NonceManager(chain.ownerWallet);
-  chain.operatorWallet = new Wallet(options.operatorKey, chain.provider);
-  chain.relayerWallet = new Wallet(options.relayerKey, chain.provider);
-
-  chain.adminWallets = options.adminKeys.map(
-    (x) => new Wallet(x, chain.provider)
-  );
-  chain.threshold = options.threshold != null ? options.threshold : 1;
-  chain.lastRelayedBlock = await chain.provider.getBlockNumber();
-  chain.lastExpressedBlock = chain.lastRelayedBlock;
-  await chain.deployConstAddressDeployer();
-  await chain.deployCreate3Deployer();
-  await chain.deployGateway();
-  await chain.deployGasReceiver();
-  await chain.deployInterchainTokenService();
-  chain.tokens = {};
-
-  networks.push(chain);
-  return chain;
-}
-
-export const deployContract = async (
-  signer: Wallet | NonceManager | Signer,
-  contractJson: { abi: any; bytecode: string },
-  args: any[] = [],
-  options = {}
-) => {
-  const factory = new ContractFactory(
-    contractJson.abi,
-    contractJson.bytecode,
-    signer
-  );
-
-  const contract = await factory.deploy(...args, { ...options });
-  await contract.deployed();
-  return contract;
-};
-
-// testing only **NOT SECURE**
-function getDefaultLocalWallets() {
-  // This is a default seed for anvil that generates 10 wallets
-  const defaultSeed =
-    "test test test test test test test test test test test junk";
-
-  const wallets = [];
-
-  for (let i = 0; i < 10; i++) {
-    wallets.push(Wallet.fromMnemonic(defaultSeed, `m/44'/60'/0'/0/${i}`));
-  }
-
-  return wallets;
+    const wallet = this.ownerNonceManager;
+    await (
+      await this.gateway
+        .connect(wallet)
+        .execute(signedData, { gasLimit: defaultGasLimit })
+    ).wait();
+    const tokenAddress = await this.gateway.tokenAddresses(symbol);
+    const tokenContract = new Contract(
+      tokenAddress,
+      BurnableMintableCappedERC20.abi,
+      wallet
+    );
+    logger.log(`Deployed at ${tokenContract}.address`);
+    this.tokens[symbol] = symbol;
+    return tokenContract;
+  };
 }
