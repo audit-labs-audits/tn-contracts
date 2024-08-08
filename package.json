@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "npm run clean && tsc",
-    "start": "node node/dist/tinker.js",
+    "start": "node node/dist/bridgeLocal.js",
     "build-and-start": "npm run build && npm run start",
     "clean": "rm -rf node/dist",
     "watch": "tsc --watch",

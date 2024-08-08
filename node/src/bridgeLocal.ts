@@ -2,12 +2,16 @@ import {
   Network,
   EvmRelayer,
   createAndExport,
+  networks,
+  createNetwork,
   getNetwork,
   NetworkSetup,
+  NetworkInfo,
   relay,
+  setupNetwork,
 } from "@axelar-network/axelar-local-dev";
-import { JsonRpcProvider } from "@ethersproject/providers";
-import { ethers, Wallet } from "ethers";
+// import { JsonRpcProvider } from "@ethersproject/providers";
+import { ethers, Wallet, providers } from "ethers";
 import {
   NetworkExtended,
   setupNetworkExtended,
@@ -15,119 +19,152 @@ import {
 import * as dotenv from "dotenv";
 dotenv.config();
 
+const pk: string | undefined = process.env.PK;
+if (!pk) throw new Error("Set private key string in .env");
+
 /// @dev Basic script to tinker with local bridging via Axelar
 /// @notice initializes an Ethereum network on port 8500, deploys Axelar infra, funds specified address, deploys aUSDC
 async function main(): Promise<void> {
+  const eth = await setupETH();
+
   // connect to TelcoinNetwork running on port 8545
   const telcoinRpcUrl = "http://localhost:8545";
-  const telcoinProvider: JsonRpcProvider = new ethers.providers.JsonRpcProvider(
-    telcoinRpcUrl
+  const telcoinProvider: providers.JsonRpcProvider =
+    new providers.JsonRpcProvider(telcoinRpcUrl);
+  const testerWalletTN: Wallet = new ethers.Wallet(
+    pk as string,
+    telcoinProvider
   );
+  const tn: NetworkExtended = await setupTN(telcoinProvider, testerWalletTN);
 
-  const pk = process.env.PK;
-  if (!pk) throw new Error("Set private key string in .env");
-  const testerWallet: Wallet = new ethers.Wallet(pk, telcoinProvider); // does wallet need to be connected with provider?
-
-  const setupETH = async (): Promise<void> => {
-    // Define the path where chain configuration files with deployed contract addresses will be stored
-    const outputPath = "./node/out/output.json";
-    // A list of addresses to be funded with 100ether worth of the native token
-    const fundAddresses = ["0x3DCc9a6f3A71F0A6C8C659c65558321c374E917a"];
-    // A list of EVM chain names to be initialized
-    const chains = ["Ethereum"];
-    // Define the chain stacks that the networks will relay transactions between
-    const relayers = { evm: new EvmRelayer() };
-    // Number of milliseconds to periodically trigger the relay function and send all pending crosschain transactions to the destination chain
-    const relayInterval = 5000;
-    const port = 8500;
-
-    await createAndExport({
-      chainOutputPath: outputPath,
-      accountsToFund: fundAddresses,
-      callback: (chain, _info) => deployUsdc(chain),
-      chains: chains.length !== 0 ? chains : undefined,
-      relayInterval: relayInterval,
-      relayers,
-      port,
-    });
-  };
-
-  const setupTN = async (): Promise<NetworkExtended> => {
-    const networkSetup: NetworkSetup = {
-      name: "Telcoin Network",
-      chainId: 2017,
-      ownerKey: testerWallet,
-    };
-
-    try {
-      const tn: NetworkExtended = await setupNetworkExtended(
-        telcoinProvider,
-        networkSetup
-      );
-      console.log("Deploying USDC to TN");
-      await deployUsdc(tn);
-      return tn;
-    } catch (e) {
-      console.error("Error setting up TN", e);
-      throw new Error("Setup Error");
-    }
-  };
-
-  const bridge = async (tn: NetworkExtended) => {
+  const bridge = async (eth: Network, tn: NetworkExtended) => {
     console.log("Bridging USDC from Ethereum to Telcoin");
-    const tnUSDC = await tn.getTokenContract("aUSDC");
 
-    // mint tokens to testerWallet on ethereum
-    const ethRpcUrl = "http://localhost:8500/0";
-    const eth = await getNetwork(ethRpcUrl);
-    await eth.giveToken(testerWallet.address, "aUSDC", BigInt(10e6));
     const ethUSDC = await eth.getTokenContract("aUSDC");
-    console.log(await ethUSDC.balanceOf(testerWallet.address));
+    console.log(
+      "eth before transfer" + (await ethUSDC.balanceOf(testerWalletTN.address))
+    );
 
     // approve ethereum gateway to manage tokens
+    console.log(eth.ownerWallet.address);
     const ethApproveTx = await ethUSDC
-      .connect(testerWallet)
+      .connect(eth.ownerWallet)
       .approve(eth.gateway.address, 10e6);
     await ethApproveTx.wait(1);
 
+    console.log(tn.name + " " + testerWalletTN.address);
+    console.log("usdc:" + (await eth.getTokenContract("aUSDC")));
+
     // perform bridge transaction, starting with gateway request
     const ethGatewayTx = await eth.gateway
-      .connect(testerWallet)
-      .sendToken(tn.name, testerWallet.address, "aUSDC", 10e6);
+      .connect(eth.ownerWallet)
+      .sendToken(tn.name, testerWalletTN.address, "aUSDC", 10e6);
     await ethGatewayTx.wait(1);
+    console.log(
+      "eth after transfer" + (await ethUSDC.balanceOf(testerWalletTN.address))
+    );
 
-    console.log(await ethUSDC.balanceOf(testerWallet.address));
-    console.log(await tnUSDC.balanceOf(testerWallet.address));
-    // load TN network info and push TN to this instance then relay transactions
+    const tnUSDC = await tn.getTokenContract("aUSDC");
+    const oldBalance = await tnUSDC.balanceOf(testerWalletTN.address);
+    console.log("tn before relay" + oldBalance);
+
+    // load network info and push to this instance then relay transactions
+    const ethInfo = eth.getInfo();
+    const ethAsExternalNetwork = await getNetwork(
+      "http://localhost:8500",
+      ethInfo
+    );
     const tnInfo = tn.getInfo();
     const tnAsExternalNetwork = await getNetwork(telcoinProvider, tnInfo);
-    await relay({}, [tnAsExternalNetwork]);
+    networks.push(ethAsExternalNetwork);
+    networks.push(tnAsExternalNetwork);
 
-    await new Promise((resolve) => setTimeout(resolve, 6000));
+    await relay(/*{}, [eth, tnAsExternalNetwork]*/);
+
+    const sleep = (ms: number | undefined) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
+    // wait until relayer succeeds
+    while (true) {
+      const newBalance = await tnUSDC.balanceOf(testerWalletTN.address);
+      console.log("old: " + oldBalance);
+      console.log("new: " + newBalance);
+
+      if (!oldBalance.eq(newBalance)) break;
+      await sleep(2000);
+    }
+
     // check token balances in console
     console.log(
       "aUSDC in Ethereum wallet: ",
-      await ethUSDC.balanceOf(testerWallet.address)
+      await ethUSDC.balanceOf(testerWalletTN.address)
     );
     console.log(
       "aUSDC in Telcoin wallet: ",
-      await tnUSDC.balanceOf(testerWallet.address)
+      await tnUSDC.balanceOf(testerWalletTN.address)
     );
   };
 
-  const deployUsdc = async (chain: Network): Promise<void> => {
-    await chain.deployToken("Axelar Wrapped aUSDC", "aUSDC", 6, BigInt(1e22));
-  };
-
   try {
-    await setupETH();
-    const tn = await setupTN();
-    await bridge(tn);
+    // const eth = await setupETH();
+    // const tn = await setupTN();
+    await bridge(eth, tn);
     console.log("Completed!");
   } catch (err) {
     console.log(err);
   }
 }
+
+const setupETH = async (): Promise<Network> => {
+  await createAndExport({
+    chainOutputPath: "out",
+    accountsToFund: ["0x3DCc9a6f3A71F0A6C8C659c65558321c374E917a"],
+    chains: ["Ethereum"],
+    relayInterval: 5000,
+    port: 8500,
+  });
+
+  const ethRpcUrl = "http://localhost:8500/0";
+  const ethProvider: providers.JsonRpcProvider = new providers.JsonRpcProvider(
+    ethRpcUrl
+  );
+  const testerWalletETH: Wallet = new ethers.Wallet(pk, ethProvider);
+
+  const eth = await getNetwork(ethRpcUrl);
+
+  // deploy and mint tokens to testerWalletTN on ethereum
+  await deployUsdc(eth);
+  await eth.giveToken(testerWalletETH.address, "aUSDC", BigInt(10e6));
+
+  return eth;
+};
+
+const setupTN = async (
+  telcoinProvider: providers.JsonRpcProvider,
+  testerWalletTN: Wallet
+): Promise<NetworkExtended> => {
+  const networkSetup: NetworkSetup = {
+    name: "Telcoin Network",
+    chainId: 2017,
+    ownerKey: testerWalletTN,
+  };
+
+  try {
+    const tn: NetworkExtended = await setupNetworkExtended(
+      telcoinProvider,
+      networkSetup
+    );
+    console.log("Deploying USDC to TN");
+    await deployUsdc(tn);
+    return tn;
+  } catch (e) {
+    console.error("Error setting up TN", e);
+    throw new Error("Setup Error");
+  }
+};
+
+const deployUsdc = async (chain: Network): Promise<void> => {
+  await chain.deployToken("Axelar Wrapped aUSDC", "aUSDC", 6, BigInt(1e22));
+};
 
 function networkExtendedToNetwork(extended: NetworkExtended): Network {
   return new Network(extended);

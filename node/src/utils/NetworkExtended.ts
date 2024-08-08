@@ -285,11 +285,17 @@ export class NetworkExtended extends Network {
         [ownerAddress, this.name, [], []]
       )
     ).data;
-    await this.create3Deployer.connect(wallet).deploy(bytecode, deploymentSalt);
-    this.interchainTokenService = InterchainTokenServiceFactory.connect(
-      interchainTokenServiceAddress,
-      wallet
-    );
+    try {
+      await this.create3Deployer
+        .connect(wallet)
+        .deploy(bytecode, deploymentSalt);
+      this.interchainTokenService = InterchainTokenServiceFactory.connect(
+        interchainTokenServiceAddress,
+        wallet
+      );
+    } catch {
+      throw new Error("Create3 Failure: InterchainTokenService");
+    }
 
     const tokenFactoryimplementation = await deployContract(
       wallet,
@@ -307,11 +313,15 @@ export class NetworkExtended extends Network {
       "0x"
     ).data;
 
-    await this.create3Deployer.connect(wallet).deploy(bytecode, factorySalt);
-    this.interchainTokenFactory = InterchainTokenFactoryFactory.connect(
-      interchainTokenFactoryAddress,
-      wallet
-    );
+    try {
+      await this.create3Deployer.connect(wallet).deploy(bytecode, factorySalt);
+      this.interchainTokenFactory = InterchainTokenFactoryFactory.connect(
+        interchainTokenFactoryAddress,
+        wallet
+      );
+    } catch {
+      throw new Error("Create3 Error: InterchainTokenFactory");
+    }
 
     await setupITS(this);
     logger.log(`Deployed at ${this.interchainTokenService.address}`);
