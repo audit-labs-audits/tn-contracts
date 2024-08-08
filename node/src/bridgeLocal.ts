@@ -64,17 +64,12 @@ async function main(): Promise<void> {
     console.log("tn usdc before relay" + oldBalance);
 
     // load network info and push to this instance then relay transactions
-    const ethInfo = eth.getInfo();
-    const ethAsExternalNetwork = await getNetwork(
-      "http://localhost:8500",
-      ethInfo
-    );
-    const tnInfo = tn.getInfo();
-    const tnAsExternalNetwork = await getNetwork(telcoinProvider, tnInfo);
-    networks.push(ethAsExternalNetwork);
-    networks.push(tnAsExternalNetwork);
+    // const ethInfo = eth.getInfo();
+    // await getNetwork("http://localhost:8500", ethInfo);
+    // const tnInfo = tn.getInfo();
+    // await getNetwork(telcoinProvider, tnInfo);
 
-    await relay(/*{}, [eth, tnAsExternalNetwork]*/);
+    await relay();
 
     const sleep = (ms: number | undefined) =>
       new Promise((resolve) => setTimeout(resolve, ms));
@@ -98,8 +93,6 @@ async function main(): Promise<void> {
   };
 
   try {
-    // const eth = await setupETH();
-    // const tn = await setupTN();
     await bridge(eth, tn);
     console.log("Completed!");
   } catch (err) {
@@ -108,26 +101,26 @@ async function main(): Promise<void> {
 }
 
 const setupETH = async (): Promise<Network> => {
+  let ethResolve: (value: Network) => void;
+  const ethPromise: Promise<Network> = new Promise(
+    (resolve) => (ethResolve = resolve)
+  );
+  const callback = async (chain: Network, info: any): Promise<void> => {
+    ethResolve(chain);
+    await deployUsdc(chain);
+    await chain.giveToken(chain.ownerWallet.address, "aUSDC", BigInt(10e6));
+  };
+  const chains = ["Ethereum"];
   await createAndExport({
     chainOutputPath: "out/output.json",
     accountsToFund: ["0x3DCc9a6f3A71F0A6C8C659c65558321c374E917a"],
-    chains: ["Ethereum"],
+    callback: callback,
+    chains: chains,
     relayInterval: 5000,
     port: 8500,
   });
 
-  const ethRpcUrl = "http://localhost:8500/0";
-  const ethProvider: providers.JsonRpcProvider = new providers.JsonRpcProvider(
-    ethRpcUrl
-  );
-  const testerWalletETH: Wallet = new ethers.Wallet(pk, ethProvider);
-
-  const eth = await getNetwork(ethRpcUrl);
-
-  // deploy and mint tokens to ownerWallet on ethereum
-  await deployUsdc(eth);
-  await eth.giveToken(eth.ownerWallet.address, "aUSDC", BigInt(10e6));
-
+  const eth = await ethPromise;
   return eth;
 };
 

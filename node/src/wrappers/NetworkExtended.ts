@@ -47,8 +47,8 @@ import { deployContract } from "./utils.js";
 const { defaultAbiCoder, arrayify, keccak256, toUtf8Bytes } = ethers.utils;
 const defaultGasLimit = 10_000_000;
 
-/// @dev This class inherits Network and extends it for use with Telcoin Network by adding a nonce manager and manually setting gas limits
-/// This is because TN consensus results in differing pending block & transaction behavior
+/// @dev This class inherits Network and extends it for use with Telcoin Network by adding a nonce manager
+/// and manually setting gas limits. This is because TN consensus results in differing pending block & transaction behavior
 export class NetworkExtended extends Network {
   ownerNonceManager!: NonceManager;
 
@@ -333,6 +333,7 @@ export class NetworkExtended extends Network {
     return this.interchainTokenService;
   }
 
+  /// @dev Altered to use the NetworkExtended's NonceManager rather than ethers Wallet
   deployToken = async (
     name: string,
     symbol: string,
@@ -360,6 +361,7 @@ export class NetworkExtended extends Network {
     );
     const signedData = await getSignedExecuteInput(data, this.operatorWallet);
 
+    // use nonce manager rather than ethers wallet
     const wallet = this.ownerNonceManager;
     await (
       await this.gateway
@@ -372,7 +374,7 @@ export class NetworkExtended extends Network {
       BurnableMintableCappedERC20.abi,
       wallet
     );
-    logger.log(`Deployed at ${tokenContract}.address`);
+    logger.log(`Deployed at ${(await this.getTokenContract(symbol)).address}`);
     this.tokens[symbol] = symbol;
     return tokenContract;
   };
