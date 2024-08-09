@@ -8,9 +8,10 @@
     "test": "test"
   },
   "scripts": {
-    "build": "tsc",
-    "start": "node node/dist/tinker.js",
+    "build": "npm run clean && tsc",
+    "start": "node node/dist/bridgeLocal.js",
     "build-and-start": "npm run build && npm run start",
+    "clean": "rm -rf node/dist",
     "watch": "tsc --watch",
     "test": "forge test",
     "prepare": "husky",
@@ -31,6 +32,7 @@
   "homepage": "https://github.com/Telcoin-Association/tn-contracts#readme",
   "dependencies": {
     "@axelar-network/axelar-local-dev": "^2.3.3",
+    "@ethersproject/experimental": "^5.7.0",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
     "dotenv": "^16.4.5",
