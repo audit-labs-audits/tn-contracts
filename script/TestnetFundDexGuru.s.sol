@@ -51,9 +51,9 @@ contract TestnetFundDexGuru is Script {
         vm.startBroadcast(); // must be called by minter role
 
         // send $TEL for gas
-        (bool r, ) = dexGuru.call{value: telAmount}('');
+        (bool r,) = dexGuru.call{ value: telAmount }("");
         require(r);
-        
+
         // wrap $TEL and send $wTEL
         wTEL.deposit{ value: wTelAmount }();
         wTEL.transfer(dexGuru, wTelAmount);
