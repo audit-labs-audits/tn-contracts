@@ -40,7 +40,7 @@ async function main(): Promise<void> {
 
     const ethUSDC = await eth.getTokenContract("aUSDC");
     console.log(
-      "owner ethUSDC before transfer: " +
+      "Sender eth:USDC balance before bridging: " +
         (await ethUSDC.balanceOf(eth.ownerWallet.address))
     );
 
@@ -56,20 +56,16 @@ async function main(): Promise<void> {
       .sendToken(tn.name, testerWalletTN.address, "aUSDC", 10e6);
     await ethGatewayTx.wait(1);
     console.log(
-      "eth after transfer" + (await ethUSDC.balanceOf(eth.ownerWallet.address))
+      "Sender eth:USDC balance after bridging: " +
+        (await ethUSDC.balanceOf(eth.ownerWallet.address))
     );
 
     const tnUSDC = await tn.getTokenContract("aUSDC");
     const oldBalance = await tnUSDC.balanceOf(testerWalletTN.address);
-    console.log("tn usdc before relay" + oldBalance);
-
-    // load network info and push to this instance then relay transactions
-    // const ethInfo = eth.getInfo();
-    // await getNetwork("http://localhost:8500", ethInfo);
-    // const tnInfo = tn.getInfo();
-    // await getNetwork(telcoinProvider, tnInfo);
+    console.log("Recipient tn:USDC before relaying: " + oldBalance);
 
     await relay();
+    console.log("Relayed");
 
     const sleep = (ms: number | undefined) =>
       new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,11 +79,7 @@ async function main(): Promise<void> {
 
     // check token balances in console
     console.log(
-      "aUSDC in Ethereum wallet: ",
-      await ethUSDC.balanceOf(testerWalletTN.address)
-    );
-    console.log(
-      "aUSDC in Telcoin wallet: ",
+      "aUSDC in Recipient's Telcoin wallet: ",
       await tnUSDC.balanceOf(testerWalletTN.address)
     );
   };
@@ -109,6 +101,7 @@ const setupETH = async (): Promise<Network> => {
     ethResolve(chain);
     await deployUsdc(chain);
     await chain.giveToken(chain.ownerWallet.address, "aUSDC", BigInt(10e6));
+    console.log("Funded ETH owner wallet with aUSDC");
   };
   const chains = ["Ethereum"];
   await createAndExport({
@@ -139,8 +132,8 @@ const setupTN = async (
       telcoinProvider,
       networkSetup
     );
-    console.log(await tn.ownerNonceManager.getTransactionCount());
     await deployUsdc(tn);
+
     return tn;
   } catch (e) {
     console.error("Error setting up TN", e);
@@ -158,9 +151,5 @@ const deployUsdc = async (
     BigInt(1e22)
   );
 };
-
-function networkExtendedToNetwork(extended: NetworkExtended): Network {
-  return new Network(extended);
-}
 
 main();

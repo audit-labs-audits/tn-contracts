@@ -207,6 +207,7 @@ export class NetworkExtended extends Network {
         deploymentSalt
       );
 
+    console.log(`Deploying the TokenManagerDeployer for ${this.name}...`);
     const tokenManagerDeployer = await deployContract(
       wallet,
       TokenManagerDeployer,
@@ -215,8 +216,9 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
-    console.log("tokenManagerDeployer deployed");
+    console.log(`Deployed at ${tokenManagerDeployer.address}`);
 
+    console.log(`Deploying the InterchainToken for ${this.name}...`);
     const interchainToken = await deployContract(
       wallet,
       InterchainToken,
@@ -225,8 +227,9 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
-    console.log("interchainToken deployed");
+    console.log(`Deployed at ${interchainToken.address}`);
 
+    console.log(`Deploying the InterchainTokenDeployer for ${this.name}...`);
     const interchainTokenDeployer = await deployContract(
       wallet,
       InterchainTokenDeployer,
@@ -235,8 +238,9 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
-    console.log("interchainTokenDeployer deployed");
+    console.log(`Deployed at ${interchainTokenDeployer.address}`);
 
+    console.log(`Deploying the TokenManager for ${this.name}...`);
     const tokenManager = await deployContract(
       wallet,
       TokenManager,
@@ -245,12 +249,13 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
-    console.log("tokenManager deployed");
+    console.log(`Deployed at ${tokenManager.address}`);
 
+    console.log(`Deploying the TokenHandler for ${this.name}...`);
     const tokenHandler = await deployContract(wallet, TokenHandler, [], {
       gasLimit: defaultGasLimit,
     });
-    console.log("tokenHandler deployed");
+    console.log(`Deployed at ${tokenHandler.address}`);
 
     const interchainTokenFactoryAddress =
       await this.create3Deployer.deployedAddress(
@@ -259,6 +264,7 @@ export class NetworkExtended extends Network {
         factorySalt
       );
 
+    console.log(`Deploying the ServiceImplementation for ${this.name}...`);
     const serviceImplementation = await deployContract(
       wallet,
       InterchainTokenServiceContract,
@@ -277,7 +283,7 @@ export class NetworkExtended extends Network {
       }
     );
 
-    console.log("serviceImplementation deployed");
+    console.log(`Deployed at ${serviceImplementation.address}`);
     const factory = new ContractFactory(
       InterchainProxy.abi,
       InterchainProxy.bytecode
@@ -302,6 +308,7 @@ export class NetworkExtended extends Network {
       throw new Error("Create3 Failure: InterchainTokenService");
     }
 
+    console.log(`Deploying the TokenFactoryImplementation for ${this.name}...`);
     const tokenFactoryimplementation = await deployContract(
       wallet,
       InterchainTokenFactoryContract,
@@ -310,7 +317,7 @@ export class NetworkExtended extends Network {
         gasLimit: defaultGasLimit,
       }
     );
-    console.log("tokenFactoryImplementation deployed");
+    console.log(`Deployed at ${tokenFactoryimplementation.address}`);
 
     bytecode = factory.getDeployTransaction(
       tokenFactoryimplementation.address,
@@ -319,17 +326,21 @@ export class NetworkExtended extends Network {
     ).data;
 
     try {
+      console.log(`Deploying the InterchainTokenFactory for ${this.name}...`);
       await this.create3Deployer.connect(wallet).deploy(bytecode, factorySalt);
       this.interchainTokenFactory = InterchainTokenFactoryFactory.connect(
         interchainTokenFactoryAddress,
         wallet
       );
+      console.log(`Deployed at ${this.interchainTokenFactory.address}`);
     } catch {
       throw new Error("Create3 Error: InterchainTokenFactory");
     }
 
     await setupITS(this);
-    logger.log(`Deployed at ${this.interchainTokenService.address}`);
+    logger.log(
+      `Deployed the InterchainTokenService at ${this.interchainTokenService.address}`
+    );
     return this.interchainTokenService;
   }
 
@@ -374,7 +385,7 @@ export class NetworkExtended extends Network {
       BurnableMintableCappedERC20.abi,
       wallet
     );
-    logger.log(`Deployed at ${(await this.getTokenContract(symbol)).address}`);
+    logger.log(`Deployed at ${tokenContract.address}`);
     this.tokens[symbol] = symbol;
     return tokenContract;
   };
