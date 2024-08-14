@@ -1,16 +1,9 @@
 import {
   Network,
-  EvmRelayer,
   createAndExport,
-  networks,
-  createNetwork,
-  getNetwork,
   NetworkSetup,
-  NetworkInfo,
   relay,
-  setupNetwork,
 } from "@axelar-network/axelar-local-dev";
-// import { JsonRpcProvider } from "@ethersproject/providers";
 import { ethers, Contract, Wallet, providers } from "ethers";
 import { NetworkExtended } from "./wrappers/NetworkExtended.js";
 import { setupNetworkExtended } from "./wrappers/utils.js";
@@ -21,7 +14,6 @@ const pk: string | undefined = process.env.PK;
 if (!pk) throw new Error("Set private key string in .env");
 
 /// @dev Basic script to tinker with local bridging via Axelar
-/// @notice initializes an Ethereum network on port 8500, deploys Axelar infra, funds specified address, deploys aUSDC
 async function main(): Promise<void> {
   const eth = await setupETH();
 
@@ -92,6 +84,7 @@ async function main(): Promise<void> {
   }
 }
 
+/// @notice initializes an Ethereum network on port 8500, deploys Axelar infra, funds specified address, deploys aUSDC
 const setupETH = async (): Promise<Network> => {
   let ethResolve: (value: Network) => void;
   const ethPromise: Promise<Network> = new Promise(
@@ -117,6 +110,7 @@ const setupETH = async (): Promise<Network> => {
   return eth;
 };
 
+/// @notice instantiates NetworkExtended object around local TN running on port 8545, deploys Axelar infra, funds specified address, deploys aUSDC
 const setupTN = async (
   telcoinProvider: providers.JsonRpcProvider,
   testerWalletTN: Wallet
