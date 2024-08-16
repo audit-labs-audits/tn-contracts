@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 
 /// @dev Smart contract used to facilitate trusted CI runs across the Telcoin team
 /// @notice Facilitates Telcoin's distributed source control mechanisms by bypassing the
@@ -9,7 +9,6 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 /// set of private key owners to attest to CI correctness locally and register git commit
 /// hashes that pass CI checks in an onchain registry serving as single source of truth
 contract GitAttestationRegistry is AccessControl {
-
     struct GitCommitHashRecord {
         bytes20 gitCommitHash;
         bool ciPassed;
@@ -31,7 +30,7 @@ contract GitAttestationRegistry is AccessControl {
             ringBuffer.push(GitCommitHashRecord(bytes20(0x0), false));
         }
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, maintainers_[0]);
         for (uint256 i; i < maintainers_.length; ++i) {
             _grantRole(MAINTAINER_ROLE, maintainers_[i]);
         }
@@ -40,7 +39,7 @@ contract GitAttestationRegistry is AccessControl {
     function attestGitCommitHash(bytes20 gitCommitHash, bool ciPassed) external onlyRole(MAINTAINER_ROLE) {
         ringBuffer[head] = GitCommitHashRecord(gitCommitHash, ciPassed);
         head = (head + 1) % bufferSize;
-    
+
         emit GitHashAttested(gitCommitHash, ciPassed);
     }
 

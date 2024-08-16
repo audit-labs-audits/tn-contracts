@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
-import {GitAttestationRegistry} from "../../src/CI/GitAttestationRegistry.sol";
+import { GitAttestationRegistry } from "../../src/CI/GitAttestationRegistry.sol";
 
 contract GitAttestationRegistryTest is Test {
     GitAttestationRegistry gitAttestationRegistry;
@@ -90,7 +90,8 @@ contract GitAttestationRegistryTest is Test {
 
     function testFuzzAttestAndResize(uint8 bufferSize, bytes20 gitHash) public {
         vm.assume(bufferSize > 0 && bufferSize <= 256);
-        // ring buffer members initialize to bytes32(0x0) so it must be excluded. Hash collision with 0 is extremely unlikely
+        // ring buffer members initialize to bytes32(0x0) so it must be excluded. Hash collision with 0 is extremely
+        // unlikely
         vm.assume(gitHash != bytes32(0x0));
 
         address[] memory maintainers = new address[](1);

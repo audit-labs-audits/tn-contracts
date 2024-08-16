@@ -1,4 +1,5 @@
 {
+  "GitAttestationRegistry": "0x268bfaf90153fe9f97def2585608f6f0a64e7ba8",
   "StablecoinImpl": "0xd3930b15461fcecff57a4c9bd65abf6fa2a44307",
   "StablecoinManager": "0x53bfbc702caa071d76a322b74eb655d583a4be41",
   "UniswapV2Factory": "0x0920e998552f2c41fc22e6a84998bbe843be9508",
