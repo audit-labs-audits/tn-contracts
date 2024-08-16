@@ -8,7 +8,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 /// sluggish Github CI workflow which takes ages to build/test remotely by allowing a limited
 /// set of private key owners to attest to CI correctness locally and register git commit
 /// hashes that pass CI checks in an onchain registry serving as single source of truth
-contract GitAttestation is AccessControl {
+contract GitAttestationRegistry is AccessControl {
 
     struct GitCommitHashRecord {
         bytes20 gitCommitHash;
@@ -31,7 +31,7 @@ contract GitAttestation is AccessControl {
             ringBuffer.push(GitCommitHashRecord(bytes20(0x0), false));
         }
 
-        grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         for (uint256 i; i < maintainers_.length; ++i) {
             _grantRole(MAINTAINER_ROLE, maintainers_[i]);
         }
