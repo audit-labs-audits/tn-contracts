@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import { StablecoinHandler } from "telcoin-contracts/contracts/stablecoin/StablecoinHandler.sol";
 import { IStablecoin } from "external/telcoin-contracts/interfaces/IStablecoin.sol";
 
@@ -13,7 +14,7 @@ import { IStablecoin } from "external/telcoin-contracts/interfaces/IStablecoin.s
  *
  * @notice This contract extends the StablecoinHandler which manages the minting and burning of stablecoins
  */
-contract StablecoinManager is StablecoinHandler {
+contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     struct XYZMetadata {
@@ -26,6 +27,7 @@ contract StablecoinManager is StablecoinHandler {
     error TokenArityMismatch();
     error LowLevelCallFailure();
     error InvalidXYZ(address token);
+    error InvalidDripAmount();
 
     event XYZAdded(address token);
     event XYZRemoved(address token);
@@ -33,6 +35,7 @@ contract StablecoinManager is StablecoinHandler {
     /// @custom:storage-location erc7201:telcoin.storage.StablecoinManager
     struct StablecoinManagerStorage {
         address[] _enabledXYZs;
+        uint256 _dripAmount;
     }
 
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.StablecoinHandler")) - 1))
@@ -45,12 +48,16 @@ contract StablecoinManager is StablecoinHandler {
     bytes32 internal constant StablecoinManagerStorageSlot =
         0x77dc539bf9c224afa178d31bf07d5109c2b5c5e56656e49b25e507fec3a69f00;
 
+    bytes32 public constant FAUCET_ROLE = keccak256("FAUCET_ROLE");
+
     /// @dev Invokes `__Pausable_init()`
     function initialize(
         address admin_,
         address maintainer_,
         address[] calldata tokens_,
-        eXYZ[] calldata eXYZs_
+        eXYZ[] calldata eXYZs_,
+        address[] calldata authorizedFaucets_,
+        uint256 dripAmount_
     )
         public
         initializer
@@ -67,6 +74,11 @@ contract StablecoinManager is StablecoinHandler {
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(MAINTAINER_ROLE, maintainer_);
+
+        for (uint256 i; i < authorizedFaucets_.length; ++i) {
+            _grantRole(FAUCET_ROLE, authorizedFaucets_[i]);
+        }
+        _setDripAmount(dripAmount_);
     }
 
     function UpdateXYZ(
@@ -104,6 +116,28 @@ contract StablecoinManager is StablecoinHandler {
 
             enabledXYZMetadatas[i] = XYZMetadata(enabledXYZs[i], name, symbol, decimals);
         }
+    }
+
+    /**
+     *
+     *   faucet
+     *
+     */
+
+    /// @dev Faucet function defining this contract as the onchain entrypoint for minting testnet tokens to users
+    /// @notice This contract must be given `Stablecoin::MINTER_ROLE` on each eXYZ contract
+    function drip(address eXYZ, address recipient) external onlyRole(FAUCET_ROLE) {
+        IStablecoin(eXYZ).mintTo(recipient, getDripAmount());
+    }
+
+    /// @dev Provides a way for Telcoin maintainers to alter the faucet's drip amount onchain
+    function setDripAmount(uint256 newDripAmount) external onlyRole(MAINTAINER_ROLE) {
+        _setDripAmount(newDripAmount);
+    }
+
+    function getDripAmount() public view returns (uint256 dripAmount) {
+        StablecoinManagerStorage storage $ = _stablecoinManagerStorage();
+        return $._dripAmount;
     }
 
     /**
@@ -174,6 +208,11 @@ contract StablecoinManager is StablecoinHandler {
         emit XYZRemoved(token);
     }
 
+    function _setDripAmount(uint256 newDripAmount) internal {
+        StablecoinManagerStorage storage $ = _stablecoinManagerStorage();
+        $._dripAmount = newDripAmount;
+    }
+
     /// @notice Despite having similar names, `StablecoinManagerStorage` != `StablecoinHandlerStorage` !!
     function _stablecoinManagerStorage() internal pure returns (StablecoinManagerStorage storage $) {
         assembly {
@@ -187,4 +226,7 @@ contract StablecoinManager is StablecoinHandler {
             $.slot := StablecoinHandlerStorageSlot
         }
     }
+
+    /// @notice Only the admin may perform an upgrade
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }
