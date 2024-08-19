@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import { AxelarExecutable } from "@axelar-cgp-solidity/node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarExecutable.sol";
+import { AxelarExecutable } from
+    "@axelar-cgp-solidity/node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarExecutable.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 
 contract RWTEL is RecoverableWrapper, AxelarExecutable {
-
     /* RecoverableWrapper Storage Layout (Non-ERC7201 compliant)
      _______________________________________________________________________________________
     | Name              | Type                                                       | Slot |
@@ -32,7 +32,8 @@ contract RWTEL is RecoverableWrapper, AxelarExecutable {
         address governanceAddress_,
         address baseERC20_,
         uint16 maxToClean
-    ) AxelarExecutable(gateway_)
-        RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean) 
-    {}
+    )
+        AxelarExecutable(gateway_)
+        RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
+    { }
 }
