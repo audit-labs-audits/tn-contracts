@@ -228,5 +228,5 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
     }
 
     /// @notice Only the admin may perform an upgrade
-    function _authorizeUpgrade(address newImplementation) internal virtual override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyRole(DEFAULT_ADMIN_ROLE) { }
 }

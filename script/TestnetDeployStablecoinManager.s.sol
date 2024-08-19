@@ -67,7 +67,7 @@ contract TestnetDeployStablecoinManager is Script {
         faucets.push(faucet0);
         faucets.push(faucet1);
         faucets.push(faucet2);
-        faucets.push(faucet3);    
+        faucets.push(faucet3);
     }
 
     function run() public {
@@ -77,8 +77,9 @@ contract TestnetDeployStablecoinManager is Script {
         stablecoinManagerImpl = new StablecoinManager{ salt: stablecoinManagerSalt }();
 
         // deploy proxy with init data
-        bytes memory initData =
-            abi.encodeWithSelector(StablecoinManager.initialize.selector, admin, admin, stables, eXYZs, faucets, dripAmount);
+        bytes memory initData = abi.encodeWithSelector(
+            StablecoinManager.initialize.selector, admin, admin, stables, eXYZs, faucets, dripAmount
+        );
         stablecoinManager = StablecoinManager(
             address(new ERC1967Proxy{ salt: stablecoinManagerSalt }(address(stablecoinManagerImpl), initData))
         );

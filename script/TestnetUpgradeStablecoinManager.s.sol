@@ -36,7 +36,7 @@ contract TestnetUpgradeStablecoinManager is Script {
 
         // deploy new StablecoinManager impl and upgrade proxy
         newStablecoinManagerImpl = new StablecoinManager{ salt: stablecoinManagerSalt }();
-        UUPSUpgradeable(payable(address(stablecoinManager))).upgradeToAndCall(address(newStablecoinManagerImpl), '');
+        UUPSUpgradeable(payable(address(stablecoinManager))).upgradeToAndCall(address(newStablecoinManagerImpl), "");
 
         vm.stopBroadcast();
     }
