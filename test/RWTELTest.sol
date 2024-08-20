@@ -30,7 +30,7 @@ contract RWTELTest is Test {
         rwTEL = new RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean);
     }
 
-    function test_setUp() public {
+    function test_setUp() public view {
         // wTEL sanity tests
         assertTrue(address(wTEL).code.length > 0);
         string memory wName = wTEL.name();

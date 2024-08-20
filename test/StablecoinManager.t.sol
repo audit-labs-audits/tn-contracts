@@ -11,16 +11,12 @@ contract StablecoinManagerTest is Test {
     address maintainer = address(0x1234);
     address token1 = address(0x1111);
     address token2 = address(0x2222);
-
-    // struct eXYZ {
-    //     bool validity;
-    //     uint256 maxSupply;
-    //     uint256 minSupply;
-    // }
+    address[] faucets; // empty
+    uint256 dripAmount = 42;
 
     function setUp() public {
         stablecoinManager = new StablecoinManager();
-        stablecoinManager.initialize(admin, maintainer, new address[](0), new StablecoinHandler.eXYZ[](0));
+        stablecoinManager.initialize(admin, maintainer, new address[](0), new StablecoinHandler.eXYZ[](0), faucets, dripAmount);
     }
 
     function testUpdateXYZ() public {
