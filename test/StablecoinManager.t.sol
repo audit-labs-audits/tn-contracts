@@ -16,7 +16,9 @@ contract StablecoinManagerTest is Test {
 
     function setUp() public {
         stablecoinManager = new StablecoinManager();
-        stablecoinManager.initialize(admin, maintainer, new address[](0), new StablecoinHandler.eXYZ[](0), faucets, dripAmount);
+        stablecoinManager.initialize(
+            admin, maintainer, new address[](0), new StablecoinHandler.eXYZ[](0), faucets, dripAmount
+        );
     }
 
     function testUpdateXYZ() public {
