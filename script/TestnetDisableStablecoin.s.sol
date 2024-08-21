@@ -12,7 +12,7 @@ contract TestnetDisableStablecoin is Script {
 
     Deployments deployments;
     address admin; // admin, support, minter, burner role
-    address tokenToManage;
+    address[] tokensToManage;
     uint256 maxLimit;
     uint256 minLimit;
 
@@ -26,7 +26,10 @@ contract TestnetDisableStablecoin is Script {
         admin = deployments.admin;
 
         stablecoinManager = StablecoinManager(deployments.StablecoinManager);
-        tokenToManage = deployments.eEUR;
+        address[] memory enabledStables = stablecoinManager.getEnabledXYZs();
+        for (uint256 i; i < enabledStables.length; ++i) {
+            tokensToManage.push(enabledStables[i]);
+        }
         maxLimit = type(uint256).max;
         minLimit = 1000;
     }
@@ -34,8 +37,13 @@ contract TestnetDisableStablecoin is Script {
     function run() public {
         vm.startBroadcast();
 
-        stablecoinManager.UpdateXYZ(tokenToManage, false, maxLimit, minLimit);
+        for (uint256 i; i < tokensToManage.length; ++i) {
+            stablecoinManager.UpdateXYZ(tokensToManage[i], false, maxLimit, minLimit);
+        }
 
         vm.stopBroadcast();
+
+        address[] memory remainingEnabledStables = stablecoinManager.getEnabledXYZs();
+        assert(remainingEnabledStables.length == 0);
     }
 }
