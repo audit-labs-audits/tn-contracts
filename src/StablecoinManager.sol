@@ -6,6 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import { StablecoinHandler } from "telcoin-contracts/contracts/stablecoin/StablecoinHandler.sol";
 import { IStablecoin } from "external/telcoin-contracts/interfaces/IStablecoin.sol";
+import { TNFaucet } from "./faucet/TNFaucet.sol";
 
 /**
  * @title StablecoinManager
@@ -14,7 +15,7 @@ import { IStablecoin } from "external/telcoin-contracts/interfaces/IStablecoin.s
  *
  * @notice This contract extends the StablecoinHandler which manages the minting and burning of stablecoins
  */
-contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
+contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     struct XYZMetadata {
@@ -24,18 +25,29 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
         uint256 decimals;
     }
 
-    error TokenArityMismatch();
     error LowLevelCallFailure();
-    error InvalidXYZ(address token);
-    error InvalidDripAmount();
+    error InvalidOrDisabled(address token);
+    error InvalidDripAmount(uint256 dripAmount);
 
     event XYZAdded(address token);
     event XYZRemoved(address token);
+    event FaucetLowNativeBalance();
 
+    struct StablecoinManagerInitParams {
+        address admin_;
+        address maintainer_;
+        address[] tokens_;
+        uint256 initMaxLimit;
+        uint256 initMinLimit;
+        address[] authorizedFaucets_;
+        uint256 dripAmount_;
+        uint256 nativeDripAmount_;
+    }
     /// @custom:storage-location erc7201:telcoin.storage.StablecoinManager
     struct StablecoinManagerStorage {
         address[] _enabledXYZs;
         uint256 _dripAmount;
+        uint256 _nativeDripAmount;
     }
 
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.StablecoinHandler")) - 1))
@@ -50,35 +62,28 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
 
     bytes32 public constant FAUCET_ROLE = keccak256("FAUCET_ROLE");
 
+    address public constant NATIVE_TOKEN_POINTER = address(0x0);
+
     /// @dev Invokes `__Pausable_init()`
-    function initialize(
-        address admin_,
-        address maintainer_,
-        address[] calldata tokens_,
-        eXYZ[] calldata eXYZs_,
-        address[] calldata authorizedFaucets_,
-        uint256 dripAmount_
-    )
+    function initialize(StablecoinManagerInitParams calldata initParams)
         public
         initializer
     {
-        if (tokens_.length != eXYZs_.length) revert TokenArityMismatch();
-
         __StablecoinHandler_init();
-        // temporarily grant role to sender for use with the Arachnid Deterministic Deployment Factory
-        _grantRole(MAINTAINER_ROLE, msg.sender);
-        for (uint256 i; i < eXYZs_.length; ++i) {
-            UpdateXYZ(tokens_[i], eXYZs_[i].validity, eXYZs_[i].maxSupply, eXYZs_[i].minSupply);
-        }
-        _revokeRole(MAINTAINER_ROLE, msg.sender);
+        __Faucet_init(initParams.dripAmount_, initParams.nativeDripAmount_);
 
-        _grantRole(DEFAULT_ADMIN_ROLE, admin_);
-        _grantRole(MAINTAINER_ROLE, maintainer_);
-
-        for (uint256 i; i < authorizedFaucets_.length; ++i) {
-            _grantRole(FAUCET_ROLE, authorizedFaucets_[i]);
+        // native token faucet drips are enabled by default
+        UpdateXYZ(NATIVE_TOKEN_POINTER, true, type(uint256).max, 1);
+        for (uint256 i; i < initParams.tokens_.length; ++i) {
+            UpdateXYZ(initParams.tokens_[i], true, initParams.initMaxLimit, initParams.initMinLimit);
         }
-        _setDripAmount(dripAmount_);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, initParams.admin_);
+        _grantRole(MAINTAINER_ROLE, initParams.maintainer_);
+
+        for (uint256 i; i < initParams.authorizedFaucets_.length; ++i) {
+            _grantRole(FAUCET_ROLE, initParams.authorizedFaucets_[i]);
+        }
     }
 
     function UpdateXYZ(
@@ -118,6 +123,15 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
         }
     }
 
+    function isEnabledXYZ(address eXYZ) public view returns (bool isEnabled) {
+        address[] memory enabledXYZs = getEnabledXYZs();
+        for (uint256 i; i < enabledXYZs.length; ++i) {
+            if (enabledXYZs[i] == eXYZ) return true;
+        }
+
+        return false;
+    }
+
     /**
      *
      *   faucet
@@ -125,19 +139,74 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
      */
 
     /// @dev Faucet function defining this contract as the onchain entrypoint for minting testnet tokens to users
+    /// @dev To mint the chain's native token, use `NATIVE_TOKEN_POINTER == address(0x0)`
     /// @notice This contract must be given `Stablecoin::MINTER_ROLE` on each eXYZ contract
-    function drip(address eXYZ, address recipient) external onlyRole(FAUCET_ROLE) {
-        IStablecoin(eXYZ).mintTo(recipient, getDripAmount());
+    /// @notice Implements Access Control, requiring callers to possess the `FAUCET_ROLE`
+    function drip(address token, address recipient) public virtual override onlyRole(FAUCET_ROLE) {
+        super.drip(token, recipient);
+    }
+    
+    /// @inheritdoc TNFaucet
+    function _drip(address token, address recipient) internal virtual override {
+        uint256 amount;
+        if (token == NATIVE_TOKEN_POINTER) {
+            amount = getNativeDripAmount();
+
+            (bool r,) = recipient.call{value: amount}('');
+            if (!r) revert LowLevelCallFailure();
+
+            // reentrancy safe- does not perform state change
+            _checkLowNativeBalance();
+        } else {
+            amount = getDripAmount();
+            IStablecoin(token).mintTo(recipient, amount);
+        }
+
+        emit Drip(token, recipient, amount);
     }
 
-    /// @dev Provides a way for Telcoin maintainers to alter the faucet's drip amount onchain
-    function setDripAmount(uint256 newDripAmount) external onlyRole(MAINTAINER_ROLE) {
+    /// @inheritdoc TNFaucet
+    function _checkDrip(address token, address recipient) internal virtual override {
+        if (!isEnabledXYZ(token)) revert InvalidOrDisabled(token);
+
+        uint256 lastFulfilledDrip = getLastFulfilledDripTimestamp(token, recipient);
+        if (block.timestamp < lastFulfilledDrip + 1 days) {
+            revert RequestIneligibleUntil(lastFulfilledDrip + 1 days);
+        }
+    }
+
+    /// @dev Provides a way for Telcoin maintainers to alter the faucet's eXYZ drip amount onchain
+    /// @notice Rather than set `dripAmount` to 0, disable the token
+    /// @inheritdoc TNFaucet
+    function setDripAmount(uint256 newDripAmount) external override onlyRole(MAINTAINER_ROLE) {
+        if (newDripAmount == 0) revert InvalidDripAmount(newDripAmount);
+
         _setDripAmount(newDripAmount);
     }
 
-    function getDripAmount() public view returns (uint256 dripAmount) {
-        StablecoinManagerStorage storage $ = _stablecoinManagerStorage();
-        return $._dripAmount;
+    /// @dev Provides a way for Telcoin maintainers to alter the faucet's native token drip amount onchain
+    /// @notice Rather than set `nativeDripAmount` to 0, disable the token
+    /// @inheritdoc TNFaucet
+    function setNativeDripAmount(uint256 newNativeDripAmount) external override onlyRole(MAINTAINER_ROLE) {
+        if (newNativeDripAmount == 0) revert InvalidDripAmount(newNativeDripAmount);
+        _setNativeDripAmount(newNativeDripAmount);
+    }
+
+    /// @dev Provides a way for Telcoin maintainers to configure the faucet's threshold for top-up alerts
+    /// @inheritdoc TNFaucet
+    function setLowBalanceThreshold(uint256 newThreshold) external virtual override onlyRole(MAINTAINER_ROLE) {
+        _setLowBalanceThreshold(newThreshold);
+    }
+
+    function __Faucet_init(
+        uint256 dripAmount_,
+        uint256 nativeDripAmount_
+    )
+        internal virtual override
+        initializer
+    {
+        _setDripAmount(dripAmount_);
+        _setNativeDripAmount(nativeDripAmount_);
     }
 
     /**
@@ -148,13 +217,13 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
 
     /**
      * @notice Rescues crypto assets mistakenly sent to the contract.
-     * @dev Allows for the recovery of both ERC20 tokens and native currency sent to the contract.
-     * @param token The token to rescue. Use `address(0x0)` for native currency.
+     * @dev Allows for the recovery of both ERC20 tokens and native token sent to the contract.
+     * @param token The token to rescue. Use `address(0x0)` for native token.
      * @param amount The amount of the token to rescue.
      */
     function rescueCrypto(IERC20 token, uint256 amount) public onlyRole(MAINTAINER_ROLE) {
         if (address(token) == address(0x0)) {
-            // Native Currency
+            // Native Token
             (bool r,) = _msgSender().call{ value: amount }("");
             if (!r) revert LowLevelCallFailure();
         } else {
@@ -168,6 +237,7 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
      *   internals
      *
      */
+
     function _recordXYZ(address token, bool validity) internal virtual {
         if (validity == true) {
             _addEnabledXYZ(token);
@@ -195,7 +265,7 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
         }
 
         // in the case no match was found, revert with info detailing invalid state
-        if (matchingIndex == type(uint256).max) revert InvalidXYZ(token);
+        if (matchingIndex == type(uint256).max) revert InvalidOrDisabled(token);
 
         // if match is not the final array member, write final array member into the matching index
         uint256 lastIndex = enabledXYZs.length - 1;
@@ -208,9 +278,11 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
         emit XYZRemoved(token);
     }
 
-    function _setDripAmount(uint256 newDripAmount) internal {
-        StablecoinManagerStorage storage $ = _stablecoinManagerStorage();
-        $._dripAmount = newDripAmount;
+    /// @dev Emits an alert for indexer when faucet balance can only process <= 10_000 more requests
+    function _checkLowNativeBalance() private {
+        if (address(this).balance <= getNativeDripAmount() * 10_000) {
+            emit FaucetLowNativeBalance();
+        }
     }
 
     /// @notice Despite having similar names, `StablecoinManagerStorage` != `StablecoinHandlerStorage` !!
@@ -227,6 +299,17 @@ contract StablecoinManager is StablecoinHandler, UUPSUpgradeable {
         }
     }
 
+    /// @dev Extends `StablecoinHandler::AccessControlUpgradeable` to bypass `onlyRole()` modifier during initialization
+    /// This is necessary because this contract is intended to be deployed via Arachnid Deterministic Deployment proxy
+    function _checkRole(bytes32 role) internal view virtual override {
+        address caller = _msgSender();
+        bool hasRoleOrInitializing = hasRole(role, caller) || _isInitializing();
+        if (!hasRoleOrInitializing) revert AccessControlUnauthorizedAccount(caller, role);
+    }
+
     /// @notice Only the admin may perform an upgrade
-    function _authorizeUpgrade(address newImplementation) internal virtual override onlyRole(DEFAULT_ADMIN_ROLE) { }
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /// @dev To operate as a faucet, this contract must accept native token
+    receive() external payable {}
 }
