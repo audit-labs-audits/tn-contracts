@@ -115,6 +115,9 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
 
         enabledXYZMetadatas = new XYZMetadata[](enabledXYZs.length);
         for (uint256 i; i < enabledXYZs.length; ++i) {
+            // handle `NATIVE_TOKEN_POINTER` case
+            if (enabledXYZMetadatas[i].token == address(0)) continue;
+
             string memory name = IStablecoin(enabledXYZs[i]).name();
             string memory symbol = IStablecoin(enabledXYZs[i]).symbol();
             uint256 decimals = IStablecoin(enabledXYZs[i]).decimals();

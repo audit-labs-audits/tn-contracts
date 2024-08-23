@@ -28,6 +28,7 @@ contract TestnetDeployStablecoinManager is Script {
     address faucet3 = 0xE69151677E5aeC0B4fC0a94BFcAf20F6f0f975eB;
     address[] faucets; // will contain above
     uint256 dripAmount;
+    uint256 nativeDripAmount;
 
     Deployments deployments;
     address admin; // admin, support, minter, burner role
@@ -45,6 +46,7 @@ contract TestnetDeployStablecoinManager is Script {
         maxLimit = type(uint256).max;
         minLimit = 1000;
         dripAmount = 100e6; // 100 units of the stablecoin (decimals == 6)
+        nativeDripAmount = 1e18; // 1 $TEL
 
         // populate stables array
         stables.push(deployments.eAUD);
@@ -78,10 +80,10 @@ contract TestnetDeployStablecoinManager is Script {
 
         // deploy proxy with init data
         bytes memory initData = abi.encodeWithSelector(
-            StablecoinManager.initialize.selector, admin, admin, stables, eXYZs, faucets, dripAmount
+            StablecoinManager.initialize.selector, admin, admin, stables, eXYZs, faucets, dripAmount, nativeDripAmount
         );
         stablecoinManager = StablecoinManager(
-            address(new ERC1967Proxy{ salt: stablecoinManagerSalt }(address(stablecoinManagerImpl), initData))
+            payable(address(new ERC1967Proxy{ salt: stablecoinManagerSalt }(address(stablecoinManagerImpl), initData)))
         );
 
         // grant minter role to StablecoinManager on all tokens
@@ -103,6 +105,7 @@ contract TestnetDeployStablecoinManager is Script {
             assert(stablecoinManager.hasRole(stablecoinManager.FAUCET_ROLE(), faucets[i]));
         }
         assert(stablecoinManager.getDripAmount() == dripAmount);
+        assert(stablecoinManager.getNativeDripAmount() == nativeDripAmount);
 
         // logs
         string memory root = vm.projectRoot();

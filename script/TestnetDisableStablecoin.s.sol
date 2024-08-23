@@ -25,7 +25,7 @@ contract TestnetDisableStablecoin is Script {
 
         admin = deployments.admin;
 
-        stablecoinManager = StablecoinManager(deployments.StablecoinManager);
+        stablecoinManager = StablecoinManager(payable(deployments.StablecoinManager));
         address[] memory enabledStables = stablecoinManager.getEnabledXYZs();
         for (uint256 i; i < enabledStables.length; ++i) {
             tokensToManage.push(enabledStables[i]);

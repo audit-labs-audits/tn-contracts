@@ -14,6 +14,10 @@ contract TestnetUpgradeStablecoinManager is Script {
     StablecoinManager stablecoinManager;
 
     bytes32 stablecoinManagerSalt; // used for both impl and proxy
+    bytes upgradeCall; // optional- configure for each upgrade
+    uint256 dripAmount;
+    uint256 nativeDripAmount;
+    uint256 lowBalanceThreshold;
 
     Deployments deployments;
     address admin; // admin, support, minter, burner role
@@ -26,18 +30,36 @@ contract TestnetUpgradeStablecoinManager is Script {
         deployments = abi.decode(data, (Deployments));
 
         admin = deployments.admin;
-        stablecoinManager = StablecoinManager(deployments.StablecoinManager);
+        stablecoinManager = StablecoinManager(payable(deployments.StablecoinManager));
 
         stablecoinManagerSalt = bytes32(bytes("StablecoinManager"));
+        dripAmount = 100e6;
+        nativeDripAmount = 1e18; // 1 $TEL
+        lowBalanceThreshold = 10_000;
     }
 
     function run() public {
         vm.startBroadcast();
 
+        // note: configure before each upgrade
+        upgradeCall = abi.encodeWithSelector(StablecoinManager.setNativeDripAmount.selector, nativeDripAmount);
+
         // deploy new StablecoinManager impl and upgrade proxy
         newStablecoinManagerImpl = new StablecoinManager{ salt: stablecoinManagerSalt }();
-        UUPSUpgradeable(payable(address(stablecoinManager))).upgradeToAndCall(address(newStablecoinManagerImpl), "");
+        UUPSUpgradeable(payable(address(stablecoinManager))).upgradeToAndCall(address(newStablecoinManagerImpl), upgradeCall);
+
+        // only necessary for upgrade- handled by initializer on deployment
+        stablecoinManager.setDripAmount(dripAmount);
+        stablecoinManager.UpdateXYZ(address(0x0), true, type(uint256).max, 1);
+        stablecoinManager.setLowBalanceThreshold(lowBalanceThreshold);
 
         vm.stopBroadcast();
+
+        // asserts
+        assert(stablecoinManager.getDripAmount() == 100e6);
+        assert(stablecoinManager.getNativeDripAmount() == nativeDripAmount);
+        assert(stablecoinManager.isEnabledXYZ(address(0x0)));
+        assert(stablecoinManager.getEnabledXYZs().length == 1);
+        assert(stablecoinManager.getEnabledXYZsWithMetadata().length == 1);
     }
 }

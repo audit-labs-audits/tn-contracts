@@ -10,20 +10,20 @@ import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.so
 import { WTEL } from "../src/WTEL.sol";
 import { Deployments } from "../deployments/Deployments.sol";
 
-/// @notice To deploy the Arachnid deterministic deployment proxy:
+/// @dev To deploy the Arachnid deterministic deployment proxy:
 /// `cast send 0x3fab184622dc19b6109349b94811493bf2a45362 --value 0.01ether --rpc-url $TN_RPC_URL --private-key
 /// $ADMIN_PK`
 /// `cast publish --rpc-url $TN_RPC_URL
 /// 0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222`
 /// @dev Usage: `forge script script/TestnetDeployTokens.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
-/// @dev Verify WTEL: `forge verify-contract 0x5c78ebbcfdc8fd432c6d7581f6f8e6b82079f24a src/WTEL.sol:WTEL --rpc-url
-/// $TN_RPC_URL --verifier sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
-/// @dev Verify StablecoinImpl: `forge verify-contract 0xd3930b15461fcecff57a4c9bd65abf6fa2a44307
-/// node_modules/telcoin-contracts/contracts/stablecoin/Stablecoin.sol:Stablecoin --rpc-url $TN_RPC_URL --verifier
-/// sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
-/// @dev Verify Proxies: `forge verify-contract <eXYZ>
-/// node_modules/@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy --rpc-url $TN_RPC_URL --verifier
-/// sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
+// To verify WTEL: `forge verify-contract 0x5c78ebbcfdc8fd432c6d7581f6f8e6b82079f24a src/WTEL.sol:WTEL \
+// --rpc-url $TN_RPC_URL --verifier sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
+// To verify StablecoinImpl: `forge verify-contract 0xd3930b15461fcecff57a4c9bd65abf6fa2a44307
+// node_modules/telcoin-contracts/contracts/stablecoin/Stablecoin.sol:Stablecoin --rpc-url $TN_RPC_URL \
+// --verifier sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
+// To verify Proxies: `forge verify-contract <eXYZ> \
+// node_modules/@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy --rpc-url $TN_RPC_URL --verifier \
+// sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
 contract TestnetDeployTokens is Script {
     WTEL wTEL;
     RecoverableWrapper rwTEL;
