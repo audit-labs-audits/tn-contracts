@@ -2,23 +2,41 @@
 pragma solidity 0.8.26;
 
 import "forge-std/Test.sol";
-import "../src/StablecoinManager.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { StablecoinHandler } from "telcoin-contracts/contracts/stablecoin/StablecoinHandler.sol";
+import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
+import "../src/StablecoinManager.sol";
 
 contract StablecoinManagerTest is Test {
+    StablecoinManager stablecoinManagerImpl;
     StablecoinManager stablecoinManager;
+    bytes32 stablecoinManagerSalt = bytes32(hex'deadbeef');
+
     address admin = address(0xABCD);
     address maintainer = address(0x1234);
+
     address token1 = address(0x1111);
     address token2 = address(0x2222);
-    address[] faucets; // empty
+    uint256 max = type(uint256).max;
+    uint256 min = 1_000;
+
+    address[] faucets;
     uint256 dripAmount = 42;
+    uint256 nativeDripAmount = 69;
 
     function setUp() public {
-        stablecoinManager = new StablecoinManager();
-        stablecoinManager.initialize(
-            admin, maintainer, new address[](0), new StablecoinHandler.eXYZ[](0), faucets, dripAmount
+        faucets.push(address(0xc0ffee));
+
+        stablecoinManagerImpl = new StablecoinManager{salt: stablecoinManagerSalt}();
+
+        bytes memory initCall = abi.encodeWithSelector(
+            StablecoinManager.initialize.selector,
+            StablecoinManager.StablecoinManagerInitParams(
+                admin, maintainer, new address[](0), max, min, faucets, dripAmount, nativeDripAmount
+            )
         );
+
+        stablecoinManager = StablecoinManager(payable(new ERC1967Proxy{salt: stablecoinManagerSalt}(address(stablecoinManagerImpl), initCall)));
     }
 
     function testUpdateXYZ() public {
@@ -44,25 +62,32 @@ contract StablecoinManagerTest is Test {
     }
 
     function testAddEnabledXYZ() public {
-        address[] memory noEnabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(noEnabledXYZs.length, 0);
+        // address(0x0) for Native token should be enabled by default
+        address[] memory initEnabledXYZs = stablecoinManager.getEnabledXYZs();
+        assertEq(initEnabledXYZs.length, 1);
+        assertEq(initEnabledXYZs[0], address(0x0));
 
         vm.prank(maintainer);
         stablecoinManager.UpdateXYZ(token1, true, 1000, 1);
         address[] memory enabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(enabledXYZs.length, 1);
-        assertEq(enabledXYZs[0], token1);
+        assertEq(enabledXYZs.length, 2);
+        assertEq(enabledXYZs[1], token1);
 
         vm.prank(maintainer);
         stablecoinManager.UpdateXYZ(token2, true, 2000, 2);
         address[] memory moreEnabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(moreEnabledXYZs.length, 2);
-        assertEq(moreEnabledXYZs[1], token2);
+        assertEq(moreEnabledXYZs.length, 3);
+        assertEq(moreEnabledXYZs[2], token2);
 
         vm.stopPrank();
     }
 
     function testRemoveEnabledXYZ() public {
+        // address(0x0) for Native token should be enabled by default
+        address[] memory initEnabledXYZs = stablecoinManager.getEnabledXYZs();
+        assertEq(initEnabledXYZs.length, 1);
+        assertEq(initEnabledXYZs[0], address(0x0));
+
         vm.startPrank(maintainer);
         stablecoinManager.UpdateXYZ(token1, true, 1000, 1);
         stablecoinManager.UpdateXYZ(token2, true, 2000, 2);
@@ -70,12 +95,17 @@ contract StablecoinManagerTest is Test {
         vm.stopPrank();
 
         address[] memory enabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(enabledXYZs.length, 1);
-        assertEq(enabledXYZs[0], token2);
+        assertEq(enabledXYZs.length, 2);
+        assertEq(enabledXYZs[1], token2);
     }
 
     function testFuzzUpdateXYZ(uint8 numTokens, uint8 numRemove) public {
         vm.assume(numTokens >= numRemove);
+
+        // address(0x0) for Native token should be enabled by default
+        address[] memory initEnabledXYZs = stablecoinManager.getEnabledXYZs();
+        assertEq(initEnabledXYZs.length, 1);
+        assertEq(initEnabledXYZs[0], address(0x0));
 
         // make array of mock addresses
         address[] memory tokens = new address[](numTokens);
@@ -113,13 +143,14 @@ contract StablecoinManagerTest is Test {
         }
 
         address[] memory enabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(enabledXYZs.length, numTokens - numRemove);
+        assertEq(enabledXYZs.length, numTokens - numRemove + initEnabledXYZs.length);
 
         for (uint256 i; i < tokens.length; ++i) {
             bool validity = i >= numRemove ? true : false;
             address token = tokens[i];
             bool found = false;
-            for (uint256 j; j < enabledXYZs.length; ++j) {
+            // since the zero address, ie `NATIVE_TOKEN_POINTER`, is at `enabledXYZs[0]`, skip it
+            for (uint256 j = 1; j < enabledXYZs.length; ++j) {
                 if (enabledXYZs[j] == token) {
                     found = true;
                     break;
@@ -132,5 +163,112 @@ contract StablecoinManagerTest is Test {
                 assertFalse(found);
             }
         }
+    }
+
+    function testSetDripAmount(uint256 newDripAmount) public {
+        vm.assume(newDripAmount != 0);
+
+        vm.prank(maintainer);
+        stablecoinManager.setDripAmount(newDripAmount);
+        uint256 storedDripAmount = stablecoinManager.getDripAmount();
+        assertEq(storedDripAmount, newDripAmount);
+    }
+
+    function testSetNativeDripAmount(uint256 newNativeDripAmount) public {
+        vm.assume(newNativeDripAmount != 0);
+
+        vm.prank(maintainer);
+        stablecoinManager.setNativeDripAmount(newNativeDripAmount);
+        uint256 storedNativeDripAmount = stablecoinManager.getNativeDripAmount();
+        assertEq(storedNativeDripAmount, newNativeDripAmount);
+    }
+
+    function testDrip(address recipient, uint256 fuzzDripAmount) public {
+        vm.assume(recipient != address(0));
+        vm.assume(fuzzDripAmount > 0);
+
+        // just use impl contract
+        Stablecoin currency = new Stablecoin();
+        currency.initialize('0x', 'test', 6);
+        currency.grantRole(currency.MINTER_ROLE(), address(stablecoinManager));
+
+        vm.startPrank(maintainer);
+        stablecoinManager.UpdateXYZ(address(currency), true, 1000, 1);
+        stablecoinManager.setDripAmount(fuzzDripAmount);
+        vm.stopPrank();
+
+        // fast forward 1 day
+        vm.warp(block.timestamp + 1 days);
+
+        uint256 balBefore = currency.balanceOf(recipient);
+        vm.prank(faucets[0]);
+        stablecoinManager.drip(address(currency), recipient);
+        uint256 balAfter = currency.balanceOf(recipient);
+
+        uint256 dripAmt = stablecoinManager.getDripAmount();
+        assertEq(balBefore + dripAmt, balAfter);
+
+        uint256 lastFulfilledDrip = stablecoinManager.getLastFulfilledDripTimestamp(address(currency), recipient);
+        assertEq(lastFulfilledDrip, block.timestamp);
+    }
+
+     function testNativeCurrencyDrip() public {
+        address recipient = address(0xbeefbabe);
+
+        uint256 nativeDripAmt = stablecoinManager.getNativeDripAmount();
+        vm.deal(address(stablecoinManager), nativeDripAmount * 2); // Ensure the contract has enough native currency
+
+        // fast forward 1 day
+        vm.warp(block.timestamp + 1 days);
+
+        uint256 balBefore = recipient.balance;
+        vm.prank(faucets[0]);
+        stablecoinManager.drip(address(0), recipient);
+        uint256 balAfter = recipient.balance;
+
+        assertEq(balBefore + nativeDripAmt, balAfter);
+
+        uint256 lastFulfilledDrip = stablecoinManager.getLastFulfilledDripTimestamp(address(0), recipient);
+        assertEq(lastFulfilledDrip, block.timestamp);
+    }
+
+    function testRescueCrypto(uint256 amount) public {
+        vm.assume(amount > 0);
+
+        // just use impl contract
+        Stablecoin currency = new Stablecoin();
+        currency.initialize('0x', 'test', 6);
+        currency.grantRole(currency.MINTER_ROLE(), address(stablecoinManager));
+
+        vm.prank(address(stablecoinManager));
+        currency.mintTo(address(stablecoinManager), amount);
+
+        uint256 balBefore = currency.balanceOf(address(stablecoinManager));
+        assertEq(balBefore, amount);
+
+        vm.prank(maintainer);
+        stablecoinManager.rescueCrypto(IERC20(address(currency)), amount);
+
+        uint256 balAfter = currency.balanceOf(address(stablecoinManager));
+        assertEq(balAfter, 0);
+    }
+
+    function testCheckLowNativeBalance(uint256 balance) public {
+        vm.assume(balance > 10_000);
+
+        vm.deal(address(stablecoinManager), balance);
+
+        vm.startPrank(maintainer);
+        stablecoinManager.setNativeDripAmount(balance / 10_000); // Set drip amount to a fraction of the balance
+        vm.stopPrank();
+
+        if (balance <= stablecoinManager.getNativeDripAmount() * 10_000) {
+            vm.expectEmit(true, true, true, true);
+            emit TNFaucet.FaucetLowNativeBalance();
+        }
+
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(faucets[0]);
+        stablecoinManager.drip(address(0x0), admin);
     }
 }

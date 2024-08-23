@@ -31,7 +31,6 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
 
     event XYZAdded(address token);
     event XYZRemoved(address token);
-    event FaucetLowNativeBalance();
 
     struct StablecoinManagerInitParams {
         address admin_;
@@ -71,6 +70,7 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
     {
         __StablecoinHandler_init();
         __Faucet_init(initParams.dripAmount_, initParams.nativeDripAmount_);
+        _setLowBalanceThreshold(10_000);
 
         // native token faucet drips are enabled by default
         UpdateXYZ(NATIVE_TOKEN_POINTER, true, type(uint256).max, 1);
@@ -276,13 +276,6 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
         $._enabledXYZs.pop();
 
         emit XYZRemoved(token);
-    }
-
-    /// @dev Emits an alert for indexer when faucet balance can only process <= 10_000 more requests
-    function _checkLowNativeBalance() private {
-        if (address(this).balance <= getNativeDripAmount() * 10_000) {
-            emit FaucetLowNativeBalance();
-        }
     }
 
     /// @notice Despite having similar names, `StablecoinManagerStorage` != `StablecoinHandlerStorage` !!

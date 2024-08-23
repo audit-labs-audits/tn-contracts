@@ -19,6 +19,7 @@ abstract contract TNFaucet {
     event NativeDripAmountUpdated(uint256 newNativeDripAmount);
     event DripAmountUpdated(uint256 newDripAmount);
     event Drip(address token, address recipient, uint256 amount);
+    event FaucetLowNativeBalance();
 
     /// @custom:storage-location erc7201:telcoin.storage.Faucet
     struct FaucetStorage {
@@ -106,6 +107,19 @@ abstract contract TNFaucet {
     function _setLastFulfilledDripTimestamp(address token, address recipient, uint256 timestamp) internal {
         FaucetStorage storage $ = _faucetStorage();
         $._lastDripTimestamp[recipient][token] = timestamp;
+    }
+
+    /// @dev Emits an alert for indexer when faucet balance can only process <= 10_000 more requests
+    function _checkLowNativeBalance() internal {
+        uint256 thresholdDripsLeft = _getLowBalanceThreshold();
+        if (address(this).balance <= getNativeDripAmount() * thresholdDripsLeft) {
+            emit FaucetLowNativeBalance();
+        }
+    }
+
+    function _getLowBalanceThreshold() internal view returns (uint256 thresholdDripsLeft) {
+        FaucetStorage storage $ = _faucetStorage();
+        thresholdDripsLeft = $._lowBalanceThreshold;
     }
 
     function _setLowBalanceThreshold(uint256 newThreshold) internal {
