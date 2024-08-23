@@ -27,6 +27,7 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
 
     error LowLevelCallFailure();
     error InvalidOrDisabled(address token);
+    error AlreadyEnabled(address token);
     error InvalidDripAmount(uint256 dripAmount);
 
     event XYZAdded(address token);
@@ -97,27 +98,46 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
         override
         onlyRole(MAINTAINER_ROLE)
     {
-        super.UpdateXYZ(token, validity, maxLimit, minLimit);
+        // to avoid recording duplicate members in storage array, revert
+        if (validity && isEnabledXYZ(token)) revert AlreadyEnabled(token);
 
         _recordXYZ(token, validity);
+        super.UpdateXYZ(token, validity, maxLimit, minLimit);
     }
 
     /// @dev Fetches all currently valid stablecoin addresses
+    /// @notice Excludes `NATIVE_TOKEN_POINTER` if it is enabled
     function getEnabledXYZs() public view returns (address[] memory enabledXYZs) {
         StablecoinManagerStorage storage $ = _stablecoinManagerStorage();
-        return $._enabledXYZs;
+        address[] memory unfilteredEnabledXYZs = $._enabledXYZs;
+        // avoid underflow condition by terminating early if all tokens are disabled
+        if (unfilteredEnabledXYZs.length == 0) return new address[](0);
+
+        (bool nativeFound, uint256 nativeIndex) = _findNativeTokenIndex(unfilteredEnabledXYZs);
+        if (!nativeFound) {
+            return unfilteredEnabledXYZs;
+        } else { // filter out `NATIVE_TOKEN_POINTER`
+            uint256 filteredLen = unfilteredEnabledXYZs.length - 1;
+            enabledXYZs = new address[](filteredLen);
+            
+            uint256 dynCounter;
+            for (uint256 i; i < unfilteredEnabledXYZs.length; ++i) {
+                if (i == nativeIndex) continue;
+
+                enabledXYZs[dynCounter] = unfilteredEnabledXYZs[i];
+                ++dynCounter;
+            }
+        }
     }
 
     /// @dev Fetches all currently valid stablecoins with metadata for dynamic rendering by a frontend
     /// @notice Intended for use in a view context to save on RPC calls
     function getEnabledXYZsWithMetadata() public view returns (XYZMetadata[] memory enabledXYZMetadatas) {
+        // excludes `NATIVE_TOKEN_POINTER`
         address[] memory enabledXYZs = getEnabledXYZs();
 
         enabledXYZMetadatas = new XYZMetadata[](enabledXYZs.length);
         for (uint256 i; i < enabledXYZs.length; ++i) {
-            // handle `NATIVE_TOKEN_POINTER` case
-            if (enabledXYZMetadatas[i].token == address(0)) continue;
-
             string memory name = IStablecoin(enabledXYZs[i]).name();
             string memory symbol = IStablecoin(enabledXYZs[i]).symbol();
             uint256 decimals = IStablecoin(enabledXYZs[i]).decimals();
@@ -126,8 +146,10 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
         }
     }
 
+    /// @notice To identify if faucet has the native token enabled, pass in `address(0x0)`
     function isEnabledXYZ(address eXYZ) public view returns (bool isEnabled) {
-        address[] memory enabledXYZs = getEnabledXYZs();
+        StablecoinManagerStorage storage $ = _stablecoinManagerStorage();
+        address[] memory enabledXYZs = $._enabledXYZs;
         for (uint256 i; i < enabledXYZs.length; ++i) {
             if (enabledXYZs[i] == eXYZ) return true;
         }
@@ -279,6 +301,19 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
         $._enabledXYZs.pop();
 
         emit XYZRemoved(token);
+    }
+
+    /// @notice Returns the index of the NATIVE_TOKEN_POINTER in storage array if found, otherwise `0xfffffff...`
+    function _findNativeTokenIndex(address[] memory _enabledXYZs) internal pure returns (bool found, uint256 _enabledXYZsIndex) {
+        for (uint256 i; i < _enabledXYZs.length; ++i) {
+            if (_enabledXYZs[i] == NATIVE_TOKEN_POINTER) {
+                found = true;
+                _enabledXYZsIndex = i;
+                break;
+            }
+        }
+
+        if (!found) _enabledXYZsIndex = type(uint256).max;
     }
 
     /// @notice Despite having similar names, `StablecoinManagerStorage` != `StablecoinHandlerStorage` !!

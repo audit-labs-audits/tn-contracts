@@ -62,31 +62,35 @@ contract StablecoinManagerTest is Test {
     }
 
     function testAddEnabledXYZ() public {
-        // address(0x0) for Native token should be enabled by default
+        // address(0x0) for native token should be enabled by default
+        assertTrue(stablecoinManager.isEnabledXYZ(address(0x0)));
+
+        // `NATIVE_TOKEN_POINTER` is excluded by `getEnabledXYZs()`
         address[] memory initEnabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(initEnabledXYZs.length, 1);
-        assertEq(initEnabledXYZs[0], address(0x0));
+        assertEq(initEnabledXYZs.length, 0);
 
         vm.prank(maintainer);
         stablecoinManager.UpdateXYZ(token1, true, 1000, 1);
         address[] memory enabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(enabledXYZs.length, 2);
-        assertEq(enabledXYZs[1], token1);
+        assertEq(enabledXYZs.length, 1);
+        assertEq(enabledXYZs[0], token1);
 
         vm.prank(maintainer);
         stablecoinManager.UpdateXYZ(token2, true, 2000, 2);
         address[] memory moreEnabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(moreEnabledXYZs.length, 3);
-        assertEq(moreEnabledXYZs[2], token2);
+        assertEq(moreEnabledXYZs.length, 2);
+        assertEq(moreEnabledXYZs[1], token2);
 
         vm.stopPrank();
     }
 
     function testRemoveEnabledXYZ() public {
-        // address(0x0) for Native token should be enabled by default
+        // address(0x0) for native token should be enabled by default
+        assertTrue(stablecoinManager.isEnabledXYZ(address(0x0)));
+
+        // `NATIVE_TOKEN_POINTER` is excluded by `getEnabledXYZs()`
         address[] memory initEnabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(initEnabledXYZs.length, 1);
-        assertEq(initEnabledXYZs[0], address(0x0));
+        assertEq(initEnabledXYZs.length, 0);
 
         vm.startPrank(maintainer);
         stablecoinManager.UpdateXYZ(token1, true, 1000, 1);
@@ -95,22 +99,24 @@ contract StablecoinManagerTest is Test {
         vm.stopPrank();
 
         address[] memory enabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(enabledXYZs.length, 2);
-        assertEq(enabledXYZs[1], token2);
+        assertEq(enabledXYZs.length, 1);
+        assertEq(enabledXYZs[0], token2);
     }
 
     function testFuzzUpdateXYZ(uint8 numTokens, uint8 numRemove) public {
         vm.assume(numTokens >= numRemove);
 
-        // address(0x0) for Native token should be enabled by default
-        address[] memory initEnabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(initEnabledXYZs.length, 1);
-        assertEq(initEnabledXYZs[0], address(0x0));
+        // address(0x0) for native token should be enabled by default
+        assertTrue(stablecoinManager.isEnabledXYZ(address(0x0)));
 
-        // make array of mock addresses
+        // `NATIVE_TOKEN_POINTER` is excluded by `getEnabledXYZs()`
+        address[] memory initEnabledXYZs = stablecoinManager.getEnabledXYZs();
+        assertEq(initEnabledXYZs.length, 0);
+
+        // make array of mock addresses, skipping `address(0x0)`
         address[] memory tokens = new address[](numTokens);
         for (uint256 i; i < numTokens; i++) {
-            tokens[i] = address(uint160(i));
+            tokens[i] = address(uint160(i + 1)); // skip zero address
         }
 
         uint256 maxSupply = 1000;
@@ -149,8 +155,7 @@ contract StablecoinManagerTest is Test {
             bool validity = i >= numRemove ? true : false;
             address token = tokens[i];
             bool found = false;
-            // since the zero address, ie `NATIVE_TOKEN_POINTER`, is at `enabledXYZs[0]`, skip it
-            for (uint256 j = 1; j < enabledXYZs.length; ++j) {
+            for (uint256 j; j < enabledXYZs.length; ++j) {
                 if (enabledXYZs[j] == token) {
                     found = true;
                     break;
