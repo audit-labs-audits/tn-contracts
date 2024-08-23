@@ -10,7 +10,7 @@ import "../src/StablecoinManager.sol";
 contract StablecoinManagerTest is Test {
     StablecoinManager stablecoinManagerImpl;
     StablecoinManager stablecoinManager;
-    bytes32 stablecoinManagerSalt = bytes32(hex'deadbeef');
+    bytes32 stablecoinManagerSalt = bytes32(hex"deadbeef");
 
     address admin = address(0xABCD);
     address maintainer = address(0x1234);
@@ -18,7 +18,7 @@ contract StablecoinManagerTest is Test {
     address token1 = address(0x1111);
     address token2 = address(0x2222);
     uint256 max = type(uint256).max;
-    uint256 min = 1_000;
+    uint256 min = 1000;
 
     address[] faucets;
     uint256 dripAmount = 42;
@@ -27,7 +27,7 @@ contract StablecoinManagerTest is Test {
     function setUp() public {
         faucets.push(address(0xc0ffee));
 
-        stablecoinManagerImpl = new StablecoinManager{salt: stablecoinManagerSalt}();
+        stablecoinManagerImpl = new StablecoinManager{ salt: stablecoinManagerSalt }();
 
         bytes memory initCall = abi.encodeWithSelector(
             StablecoinManager.initialize.selector,
@@ -36,7 +36,9 @@ contract StablecoinManagerTest is Test {
             )
         );
 
-        stablecoinManager = StablecoinManager(payable(new ERC1967Proxy{salt: stablecoinManagerSalt}(address(stablecoinManagerImpl), initCall)));
+        stablecoinManager = StablecoinManager(
+            payable(new ERC1967Proxy{ salt: stablecoinManagerSalt }(address(stablecoinManagerImpl), initCall))
+        );
     }
 
     function testUpdateXYZ() public {
@@ -194,7 +196,7 @@ contract StablecoinManagerTest is Test {
 
         // just use impl contract
         Stablecoin currency = new Stablecoin();
-        currency.initialize('0x', 'test', 6);
+        currency.initialize("0x", "test", 6);
         currency.grantRole(currency.MINTER_ROLE(), address(stablecoinManager));
 
         vm.startPrank(maintainer);
@@ -217,7 +219,7 @@ contract StablecoinManagerTest is Test {
         assertEq(lastFulfilledDrip, block.timestamp);
     }
 
-     function testNativeCurrencyDrip() public {
+    function testNativeCurrencyDrip() public {
         address recipient = address(0xbeefbabe);
 
         uint256 nativeDripAmt = stablecoinManager.getNativeDripAmount();
@@ -242,7 +244,7 @@ contract StablecoinManagerTest is Test {
 
         // just use impl contract
         Stablecoin currency = new Stablecoin();
-        currency.initialize('0x', 'test', 6);
+        currency.initialize("0x", "test", 6);
         currency.grantRole(currency.MINTER_ROLE(), address(stablecoinManager));
 
         vm.prank(address(stablecoinManager));

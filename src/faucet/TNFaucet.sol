@@ -26,13 +26,12 @@ abstract contract TNFaucet {
         uint256 _dripAmount;
         uint256 _nativeDripAmount;
         uint256 _lowBalanceThreshold;
-        mapping (address => mapping (address => uint256)) _lastDripTimestamp;
+        mapping(address => mapping(address => uint256)) _lastDripTimestamp;
     }
 
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.Faucet")) - 1))
     //   & ~bytes32(uint256(0xff))
-    bytes32 internal constant FaucetStorageSlot =
-        0x331c20f00e5afe412d6bf194b51e8f2d981ce2eedc3a9ed8e5a5801a2017e900;
+    bytes32 internal constant FaucetStorageSlot = 0x331c20f00e5afe412d6bf194b51e8f2d981ce2eedc3a9ed8e5a5801a2017e900;
 
     /// @dev For use with proxies- implement without code if not using
     /// @notice Could not be implemented here with `initializer` modifier due to StablecoinHandler conflict
@@ -86,7 +85,7 @@ abstract contract TNFaucet {
 
     /// @notice Developers may find it useful to implement this method with access control
     function _checkDrip(address token, address recipient) internal virtual;
-    
+
     /// @notice Developers may find it useful to implement this method with access control
     function _drip(address token, address recipient) internal virtual;
 

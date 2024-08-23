@@ -44,6 +44,7 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
         uint256 nativeDripAmount_;
     }
     /// @custom:storage-location erc7201:telcoin.storage.StablecoinManager
+
     struct StablecoinManagerStorage {
         address[] _enabledXYZs;
         uint256 _dripAmount;
@@ -65,10 +66,7 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
     address public constant NATIVE_TOKEN_POINTER = address(0x0);
 
     /// @dev Invokes `__Pausable_init()`
-    function initialize(StablecoinManagerInitParams calldata initParams)
-        public
-        initializer
-    {
+    function initialize(StablecoinManagerInitParams calldata initParams) public initializer {
         __StablecoinHandler_init();
         __Faucet_init(initParams.dripAmount_, initParams.nativeDripAmount_);
         _setLowBalanceThreshold(10_000);
@@ -116,10 +114,11 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
         (bool nativeFound, uint256 nativeIndex) = _findNativeTokenIndex(unfilteredEnabledXYZs);
         if (!nativeFound) {
             return unfilteredEnabledXYZs;
-        } else { // filter out `NATIVE_TOKEN_POINTER`
+        } else {
+            // filter out `NATIVE_TOKEN_POINTER`
             uint256 filteredLen = unfilteredEnabledXYZs.length - 1;
             enabledXYZs = new address[](filteredLen);
-            
+
             uint256 dynCounter;
             for (uint256 i; i < unfilteredEnabledXYZs.length; ++i) {
                 if (i == nativeIndex) continue;
@@ -170,14 +169,14 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
     function drip(address token, address recipient) public virtual override onlyRole(FAUCET_ROLE) {
         super.drip(token, recipient);
     }
-    
+
     /// @inheritdoc TNFaucet
     function _drip(address token, address recipient) internal virtual override {
         uint256 amount;
         if (token == NATIVE_TOKEN_POINTER) {
             amount = getNativeDripAmount();
 
-            (bool r,) = recipient.call{value: amount}('');
+            (bool r,) = recipient.call{ value: amount }("");
             if (!r) revert LowLevelCallFailure();
 
             // reentrancy safe- does not perform state change
@@ -223,13 +222,7 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
         _setLowBalanceThreshold(newThreshold);
     }
 
-    function __Faucet_init(
-        uint256 dripAmount_,
-        uint256 nativeDripAmount_
-    )
-        internal virtual override
-        initializer
-    {
+    function __Faucet_init(uint256 dripAmount_, uint256 nativeDripAmount_) internal virtual override initializer {
         _setDripAmount(dripAmount_);
         _setNativeDripAmount(nativeDripAmount_);
     }
@@ -262,7 +255,6 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
      *   internals
      *
      */
-
     function _recordXYZ(address token, bool validity) internal virtual {
         if (validity == true) {
             _addEnabledXYZ(token);
@@ -304,7 +296,13 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
     }
 
     /// @notice Returns the index of the NATIVE_TOKEN_POINTER in storage array if found, otherwise `0xfffffff...`
-    function _findNativeTokenIndex(address[] memory _enabledXYZs) internal pure returns (bool found, uint256 _enabledXYZsIndex) {
+    function _findNativeTokenIndex(
+        address[] memory _enabledXYZs
+    )
+        internal
+        pure
+        returns (bool found, uint256 _enabledXYZsIndex)
+    {
         for (uint256 i; i < _enabledXYZs.length; ++i) {
             if (_enabledXYZs[i] == NATIVE_TOKEN_POINTER) {
                 found = true;
@@ -339,8 +337,8 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
     }
 
     /// @notice Only the admin may perform an upgrade
-    function _authorizeUpgrade(address newImplementation) internal virtual override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyRole(DEFAULT_ADMIN_ROLE) { }
 
     /// @dev To operate as a faucet, this contract must accept native token
-    receive() external payable {}
+    receive() external payable { }
 }
