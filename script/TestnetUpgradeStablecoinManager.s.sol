@@ -42,16 +42,13 @@ contract TestnetUpgradeStablecoinManager is Script {
         vm.startBroadcast();
 
         // note: configure before each upgrade
-        upgradeCall = abi.encodeWithSelector(StablecoinManager.setNativeDripAmount.selector, nativeDripAmount);
-
+        upgradeCall = '';
+        
         // deploy new StablecoinManager impl and upgrade proxy
         newStablecoinManagerImpl = new StablecoinManager{ salt: stablecoinManagerSalt }();
-        UUPSUpgradeable(payable(address(stablecoinManager))).upgradeToAndCall(address(newStablecoinManagerImpl), upgradeCall);
-
-        // only necessary for upgrade- handled by initializer on deployment
-        stablecoinManager.setDripAmount(dripAmount);
-        stablecoinManager.UpdateXYZ(address(0x0), true, type(uint256).max, 1);
-        stablecoinManager.setLowBalanceThreshold(lowBalanceThreshold);
+        UUPSUpgradeable(payable(address(stablecoinManager))).upgradeToAndCall(
+            address(newStablecoinManagerImpl), upgradeCall
+        );
 
         vm.stopBroadcast();
 
@@ -59,7 +56,7 @@ contract TestnetUpgradeStablecoinManager is Script {
         assert(stablecoinManager.getDripAmount() == 100e6);
         assert(stablecoinManager.getNativeDripAmount() == nativeDripAmount);
         assert(stablecoinManager.isEnabledXYZ(address(0x0)));
-        assert(stablecoinManager.getEnabledXYZs().length == 1);
-        assert(stablecoinManager.getEnabledXYZsWithMetadata().length == 1);
+        assert(stablecoinManager.getEnabledXYZs().length == 0);
+        assert(stablecoinManager.getEnabledXYZsWithMetadata().length == 0);
     }
 }
