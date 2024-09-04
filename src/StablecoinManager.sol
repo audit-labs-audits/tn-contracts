@@ -296,9 +296,7 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
     }
 
     /// @notice Returns the index of the NATIVE_TOKEN_POINTER in storage array if found, otherwise `0xfffffff...`
-    function _findNativeTokenIndex(
-        address[] memory _enabledXYZs
-    )
+    function _findNativeTokenIndex(address[] memory _enabledXYZs)
         internal
         pure
         returns (bool found, uint256 _enabledXYZsIndex)

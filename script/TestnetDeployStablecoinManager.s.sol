@@ -61,10 +61,10 @@ contract TestnetDeployStablecoinManager is Script {
         stables.push(deployments.eSDR);
         stables.push(deployments.eSGD);
 
-        // populate eXYZs
-        for (uint256 i; i < stables.length; ++i) {
-            eXYZs.push(StablecoinHandler.eXYZ(true, maxLimit, minLimit));
-        }
+        // DEPRECATED: populate eXYZs
+        // for (uint256 i; i < stables.length; ++i) {
+        //     eXYZs.push(StablecoinHandler.eXYZ(true, maxLimit, minLimit));
+        // }
 
         faucets.push(faucet0);
         faucets.push(faucet1);
@@ -75,12 +75,12 @@ contract TestnetDeployStablecoinManager is Script {
     function run() public {
         vm.startBroadcast();
 
-        // deploy implementaiton
         stablecoinManagerImpl = new StablecoinManager{ salt: stablecoinManagerSalt }();
-
-        // deploy proxy with init data
         bytes memory initData = abi.encodeWithSelector(
-            StablecoinManager.initialize.selector, admin, admin, stables, eXYZs, faucets, dripAmount, nativeDripAmount
+            StablecoinManager.initialize.selector,
+            StablecoinManager.StablecoinManagerInitParams(
+                admin, admin, stables, maxLimit, minLimit, faucets, dripAmount, nativeDripAmount
+            )
         );
         stablecoinManager = StablecoinManager(
             payable(address(new ERC1967Proxy{ salt: stablecoinManagerSalt }(address(stablecoinManagerImpl), initData)))
