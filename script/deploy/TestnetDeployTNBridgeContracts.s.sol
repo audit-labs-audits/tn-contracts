@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+pragma solidity ^0.8.0;
 
 import { Test, console2 } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
 import { LibString } from "solady/utils/LibString.sol";
-import { AxelarAuthWeighted } from "@axelar-network/axelar-cgp-solidity/contracts/auth/AxelarAuthWeighted.sol";
-import { TokenDeployer } from "@axelar-network/axelar-cgp-solidity/contracts/TokenDeployer.sol";
-import { AxelarGateway } from "@axelar-network/axelar-cgp-solidity/contracts/AxelarGateway.sol";
-import { AxelarGatewayProxy } from "@axelar-network/axelar-cgp-solidity/contracts/AxelarGatewayProxy.sol";
-import { Deployments } from "../deployments/Deployments.sol";
+import { TokenDeployer } from "src/external/TokenDeployer.sol";
+import { AxelarAuthWeighted } from "src/external/AxelarAuthWeighted.sol";
+import { AxelarGateway } from "src/external/AxelarGateway.sol";
+import { AxelarGatewayProxy } from "src/external/AxelarGatewayProxy.sol";
+import { Deployments } from "../../deployments/Deployments.sol";
 
-/// @dev Usage: `forge script script/TestnetDeployTNBridgeContracts.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key
+/// @dev Usage: `forge script script/deploy/TestnetDeployTNBridgeContracts.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key
 /// $ADMIN_PK`
 contract TestnetDeployTNBridgeContracts is Script {
 
     //todo use CREATE3 for reproducible addresses
-    AxelarAuthWegihted authModule; // (sorted operator array == [admin])
+    AxelarAuthWeighted authModule; // (params == abi.encode([admin], [newWeight], newThreshold))
     TokenDeployer tokenDeployer;
     AxelarGateway axelarGatewayImpl; // (authModule, tokenDeployer)
     AxelarGateway axelarGateway; // (gatewayImpl, params([operator], threshold, bytes('')))
@@ -23,7 +23,7 @@ contract TestnetDeployTNBridgeContracts is Script {
     Deployments deployments;
     address admin; // operator
 
-    bytes[] recentOperators;
+    bytes[] authModuleParams;
     bytes gatewayParams;
     uint8 threshold;
 
@@ -35,10 +35,14 @@ contract TestnetDeployTNBridgeContracts is Script {
         deployments = abi.decode(data, (Deployments));
 
         admin = deployments.admin;
-        recentOperators.push(abi.encode(admin));
         address[] memory operators = new address[](1);
         operators[0] = admin;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 1;
         threshold = 1;
+        bytes memory operatorsWeightsThresholds = abi.encode(operators, weights, threshold);
+        authModuleParams.push(operatorsWeightsThresholds);
+
         gatewayParams = abi.encode(operators, threshold, '');
     }
 
@@ -46,7 +50,7 @@ contract TestnetDeployTNBridgeContracts is Script {
         vm.startBroadcast();
 
         // deploy auth module
-        authModule = new AxelarAuthWeighted(recentOperators);
+        authModule = new AxelarAuthWeighted(authModuleParams);
         // deploy token deployer
         tokenDeployer = new TokenDeployer();
         // deploy gateway impl 
@@ -82,5 +86,31 @@ contract TestnetDeployTNBridgeContracts is Script {
         // deploy tokenFactory proxy(tokenFactoryImpl, owner, bytes(''))
 
         vm.stopBroadcast();
+
+        // asserts
+
+        // logs
+        string memory root = vm.projectRoot();
+        string memory dest = string.concat(root, "/deployments/deployments.json");
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(authModule))), 20),
+            dest,
+            ".AxelarAuthWeighted"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(tokenDeployer))), 20),
+            dest,
+            ".TokenDeployer"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(axelarGatewayImpl))), 20),
+            dest,
+            ".AxelarGatewayImpl"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(axelarGateway))), 20),
+            dest,
+            ".AxelarGatewayProxy"
+        );
     }
 }
