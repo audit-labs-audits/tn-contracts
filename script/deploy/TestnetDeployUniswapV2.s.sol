@@ -11,9 +11,9 @@ import { IUniswapV2Pair } from "external/uniswap/interfaces/IUniswapV2Pair.sol";
 import { UniswapV2FactoryBytecode } from "external/uniswap/precompiles/UniswapV2FactoryBytecode.sol";
 import { UniswapV2Router02Bytecode } from "external/uniswap/precompiles/UniswapV2Router02Bytecode.sol";
 import { WTEL } from "../src/WTEL.sol";
-import { Deployments } from "../deployments/Deployments.sol";
+import { Deployments } from "../../deployments/Deployments.sol";
 
-/// @dev Usage: `forge script script/TestnetDeployUniswapV2.s.sol -vvvv --rpc-url $TN_RPC_URL --private-key $ADMIN_PK`
+/// @dev Usage: `forge script script/deploy/TestnetDeployUniswapV2.s.sol -vvvv --rpc-url $TN_RPC_URL --private-key $ADMIN_PK`
 contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Router02Bytecode {
     // deploys the following:
     IUniswapV2Factory uniswapV2Factory;
