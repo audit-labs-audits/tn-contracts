@@ -4,10 +4,9 @@ pragma solidity ^0.8.0;
 import { Test, console2 } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
 import { LibString } from "solady/utils/LibString.sol";
-import { TokenDeployer } from "src/external/TokenDeployer.sol";
-import { AxelarAuthWeighted } from "src/external/AxelarAuthWeighted.sol";
-import { AxelarGateway } from "src/external/AxelarGateway.sol";
-import { AxelarGatewayProxy } from "src/external/AxelarGatewayProxy.sol";
+import { AxelarAmplifierGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
+import { AxelarAmplifierGatewayProxy } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol";
+import { WeightedSigner, WeightedSigners } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol';
 import { Deployments } from "../../deployments/Deployments.sol";
 
 /// @dev Usage: `forge script script/deploy/TestnetDeployTNBridgeContracts.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key
@@ -15,17 +14,21 @@ import { Deployments } from "../../deployments/Deployments.sol";
 contract TestnetDeployTNBridgeContracts is Script {
 
     //todo use CREATE3 for reproducible addresses
-    AxelarAuthWeighted authModule; // (params == abi.encode([admin], [newWeight], newThreshold))
-    TokenDeployer tokenDeployer;
-    AxelarGateway axelarGatewayImpl; // (authModule, tokenDeployer)
-    AxelarGateway axelarGateway; // (gatewayImpl, params([operator], threshold, bytes('')))
+    AxelarAmplifierGateway axelarAmplifierImpl; // (numPrevSignersToRetain, domainSeparator, minRotationDelay)
+    AxelarAmplifierGateway axelarAmplifier; // (gatewayImpl, owner, setupParams)
 
+    /// CONFIG
     Deployments deployments;
-    address admin; // operator
-
-    bytes[] authModuleParams;
-    bytes gatewayParams;
-    uint8 threshold;
+    address admin; // operator, owner
+    uint256 previousSignersRetention;
+    bytes32 domainSeparator;
+    uint256 minimumRotationDelay;
+    uint128 weight;
+    uint128 threshold;
+    bytes32 nonce;
+    WeightedSigner[] weightedSignerArray;
+    WeightedSigners[] weightedSigners;
+    bytes gatewaySetupParams;
 
     function setUp() public {
         string memory root = vm.projectRoot();
@@ -35,31 +38,36 @@ contract TestnetDeployTNBridgeContracts is Script {
         deployments = abi.decode(data, (Deployments));
 
         admin = deployments.admin;
-        address[] memory operators = new address[](1);
-        operators[0] = admin;
-        uint256[] memory weights = new uint256[](1);
-        weights[0] = 1;
-        threshold = 1;
-        bytes memory operatorsWeightsThresholds = abi.encode(operators, weights, threshold);
-        authModuleParams.push(operatorsWeightsThresholds);
+        previousSignersRetention = 16;
 
-        gatewayParams = abi.encode(operators, threshold, '');
+        string memory axelarIdForTelcoin = "telcoin"; // todo: use prod axelarId for tel
+        string memory routerAddress = "router"; // todo: use prod router addr
+        uint256 telChainId = block.chainid;
+        // derive domain separator with schema matching mainnet axelar amplifier gateway
+        domainSeparator = keccak256(abi.encodePacked(axelarIdForTelcoin, routerAddress, telChainId));
+
+        // default rotation delay is `1 day == 86400 seconds`
+        minimumRotationDelay = 86400;
+
+        weight = 1; // todo: use prod weight
+        WeightedSigner memory weightedSigner = WeightedSigner(admin, weight); // todo: use Axelar signer
+        // WeightedSigner[] memory weightedSignerArray = new WeightedSigner[](1); // todo: use num signers
+        weightedSignerArray.push(weightedSigner);
+        threshold = 1; // todo: use prod threshold
+        nonce = bytes32(0x0); // todo: use prod nonce
+        WeightedSigners memory weightedSignersContent = WeightedSigners(weightedSignerArray, threshold, nonce);
+        weightedSigners.push(weightedSignersContent);
+
+        gatewaySetupParams = abi.encode(admin, weightedSigners);
     }
 
     function run() public {
         vm.startBroadcast();
 
-        // deploy auth module
-        authModule = new AxelarAuthWeighted(authModuleParams);
-        // deploy token deployer
-        tokenDeployer = new TokenDeployer();
         // deploy gateway impl 
-        axelarGatewayImpl = new AxelarGateway(address(authModule), address(tokenDeployer));
+        axelarAmplifierImpl = new AxelarAmplifierGateway(previousSignersRetention, domainSeparator, minimumRotationDelay);
         // deploy gateway proxy
-        axelarGateway = AxelarGateway(address(new AxelarGatewayProxy(address(axelarGatewayImpl), gatewayParams))); 
-        // transfer auth ownership to gatewayproxy
-        authModule.transferOwnership(address(axelarGateway));
-
+        axelarAmplifier = AxelarAmplifierGateway(address(new AxelarAmplifierGatewayProxy(address(axelarAmplifierImpl), admin, gatewaySetupParams))); 
 
         // interchain service
         // deploy gasreceiver impl (owner == admin)
@@ -93,24 +101,14 @@ contract TestnetDeployTNBridgeContracts is Script {
         string memory root = vm.projectRoot();
         string memory dest = string.concat(root, "/deployments/deployments.json");
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(authModule))), 20),
+            LibString.toHexString(uint256(uint160(address(axelarAmplifierImpl))), 20),
             dest,
-            ".AxelarAuthWeighted"
+            ".AxelarAmplifierGatewayImpl"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(tokenDeployer))), 20),
+            LibString.toHexString(uint256(uint160(address(axelarAmplifier))), 20),
             dest,
-            ".TokenDeployer"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(axelarGatewayImpl))), 20),
-            dest,
-            ".AxelarGatewayImpl"
-        );
-        vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(axelarGateway))), 20),
-            dest,
-            ".AxelarGatewayProxy"
+            ".AxelarAmplifierGatewayProxy"
         );
     }
 }
