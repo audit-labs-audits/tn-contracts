@@ -11,7 +11,8 @@ import { StablecoinManager } from "../src/StablecoinManager.sol";
 import { WTEL } from "../src/WTEL.sol";
 import { Deployments } from "../../deployments/Deployments.sol";
 
-/// @dev Usage: `forge script script/deploy/TestnetDeployTokens.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
+/// @dev Usage: `forge script script/deploy/TestnetDeployTokens.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key
+/// $ADMIN_PK`
 contract TestnetDeployStablecoinManager is Script {
     StablecoinManager stablecoinManagerImpl;
     StablecoinManager stablecoinManager;

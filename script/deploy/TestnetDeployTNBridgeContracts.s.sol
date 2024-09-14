@@ -4,15 +4,20 @@ pragma solidity ^0.8.0;
 import { Test, console2 } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
 import { LibString } from "solady/utils/LibString.sol";
-import { AxelarAmplifierGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
-import { AxelarAmplifierGatewayProxy } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol";
-import { WeightedSigner, WeightedSigners } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
+import { AxelarAmplifierGateway } from
+    "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
+import { AxelarAmplifierGatewayProxy } from
+    "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol";
+import {
+    WeightedSigner,
+    WeightedSigners
+} from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
 import { Deployments } from "../../deployments/Deployments.sol";
 
-/// @dev Usage: `forge script script/deploy/TestnetDeployTNBridgeContracts.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key
+/// @dev Usage: `forge script script/deploy/TestnetDeployTNBridgeContracts.s.sol --rpc-url $TN_RPC_URL -vvvv
+/// --private-key
 /// $ADMIN_PK`
 contract TestnetDeployTNBridgeContracts is Script {
-
     //todo use CREATE3 for reproducible addresses
     AxelarAmplifierGateway axelarAmplifierImpl; // (numPrevSignersToRetain, domainSeparator, minRotationDelay)
     AxelarAmplifierGateway axelarAmplifier; // (gatewayImpl, owner, setupParams)
@@ -46,7 +51,7 @@ contract TestnetDeployTNBridgeContracts is Script {
         domainSeparator = keccak256(abi.encodePacked(axelarIdForTelcoin, routerAddress, telChainId));
 
         // default rotation delay is `1 day == 86400 seconds`
-        minimumRotationDelay = 86400;
+        minimumRotationDelay = 86_400;
 
         weight = 1; // todo: use prod weight
         WeightedSigner memory signer = WeightedSigner(admin, weight); // todo: use Axelar signer
@@ -58,19 +63,20 @@ contract TestnetDeployTNBridgeContracts is Script {
     function run() public {
         vm.startBroadcast();
 
-        // deploy gateway impl 
-        axelarAmplifierImpl = new AxelarAmplifierGateway(previousSignersRetention, domainSeparator, minimumRotationDelay);
-        
+        // deploy gateway impl
+        axelarAmplifierImpl =
+            new AxelarAmplifierGateway(previousSignersRetention, domainSeparator, minimumRotationDelay);
+
         // deploy gateway proxy
         WeightedSigners memory weightedSigners = WeightedSigners(signerArray, threshold, nonce);
         WeightedSigners[] memory weightedSignersArray = new WeightedSigners[](1);
         weightedSignersArray[0] = weightedSigners;
         gatewaySetupParams = abi.encode(admin, weightedSignersArray);
-        
-        axelarAmplifier = AxelarAmplifierGateway(address(new AxelarAmplifierGatewayProxy(address(axelarAmplifierImpl), admin, gatewaySetupParams))); 
 
+        axelarAmplifier = AxelarAmplifierGateway(
+            address(new AxelarAmplifierGatewayProxy(address(axelarAmplifierImpl), admin, gatewaySetupParams))
+        );
 
- 
         // interchain service
         // deploy gasreceiver impl (owner == admin)
         // deploy gasreceiver proxy
@@ -80,15 +86,15 @@ contract TestnetDeployTNBridgeContracts is Script {
         // deploy interchaintokendeployer ([interchaintoken?])
         // deploy tokenmanager ([interchaintokenservice])
         // deploy tokenhandler
-        // get expected interchainTokenFactory addr 
+        // get expected interchainTokenFactory addr
         // deploy interchainTokenServiceContract impl ([
-        //   tokenManagerDeployer, 
-        //   interchainTokenDeployer, 
-        //   gatewayProxy, 
-        //   gasServiceProxy, 
-        //   interchainTokenFactory, 
-        //   name, 
-        //   tokenManager, 
+        //   tokenManagerDeployer,
+        //   interchainTokenDeployer,
+        //   gatewayProxy,
+        //   gasServiceProxy,
+        //   interchainTokenFactory,
+        //   name,
+        //   tokenManager,
         //   tokenHandler
         // ])
         // deploy interchainTokenService (serviceImplementation, owner, params(owner, name, [''], ['']))
@@ -105,7 +111,6 @@ contract TestnetDeployTNBridgeContracts is Script {
         assert(axelarAmplifier.domainSeparator() == domainSeparator);
         assert(axelarAmplifier.minimumRotationDelay() == minimumRotationDelay);
 
-
         // logs
         string memory root = vm.projectRoot();
         string memory dest = string.concat(root, "/deployments/deployments.json");
@@ -115,9 +120,7 @@ contract TestnetDeployTNBridgeContracts is Script {
             ".AxelarAmplifierGatewayImpl"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(axelarAmplifier))), 20),
-            dest,
-            ".AxelarAmplifierGatewayProxy"
+            LibString.toHexString(uint256(uint160(address(axelarAmplifier))), 20), dest, ".AxelarAmplifierGatewayProxy"
         );
     }
 }
