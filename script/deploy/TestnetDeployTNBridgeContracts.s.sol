@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import { Test, console2 } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
 import { LibString } from "solady/utils/LibString.sol";
+import { CREATE3 } from "solady/utils/CREATE3.sol";
 import { AxelarAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
 import { AxelarAmplifierGatewayProxy } from
@@ -18,9 +19,12 @@ import { Deployments } from "../../deployments/Deployments.sol";
 /// --private-key
 /// $ADMIN_PK`
 contract TestnetDeployTNBridgeContracts is Script {
-    //todo use CREATE3 for reproducible addresses
     AxelarAmplifierGateway axelarAmplifierImpl; // (numPrevSignersToRetain, domainSeparator, minRotationDelay)
     AxelarAmplifierGateway axelarAmplifier; // (gatewayImpl, owner, setupParams)
+
+    // CREATE3 SALT
+    bytes32 gatewayImplSalt;
+    bytes32 gatewayProxySalt;
 
     /// CONFIG
     Deployments deployments;
@@ -42,8 +46,11 @@ contract TestnetDeployTNBridgeContracts is Script {
         deployments = abi.decode(data, (Deployments));
 
         admin = deployments.admin;
-        previousSignersRetention = 16;
 
+        gatewayImplSalt = keccak256("axelar-amplifier-gateway");
+        gatewayProxySalt = keccak256("axelar-amplifier-gateway-proxy");
+
+        previousSignersRetention = 16;
         string memory axelarIdForTelcoin = "telcoin"; // todo: use prod axelarId for tel
         string memory routerAddress = "router"; // todo: use prod router addr
         uint256 telChainId = block.chainid;
@@ -63,19 +70,29 @@ contract TestnetDeployTNBridgeContracts is Script {
     function run() public {
         vm.startBroadcast();
 
-        // deploy gateway impl
-        axelarAmplifierImpl =
-            new AxelarAmplifierGateway(previousSignersRetention, domainSeparator, minimumRotationDelay);
+        // construct contract init code for gateway impl
+        bytes memory gatewayImplInitcode = bytes.concat(
+            type(AxelarAmplifierGateway).creationCode,
+            abi.encode(previousSignersRetention, domainSeparator, minimumRotationDelay)
+        );
 
-        // deploy gateway proxy
+        // CREATE3 equivalent of `new AxelarAmplifierGateway(previousSignersRetention, domainSeparator,
+        // minimumRotationDelay)`
+        axelarAmplifierImpl = AxelarAmplifierGateway(CREATE3.deployDeterministic(gatewayImplInitcode, gatewayImplSalt));
+
+        // construct contract init code for gateway proxy
         WeightedSigners memory weightedSigners = WeightedSigners(signerArray, threshold, nonce);
         WeightedSigners[] memory weightedSignersArray = new WeightedSigners[](1);
         weightedSignersArray[0] = weightedSigners;
         gatewaySetupParams = abi.encode(admin, weightedSignersArray);
-
-        axelarAmplifier = AxelarAmplifierGateway(
-            address(new AxelarAmplifierGatewayProxy(address(axelarAmplifierImpl), admin, gatewaySetupParams))
+        bytes memory gatewayProxyInitcode = bytes.concat(
+            type(AxelarAmplifierGatewayProxy).creationCode,
+            abi.encode(address(axelarAmplifierImpl), admin, gatewaySetupParams)
         );
+
+        // CREATE3 equivalent of `new AxelarAmplifierGatewayProxy(address(axelarAmplifierImpl), admin,
+        // gatewaySetupParams)`
+        axelarAmplifier = AxelarAmplifierGateway(CREATE3.deployDeterministic(gatewayProxyInitcode, gatewayProxySalt));
 
         // interchain service
         // deploy gasreceiver impl (owner == admin)
@@ -120,7 +137,7 @@ contract TestnetDeployTNBridgeContracts is Script {
             ".AxelarAmplifierGatewayImpl"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(axelarAmplifier))), 20), dest, ".AxelarAmplifierGatewayProxy"
+            LibString.toHexString(uint256(uint160(address(axelarAmplifier))), 20), dest, ".AxelarAmplifierGateway"
         );
     }
 }

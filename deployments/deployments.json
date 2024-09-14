@@ -1,4 +1,6 @@
 {
+  "AxelarAmplifierGateway": "0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3",
+  "AxelarAmplifierGatewayImpl": "0xd118b3966488e29008e7355fc9090c5bca9fdef8",
   "GitAttestationRegistry": "0x1f2f25561a11762bdffd91014c6d0e49af334447",
   "StablecoinImpl": "0xd3930b15461fcecff57a4c9bd65abf6fa2a44307",
   "StablecoinManager": "0x0e26ade1f5a99bd6b5d40f870a87bfe143db68b6",
