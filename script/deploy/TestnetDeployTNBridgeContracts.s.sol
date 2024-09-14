@@ -6,7 +6,7 @@ import { Script } from "forge-std/Script.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { AxelarAmplifierGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
 import { AxelarAmplifierGatewayProxy } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol";
-import { WeightedSigner, WeightedSigners } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol';
+import { WeightedSigner, WeightedSigners } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
 import { Deployments } from "../../deployments/Deployments.sol";
 
 /// @dev Usage: `forge script script/deploy/TestnetDeployTNBridgeContracts.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key
@@ -26,8 +26,7 @@ contract TestnetDeployTNBridgeContracts is Script {
     uint128 weight;
     uint128 threshold;
     bytes32 nonce;
-    WeightedSigner[] weightedSignerArray;
-    WeightedSigners[] weightedSigners;
+    WeightedSigner[] signerArray;
     bytes gatewaySetupParams;
 
     function setUp() public {
@@ -50,15 +49,10 @@ contract TestnetDeployTNBridgeContracts is Script {
         minimumRotationDelay = 86400;
 
         weight = 1; // todo: use prod weight
-        WeightedSigner memory weightedSigner = WeightedSigner(admin, weight); // todo: use Axelar signer
-        // WeightedSigner[] memory weightedSignerArray = new WeightedSigner[](1); // todo: use num signers
-        weightedSignerArray.push(weightedSigner);
+        WeightedSigner memory signer = WeightedSigner(admin, weight); // todo: use Axelar signer
+        signerArray.push(signer); // todo: use prod signers
         threshold = 1; // todo: use prod threshold
         nonce = bytes32(0x0); // todo: use prod nonce
-        WeightedSigners memory weightedSignersContent = WeightedSigners(weightedSignerArray, threshold, nonce);
-        weightedSigners.push(weightedSignersContent);
-
-        gatewaySetupParams = abi.encode(admin, weightedSigners);
     }
 
     function run() public {
@@ -66,9 +60,17 @@ contract TestnetDeployTNBridgeContracts is Script {
 
         // deploy gateway impl 
         axelarAmplifierImpl = new AxelarAmplifierGateway(previousSignersRetention, domainSeparator, minimumRotationDelay);
+        
         // deploy gateway proxy
+        WeightedSigners memory weightedSigners = WeightedSigners(signerArray, threshold, nonce);
+        WeightedSigners[] memory weightedSignersArray = new WeightedSigners[](1);
+        weightedSignersArray[0] = weightedSigners;
+        gatewaySetupParams = abi.encode(admin, weightedSignersArray);
+        
         axelarAmplifier = AxelarAmplifierGateway(address(new AxelarAmplifierGatewayProxy(address(axelarAmplifierImpl), admin, gatewaySetupParams))); 
 
+
+ 
         // interchain service
         // deploy gasreceiver impl (owner == admin)
         // deploy gasreceiver proxy
@@ -96,6 +98,13 @@ contract TestnetDeployTNBridgeContracts is Script {
         vm.stopBroadcast();
 
         // asserts
+        assert(axelarAmplifier.owner() == admin);
+        assert(axelarAmplifier.operator() == admin);
+        assert(axelarAmplifier.implementation() == address(axelarAmplifierImpl));
+        assert(axelarAmplifier.previousSignersRetention() == 16);
+        assert(axelarAmplifier.domainSeparator() == domainSeparator);
+        assert(axelarAmplifier.minimumRotationDelay() == minimumRotationDelay);
+
 
         // logs
         string memory root = vm.projectRoot();
