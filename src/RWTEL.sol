@@ -5,7 +5,8 @@ import { AxelarGMPExecutable } from
     "@axelar-cgp-solidity/node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarGMPExecutable.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "solady/auth/Ownable.sol";
+import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Ownable {
@@ -40,6 +41,7 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
     error ExecutionFailed(bytes32 commandId, address target);
 
     /// @notice For use when deployed as singleton
+    /// @dev Required by `RecoverableWrapper` and `AxelarGMPExecutable` deps to write immutable vars to bytecode
     constructor(
         address gateway_,
         string memory name_,
@@ -51,7 +53,6 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
     )
         AxelarGMPExecutable(gateway_)
         RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
-        Ownable(address(this)) // intentionally brick the impl
     { }
 
     /**
@@ -63,30 +64,21 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
     /// @notice Replaces `constructor` for use when deployed as a proxy implementation
     /// @dev This function and all functions invoked within are only available on devnet and testnet
     function initialize(
-        address gateway_,
         string memory name_,
         string memory symbol_,
-        uint256 recoverableWindow_,
         address governanceAddress_,
-        address baseERC20_,
-        uint16 maxToClean,
-        address owner
+        IERC20Metadata baseERC20_,
+        uint16 maxToClean_,
+        address owner_
     )
         public
         initializer
     {
-        _transferOwnership(owner);
-        setGateway(gateway_);
+        _initializeOwner(owner_);
         setName(name_);
         setSymbol(symbol_);
-        setRecoverableWindow(recoverableWindow_);
         setGovernanceAddress(governanceAddress_);
-        setBaseERC20(baseERC20_);
-        setMaxToClean(maxToClean);
-    }
-
-    function setGateway(address gateway) public onlyOwner {
-        gatewayAddress = gateway;
+        setMaxToClean(maxToClean_);
     }
 
     function setName(string memory newName) public onlyOwner {
@@ -97,20 +89,15 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
         _symbol_ = newSymbol;
     }
 
-    function setRecoverableWindow(uint256 newRecoverableWindow) public onlyOwner {
-        recoverableWindow = newRecoverableWindow;
-    }
-
     function setGovernanceAddress(address newGovernanceAddress) public onlyOwner {
         governanceAddress = newGovernanceAddress;
     }
 
-    function setBaseERC20(address newBaseERC20) public onlyOwner {
-        // baseERC20 = newBaseERC20;
-    }
-
-    function setMaxToClean(uint16 maxToClean) public onlyOwner {
-        // MAX_TO_CLEAN = maxToClean;
+    /// @dev `MAX_TO_CLEAN` is stored in slot 11
+    function setMaxToClean(uint16 newMaxToClean) public onlyOwner {
+        assembly {
+            sstore(11, newMaxToClean)
+        }
     }
 
     function name() public view virtual override returns (string memory) {
