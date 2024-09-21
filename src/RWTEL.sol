@@ -4,11 +4,11 @@ pragma solidity ^0.8.20;
 import { AxelarGMPExecutable } from
     "@axelar-cgp-solidity/node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarGMPExecutable.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
-import { UUPSUpgradeable } from "solady/utils/UUPSUpgradeable.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, OwnableUpgradeable {
+contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Ownable {
     /* RecoverableWrapper Storage Layout (Non-ERC7201 compliant)
      _______________________________________________________________________________________
     | Name              | Type                                                       | Slot |
@@ -40,7 +40,6 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
     error ExecutionFailed(bytes32 commandId, address target);
 
     /// @notice For use when deployed as singleton
-    /*
     constructor(
         address gateway_,
         string memory name_,
@@ -52,8 +51,8 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
     )
         AxelarGMPExecutable(gateway_)
         RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
+        Ownable(address(this)) // intentionally brick the impl
     { }
-    */
 
     /**
      *
@@ -76,7 +75,7 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
         public
         initializer
     {
-        __Ownable_init(owner);
+        _transferOwnership(owner);
         setGateway(gateway_);
         setName(name_);
         setSymbol(symbol_);
@@ -90,15 +89,15 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
         gatewayAddress = gateway;
     }
 
-    function setName(address newName) public onlyOwner {
-        _name_ = name;
+    function setName(string memory newName) public onlyOwner {
+        _name_ = newName;
     }
 
-    function setSymbol(address newSymbol) public onlyOwner {
-        _symbol_ = symbol;
+    function setSymbol(string memory newSymbol) public onlyOwner {
+        _symbol_ = newSymbol;
     }
 
-    function setRecoverableWindow(address newRecoverableWindow) public onlyOwner {
+    function setRecoverableWindow(uint256 newRecoverableWindow) public onlyOwner {
         recoverableWindow = newRecoverableWindow;
     }
 
@@ -107,11 +106,11 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
     }
 
     function setBaseERC20(address newBaseERC20) public onlyOwner {
-        baseERC20 = IERC20Metadata(newBaseERC20);
+        // baseERC20 = newBaseERC20;
     }
 
-    function setMaxToClean(address maxToClean) public onlyOwner {
-        MAX_TO_CLEAN = maxToClean;
+    function setMaxToClean(uint16 maxToClean) public onlyOwner {
+        // MAX_TO_CLEAN = maxToClean;
     }
 
     function name() public view virtual override returns (string memory) {
