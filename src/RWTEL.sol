@@ -63,7 +63,8 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
 
     /// @notice Replaces `constructor` for use when deployed as a proxy implementation
     /// @dev This function and all functions invoked within are only available on devnet and testnet
-    /// @param _ The `baseERC20_` param is set as an immutable variable in bytecode by `RecoverableWrapper::constructor()`
+    /// @param '' The `baseERC20_` param is set as an immutable variable in bytecode by
+    /// `RecoverableWrapper::constructor()`
     /// Since it will never change, no assembly workaround function such as `setMaxToClean()` is implemented
     function initialize(
         string memory name_,
@@ -96,7 +97,7 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
     }
 
     /// @notice Workaround function to alter `RecoverableWrapper::MAX_TO_CLEAN` without forking audited code
-    /// Provided because `MAX_TO_CLEAN` may require alteration in the future, as opposed to `baseERC20`, 
+    /// Provided because `MAX_TO_CLEAN` may require alteration in the future, as opposed to `baseERC20`,
     /// @dev `MAX_TO_CLEAN` is stored in slot 11
     function setMaxToClean(uint16 newMaxToClean) public onlyOwner {
         assembly {
