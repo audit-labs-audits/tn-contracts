@@ -164,7 +164,7 @@ export class NetworkExtended extends Network {
 
   async deployGasReceiver(): Promise<Contract> {
     logger.log(`Deploying the Axelar Gas Receiver for ${this.name}...`);
-    const wallet = await this.ownerNonceManager;
+    const wallet = this.ownerNonceManager;
     const ownerAddress = await wallet.getAddress();
     const gasService = await deployContract(
       this.ownerNonceManager,
