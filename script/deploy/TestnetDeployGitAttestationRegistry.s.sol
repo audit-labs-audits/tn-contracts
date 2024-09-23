@@ -5,7 +5,7 @@ import { Test, console2 } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { Deployments } from "../../deployments/Deployments.sol";
-import "../src/CI/GitAttestationRegistry.sol";
+import "../../src/CI/GitAttestationRegistry.sol";
 
 /// @dev Usage: `forge script script/deploy/TestnetDeployGitAttestationRegistry.s.sol --rpc-url $TN_RPC_URL -vvvv
 /// --private-key

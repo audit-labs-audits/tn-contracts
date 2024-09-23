@@ -7,8 +7,8 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { StablecoinHandler } from "telcoin-contracts/contracts/stablecoin/StablecoinHandler.sol";
 import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
-import { StablecoinManager } from "../src/StablecoinManager.sol";
-import { WTEL } from "../src/WTEL.sol";
+import { StablecoinManager } from "../../src/StablecoinManager.sol";
+import { WTEL } from "../../src/WTEL.sol";
 import { Deployments } from "../../deployments/Deployments.sol";
 
 /// @dev Usage: `forge script script/deploy/TestnetDeployTokens.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key
