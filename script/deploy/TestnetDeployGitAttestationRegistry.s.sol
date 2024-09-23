@@ -48,14 +48,20 @@ contract TestnetDeployGitAttestationRegistry is Script {
         // deploy implementation
         gitAttestationRegistry = new GitAttestationRegistry{ salt: gitAttestationRegistrySalt }(bufferSize, maintainers);
 
+        // add maintainer2's attestation wallet without affecting deploy address via constructor args
+        address maintainer3 = 0x9D39C91A3f9058ee55AEb3869ce23ea6714A40cf;
+        bytes32 maintainerRole = gitAttestationRegistry.MAINTAINER_ROLE();
+        gitAttestationRegistry.grantRole(maintainerRole, maintainer3);
+
         vm.stopBroadcast();
 
         // asserts
         assert(gitAttestationRegistry.bufferSize() == bufferSize);
         assert(gitAttestationRegistry.hasRole(bytes32(0x0), admin)); // admin role
-        assert(gitAttestationRegistry.hasRole(gitAttestationRegistry.MAINTAINER_ROLE(), admin));
-        assert(gitAttestationRegistry.hasRole(gitAttestationRegistry.MAINTAINER_ROLE(), maintainer1));
-        assert(gitAttestationRegistry.hasRole(gitAttestationRegistry.MAINTAINER_ROLE(), maintainer2));
+        assert(gitAttestationRegistry.hasRole(maintainerRole, admin));
+        assert(gitAttestationRegistry.hasRole(maintainerRole, maintainer1));
+        assert(gitAttestationRegistry.hasRole(maintainerRole, maintainer2));
+        assert(gitAttestationRegistry.hasRole(maintainerRole, maintainer3));
 
         // logs
         string memory root = vm.projectRoot();
