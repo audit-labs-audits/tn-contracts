@@ -38,7 +38,7 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
         bytes data;
     }
 
-    error ExecutionFailed(bytes32 commandId, address target);
+    event ExecutionFailed(bytes32 commandId, address target);
 
     /// @notice For use when deployed as singleton
     /// @dev Required by `RecoverableWrapper` and `AxelarGMPExecutable` deps to write immutable vars to bytecode
@@ -129,7 +129,8 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
         ExtCall memory bridgeMsg = abi.decode(payload, (ExtCall));
         address target = bridgeMsg.target;
         (bool res,) = target.call{ value: bridgeMsg.value }(bridgeMsg.data);
-        if (!res) revert ExecutionFailed(commandId, target);
+        // to prevent stuck messages, emit failure event rather than revert
+        if (!res) emit ExecutionFailed(commandId, target);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
