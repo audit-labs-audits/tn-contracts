@@ -94,30 +94,6 @@ contract TestnetDeployTNBridgeContracts is Script {
         // gatewaySetupParams)`
         axelarAmplifier = AxelarAmplifierGateway(CREATE3.deployDeterministic(gatewayProxyInitcode, gatewayProxySalt));
 
-        // interchain service
-        // deploy gasreceiver impl (owner == admin)
-        // deploy gasreceiver proxy
-        // initialize gasreceiver proxy (gasreceiver impl, owner bytes(''))
-        // deploy tokenmanagerdeployer
-        // ? deploy interchain token ([interchaintokenService])
-        // deploy interchaintokendeployer ([interchaintoken?])
-        // deploy tokenmanager ([interchaintokenservice])
-        // deploy tokenhandler
-        // get expected interchainTokenFactory addr
-        // deploy interchainTokenServiceContract impl ([
-        //   tokenManagerDeployer,
-        //   interchainTokenDeployer,
-        //   gatewayProxy,
-        //   gasServiceProxy,
-        //   interchainTokenFactory,
-        //   name,
-        //   tokenManager,
-        //   tokenHandler
-        // ])
-        // deploy interchainTokenService (serviceImplementation, owner, params(owner, name, [''], ['']))
-        // deploy tokenFactoryImpl (interchainTokenService)
-        // deploy tokenFactory proxy(tokenFactoryImpl, owner, bytes(''))
-
         vm.stopBroadcast();
 
         // asserts
