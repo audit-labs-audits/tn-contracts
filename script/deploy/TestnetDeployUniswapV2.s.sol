@@ -57,11 +57,16 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
     }
 
     function run() public {
+        /// @dev Uncomment for debugging
+        // uniswapV2Factory = IUniswapV2Factory(0x764EcA68A03Ff1Eb710E7d1a02c2e7c008877f2F);
+        // uniswapV2Router02 = IUniswapV2Router02(0x76b5628C7071c9CB587F38c78943c5a55C77Ee3F);
         vm.startBroadcast();
 
         // deploy v2 core contracts
         bytes memory factoryInitcode = bytes.concat(UNISWAPV2FACTORY_BYTECODE, abi.encode(feeToSetter_));
-        uniswapV2Factory = IUniswapV2Factory(CREATE3.deployDeterministic(factoryInitcode, factorySalt));
+        (bool factoryRes, bytes memory factoryRet) = deployments.ArachnidDeterministicDeployFactory.call(bytes.concat(factorySalt,factoryInitcode));
+        require(factoryRes);
+        uniswapV2Factory = IUniswapV2Factory(address(bytes20(factoryRet)));
 
         // deploy v2 periphery contracts
         bytes memory router02Initcode = bytes.concat(
@@ -69,7 +74,9 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
             bytes32(uint256(uint160(address(uniswapV2Factory)))),
             bytes32(uint256(uint160(wTEL)))
         );
-        uniswapV2Router02 = IUniswapV2Router02(CREATE3.deployDeterministic(router02Initcode, routerSalt));
+        (bool routerRes, bytes memory routerRet) = deployments.ArachnidDeterministicDeployFactory.call(bytes.concat(routerSalt, router02Initcode));
+        require(routerRes);
+        uniswapV2Router02 = IUniswapV2Router02(address(bytes20(routerRet)));
 
         // deploy v2 pools and record pair
         for (uint256 i; i < stables.length; ++i) {
@@ -108,16 +115,16 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         vm.writeJson(
             LibString.toHexString(uint256(uint160(address(uniswapV2Router02))), 20), dest, ".UniswapV2Router02"
         );
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[0]))), 20), dest, ".wTEL_eAUD_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[1]))), 20), dest, ".wTEL_eCAD_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[2]))), 20), dest, ".wTEL_eCHF_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[3]))), 20), dest, ".wTEL_eEUR_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[4]))), 20), dest, ".wTEL_eGBP_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[5]))), 20), dest, ".wTEL_eHKD_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[6]))), 20), dest, ".wTEL_eMXN_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[7]))), 20), dest, ".wTEL_eNOK_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[8]))), 20), dest, ".wTEL_eJPY_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[9]))), 20), dest, ".wTEL_eSDR_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[10]))), 20), dest, ".wTEL_eSGD_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[0]))), 20), dest, ".wTEL_eAUD_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[1]))), 20), dest, ".wTEL_eCAD_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[2]))), 20), dest, ".wTEL_eCHF_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[3]))), 20), dest, ".wTEL_eEUR_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[4]))), 20), dest, ".wTEL_eGBP_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[5]))), 20), dest, ".wTEL_eHKD_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[6]))), 20), dest, ".wTEL_eMXN_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[7]))), 20), dest, ".wTEL_eNOK_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[8]))), 20), dest, ".wTEL_eJPY_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[9]))), 20), dest, ".wTEL_eSDR_Pool");
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[10]))), 20), dest, ".wTEL_eSGD_Pool");
     }
 }
