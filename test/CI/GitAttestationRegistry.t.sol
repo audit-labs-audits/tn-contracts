@@ -10,8 +10,9 @@ contract GitAttestationRegistryTest is Test {
     address admin = address(this);
 
     function setUp() public {
-        address[] memory maintainers = new address[](1);
-        maintainers[0] = maintainer;
+        address[] memory maintainers = new address[](2);
+        maintainers[0] = admin;
+        maintainers[1] = maintainer;
         gitAttestationRegistry = new GitAttestationRegistry(4, maintainers);
     }
 
@@ -95,10 +96,10 @@ contract GitAttestationRegistryTest is Test {
         vm.assume(gitHash != bytes32(0x0));
 
         address[] memory maintainers = new address[](1);
-        maintainers[0] = maintainer;
+        maintainers[0] = admin;
         GitAttestationRegistry fuzzGitAttestationRegistry = new GitAttestationRegistry(bufferSize, maintainers);
 
-        vm.startPrank(maintainer);
+        vm.startPrank(admin);
         fuzzGitAttestationRegistry.attestGitCommitHash(gitHash, true);
         vm.stopPrank();
 
