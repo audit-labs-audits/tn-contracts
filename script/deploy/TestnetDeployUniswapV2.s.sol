@@ -64,7 +64,8 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
 
         // deploy v2 core contracts
         bytes memory factoryInitcode = bytes.concat(UNISWAPV2FACTORY_BYTECODE, abi.encode(feeToSetter_));
-        (bool factoryRes, bytes memory factoryRet) = deployments.ArachnidDeterministicDeployFactory.call(bytes.concat(factorySalt,factoryInitcode));
+        (bool factoryRes, bytes memory factoryRet) =
+            deployments.ArachnidDeterministicDeployFactory.call(bytes.concat(factorySalt, factoryInitcode));
         require(factoryRes);
         uniswapV2Factory = IUniswapV2Factory(address(bytes20(factoryRet)));
 
@@ -74,7 +75,8 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
             bytes32(uint256(uint160(address(uniswapV2Factory)))),
             bytes32(uint256(uint160(wTEL)))
         );
-        (bool routerRes, bytes memory routerRet) = deployments.ArachnidDeterministicDeployFactory.call(bytes.concat(routerSalt, router02Initcode));
+        (bool routerRes, bytes memory routerRet) =
+            deployments.ArachnidDeterministicDeployFactory.call(bytes.concat(routerSalt, router02Initcode));
         require(routerRes);
         uniswapV2Router02 = IUniswapV2Router02(address(bytes20(routerRet)));
 

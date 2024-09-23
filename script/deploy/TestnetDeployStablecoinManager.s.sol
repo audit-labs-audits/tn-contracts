@@ -9,7 +9,11 @@ import { StablecoinHandler } from "telcoin-contracts/contracts/stablecoin/Stable
 import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
 import { StablecoinManager } from "../../src/StablecoinManager.sol";
 import { WTEL } from "../../src/WTEL.sol";
-import { Deployments, DETERMINISTIC_FIRST_FAUCET_IMPL_DATA, DETERMINISTIC_FAUCET_PROXY_DATA } from "../../deployments/Deployments.sol";
+import {
+    Deployments,
+    DETERMINISTIC_FIRST_FAUCET_IMPL_DATA,
+    DETERMINISTIC_FAUCET_PROXY_DATA
+} from "../../deployments/Deployments.sol";
 
 /// @dev Usage: `forge script script/deploy/TestnetDeployTokens.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key
 /// $ADMIN_PK`
@@ -73,9 +77,9 @@ contract TestnetDeployStablecoinManager is Script {
 
     function run() public {
         // uncomment for debugging
-        // stablecoinManager = StablecoinManager(payable(deployments.StablecoinManager)); 
+        // stablecoinManager = StablecoinManager(payable(deployments.StablecoinManager));
         // stablecoinManagerImpl = StablecoinManager(payable(deployments.StablecoinManagerImpl));
-        
+
         vm.startBroadcast();
 
         // deploy the deterministic faucet proxy's first implementation to prevent proxy revert on deployment
@@ -83,7 +87,8 @@ contract TestnetDeployStablecoinManager is Script {
         require(implRes); // first implementation address: `0x857721c881fc26e4664a9685d8650c0505997672`
 
         // deploy the deterministic faucet proxy using first constructor args (impl, initializeData)
-        (bool proxyRes, bytes memory proxyRet) = deployments.ArachnidDeterministicDeployFactory.call(DETERMINISTIC_FAUCET_PROXY_DATA);
+        (bool proxyRes, bytes memory proxyRet) =
+            deployments.ArachnidDeterministicDeployFactory.call(DETERMINISTIC_FAUCET_PROXY_DATA);
         require(proxyRes);
         address payable stablecoinManagerAddress = payable(address(bytes20(proxyRet)));
         stablecoinManager = StablecoinManager(stablecoinManagerAddress);
@@ -92,7 +97,8 @@ contract TestnetDeployStablecoinManager is Script {
         stablecoinManagerImpl = new StablecoinManager{ salt: stablecoinManagerSalt }();
 
         // perform upgrade to current faucet version and set native drip amount since TEL is enabled by default
-        bytes memory setNativeDripAmountCall = abi.encodeWithSelector(StablecoinManager.setNativeDripAmount.selector, nativeDripAmount);
+        bytes memory setNativeDripAmountCall =
+            abi.encodeWithSelector(StablecoinManager.setNativeDripAmount.selector, nativeDripAmount);
         stablecoinManager.upgradeToAndCall(address(stablecoinManagerImpl), setNativeDripAmountCall);
 
         stablecoinManager.setDripAmount(dripAmount);
