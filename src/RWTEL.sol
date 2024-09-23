@@ -10,7 +10,7 @@ import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Ownable {
-    /* RecoverableWrapper Storage Layout (Non-ERC7201 compliant)
+    /* RecoverableWrapper Storage Layout (Provided because RW is non-ERC7201 compliant)
      _______________________________________________________________________________________
     | Name              | Type                                                       | Slot |
     |-------------------|------------------------------------------------------------|------|
@@ -25,13 +25,13 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
     | unwrapDisabled    | mapping(address => bool)                                   | 8    |
     | _totalSupply      | uint256                                                    | 9    |
     | governanceAddress | address                                                    | 10   |
-    
     */
 
     /// @dev Overrides for `ERC20` storage since `RecoverableWrapper` dep restricts them
-    string _name_;
-    string _symbol_;
+    string internal _name_;
+    string internal _symbol_;
 
+    /// @dev Designed for AxelarGMPExecutable's required implementation of `_execute()`
     struct ExtCall {
         address target;
         uint256 value;
@@ -63,11 +63,13 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
 
     /// @notice Replaces `constructor` for use when deployed as a proxy implementation
     /// @dev This function and all functions invoked within are only available on devnet and testnet
+    /// @param _ The `baseERC20_` param is set as an immutable variable in bytecode by `RecoverableWrapper::constructor()`
+    /// Since it will never change, no assembly workaround function such as `setMaxToClean()` is implemented
     function initialize(
         string memory name_,
         string memory symbol_,
         address governanceAddress_,
-        IERC20Metadata baseERC20_,
+        IERC20Metadata, /* baseERC20_ */
         uint16 maxToClean_,
         address owner_
     )
@@ -93,6 +95,8 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
         governanceAddress = newGovernanceAddress;
     }
 
+    /// @notice Workaround function to alter `RecoverableWrapper::MAX_TO_CLEAN` without forking audited code
+    /// Provided because `MAX_TO_CLEAN` may require alteration in the future, as opposed to `baseERC20`, 
     /// @dev `MAX_TO_CLEAN` is stored in slot 11
     function setMaxToClean(uint16 newMaxToClean) public onlyOwner {
         assembly {
@@ -100,10 +104,12 @@ contract RWTEL is RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Owna
         }
     }
 
+    /// @notice Overrides `RecoverableWrapper::ERC20::name()` which accesses a private var
     function name() public view virtual override returns (string memory) {
         return _name_;
     }
 
+    /// @notice Overrides `RecoverableWrapper::ERC20::symbol()` which accesses a private var
     function symbol() public view virtual override returns (string memory) {
         return _symbol_;
     }
