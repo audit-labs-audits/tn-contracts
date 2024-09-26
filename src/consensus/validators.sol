@@ -83,13 +83,13 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         uint256 numActive = _getValidators($, ValidatorStatus.Active).length;
 
         // determine new committee
-        newCommittee = _deriveVoterCommittee(numActive);
+        newCommittee = _deriveVoterCommittee(numActive, newCurrentEpoch);
         // store epoch info (committee, currentEpochBlocks)
     }
 
 
 
-    function getValidators(ValidatorStatus status) public returns (ValidatorInfo[] memory) {
+    function getValidators(ValidatorStatus status) public view returns (ValidatorInfo[] memory) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         return _getValidators($, status);
@@ -147,9 +147,54 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function _deriveVoterCommittee(uint256 committeeSize) internal returns (address[] memory newCommittee) {
-        // use numValidators and `PREVRANDAO` value one epoch in the future as random seed
-        /// @dev This would not be sufficient randomness on Ethereum but may be on Telcoin due to unpredictability of parallel block building
+    /// @dev For a BFT system to tolerate `n` faulty or malicious nodes, it requires `>= 3n + 1` total nodes
+    /// This means that the committee size should be such that it can tolerate a reasonable value for `n`
+    /// @param newCommittee Returned array of validator indices to serve as the next epoch's voting committee
+    function _deriveVoterCommittee(uint256 numActive, uint256 currentEpoch) internal returns (uint256[] memory newCommittee) {
+        uint256 committeeSize;
+        if (numActive <= 4) {
+            committeeSize = numActive;
+        } else {
+            // calculate floored number of tolerable faults for given active node count
+            uint256 n = numActive / 3;
+
+            // size committee based on the 2n+1 rule
+            committeeSize = 3 * n + 1;
+        }
+
+        newCommittee = new uint256[](committeeSize);
+
+        // use hashed `PREVRANDAO` value as randomness seed
+        /// @notice This would not be sufficient randomness on Ethereum but may be on Telcoin due to unpredictability of parallel block building
+        bytes32 seed = keccak256(abi.encode(block.prevrandao));
+        // identify randomized indices within `validatorInfos` to populate `newCommittee`
+        uint256[] memory selectedIndices = new uint256[](numActive);
+        uint256 selectedCount;
+        for (uint256 i; i < committeeSize; i++) {
+            bool unique;
+            uint256 randomIndex;
+
+            // ensure unique index
+            do {
+                unique = true;
+                randomIndex = uint256(keccak256(abi.encode(seed, i, selectedCount))) % numActive;
+
+                // check if the index is already used
+                for (uint256 j = 0; j < selectedCount; j++) {
+                    if (selectedIndices[j] == randomIndex) {
+                        unique = false;
+                        break;
+                    }
+                }
+            } while (!unique);
+
+            // add unique index to array, increment counter
+            selectedIndices[selectedCount] = randomIndex;
+            selectedCount++;
+
+            // Add the unique index to the new committee
+            newCommittee[i] = randomIndex;
+        }
     }
 
     function _queuePendingValidator(address pubkey) internal {
