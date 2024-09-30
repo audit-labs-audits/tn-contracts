@@ -5,16 +5,16 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 // spec:
- // store validator ecdsaPubkeys (ecdsa, not bls)
- // recover signatures from those validator ecdsaPubkeys to store and to verify
- // func to return random validator set from prevrandao and numvalidators `_deriveValidatorSet()`
- // above func is called at end of each epoch to establish canonical voting committee for new epoch
- // reward/slash schema (merkleized, rewards go to staking contract)
+// store validator ecdsaPubkeys (ecdsa, not bls)
+// recover signatures from those validator ecdsaPubkeys to store and to verify
+// func to return random validator set from prevrandao and numvalidators `_deriveValidatorSet()`
+// above func is called at end of each epoch to establish canonical voting committee for new epoch
+// reward/slash schema (merkleized, rewards go to staking contract)
 
 // questions:
- // how long to store epoch info? ringbuffer(committee, numBlocksInEpoch) 256 epochs? less? 4 epochs?
- // how long to store known validators after they exit? expected num validators is low, but eventually array grows too big
-    // when a validator rejoins the chain, bls & ed25519 keys should be rotated. how do consensus NFTs get handled for rejoiners?
+// how long to store epoch info? ringbuffer(committee, numBlocksInEpoch) 256 epochs? less? 4 epochs?
+// how long to store known validators after exit? expected num validators is low, but array can grow too big
+// if validator rejoins the chain, bls & ed25519 keys should be rotated. how to handle rejoiner's consensus NFTs?
 
 /**
  * @title ConsensusRegistry
@@ -25,7 +25,6 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
 contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
-
     error LowLevelCallFailure();
     error InvalidBLSPubkey();
     error InvalidProof();
@@ -81,8 +80,8 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
         uint32 currentEpoch; // can be resized
-        mapping (uint256 => EpochInfo) epochInfo;
-        mapping (address => StakeInfo) stakeInfo;
+        mapping(uint256 => EpochInfo) epochInfo;
+        mapping(address => StakeInfo) stakeInfo;
         ValidatorInfo[] validators;
         uint256[] currentCommittee; // validator indices of the current voter committee
     }
@@ -104,12 +103,20 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     /// @notice Can only be called in a `syscall` context
     /// @dev Accepts the new epoch's committee of voting validators, which have been ascertained as active via handshake
     // todo: accept stakingRewardInfo (presumably an array of validators which created blocks or attested to them)
-    function finalizePreviousEpoch(uint16 numBlocks, uint256[] calldata newCommitteeIndices, address[] calldata offlineValidatorAddresses, StakeInfo[] calldata stakingRewardInfos) external {
+    function finalizePreviousEpoch(
+        uint16 numBlocks,
+        uint256[] calldata newCommitteeIndices,
+        address[] calldata offlineValidatorAddresses,
+        StakeInfo[] calldata stakingRewardInfos
+    )
+        external
+    {
         if (msg.sender != SYSTEM_ADDRESS) revert OnlySystemCall(msg.sender);
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         // increment `currentEpoch`
-        uint256 newEpoch = ++$.currentEpoch; // cache in memory for use in resolving pending validators and voter committee
+        uint256 newEpoch = ++$.currentEpoch; // cache in memory for use in resolving pending validators and voter
+            // committee
         // update full validator set by activating/ejecting pending validators & flagging offline ones
         _updateValidatorSet($, newEpoch, offlineValidatorAddresses);
 
@@ -136,7 +143,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
      *
      */
 
-    /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator) 
+    /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
     function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable {
         if (blsPubkey.length != 48) revert InvalidBLSPubkey();
         if (blsSig.length != 96) revert InvalidProof();
@@ -146,23 +153,36 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         if (msg.value != $.stakeAmount) revert InvalidStakeAmount(msg.value);
-        
+
         uint32 activationEpoch = $.currentEpoch + 2;
         uint16 validatorIndex = $.stakeInfo[msg.sender].validatorIndex;
-        if (validatorIndex == 0) { // caller is a new validator
+        if (validatorIndex == 0) {
+            // caller is a new validator
             // set length in storage before it is incremented
             validatorIndex = uint16($.validators.length);
             $.stakeInfo[msg.sender].validatorIndex = validatorIndex;
 
             // push new validator to array
-            ValidatorInfo memory newValidator = ValidatorInfo(blsPubkey, ed25519Pubkey, msg.sender, activationEpoch, uint32(0), validatorIndex, bytes4(0), ValidatorStatus.PendingActivation);
+            ValidatorInfo memory newValidator = ValidatorInfo(
+                blsPubkey,
+                ed25519Pubkey,
+                msg.sender,
+                activationEpoch,
+                uint32(0),
+                validatorIndex,
+                bytes4(0),
+                ValidatorStatus.PendingActivation
+            );
             $.validators.push(newValidator);
 
             emit ValidatorPendingActivation(newValidator);
-        } else { // caller is a previously known validator
+        } else {
+            // caller is a previously known validator
             ValidatorInfo storage existingValidator = $.validators[validatorIndex];
             // for already known validators, only `Exited` status is valid logical branch
-            if (existingValidator.currentStatus != ValidatorStatus.Exited) revert InvalidStatus(existingValidator.currentStatus);
+            if (existingValidator.currentStatus != ValidatorStatus.Exited) {
+                revert InvalidStatus(existingValidator.currentStatus);
+            }
 
             existingValidator.activationEpoch = activationEpoch;
             existingValidator.currentStatus = ValidatorStatus.PendingActivation;
@@ -189,7 +209,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
         // wipe ledger for reentrancy and send
         $.stakeInfo[msg.sender].stakingRewards = 0;
-        (bool r,) = msg.sender.call{value: rewards}('');
+        (bool r,) = msg.sender.call{ value: rewards }("");
         require(r);
 
         emit RewardsClaimed(msg.sender, rewards);
@@ -209,7 +229,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         // wipe ledger for reentrancy and send staked balance + rewards
         uint256 stakeAndRewards = $.stakeAmount + $.stakeInfo[msg.sender].stakingRewards;
         $.stakeInfo[msg.sender].stakingRewards = 0;
-        (bool r,) = msg.sender.call{value: stakeAndRewards}('');
+        (bool r,) = msg.sender.call{ value: stakeAndRewards }("");
         require(r);
 
         emit RewardsClaimed(msg.sender, stakeAndRewards);
@@ -241,10 +261,17 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
      *
      */
 
-    /// @dev Adds validators pending activation, ejects those pending exit, and flags those reported as offline by the client
-    function _updateValidatorSet(ConsensusRegistryStorage storage $, uint256 currentEpoch, address[] calldata offlineValidatorAddresses) internal {
+    /// @dev Adds validators pending activation, ejects those pending exit, and flags those reported as offline by the
+    /// client
+    function _updateValidatorSet(
+        ConsensusRegistryStorage storage $,
+        uint256 currentEpoch,
+        address[] calldata offlineValidatorAddresses
+    )
+        internal
+    {
         ValidatorInfo[] storage validators = $.validators;
-        
+
         // activate and eject validators in pending queues
         for (uint256 i; i < validators.length; ++i) {
             // cache validator in memory (but write to storage member)
@@ -280,7 +307,16 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     }
 
     /// @dev Stores the number of blocks finalized in previous epoch and the voter committee for the new epoch
-    function _updateEpochInfo(ConsensusRegistryStorage storage $, uint256 newEpoch, uint256[] memory newCommitteeIndices, uint16 numBlocks, uint256 numActiveValidators) internal returns (uint16 newBlockHeight) {
+    function _updateEpochInfo(
+        ConsensusRegistryStorage storage $,
+        uint256 newEpoch,
+        uint256[] memory newCommitteeIndices,
+        uint16 numBlocks,
+        uint256 numActiveValidators
+    )
+        internal
+        returns (uint16 newBlockHeight)
+    {
         // ensure network is BFT for new epoch
         _checkFaultTolerance(numActiveValidators, newCommitteeIndices.length);
 
@@ -311,16 +347,23 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
             uint16 index = stakingRewardInfos[i].validatorIndex;
             address validatorAddr = $.validators[index].ecdsaPubkey;
             uint240 epochReward = stakingRewardInfos[i].stakingRewards;
-            
+
             $.stakeInfo[validatorAddr].stakingRewards += epochReward;
         }
     }
 
-    function _getValidators(ConsensusRegistryStorage storage $, ValidatorStatus status) internal view returns (ValidatorInfo[] memory) {
+    function _getValidators(
+        ConsensusRegistryStorage storage $,
+        ValidatorStatus status
+    )
+        internal
+        view
+        returns (ValidatorInfo[] memory)
+    {
         ValidatorInfo[] memory allValidators = $.validators;
 
         if (status == ValidatorStatus.Undefined) {
-        // provide undefined status `== uint8(0)` to get full validator list of any status
+            // provide undefined status `== uint8(0)` to get full validator list of any status
             return allValidators;
         } else {
             // identify number of validators matching provided `status`
@@ -358,14 +401,29 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     /// @notice Must be replaced with a constructor in prod
     /// @dev Invoked once at genesis only
     /// @param initialValidators_ The initial set of validators running Telcoin Network
-    /// @param initialCommitteeIndices_ An optional parameter declaring the initial voting committee (by validator index)
-    function initialize(uint256 stakeAmount_, uint256 minWithdrawAmount_, ValidatorInfo[] calldata initialValidators_, uint256[] memory initialCommitteeIndices_, address owner) external initializer {
+    /// @param initialCommitteeIndices_ An optional parameter declaring the initial voting committee (by validator
+    /// index)
+    function initialize(
+        uint256 stakeAmount_,
+        uint256 minWithdrawAmount_,
+        ValidatorInfo[] calldata initialValidators_,
+        uint256[] memory initialCommitteeIndices_,
+        address owner
+    )
+        external
+        initializer
+    {
         if (initialValidators_.length < initialCommitteeIndices_.length) revert InitializerArityMismatch();
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
-        // this is because nonexistent validators will have struct members of 0 in future checks for known validators, ie when exiting
-        $.validators.push(ValidatorInfo('', bytes32(0x0), address(0x0), uint32(0), uint32(0), uint16(0), bytes4(0), ValidatorStatus.Undefined));
+        // this is because nonexistent validators will have struct members of 0 in future checks for known validators,
+        // ie when exiting
+        $.validators.push(
+            ValidatorInfo(
+                "", bytes32(0x0), address(0x0), uint32(0), uint32(0), uint16(0), bytes4(0), ValidatorStatus.Undefined
+            )
+        );
 
         // set stake configs
         $.stakeAmount = stakeAmount_;
@@ -383,7 +441,8 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
             emit ValidatorActivated(currentValidator);
         }
 
-        /// @dev first epoch supports either 1. an initial subset of validators as initial voting committee or 2. all validators vote
+        /// @dev first epoch supports either 1. an initial subset of validators as initial voting committee or 2. all
+        /// validators vote
         if (initialCommitteeIndices_.length != 0) {
             for (uint256 i; i < initialCommitteeIndices_.length; ++i) {
                 $.currentCommittee.push(initialCommitteeIndices_[i]);
