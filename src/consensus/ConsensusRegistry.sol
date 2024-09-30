@@ -44,6 +44,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     event ValidatorPendingExit(ValidatorInfo validator);
     event ValidatorExited(ValidatorInfo validator);
     event NewEpoch(EpochInfo epoch);
+    event RewardsClaimed(address claimant, uint256 rewards);
 
     enum ValidatorStatus {
         Undefined,
@@ -70,13 +71,18 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         uint16 blockHeight; // up to 65536 blocks per epoch - is this enough?
     }
 
+    struct StakeInfo {
+        uint16 validatorIndex;
+        uint240 stakingRewards; // can be resized to uint104
+    }
+
     /// @custom:storage-location erc7201:telcoin.storage.ConsensusRegistry
     struct ConsensusRegistryStorage {
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
         uint32 currentEpoch; // can be resized
         mapping (uint256 => EpochInfo) epochInfo;
-        mapping (address => uint16) validatorIndex;
+        mapping (address => StakeInfo) stakeInfo;
         ValidatorInfo[] validators;
         uint256[] currentCommittee; // validator indices of the current voter committee
     }
@@ -98,7 +104,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     /// @notice Can only be called in a `syscall` context
     /// @dev Accepts the new epoch's committee of voting validators, which have been ascertained as active via handshake
     // todo: accept stakingRewardInfo (presumably an array of validators which created blocks or attested to them)
-    function finalizePreviousEpoch(uint16 numBlocks, uint256[] calldata newCommitteeIndices, address[] calldata offlineValidatorAddresses /*, stakingRewardInfo*/) external {
+    function finalizePreviousEpoch(uint16 numBlocks, uint256[] calldata newCommitteeIndices, address[] calldata offlineValidatorAddresses, StakeInfo[] calldata stakingRewardInfos) external {
         if (msg.sender != SYSTEM_ADDRESS) revert OnlySystemCall(msg.sender);
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
@@ -110,6 +116,9 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         // store new committee and epoch info
         uint256 numActiveValidators = _getValidators($, ValidatorStatus.Active).length;
         uint16 newBlockHeight = _updateEpochInfo($, newEpoch, newCommitteeIndices, numBlocks, numActiveValidators);
+
+        // update each validator's claimable rewards with given amounts
+        _incrementRewards($, stakingRewardInfos);
 
         emit NewEpoch(EpochInfo(newCommitteeIndices, newBlockHeight));
     }
@@ -139,11 +148,11 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         if (msg.value != $.stakeAmount) revert InvalidStakeAmount(msg.value);
         
         uint32 activationEpoch = $.currentEpoch + 2;
-        uint16 validatorIndex = $.validatorIndex[msg.sender];
+        uint16 validatorIndex = $.stakeInfo[msg.sender].validatorIndex;
         if (validatorIndex == 0) { // caller is a new validator
             // set length in storage before it is incremented
             validatorIndex = uint16($.validators.length);
-            $.validatorIndex[msg.sender] = validatorIndex;
+            $.stakeInfo[msg.sender].validatorIndex = validatorIndex;
 
             // push new validator to array
             ValidatorInfo memory newValidator = ValidatorInfo(blsPubkey, ed25519Pubkey, msg.sender, activationEpoch, uint32(0), validatorIndex, bytes4(0), ValidatorStatus.PendingActivation);
@@ -166,14 +175,44 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
     /// @dev Used for validators to claim their staking rewards for validating the network
     function claimStakeRewards() external {
-        // require caller is verified protocol validator
-        // require caller is a known `ValidatorInfo`
+        // require caller is verified protocol validator - check NFT balance
+
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+
+        // require caller is known
+        uint16 validatorIndex = $.stakeInfo[msg.sender].validatorIndex;
+        if (validatorIndex == 0) revert NotValidator(msg.sender);
+
         // calculate rewards? or should that be written via syscall in every `finalizeEpoch()`
-        // require rewards > minWithdrawAmount
-        // wipe ledger
-        // send rewards
-        // if validator is exited, send staked balance + rewards
-        // emit events
+        uint256 rewards = $.stakeInfo[msg.sender].stakingRewards;
+        if (rewards < $.minWithdrawAmount) revert InsufficientRewards(rewards);
+
+        // wipe ledger for reentrancy and send
+        $.stakeInfo[msg.sender].stakingRewards = 0;
+        (bool r,) = msg.sender.call{value: rewards}('');
+        require(r);
+
+        emit RewardsClaimed(msg.sender, rewards);
+    }
+
+    /// @dev Returns previously staked funds and accrued rewards, if any, to the calling validator
+    /// @notice May only be called after fully exiting
+    function unstake() external {
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+
+        uint16 index = $.stakeInfo[msg.sender].validatorIndex;
+        if (index == 0) revert NotValidator(msg.sender);
+
+        ValidatorStatus callerStatus = $.validators[index].currentStatus;
+        if (callerStatus != ValidatorStatus.Exited) revert InvalidStatus(callerStatus);
+
+        // wipe ledger for reentrancy and send staked balance + rewards
+        uint256 stakeAndRewards = $.stakeAmount + $.stakeInfo[msg.sender].stakingRewards;
+        $.stakeInfo[msg.sender].stakingRewards = 0;
+        (bool r,) = msg.sender.call{value: stakeAndRewards}('');
+        require(r);
+
+        emit RewardsClaimed(msg.sender, stakeAndRewards);
     }
 
     /// @dev Issues an exit request for a validator to be ejected from the active validator set
@@ -181,7 +220,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         // require caller is a known `ValidatorInfo` with `active || offline` status
-        uint16 validatorIndex = $.validatorIndex[msg.sender];
+        uint16 validatorIndex = $.stakeInfo[msg.sender].validatorIndex;
         if (validatorIndex == 0) revert NotValidator(msg.sender);
         ValidatorInfo storage validator = $.validators[validatorIndex];
         if (validator.currentStatus != ValidatorStatus.Active || validator.currentStatus != ValidatorStatus.Offline) {
@@ -231,7 +270,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
         // flag validators reported as offline by the client
         for (uint256 i; i < offlineValidatorAddresses.length; ++i) {
-            uint16 index = $.validatorIndex[offlineValidatorAddresses[i]];
+            uint16 index = $.stakeInfo[offlineValidatorAddresses[i]].validatorIndex;
             if (index == 0) revert NotValidator(offlineValidatorAddresses[i]);
 
             $.validators[index].currentStatus = ValidatorStatus.Offline;
@@ -264,6 +303,16 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
             // identify and check committee size based on the 2n+1 rule
             uint256 minCommitteeSize = 3 * n + 1;
             if (committeeSize < minCommitteeSize) revert InvalidCommitteeSize(minCommitteeSize, committeeSize);
+        }
+    }
+
+    function _incrementRewards(ConsensusRegistryStorage storage $, StakeInfo[] calldata stakingRewardInfos) internal {
+        for (uint256 i; i < stakingRewardInfos.length; ++i) {
+            uint16 index = stakingRewardInfos[i].validatorIndex;
+            address validatorAddr = $.validators[index].ecdsaPubkey;
+            uint240 epochReward = stakingRewardInfos[i].stakingRewards;
+            
+            $.stakeInfo[validatorAddr].stakingRewards += epochReward;
         }
     }
 
@@ -316,7 +365,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
         // this is because nonexistent validators will have struct members of 0 in future checks for known validators, ie when exiting
-        $.validators.push(ValidatorInfo('', bytes32(0x0), address(0x0), uint32(0), uint32(0), uint16(0), bytes4(0), ValidatorStatus.Active));
+        $.validators.push(ValidatorInfo('', bytes32(0x0), address(0x0), uint32(0), uint32(0), uint16(0), bytes4(0), ValidatorStatus.Undefined));
 
         // set stake configs
         $.stakeAmount = stakeAmount_;
@@ -326,7 +375,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         for (uint256 i; i < initialValidators_.length; ++i) {
             ValidatorInfo calldata currentValidator = initialValidators_[i];
             uint256 nonZeroInfosIndex = i + 1;
-            $.validatorIndex[currentValidator.ecdsaPubkey] = uint16(nonZeroInfosIndex);
+            $.stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(nonZeroInfosIndex);
             $.validators.push(currentValidator);
 
             // todo: issue consensus NFTs to initial validators?
