@@ -34,6 +34,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     error AlreadyDefined(address ecdsaPubkey);
     error InvalidStakeAmount(uint256 stakeAmount);
     error InvalidStatus(ValidatorStatus status);
+    error InvalidIndex(uint16 validatorIndex);
     error InsufficientRewards(uint256 withdrawAmount);
 
     event ValidatorPendingActivation(ValidatorInfo validator);
@@ -65,7 +66,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     }
 
     struct EpochInfo {
-        uint256[] committeeIndices;
+        uint256[] committeeIndices; // voter committee's validator indices
         uint16 blockHeight; // up to 65536 blocks per epoch - is this enough?
     }
 
@@ -81,10 +82,8 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         uint32 currentEpoch;
         uint8 epochPointer;
         EpochInfo[4] epochInfo;
-        // mapping(uint256 => EpochInfo) epochInfo;
         mapping(address => StakeInfo) stakeInfo;
         ValidatorInfo[] validators;
-        uint256[] currentCommittee; // validator indices of the current voter committee
     }
 
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
@@ -103,7 +102,6 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     /// @notice Voting Validator Committee changes once every epoch (== 32 rounds)
     /// @notice Can only be called in a `syscall` context
     /// @dev Accepts the new epoch's committee of voting validators, which have been ascertained as active via handshake
-    // todo: accept stakingRewardInfo (presumably an array of validators which created blocks or attested to them)
     function finalizePreviousEpoch(
         uint16 numBlocks,
         uint256[] calldata newCommitteeIndices,
@@ -439,24 +437,32 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         $.stakeAmount = stakeAmount_;
         $.minWithdrawAmount = minWithdrawAmount_;
 
-        // store initial validator set
+        // todo: this array is only used if no initial committee is provided, inefficient
+        uint256[] memory allInitialValidatorIndices = new uint256[](initialValidators_.length);
         for (uint256 i; i < initialValidators_.length; ++i) {
             ValidatorInfo calldata currentValidator = initialValidators_[i];
             uint256 nonZeroInfosIndex = i + 1;
+
+            // assert `validatorIndex` struct member matches expected value
+            if (nonZeroInfosIndex != currentValidator.validatorIndex) revert InvalidIndex(currentValidator.validatorIndex);
+            // todo: `validatorIndex` doesn't really need to be a `ValidatorInfo` struct member, leads to duplication
             $.stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(nonZeroInfosIndex);
+            // store initial validator set
             $.validators.push(currentValidator);
+
+            // store all initial validator indices in case all should vote in first epoch
+            allInitialValidatorIndices[i] = nonZeroInfosIndex;
 
             // todo: issue consensus NFTs to initial validators?
 
             emit ValidatorActivated(currentValidator);
         }
 
-        /// @dev first epoch supports either 1. an initial subset of validators as initial voting committee or 2. all
-        /// validators vote
+        /// if provided, initial subset of validators is initial voting committee; else all initial validators vote
         if (initialCommitteeIndices_.length != 0) {
-            for (uint256 i; i < initialCommitteeIndices_.length; ++i) {
-                $.currentCommittee.push(initialCommitteeIndices_[i]);
-            }
+            $.epochInfo[0].committeeIndices = initialCommitteeIndices_;
+        } else {
+            $.epochInfo[0].committeeIndices = allInitialValidatorIndices;
         }
 
         // note: must be removed for mainnet
