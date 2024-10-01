@@ -7,12 +7,11 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 // spec:
 // store validator ecdsaPubkeys (ecdsa, not bls)
 // recover signatures from those validator ecdsaPubkeys to store and to verify
-// func to return random validator set from prevrandao and numvalidators `_deriveValidatorSet()`
+// func to accept randomized validator set for new epoch: `finalizeEpoch()`
 // above func is called at end of each epoch to establish canonical voting committee for new epoch
-// reward/slash schema (merkleized, rewards go to staking contract)
+// reward/slash schema (rewards go to staking contract)
 
 // questions:
-// how long to store epoch info? ringbuffer(committee, numBlocksInEpoch) 256 epochs? less? 4 epochs?
 // how long to store known validators after exit? expected num validators is low, but array can grow too big
 // if validator rejoins the chain, bls & ed25519 keys should be rotated. how to handle rejoiner's consensus NFTs?
 
@@ -72,15 +71,17 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
     struct StakeInfo {
         uint16 validatorIndex;
-        uint240 stakingRewards; // can be resized to uint104
+        uint240 stakingRewards; // can be resized to uint104 (100bil $TEL)
     }
 
     /// @custom:storage-location erc7201:telcoin.storage.ConsensusRegistry
     struct ConsensusRegistryStorage {
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
-        uint32 currentEpoch; // can be resized
-        mapping(uint256 => EpochInfo) epochInfo;
+        uint32 currentEpoch;
+        uint8 epochPointer;
+        EpochInfo[4] epochInfo;
+        // mapping(uint256 => EpochInfo) epochInfo;
         mapping(address => StakeInfo) stakeInfo;
         ValidatorInfo[] validators;
         uint256[] currentCommittee; // validator indices of the current voter committee
@@ -114,15 +115,14 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         if (msg.sender != SYSTEM_ADDRESS) revert OnlySystemCall(msg.sender);
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        // increment `currentEpoch`
-        uint256 newEpoch = ++$.currentEpoch; // cache in memory for use in resolving pending validators and voter
-            // committee
-        // update full validator set by activating/ejecting pending validators & flagging offline ones
-        _updateValidatorSet($, newEpoch, offlineValidatorAddresses);
 
-        // store new committee and epoch info
-        uint256 numActiveValidators = _getValidators($, ValidatorStatus.Active).length;
-        uint16 newBlockHeight = _updateEpochInfo($, newEpoch, newCommitteeIndices, numBlocks, numActiveValidators);
+        // update epoch and ring buffer info
+        (uint256 newEpoch, uint16 newBlockHeight) = _updateEpochInfo($, newCommitteeIndices, numBlocks);
+        // update full validator set by activating/ejecting pending validators & flagging offline ones
+        uint256 numActiveValidators = _updateValidatorSet($, newEpoch, offlineValidatorAddresses);
+
+        // ensure new epoch's canonical network state is still BFT
+        _checkFaultTolerance(numActiveValidators, newCommitteeIndices.length);
 
         // update each validator's claimable rewards with given amounts
         _incrementRewards($, stakingRewardInfos);
@@ -135,6 +135,13 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         return _getValidators($, status);
+    }
+
+    /// @dev Fetches the `validatorIndex` for a given validator address
+    /// @notice A returned `validatorIndex` value of `0` is invalid
+    function getValidatorIndex(address ecdsaPubkey) public view returns (uint16 validatorIndex) {
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        validatorIndex = _getValidatorIndex($, ecdsaPubkey);
     }
 
     /**
@@ -155,10 +162,9 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         if (msg.value != $.stakeAmount) revert InvalidStakeAmount(msg.value);
 
         uint32 activationEpoch = $.currentEpoch + 2;
-        uint16 validatorIndex = $.stakeInfo[msg.sender].validatorIndex;
+        uint16 validatorIndex = _getValidatorIndex($, msg.sender);
         if (validatorIndex == 0) {
-            // caller is a new validator
-            // set length in storage before it is incremented
+            // caller is a new validator and will be appended to end of array
             validatorIndex = uint16($.validators.length);
             $.stakeInfo[msg.sender].validatorIndex = validatorIndex;
 
@@ -200,7 +206,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         // require caller is known
-        uint16 validatorIndex = $.stakeInfo[msg.sender].validatorIndex;
+        uint16 validatorIndex = _getValidatorIndex($, msg.sender);
         if (validatorIndex == 0) revert NotValidator(msg.sender);
 
         // calculate rewards? or should that be written via syscall in every `finalizeEpoch()`
@@ -220,7 +226,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     function unstake() external {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
-        uint16 index = $.stakeInfo[msg.sender].validatorIndex;
+        uint16 index = _getValidatorIndex($, msg.sender);
         if (index == 0) revert NotValidator(msg.sender);
 
         ValidatorStatus callerStatus = $.validators[index].currentStatus;
@@ -240,7 +246,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         // require caller is a known `ValidatorInfo` with `active || offline` status
-        uint16 validatorIndex = $.stakeInfo[msg.sender].validatorIndex;
+        uint16 validatorIndex = _getValidatorIndex($, msg.sender);
         if (validatorIndex == 0) revert NotValidator(msg.sender);
         ValidatorInfo storage validator = $.validators[validatorIndex];
         if (validator.currentStatus != ValidatorStatus.Active || validator.currentStatus != ValidatorStatus.Offline) {
@@ -268,7 +274,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         uint256 currentEpoch,
         address[] calldata offlineValidatorAddresses
     )
-        internal
+        internal returns (uint256 numActiveValidators)
     {
         ValidatorInfo[] storage validators = $.validators;
 
@@ -297,34 +303,35 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
         // flag validators reported as offline by the client
         for (uint256 i; i < offlineValidatorAddresses.length; ++i) {
-            uint16 index = $.stakeInfo[offlineValidatorAddresses[i]].validatorIndex;
+            uint16 index = _getValidatorIndex($, offlineValidatorAddresses[i]);
             if (index == 0) revert NotValidator(offlineValidatorAddresses[i]);
 
             $.validators[index].currentStatus = ValidatorStatus.Offline;
 
             emit ValidatorOffline($.validators[index]);
         }
+
+        numActiveValidators = _getValidators($, ValidatorStatus.Active).length;
     }
 
     /// @dev Stores the number of blocks finalized in previous epoch and the voter committee for the new epoch
     function _updateEpochInfo(
         ConsensusRegistryStorage storage $,
-        uint256 newEpoch,
         uint256[] memory newCommitteeIndices,
-        uint16 numBlocks,
-        uint256 numActiveValidators
+        uint16 numBlocks
     )
         internal
-        returns (uint16 newBlockHeight)
+        returns (uint256 newEpoch, uint16 newBlockHeight)
     {
-        // ensure network is BFT for new epoch
-        _checkFaultTolerance(numActiveValidators, newCommitteeIndices.length);
+        // cache epoch ring buffer's pointers in memory
+        uint8 prevEpochPointer = $.epochPointer;
+        uint8 newEpochPointer = (prevEpochPointer + 1) % 4;
+        newBlockHeight = $.epochInfo[prevEpochPointer].blockHeight + numBlocks;
 
-        // store current epoch's new committee
-        $.epochInfo[newEpoch].committeeIndices = newCommitteeIndices;
-        // calculate and store new epoch's `blockHeight`
-        newBlockHeight = $.epochInfo[newEpoch - 1].blockHeight + numBlocks;
-        $.epochInfo[newEpoch].blockHeight = newBlockHeight;
+        // update new current epoch info
+        $.epochInfo[newEpochPointer] = EpochInfo(newCommitteeIndices, newBlockHeight);
+        $.epochPointer = newEpochPointer;
+        newEpoch = ++$.currentEpoch;
     }
 
     /// @dev Checks the given committee size against the total number of active validators using the 2n + 1 BFT rule
@@ -363,7 +370,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         ValidatorInfo[] memory allValidators = $.validators;
 
         if (status == ValidatorStatus.Undefined) {
-            // provide undefined status `== uint8(0)` to get full validator list of any status
+            // provide undefined status `== uint8(0)` to get full validator array (of any status)
             return allValidators;
         } else {
             // identify number of validators matching provided `status`
@@ -386,6 +393,10 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
+    function _getValidatorIndex(ConsensusRegistryStorage storage $, address ecdsaPubkey) internal view returns (uint16) {
+        return $.stakeInfo[ecdsaPubkey].validatorIndex;
+    }
+
     function _consensusRegistryStorage() internal pure returns (ConsensusRegistryStorage storage $) {
         assembly {
             $.slot := ConsensusRegistryStorageSlot
@@ -401,8 +412,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     /// @notice Must be replaced with a constructor in prod
     /// @dev Invoked once at genesis only
     /// @param initialValidators_ The initial set of validators running Telcoin Network
-    /// @param initialCommitteeIndices_ An optional parameter declaring the initial voting committee (by validator
-    /// index)
+    /// @param initialCommitteeIndices_ Optional parameter declaring initial voting committee (by index)
     function initialize(
         uint256 stakeAmount_,
         uint256 minWithdrawAmount_,
