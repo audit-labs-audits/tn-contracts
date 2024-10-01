@@ -272,7 +272,8 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         uint256 currentEpoch,
         address[] calldata offlineValidatorAddresses
     )
-        internal returns (uint256 numActiveValidators)
+        internal
+        returns (uint256 numActiveValidators)
     {
         ValidatorInfo[] storage validators = $.validators;
 
@@ -391,7 +392,14 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function _getValidatorIndex(ConsensusRegistryStorage storage $, address ecdsaPubkey) internal view returns (uint16) {
+    function _getValidatorIndex(
+        ConsensusRegistryStorage storage $,
+        address ecdsaPubkey
+    )
+        internal
+        view
+        returns (uint16)
+    {
         return $.stakeInfo[ecdsaPubkey].validatorIndex;
     }
 
@@ -444,7 +452,9 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
             uint256 nonZeroInfosIndex = i + 1;
 
             // assert `validatorIndex` struct member matches expected value
-            if (nonZeroInfosIndex != currentValidator.validatorIndex) revert InvalidIndex(currentValidator.validatorIndex);
+            if (nonZeroInfosIndex != currentValidator.validatorIndex) {
+                revert InvalidIndex(currentValidator.validatorIndex);
+            }
             // todo: `validatorIndex` doesn't really need to be a `ValidatorInfo` struct member, leads to duplication
             $.stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(nonZeroInfosIndex);
             // store initial validator set
