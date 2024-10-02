@@ -145,7 +145,15 @@ contract ConsensusRegistry is Pausable, Ownable {
      */
 
     /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
-    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable whenNotPaused {
+    function stake(
+        bytes calldata blsPubkey,
+        bytes calldata blsSig,
+        bytes32 ed25519Pubkey
+    )
+        external
+        payable
+        whenNotPaused
+    {
         if (blsPubkey.length != 48) revert InvalidBLSPubkey();
         if (blsSig.length != 96) revert InvalidProof();
 
@@ -331,7 +339,7 @@ contract ConsensusRegistry is Pausable, Ownable {
         if (numActiveValidators <= 4 && committeeSize != numActiveValidators) {
             revert InvalidCommitteeSize(numActiveValidators, committeeSize);
         } else {
-            // calculate number of tolerable faults for given node count using 33% threshold 
+            // calculate number of tolerable faults for given node count using 33% threshold
             uint256 tolerableFaults = numActiveValidators / 3;
 
             // committee size must be greater than tolerable faults
@@ -411,7 +419,9 @@ contract ConsensusRegistry is Pausable, Ownable {
         ValidatorInfo[] memory initialValidators_,
         uint256[] memory initialCommitteeIndices_,
         address owner
-    ) Ownable(owner) {
+    )
+        Ownable(owner)
+    {
         if (initialValidators_.length == 0) revert InitializerArityMismatch();
         if (initialValidators_.length < initialCommitteeIndices_.length) revert InitializerArityMismatch();
 
@@ -432,13 +442,15 @@ contract ConsensusRegistry is Pausable, Ownable {
         // todo: how should these validators stake at genesis? lock on mainnet pre-genesis?
         for (uint256 i; i < initialValidators_.length; ++i) {
             ValidatorInfo memory currentValidator = initialValidators_[i];
-            
+
             // assert `validatorIndex` struct members match expected value
             if (currentValidator.blsPubkey.length != 48) revert InvalidBLSPubkey();
             if (currentValidator.ed25519Pubkey == bytes32(0x0)) revert InvalidEd25519Pubkey();
             if (currentValidator.ecdsaPubkey == address(0x0)) revert InvalidECDSAPubkey();
             if (currentValidator.activationEpoch != uint16(0)) revert InvalidEpoch(currentValidator.activationEpoch);
-            if (currentValidator.currentStatus != ValidatorStatus.Active) revert InvalidStatus(currentValidator.currentStatus);
+            if (currentValidator.currentStatus != ValidatorStatus.Active) {
+                revert InvalidStatus(currentValidator.currentStatus);
+            }
             uint256 nonZeroInfosIndex = i + 1;
             if (nonZeroInfosIndex != currentValidator.validatorIndex) {
                 revert InvalidIndex(currentValidator.validatorIndex);
