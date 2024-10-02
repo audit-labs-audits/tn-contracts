@@ -333,17 +333,22 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         newEpoch = ++$.currentEpoch;
     }
 
-    /// @dev Checks the given committee size against the total number of active validators using the 2n + 1 BFT rule
+    /// @dev Checks the given committee size against the total number of active validators using below 3f + 1 BFT rule
     function _checkFaultTolerance(uint256 numActiveValidators, uint256 committeeSize) internal pure {
-        // if the total validator set is small, all must vote
+        // sanity check committee size is less than number of active validators
+        if (committeeSize > numActiveValidators) {
+            revert InvalidCommitteeSize(numActiveValidators, committeeSize);
+        }
+
+        // if the total validator set is small, all must vote and no faults can be tolerated
         if (numActiveValidators <= 4 && committeeSize != numActiveValidators) {
             revert InvalidCommitteeSize(numActiveValidators, committeeSize);
         } else {
-            // calculate floored number of tolerable faults for given active node count
-            uint256 n = numActiveValidators / 3;
+            // calculate number of tolerable faults for given node count using 33% threshold 
+            uint256 tolerableFaults = numActiveValidators / 3;
 
-            // identify and check committee size based on the 2n+1 rule
-            uint256 minCommitteeSize = 3 * n + 1;
+            // committee size must be greater than tolerable faults
+            uint256 minCommitteeSize = tolerableFaults + 1;
             if (committeeSize < minCommitteeSize) revert InvalidCommitteeSize(minCommitteeSize, committeeSize);
         }
     }
