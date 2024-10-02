@@ -15,6 +15,8 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 contract ConsensusRegistry is Pausable, Ownable {
     error LowLevelCallFailure();
     error InvalidBLSPubkey();
+    error InvalidEd25519Pubkey();
+    error InvalidECDSAPubkey();
     error InvalidProof();
     error InitializerArityMismatch();
     error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
@@ -24,6 +26,7 @@ contract ConsensusRegistry is Pausable, Ownable {
     error InvalidStakeAmount(uint256 stakeAmount);
     error InvalidStatus(ValidatorStatus status);
     error InvalidIndex(uint16 validatorIndex);
+    error InvalidEpoch(uint32 epoch);
     error InsufficientRewards(uint256 withdrawAmount);
 
     event ValidatorPendingActivation(ValidatorInfo validator);
@@ -43,7 +46,7 @@ contract ConsensusRegistry is Pausable, Ownable {
 
     struct ValidatorInfo {
         bytes blsPubkey; // BLS public key is 48 bytes long; BLS proofs are 96 bytes
-        bytes32 ed25519PubKey;
+        bytes32 ed25519Pubkey;
         address ecdsaPubkey;
         uint32 activationEpoch; // uint32 provides ~22000yr for 160s epochs (5s rounds)
         uint32 exitEpoch;
@@ -114,6 +117,13 @@ contract ConsensusRegistry is Pausable, Ownable {
         emit NewEpoch(EpochInfo(newCommitteeIndices, newBlockHeight));
     }
 
+    /// @dev Returns the current epoch
+    function getCurrentEpoch() public view returns (uint32) {
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+
+        return $.currentEpoch;
+    }
+
     /// @dev Returns an array of `ValidatorInfo` structs that match the provided status for this epoch
     function getValidators(ValidatorStatus status) public view returns (ValidatorInfo[] memory) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
@@ -176,7 +186,7 @@ contract ConsensusRegistry is Pausable, Ownable {
 
             existingValidator.activationEpoch = activationEpoch;
             existingValidator.currentStatus = ValidatorStatus.PendingActivation;
-            existingValidator.ed25519PubKey = ed25519Pubkey;
+            existingValidator.ed25519Pubkey = ed25519Pubkey;
             existingValidator.blsPubkey = blsPubkey;
 
             emit ValidatorPendingActivation(existingValidator);
@@ -213,10 +223,13 @@ contract ConsensusRegistry is Pausable, Ownable {
         uint16 index = _getValidatorIndex($, msg.sender);
         if (index == 0) revert NotValidator(msg.sender);
 
+        // check caller is `Exited`
         ValidatorStatus callerStatus = $.validators[index].currentStatus;
         if (callerStatus != ValidatorStatus.Exited) revert InvalidStatus(callerStatus);
+        // set to `Undefined` to show stake was withdrawn, preventing reentrancy
+        $.validators[index].currentStatus = ValidatorStatus.Undefined;
 
-        // wipe ledger for reentrancy and send staked balance + rewards
+        // wipe ledger and send staked balance + rewards
         uint256 stakeAndRewards = $.stakeAmount + $.stakeInfo[msg.sender].stakingRewards;
         $.stakeInfo[msg.sender].stakingRewards = 0;
         (bool r,) = msg.sender.call{ value: stakeAndRewards }("");
@@ -399,6 +412,7 @@ contract ConsensusRegistry is Pausable, Ownable {
         uint256[] memory initialCommitteeIndices_,
         address owner
     ) Ownable(owner) {
+        if (initialValidators_.length == 0) revert InitializerArityMismatch();
         if (initialValidators_.length < initialCommitteeIndices_.length) revert InitializerArityMismatch();
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
@@ -418,9 +432,14 @@ contract ConsensusRegistry is Pausable, Ownable {
         // todo: how should these validators stake at genesis? lock on mainnet pre-genesis?
         for (uint256 i; i < initialValidators_.length; ++i) {
             ValidatorInfo memory currentValidator = initialValidators_[i];
+            
+            // assert `validatorIndex` struct members match expected value
+            if (currentValidator.blsPubkey.length != 48) revert InvalidBLSPubkey();
+            if (currentValidator.ed25519Pubkey == bytes32(0x0)) revert InvalidEd25519Pubkey();
+            if (currentValidator.ecdsaPubkey == address(0x0)) revert InvalidECDSAPubkey();
+            if (currentValidator.activationEpoch != uint16(0)) revert InvalidEpoch(currentValidator.activationEpoch);
+            if (currentValidator.currentStatus != ValidatorStatus.Active) revert InvalidStatus(currentValidator.currentStatus);
             uint256 nonZeroInfosIndex = i + 1;
-
-            // assert `validatorIndex` struct member matches expected value
             if (nonZeroInfosIndex != currentValidator.validatorIndex) {
                 revert InvalidIndex(currentValidator.validatorIndex);
             }
