@@ -4,17 +4,6 @@ pragma solidity 0.8.26;
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-// spec:
-// store validator ecdsaPubkeys (ecdsa, not bls)
-// recover signatures from those validator ecdsaPubkeys to store and to verify
-// func to accept randomized validator set for new epoch: `finalizeEpoch()`
-// above func is called at end of each epoch to establish canonical voting committee for new epoch
-// reward/slash schema (rewards go to staking contract)
-
-// questions:
-// how long to store known validators after exit? expected num validators is low, but array can grow too big
-// if validator rejoins the chain, bls & ed25519 keys should be rotated. how to handle rejoiner's consensus NFTs?
-
 /**
  * @title ConsensusRegistry
  * @author Telcoin Association
@@ -39,7 +28,6 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
     event ValidatorPendingActivation(ValidatorInfo validator);
     event ValidatorActivated(ValidatorInfo validator);
-    event ValidatorOffline(ValidatorInfo validator);
     event ValidatorPendingExit(ValidatorInfo validator);
     event ValidatorExited(ValidatorInfo validator);
     event NewEpoch(EpochInfo epoch);
@@ -49,7 +37,6 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         Undefined,
         PendingActivation,
         Active,
-        Offline,
         PendingExit,
         Exited
     }
@@ -105,7 +92,6 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     function finalizePreviousEpoch(
         uint16 numBlocks,
         uint256[] calldata newCommitteeIndices,
-        address[] calldata offlineValidatorAddresses,
         StakeInfo[] calldata stakingRewardInfos
     )
         external
@@ -116,8 +102,8 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
         // update epoch and ring buffer info
         (uint256 newEpoch, uint16 newBlockHeight) = _updateEpochInfo($, newCommitteeIndices, numBlocks);
-        // update full validator set by activating/ejecting pending validators & flagging offline ones
-        uint256 numActiveValidators = _updateValidatorSet($, newEpoch, offlineValidatorAddresses);
+        // update full validator set by activating/ejecting pending validators
+        uint256 numActiveValidators = _updateValidatorSet($, newEpoch);
 
         // ensure new epoch's canonical network state is still BFT
         _checkFaultTolerance(numActiveValidators, newCommitteeIndices.length);
@@ -243,11 +229,11 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     function exit() external {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
-        // require caller is a known `ValidatorInfo` with `active || offline` status
+        // require caller is a known `ValidatorInfo` with `active` status
         uint16 validatorIndex = _getValidatorIndex($, msg.sender);
         if (validatorIndex == 0) revert NotValidator(msg.sender);
         ValidatorInfo storage validator = $.validators[validatorIndex];
-        if (validator.currentStatus != ValidatorStatus.Active || validator.currentStatus != ValidatorStatus.Offline) {
+        if (validator.currentStatus != ValidatorStatus.Active) {
             revert InvalidStatus(validator.currentStatus);
         }
 
@@ -265,12 +251,10 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
      *
      */
 
-    /// @dev Adds validators pending activation, ejects those pending exit, and flags those reported as offline by the
-    /// client
+    /// @dev Adds validators pending activation and ejects those pending exit
     function _updateValidatorSet(
         ConsensusRegistryStorage storage $,
-        uint256 currentEpoch,
-        address[] calldata offlineValidatorAddresses
+        uint256 currentEpoch
     )
         internal
         returns (uint256 numActiveValidators)
@@ -298,16 +282,6 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
                     emit ValidatorExited(validators[i]);
                 }
             }
-        }
-
-        // flag validators reported as offline by the client
-        for (uint256 i; i < offlineValidatorAddresses.length; ++i) {
-            uint16 index = _getValidatorIndex($, offlineValidatorAddresses[i]);
-            if (index == 0) revert NotValidator(offlineValidatorAddresses[i]);
-
-            $.validators[index].currentStatus = ValidatorStatus.Offline;
-
-            emit ValidatorOffline($.validators[index]);
         }
 
         numActiveValidators = _getValidators($, ValidatorStatus.Active).length;
