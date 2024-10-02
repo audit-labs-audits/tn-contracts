@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title ConsensusRegistry
@@ -12,7 +12,7 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
  * @notice This contract manages consensus validator external keys, staking, and committees
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
-contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
+contract ConsensusRegistry is Pausable, Ownable {
     error LowLevelCallFailure();
     error InvalidBLSPubkey();
     error InvalidProof();
@@ -135,7 +135,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
      */
 
     /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
-    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable {
+    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable whenNotPaused {
         if (blsPubkey.length != 48) revert InvalidBLSPubkey();
         if (blsSig.length != 96) revert InvalidProof();
 
@@ -184,7 +184,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     }
 
     /// @dev Used for validators to claim their staking rewards for validating the network
-    function claimStakeRewards() external {
+    function claimStakeRewards() external whenNotPaused {
         // require caller is verified protocol validator - check NFT balance
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
@@ -207,7 +207,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
     /// @dev Returns previously staked funds and accrued rewards, if any, to the calling validator
     /// @notice May only be called after fully exiting
-    function unstake() external {
+    function unstake() external whenNotPaused {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         uint16 index = _getValidatorIndex($, msg.sender);
@@ -226,7 +226,7 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
     }
 
     /// @dev Issues an exit request for a validator to be ejected from the active validator set
-    function exit() external {
+    function exit() external whenNotPaused {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         // require caller is a known `ValidatorInfo` with `active` status
@@ -388,76 +388,77 @@ contract ConsensusRegistry is UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    /**
-     *
-     *   upgradeability (devnet, testnet)
-     *
-     */
-
     /// @notice Must be replaced with a constructor in prod
     /// @dev Invoked once at genesis only
     /// @param initialValidators_ The initial set of validators running Telcoin Network
     /// @param initialCommitteeIndices_ Optional parameter declaring initial voting committee (by index)
-    function initialize(
+    constructor(
         uint256 stakeAmount_,
         uint256 minWithdrawAmount_,
-        ValidatorInfo[] calldata initialValidators_,
+        ValidatorInfo[] memory initialValidators_,
         uint256[] memory initialCommitteeIndices_,
         address owner
-    )
-        external
-        initializer
-    {
+    ) Ownable(owner) {
         if (initialValidators_.length < initialCommitteeIndices_.length) revert InitializerArityMismatch();
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+
         // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
-        // this is because nonexistent validators will have struct members of 0 in future checks for known validators,
-        // ie when exiting
+        // this is because undefined validators with empty struct members break checks for uninitialized validators
         $.validators.push(
             ValidatorInfo(
                 "", bytes32(0x0), address(0x0), uint32(0), uint32(0), uint16(0), bytes4(0), ValidatorStatus.Undefined
             )
         );
 
-        // set stake configs
+        // Set stake configs
         $.stakeAmount = stakeAmount_;
         $.minWithdrawAmount = minWithdrawAmount_;
 
-        // todo: this array is only used if no initial committee is provided, inefficient
-        uint256[] memory allInitialValidatorIndices = new uint256[](initialValidators_.length);
+        // todo: how should these validators stake at genesis? lock on mainnet pre-genesis?
         for (uint256 i; i < initialValidators_.length; ++i) {
-            ValidatorInfo calldata currentValidator = initialValidators_[i];
+            ValidatorInfo memory currentValidator = initialValidators_[i];
             uint256 nonZeroInfosIndex = i + 1;
 
             // assert `validatorIndex` struct member matches expected value
             if (nonZeroInfosIndex != currentValidator.validatorIndex) {
                 revert InvalidIndex(currentValidator.validatorIndex);
             }
-            // todo: `validatorIndex` doesn't really need to be a `ValidatorInfo` struct member, leads to duplication
-            $.stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(nonZeroInfosIndex);
-            // store initial validator set
-            $.validators.push(currentValidator);
 
-            // store all initial validator indices in case all should vote in first epoch
-            allInitialValidatorIndices[i] = nonZeroInfosIndex;
+            // store initial validator set
+            $.stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(nonZeroInfosIndex);
+            $.validators.push(currentValidator);
 
             // todo: issue consensus NFTs to initial validators?
 
+            // emit event for activated validator
             emit ValidatorActivated(currentValidator);
         }
 
-        /// if provided, initial subset of validators is initial voting committee; else all initial validators vote
+        // if provided, initial subset of validators is initial voting committee; else all initial validators vote
         if (initialCommitteeIndices_.length != 0) {
             $.epochInfo[0].committeeIndices = initialCommitteeIndices_;
         } else {
+            // construct array of all genesis validator indices
+            uint256[] memory allInitialValidatorIndices = new uint256[](initialValidators_.length);
+            for (uint256 i; i < allInitialValidatorIndices.length; ++i) {
+                // store all initial validator indices in case all should vote in first epoch
+                allInitialValidatorIndices[i] = i + 1;
+            }
+
             $.epochInfo[0].committeeIndices = allInitialValidatorIndices;
         }
-
-        // note: must be removed for mainnet
-        _transferOwnership(owner);
     }
 
-    /// @notice Only the owner may perform an upgrade
-    function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
+    /// @dev Emergency function to pause validator and stake management
+    /// @notice Does not pause `finalizePreviousEpoch()`. Only accessible by `owner`
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @dev Emergency function to unpause validator and stake management
+    /// @notice Does not affect `finalizePreviousEpoch()`. Only accessible by `owner`
+    function unpause() external onlyOwner {
+        _unpause();
+    }
 }
