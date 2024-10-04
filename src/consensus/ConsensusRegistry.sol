@@ -80,21 +80,33 @@ contract ConsensusRegistry is Pausable, Ownable {
 
     /*
         ConsensusRegistry Storage slots for genesis:
-        | Name             | Type                                | Slot                                                                 | Offset | Bytes |
-        |------------------|-------------------------------------|----------------------------------------------------------------------|--------|-------|
-        | _paused          | bool                                | 0                                                                    | 0      | 1     |
-        | _owner           | address                             | 0                                                                    | 1      | 20    |
-        | stakeAmount      | uint256                             | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100   | 0      | 32    |
-        | minWithdrawAmount| uint256                             | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101   | 0      | 32    |
-        | currentEpoch     | uint32                              | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102   | 0      | 4     |
-        | epochPointer     | uint8                               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102   | 4      | 1     |
-        | epochInfo        | EpochInfo[4]                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103   | 0      | x     |
-        | stakeInfo        | mapping(address => StakeInfo)       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104   | 0      | y     |
-        | validators       | ValidatorInfo[]                     | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105   | 0      | z     |
+    | Name             | Type                                | Slot                                                                 |
+    Offset | Bytes |
+    |------------------|-------------------------------------|----------------------------------------------------------------------|--------|-------|
+    | _paused          | bool                                | 0                                                                    |
+    0      | 1     |
+    | _owner           | address                             | 0                                                                    |
+    1      | 20    |
+    | stakeAmount      | uint256                             |
+    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100   | 0      | 32    |
+    | minWithdrawAmount| uint256                             |
+    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101   | 0      | 32    |
+    | currentEpoch     | uint32                              |
+    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102   | 0      | 4     |
+    | epochPointer     | uint8                               |
+    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102   | 4      | 1     |
+    | epochInfo        | EpochInfo[4]                        |
+    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103   | 0      | x     |
+    | stakeInfo        | mapping(address => StakeInfo)       |
+    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104   | 0      | y     |
+    | validators       | ValidatorInfo[]                     |
+    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105   | 0      | z     |
 
-        - `epochInfo` begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded representation
+    - `epochInfo` begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded
+    representation
         - `stakeInfo` content begins at slot `0x6c559f44aaff501c8c4572f1fe564ba609cd362de315d1241502f2e0437459c2`
-        - `validators` begins at slot `0x14d1f3ad8599cd8151592ddeade449f790add4d7065a031fbe8f7dbb1833e0a9` as abi-encoded representation
+    - `validators` begins at slot `0x14d1f3ad8599cd8151592ddeade449f790add4d7065a031fbe8f7dbb1833e0a9` as abi-encoded
+    representation
     */
 
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
@@ -376,7 +388,13 @@ contract ConsensusRegistry is Pausable, Ownable {
         }
     }
 
-    function _incrementRewards(ConsensusRegistryStorage storage $, StakeInfo[] calldata stakingRewardInfos, uint32 newEpoch) internal {
+    function _incrementRewards(
+        ConsensusRegistryStorage storage $,
+        StakeInfo[] calldata stakingRewardInfos,
+        uint32 newEpoch
+    )
+        internal
+    {
         for (uint256 i; i < stakingRewardInfos.length; ++i) {
             uint16 index = stakingRewardInfos[i].validatorIndex;
             ValidatorInfo storage currentValidator = $.validators[index];
@@ -445,7 +463,8 @@ contract ConsensusRegistry is Pausable, Ownable {
 
     /// @notice Not actually used since this contract is precompiled and written to TN at genesis
     /// It is left in the contract for readable information about the relevant storage slots at genesis
-    /// @param initialValidators_ The initial set of validators running Telcoin Network and comprising the initial voter committee
+    /// @param initialValidators_ The initial set of validators running Telcoin Network and comprising the initial voter
+    /// committee
     constructor(
         address rwTEL_,
         uint256 stakeAmount_,
@@ -465,14 +484,22 @@ contract ConsensusRegistry is Pausable, Ownable {
         $.stakeAmount = stakeAmount_;
         $.minWithdrawAmount = minWithdrawAmount_;
 
-        // handle first iteration as a special case, performing an extra iteration to compensate 
+        // handle first iteration as a special case, performing an extra iteration to compensate
         for (uint256 i; i <= initialValidators_.length; ++i) {
             if (i == 0) {
                 // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
-                // this is because undefined validators with empty struct members break checks for uninitialized validators
+                // this is because undefined validators with empty struct members break checks for uninitialized
+                // validators
                 $.validators.push(
                     ValidatorInfo(
-                        "", bytes32(0x0), address(0x0), uint32(0), uint32(0), uint16(0), bytes4(0), ValidatorStatus.Undefined
+                        "",
+                        bytes32(0x0),
+                        address(0x0),
+                        uint32(0),
+                        uint32(0),
+                        uint16(0),
+                        bytes4(0),
+                        ValidatorStatus.Undefined
                     )
                 );
 

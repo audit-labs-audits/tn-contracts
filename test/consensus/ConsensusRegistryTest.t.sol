@@ -48,7 +48,7 @@ contract ConsensusRegistryTest is Test {
         vm.deal(validator1, 100_000_000 ether);
 
         // deploy an RWTEL module and then use its bytecode to etch on a fixed address (use create2 in prod)
-        RWTEL tmp = new RWTEL(address(registry), address(0xbeef), 'test', 'TEST', 0, address(0x0), address(0x0), 0);
+        RWTEL tmp = new RWTEL(address(registry), address(0xbeef), "test", "TEST", 0, address(0x0), address(0x0), 0);
         vm.etch(address(rwTEL), address(tmp).code);
         // deal RWTEL max TEL supply to test reward distribution
         vm.deal(address(rwTEL), telMaxSupply);
@@ -342,8 +342,8 @@ contract ConsensusRegistryTest is Test {
 
         // First stake
         vm.prank(validator1);
-        registry.stake{value: stakeAmount}(blsPubkey, blsSig, ed25519Pubkey);
-        
+        registry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
+
         // Capture initial rewards info
         uint256 initialRewards = registry.getRewards(validator1);
 
@@ -372,7 +372,7 @@ contract ConsensusRegistryTest is Test {
         emit ConsensusRegistry.RewardsClaimed(validator1, fuzzedRewards);
         vm.prank(validator1);
         registry.claimStakeRewards();
-        
+
         // Check balance after claiming
         uint256 updatedBalance = validator1.balance;
         assertEq(updatedBalance, initialBalance + fuzzedRewards);
@@ -382,7 +382,7 @@ contract ConsensusRegistryTest is Test {
     function test_claimStakeRewards_nonValidator() public {
         address nonValidator = address(0x3);
         vm.deal(nonValidator, 10 ether);
-        
+
         vm.prank(nonValidator);
         vm.expectRevert(abi.encodeWithSelector(ConsensusRegistry.NotValidator.selector, nonValidator));
         registry.claimStakeRewards();
@@ -392,8 +392,8 @@ contract ConsensusRegistryTest is Test {
     function testFuzz_claimStakeRewards_insufficientRewards() public {
         // First stake
         vm.prank(validator1);
-        registry.stake{value: stakeAmount}(blsPubkey, blsSig, ed25519Pubkey);
-        
+        registry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
+
         // Finalize epoch twice to reach validator1 activationEpoch
         vm.startPrank(sysAddress);
         registry.finalizePreviousEpoch(32, new uint256[](1), new ConsensusRegistry.StakeInfo[](0));

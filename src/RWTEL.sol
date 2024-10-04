@@ -27,7 +27,6 @@ import { IRWTEL } from "./interfaces/IRWTEL.sol";
 */
 
 contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Ownable {
-
     address private immutable consensusRegistry;
 
     /// @dev Overrides for `ERC20` storage since `RecoverableWrapper` dep restricts them
