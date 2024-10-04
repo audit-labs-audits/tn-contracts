@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IRWTEL } from "../interfaces/IRWTEL.sol";
 
 /**
  * @title ConsensusRegistry
@@ -67,6 +68,7 @@ contract ConsensusRegistry is Pausable, Ownable {
 
     /// @custom:storage-location erc7201:telcoin.storage.ConsensusRegistry
     struct ConsensusRegistryStorage {
+        IRWTEL rwTEL;
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
         uint32 currentEpoch;
@@ -238,14 +240,13 @@ contract ConsensusRegistry is Pausable, Ownable {
         uint16 validatorIndex = _getValidatorIndex($, msg.sender);
         if (validatorIndex == 0) revert NotValidator(msg.sender);
 
-        // calculate rewards? or should that be written via syscall in every `finalizeEpoch()`
+        // rewards are incremented every epoch via syscall in `finalizePreviousEpoch()`
         uint256 rewards = $.stakeInfo[msg.sender].stakingRewards;
         if (rewards < $.minWithdrawAmount) revert InsufficientRewards(rewards);
 
-        // wipe ledger for reentrancy and send
+        // wipe ledger to prevent reentrancy and send via the `RWTEL` module
         $.stakeInfo[msg.sender].stakingRewards = 0;
-        (bool r,) = msg.sender.call{ value: rewards }("");
-        require(r);
+        $.rwTEL.distributeStakeReward(msg.sender, rewards);
 
         emit RewardsClaimed(msg.sender, rewards);
     }
@@ -380,7 +381,7 @@ contract ConsensusRegistry is Pausable, Ownable {
             uint16 index = stakingRewardInfos[i].validatorIndex;
             ValidatorInfo storage currentValidator = $.validators[index];
             // ensure client provided rewards only to known validators that were active in previous epoch
-            if (currentValidator.activationEpoch >= newEpoch - 1 || currentValidator.activationEpoch == 0) {
+            if (newEpoch <= currentValidator.activationEpoch || currentValidator.activationEpoch == 0) {
                 revert InvalidStatus(ValidatorStatus.PendingActivation);
             }
 
@@ -444,36 +445,42 @@ contract ConsensusRegistry is Pausable, Ownable {
 
     /// @notice Not actually used since this contract is precompiled and written to TN at genesis
     /// It is left in the contract for readable information about the relevant storage slots at genesis
-    /// @param initialValidators_ The initial set of validators running Telcoin Network
-    /// @param initialCommitteeIndices_ Optional parameter declaring initial voting committee (by index)
+    /// @param initialValidators_ The initial set of validators running Telcoin Network and comprising the initial voter committee
     constructor(
+        address rwTEL_,
         uint256 stakeAmount_,
         uint256 minWithdrawAmount_,
         ValidatorInfo[] memory initialValidators_,
-        uint256[] memory initialCommitteeIndices_,
-        address owner
+        address owner_
     )
-        Ownable(owner)
+        Ownable(owner_)
     {
         if (initialValidators_.length == 0) revert InitializerArityMismatch();
-        if (initialValidators_.length < initialCommitteeIndices_.length) revert InitializerArityMismatch();
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
-        // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
-        // this is because undefined validators with empty struct members break checks for uninitialized validators
-        $.validators.push(
-            ValidatorInfo(
-                "", bytes32(0x0), address(0x0), uint32(0), uint32(0), uint16(0), bytes4(0), ValidatorStatus.Undefined
-            )
-        );
+        $.rwTEL = IRWTEL(rwTEL_);
 
         // Set stake configs
         $.stakeAmount = stakeAmount_;
         $.minWithdrawAmount = minWithdrawAmount_;
 
-        for (uint256 i; i < initialValidators_.length; ++i) {
-            ValidatorInfo memory currentValidator = initialValidators_[i];
+        // handle first iteration as a special case, performing an extra iteration to compensate 
+        for (uint256 i; i <= initialValidators_.length; ++i) {
+            if (i == 0) {
+                // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
+                // this is because undefined validators with empty struct members break checks for uninitialized validators
+                $.validators.push(
+                    ValidatorInfo(
+                        "", bytes32(0x0), address(0x0), uint32(0), uint32(0), uint16(0), bytes4(0), ValidatorStatus.Undefined
+                    )
+                );
+
+                continue;
+            }
+
+            // execution only reaches this point once `i == 1`
+            ValidatorInfo memory currentValidator = initialValidators_[i - 1];
 
             // assert `validatorIndex` struct members match expected value
             if (currentValidator.blsPubkey.length != 48) revert InvalidBLSPubkey();
@@ -483,33 +490,17 @@ contract ConsensusRegistry is Pausable, Ownable {
             if (currentValidator.currentStatus != ValidatorStatus.Active) {
                 revert InvalidStatus(currentValidator.currentStatus);
             }
-            uint256 nonZeroInfosIndex = i + 1;
-            if (nonZeroInfosIndex != currentValidator.validatorIndex) {
+            if (currentValidator.validatorIndex != i) {
                 revert InvalidIndex(currentValidator.validatorIndex);
             }
 
-            // store initial validator set
-            $.stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(nonZeroInfosIndex);
+            $.epochInfo[0].committeeIndices.push(i);
+            $.stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(i);
             $.validators.push(currentValidator);
 
             // todo: issue consensus NFTs to initial validators?
 
-            // emit event for activated validator
             emit ValidatorActivated(currentValidator);
-        }
-
-        // if provided, initial subset of validators is initial voting committee; else all initial validators vote
-        if (initialCommitteeIndices_.length != 0) {
-            $.epochInfo[0].committeeIndices = initialCommitteeIndices_;
-        } else {
-            // construct array of all genesis validator indices
-            uint256[] memory allInitialValidatorIndices = new uint256[](initialValidators_.length);
-            for (uint256 i; i < allInitialValidatorIndices.length; ++i) {
-                // store all initial validator indices in case all should vote in first epoch
-                allInitialValidatorIndices[i] = i + 1;
-            }
-
-            $.epochInfo[0].committeeIndices = allInitialValidatorIndices;
         }
     }
 
