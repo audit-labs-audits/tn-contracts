@@ -76,6 +76,25 @@ contract ConsensusRegistry is Pausable, Ownable {
         ValidatorInfo[] validators;
     }
 
+    /*
+        ConsensusRegistry Storage slots for genesis:
+        | Name             | Type                                | Slot                                                                 | Offset | Bytes |
+        |------------------|-------------------------------------|----------------------------------------------------------------------|--------|-------|
+        | _paused          | bool                                | 0                                                                    | 0      | 1     |
+        | _owner           | address                             | 0                                                                    | 1      | 20    |
+        | stakeAmount      | uint256                             | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100   | 0      | 32    |
+        | minWithdrawAmount| uint256                             | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101   | 0      | 32    |
+        | currentEpoch     | uint32                              | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102   | 0      | 4     |
+        | epochPointer     | uint8                               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102   | 4      | 1     |
+        | epochInfo        | EpochInfo[4]                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103   | 0      | x     |
+        | stakeInfo        | mapping(address => StakeInfo)       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104   | 0      | y     |
+        | validators       | ValidatorInfo[]                     | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105   | 0      | z     |
+
+        - `epochInfo` begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded representation
+        - `stakeInfo` content begins at slot `0x6c559f44aaff501c8c4572f1fe564ba609cd362de315d1241502f2e0437459c2`
+        - `validators` begins at slot `0x14d1f3ad8599cd8151592ddeade449f790add4d7065a031fbe8f7dbb1833e0a9` as abi-encoded representation
+    */
+
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant ConsensusRegistryStorageSlot =
@@ -104,7 +123,7 @@ contract ConsensusRegistry is Pausable, Ownable {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         // update epoch and ring buffer info
-        (uint256 newEpoch, uint16 newBlockHeight) = _updateEpochInfo($, newCommitteeIndices, numBlocks);
+        (uint32 newEpoch, uint16 newBlockHeight) = _updateEpochInfo($, newCommitteeIndices, numBlocks);
         // update full validator set by activating/ejecting pending validators
         uint256 numActiveValidators = _updateValidatorSet($, newEpoch);
 
@@ -112,7 +131,7 @@ contract ConsensusRegistry is Pausable, Ownable {
         _checkFaultTolerance(numActiveValidators, newCommitteeIndices.length);
 
         // update each validator's claimable rewards with given amounts
-        _incrementRewards($, stakingRewardInfos);
+        _incrementRewards($, stakingRewardInfos, newEpoch);
 
         emit NewEpoch(EpochInfo(newCommitteeIndices, newBlockHeight));
     }
@@ -136,6 +155,14 @@ contract ConsensusRegistry is Pausable, Ownable {
     function getValidatorIndex(address ecdsaPubkey) public view returns (uint16 validatorIndex) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         validatorIndex = _getValidatorIndex($, ecdsaPubkey);
+    }
+
+    /// @dev Fetches the claimable rewards accrued for a given validator address
+    /// @notice Does not include the original stake amount and cannot be claimed until surpassing `minWithdrawAmount`
+    /// @return claimableRewards The validator's claimable rewards, not including the validator's stake
+    function getRewards(address ecdsaPubkey) public view returns (uint240 claimableRewards) {
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        claimableRewards = $.stakeInfo[ecdsaPubkey].stakingRewards;
     }
 
     /**
@@ -315,7 +342,7 @@ contract ConsensusRegistry is Pausable, Ownable {
         uint16 numBlocks
     )
         internal
-        returns (uint256 newEpoch, uint16 newBlockHeight)
+        returns (uint32 newEpoch, uint16 newBlockHeight)
     {
         // cache epoch ring buffer's pointers in memory
         uint8 prevEpochPointer = $.epochPointer;
@@ -348,10 +375,16 @@ contract ConsensusRegistry is Pausable, Ownable {
         }
     }
 
-    function _incrementRewards(ConsensusRegistryStorage storage $, StakeInfo[] calldata stakingRewardInfos) internal {
+    function _incrementRewards(ConsensusRegistryStorage storage $, StakeInfo[] calldata stakingRewardInfos, uint32 newEpoch) internal {
         for (uint256 i; i < stakingRewardInfos.length; ++i) {
             uint16 index = stakingRewardInfos[i].validatorIndex;
-            address validatorAddr = $.validators[index].ecdsaPubkey;
+            ValidatorInfo storage currentValidator = $.validators[index];
+            // ensure client provided rewards only to known validators that were active in previous epoch
+            if (currentValidator.activationEpoch >= newEpoch - 1 || currentValidator.activationEpoch == 0) {
+                revert InvalidStatus(ValidatorStatus.PendingActivation);
+            }
+
+            address validatorAddr = currentValidator.ecdsaPubkey;
             uint240 epochReward = stakingRewardInfos[i].stakingRewards;
 
             $.stakeInfo[validatorAddr].stakingRewards += epochReward;
@@ -409,8 +442,8 @@ contract ConsensusRegistry is Pausable, Ownable {
         }
     }
 
-    /// @notice Must be replaced with a constructor in prod
-    /// @dev Invoked once at genesis only
+    /// @notice Not actually used since this contract is precompiled and written to TN at genesis
+    /// It is left in the contract for readable information about the relevant storage slots at genesis
     /// @param initialValidators_ The initial set of validators running Telcoin Network
     /// @param initialCommitteeIndices_ Optional parameter declaring initial voting committee (by index)
     constructor(
@@ -439,7 +472,6 @@ contract ConsensusRegistry is Pausable, Ownable {
         $.stakeAmount = stakeAmount_;
         $.minWithdrawAmount = minWithdrawAmount_;
 
-        // todo: how should these validators stake at genesis? lock on mainnet pre-genesis?
         for (uint256 i; i < initialValidators_.length; ++i) {
             ValidatorInfo memory currentValidator = initialValidators_[i];
 
