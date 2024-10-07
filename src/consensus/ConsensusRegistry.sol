@@ -57,8 +57,8 @@ contract ConsensusRegistry is Pausable, Ownable {
     }
 
     struct EpochInfo {
-        uint256[] committeeIndices; // voter committee's validator indices
-        uint16 blockHeight; // up to 65536 blocks per epoch - is this enough?
+        uint16[] committeeIndices; // voter committee's validator indices
+        uint64 blockHeight;
     }
 
     struct StakeInfo {
@@ -78,36 +78,27 @@ contract ConsensusRegistry is Pausable, Ownable {
         ValidatorInfo[] validators;
     }
 
-    /*
-        ConsensusRegistry Storage slots for genesis:
-    | Name             | Type                                | Slot                                                                 |
-    Offset | Bytes |
-    |------------------|-------------------------------------|----------------------------------------------------------------------|--------|-------|
-    | _paused          | bool                                | 0                                                                    |
-    0      | 1     |
-    | _owner           | address                             | 0                                                                    |
-    1      | 20    |
-    | stakeAmount      | uint256                             |
-    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100   | 0      | 32    |
-    | minWithdrawAmount| uint256                             |
-    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101   | 0      | 32    |
-    | currentEpoch     | uint32                              |
-    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102   | 0      | 4     |
-    | epochPointer     | uint8                               |
-    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102   | 4      | 1     |
-    | epochInfo        | EpochInfo[4]                        |
-    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103   | 0      | x     |
-    | stakeInfo        | mapping(address => StakeInfo)       |
-    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104   | 0      | y     |
-    | validators       | ValidatorInfo[]                     |
-    0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105   | 0      | z     |
+/*
+ConsensusRegistry storage layout for genesis
+| Name             | Type                          | Slot                                                               | Offset | Bytes |
+|------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
+| _paused          | bool                          | 0                                                                  | 0      | 1     |
+| _owner           | address                       | 0                                                                  | 1      | 20    |
+| rwTEL            | address                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 12      | 20    |
+| stakeAmount      | uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | 32    |
+| minWithdrawAmount| uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | 32    |
+| currentEpoch     | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | 4     |
+| epochPointer     | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 4      | 1     |
+| epochInfo        | EpochInfo[4]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104 | 0      | x     |
+| stakeInfo        | mapping(address => StakeInfo) | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105 | 0      | y     |
+| validators       | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23106 | 0      | z     |
 
     - `epochInfo` begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded
     representation
         - `stakeInfo` content begins at slot `0x6c559f44aaff501c8c4572f1fe564ba609cd362de315d1241502f2e0437459c2`
     - `validators` begins at slot `0x14d1f3ad8599cd8151592ddeade449f790add4d7065a031fbe8f7dbb1833e0a9` as abi-encoded
     representation
-    */
+*/
 
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
     //   & ~bytes32(uint256(0xff))
@@ -126,20 +117,20 @@ contract ConsensusRegistry is Pausable, Ownable {
     /// @notice Can only be called in a `syscall` context
     /// @dev Accepts the new epoch's committee of voting validators, which have been ascertained as active via handshake
     function finalizePreviousEpoch(
-        uint16 numBlocks,
-        uint256[] calldata newCommitteeIndices,
+        uint64 numBlocks,
+        uint16[] calldata newCommitteeIndices,
         StakeInfo[] calldata stakingRewardInfos
     )
-        external
+        external returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators)
     {
         if (msg.sender != SYSTEM_ADDRESS) revert OnlySystemCall(msg.sender);
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         // update epoch and ring buffer info
-        (uint32 newEpoch, uint16 newBlockHeight) = _updateEpochInfo($, newCommitteeIndices, numBlocks);
+        (newEpoch, newBlockHeight) = _updateEpochInfo($, newCommitteeIndices, numBlocks);
         // update full validator set by activating/ejecting pending validators
-        uint256 numActiveValidators = _updateValidatorSet($, newEpoch);
+        numActiveValidators = _updateValidatorSet($, newEpoch);
 
         // ensure new epoch's canonical network state is still BFT
         _checkFaultTolerance(numActiveValidators, newCommitteeIndices.length);
@@ -165,10 +156,20 @@ contract ConsensusRegistry is Pausable, Ownable {
     }
 
     /// @dev Fetches the `validatorIndex` for a given validator address
-    /// @notice A returned `validatorIndex` value of `0` is invalid
+    /// @notice A returned `validatorIndex` value of `0` is invalid and indicates 
+    /// that the given address is not a known validator's ECDSA public key
     function getValidatorIndex(address ecdsaPubkey) public view returns (uint16 validatorIndex) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         validatorIndex = _getValidatorIndex($, ecdsaPubkey);
+    }
+
+    /// @dev Fetches the `ValidatorInfo` for a given validator index
+    /// @notice To enable checks against storage slots initialized to zero by the EVM, `validatorIndex` cannot be `0`
+    function getValidatorByIndex(uint16 validatorIndex) public view returns (ValidatorInfo memory validator) {
+        if (validatorIndex == 0) revert InvalidIndex(validatorIndex);
+
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        validator = $.validators[uint256(validatorIndex)];
     }
 
     /// @dev Fetches the claimable rewards accrued for a given validator address
@@ -351,11 +352,11 @@ contract ConsensusRegistry is Pausable, Ownable {
     /// @dev Stores the number of blocks finalized in previous epoch and the voter committee for the new epoch
     function _updateEpochInfo(
         ConsensusRegistryStorage storage $,
-        uint256[] memory newCommitteeIndices,
-        uint16 numBlocks
+        uint16[] memory newCommitteeIndices,
+        uint64 numBlocks
     )
         internal
-        returns (uint32 newEpoch, uint16 newBlockHeight)
+        returns (uint32 newEpoch, uint64 newBlockHeight)
     {
         // cache epoch ring buffer's pointers in memory
         uint8 prevEpochPointer = $.epochPointer;
@@ -380,10 +381,10 @@ contract ConsensusRegistry is Pausable, Ownable {
             revert InvalidCommitteeSize(numActiveValidators, committeeSize);
         } else {
             // calculate number of tolerable faults for given node count using 33% threshold
-            uint256 tolerableFaults = numActiveValidators / 3;
+            uint256 tolerableFaults = numActiveValidators * 10_000 / 3;
 
             // committee size must be greater than tolerable faults
-            uint256 minCommitteeSize = tolerableFaults + 1;
+            uint256 minCommitteeSize = tolerableFaults / 10_000 + 1;
             if (committeeSize < minCommitteeSize) revert InvalidCommitteeSize(minCommitteeSize, committeeSize);
         }
     }
@@ -474,7 +475,9 @@ contract ConsensusRegistry is Pausable, Ownable {
     )
         Ownable(owner_)
     {
-        if (initialValidators_.length == 0) revert InitializerArityMismatch();
+        if (initialValidators_.length == 0 || initialValidators_.length > type(uint16).max) {
+            revert InitializerArityMismatch();
+        }
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
@@ -521,7 +524,7 @@ contract ConsensusRegistry is Pausable, Ownable {
                 revert InvalidIndex(currentValidator.validatorIndex);
             }
 
-            $.epochInfo[0].committeeIndices.push(i);
+            $.epochInfo[0].committeeIndices.push(uint16(i));
             $.stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(i);
             $.validators.push(currentValidator);
 
