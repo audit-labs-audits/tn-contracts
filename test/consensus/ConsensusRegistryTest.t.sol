@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import "forge-std/Test.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { IConsensusRegistry } from "src/consensus/IConsensusRegistry.sol";
+import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { RWTEL } from "src/RWTEL.sol";
 
 contract ConsensusRegistryTest is Test {
@@ -558,7 +559,7 @@ contract ConsensusRegistryTest is Test {
 
     // Attempt to call without sysAddress should revert
     function testRevert_finalizePreviousEpoch_OnlySystemCall() public {
-        vm.expectRevert(abi.encodeWithSelector(IConsensusRegistry.OnlySystemCall.selector, address(this)));
+        vm.expectRevert(abi.encodeWithSelector(SystemCallable.OnlySystemCall.selector, address(this)));
         consensusRegistry.finalizePreviousEpoch(10, new uint16[](0), new IConsensusRegistry.StakeInfo[](0));
     }
 

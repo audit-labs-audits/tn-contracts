@@ -73,7 +73,6 @@ representation
     error InvalidProof();
     error InitializerArityMismatch();
     error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
-    error OnlySystemCall(address invalidCaller);
     error NotValidator(address ecdsaPubkey);
     error AlreadyDefined(address ecdsaPubkey);
     error InvalidStakeAmount(uint256 stakeAmount);

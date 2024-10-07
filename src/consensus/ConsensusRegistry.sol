@@ -5,6 +5,7 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IRWTEL } from "../interfaces/IRWTEL.sol";
 import { IConsensusRegistry } from "./IConsensusRegistry.sol";
+import { SystemCallable } from "./SystemCallable.sol";
 
 /**
  * @title ConsensusRegistry
@@ -14,13 +15,11 @@ import { IConsensusRegistry } from "./IConsensusRegistry.sol";
  * @notice This contract manages consensus validator external keys, staking, and committees
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
-contract ConsensusRegistry is Pausable, Ownable, IConsensusRegistry {
+contract ConsensusRegistry is Pausable, Ownable, SystemCallable, IConsensusRegistry {
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant ConsensusRegistryStorageSlot =
         0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100;
-
-    address public constant SYSTEM_ADDRESS = address(0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
 
     /**
      *
@@ -34,11 +33,9 @@ contract ConsensusRegistry is Pausable, Ownable, IConsensusRegistry {
         uint16[] calldata newCommitteeIndices,
         StakeInfo[] calldata stakingRewardInfos
     )
-        external
+        external onlySystemCall
         returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators)
     {
-        if (msg.sender != SYSTEM_ADDRESS) revert OnlySystemCall(msg.sender);
-
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         // update epoch and ring buffer info
