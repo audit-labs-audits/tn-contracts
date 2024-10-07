@@ -2,12 +2,14 @@
 pragma solidity 0.8.26;
 
 import "forge-std/Test.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { IConsensusRegistry } from "src/consensus/IConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { RWTEL } from "src/RWTEL.sol";
 
 contract ConsensusRegistryTest is Test {
+    ConsensusRegistry public consensusRegistryImpl;
     ConsensusRegistry public consensusRegistry;
     RWTEL public rwTEL;
 
@@ -44,8 +46,10 @@ contract ConsensusRegistryTest is Test {
                 IConsensusRegistry.ValidatorStatus.Active
             )
         );
-        consensusRegistry =
-            new ConsensusRegistry(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
+        consensusRegistryImpl = new ConsensusRegistry();
+        consensusRegistry = ConsensusRegistry(payable(address(new ERC1967Proxy(address(consensusRegistryImpl), ''))));
+        consensusRegistry.initialize(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
+
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
         vm.deal(validator1, 100_000_000 ether);

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IRWTEL } from "../interfaces/IRWTEL.sol";
 import { IConsensusRegistry } from "./IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
@@ -15,7 +16,7 @@ import { SystemCallable } from "./SystemCallable.sol";
  * @notice This contract manages consensus validator external keys, staking, and committees
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
-contract ConsensusRegistry is Pausable, Ownable, SystemCallable, IConsensusRegistry {
+contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgradeable, SystemCallable, IConsensusRegistry {
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant ConsensusRegistryStorageSlot =
@@ -381,22 +382,47 @@ contract ConsensusRegistry is Pausable, Ownable, SystemCallable, IConsensusRegis
         }
     }
 
+    /**
+     *
+     *   pausability
+     *
+     */
+
+    /// @dev Emergency function to pause validator and stake management
+    /// @notice Does not pause `finalizePreviousEpoch()`. Only accessible by `owner`
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @dev Emergency function to unpause validator and stake management
+    /// @notice Does not affect `finalizePreviousEpoch()`. Only accessible by `owner`
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /**
+     *
+     *   upgradeability (devnet, testnet)
+     *
+     */
+
     /// @notice Not actually used since this contract is precompiled and written to TN at genesis
     /// It is left in the contract for readable information about the relevant storage slots at genesis
-    /// @param initialValidators_ The initial set of validators running Telcoin Network and comprising the initial voter
-    /// committee
-    constructor(
+    /// @param initialValidators_ The initial validator set running Telcoin Network; will comprise the first voter committee
+    function initialize(
         address rwTEL_,
         uint256 stakeAmount_,
         uint256 minWithdrawAmount_,
         ValidatorInfo[] memory initialValidators_,
         address owner_
-    )
-        Ownable(owner_)
+    ) external initializer
     {
         if (initialValidators_.length == 0 || initialValidators_.length > type(uint16).max) {
             revert InitializerArityMismatch();
         }
+
+        __Ownable_init(owner_);
+        __Pausable_init();
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
@@ -453,15 +479,6 @@ contract ConsensusRegistry is Pausable, Ownable, SystemCallable, IConsensusRegis
         }
     }
 
-    /// @dev Emergency function to pause validator and stake management
-    /// @notice Does not pause `finalizePreviousEpoch()`. Only accessible by `owner`
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    /// @dev Emergency function to unpause validator and stake management
-    /// @notice Does not affect `finalizePreviousEpoch()`. Only accessible by `owner`
-    function unpause() external onlyOwner {
-        _unpause();
-    }
+    /// @notice Only the owner may perform an upgrade
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
 }
