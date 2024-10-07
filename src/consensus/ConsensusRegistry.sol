@@ -148,6 +148,15 @@ ConsensusRegistry storage layout for genesis
         return $.currentEpoch;
     }
 
+    /// @dev Returns information about the provided epoch. Only four latest epochs are stored + accessible
+    function getEpochInfo(uint32 epoch) public view returns (EpochInfo memory currentEpochInfo) {
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        if (epoch >= 4 && epoch < $.currentEpoch - 4) revert InvalidEpoch(epoch);
+
+        uint8 pointer = $.epochPointer;
+        currentEpochInfo = $.epochInfo[pointer];
+    }
+
     /// @dev Returns an array of `ValidatorInfo` structs that match the provided status for this epoch
     function getValidators(ValidatorStatus status) public view returns (ValidatorInfo[] memory) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
@@ -370,9 +379,13 @@ ConsensusRegistry storage layout for genesis
     }
 
     /// @dev Checks the given committee size against the total number of active validators using below 3f + 1 BFT rule
+    /// @notice To prevent the network from bricking in the case where validator churn leads to a zero active validator count,
+    /// this function explicitly allows `numActiveValidators` to be zero so that the network can continue operating
     function _checkFaultTolerance(uint256 numActiveValidators, uint256 committeeSize) internal pure {
-        // sanity check committee size is less than number of active validators
-        if (committeeSize > numActiveValidators) {
+        if (numActiveValidators == 0) {
+            return;
+        } else if (committeeSize > numActiveValidators) {
+            // sanity check committee size is less than number of active validators
             revert InvalidCommitteeSize(numActiveValidators, committeeSize);
         }
 
