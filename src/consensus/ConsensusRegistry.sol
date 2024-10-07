@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IRWTEL } from "../interfaces/IRWTEL.sol";
+import { IConsensusRegistry } from "./IConsensusRegistry.sol";
 
 /**
  * @title ConsensusRegistry
@@ -13,92 +14,7 @@ import { IRWTEL } from "../interfaces/IRWTEL.sol";
  * @notice This contract manages consensus validator external keys, staking, and committees
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
-contract ConsensusRegistry is Pausable, Ownable {
-    error LowLevelCallFailure();
-    error InvalidBLSPubkey();
-    error InvalidEd25519Pubkey();
-    error InvalidECDSAPubkey();
-    error InvalidProof();
-    error InitializerArityMismatch();
-    error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
-    error OnlySystemCall(address invalidCaller);
-    error NotValidator(address ecdsaPubkey);
-    error AlreadyDefined(address ecdsaPubkey);
-    error InvalidStakeAmount(uint256 stakeAmount);
-    error InvalidStatus(ValidatorStatus status);
-    error InvalidIndex(uint16 validatorIndex);
-    error InvalidEpoch(uint32 epoch);
-    error InsufficientRewards(uint256 withdrawAmount);
-
-    event ValidatorPendingActivation(ValidatorInfo validator);
-    event ValidatorActivated(ValidatorInfo validator);
-    event ValidatorPendingExit(ValidatorInfo validator);
-    event ValidatorExited(ValidatorInfo validator);
-    event NewEpoch(EpochInfo epoch);
-    event RewardsClaimed(address claimant, uint256 rewards);
-
-    enum ValidatorStatus {
-        Undefined,
-        PendingActivation,
-        Active,
-        PendingExit,
-        Exited
-    }
-
-    struct ValidatorInfo {
-        bytes blsPubkey; // BLS public key is 48 bytes long; BLS proofs are 96 bytes
-        bytes32 ed25519Pubkey;
-        address ecdsaPubkey;
-        uint32 activationEpoch; // uint32 provides ~22000yr for 160s epochs (5s rounds)
-        uint32 exitEpoch;
-        uint16 validatorIndex; // up to 65535 validators
-        bytes4 unused; // can be used for other data as well as expanded against activation and exit members
-        ValidatorStatus currentStatus;
-    }
-
-    struct EpochInfo {
-        uint16[] committeeIndices; // voter committee's validator indices
-        uint64 blockHeight;
-    }
-
-    struct StakeInfo {
-        uint16 validatorIndex;
-        uint240 stakingRewards; // can be resized to uint104 (100bil $TEL)
-    }
-
-    /// @custom:storage-location erc7201:telcoin.storage.ConsensusRegistry
-    struct ConsensusRegistryStorage {
-        IRWTEL rwTEL;
-        uint256 stakeAmount;
-        uint256 minWithdrawAmount;
-        uint32 currentEpoch;
-        uint8 epochPointer;
-        EpochInfo[4] epochInfo;
-        mapping(address => StakeInfo) stakeInfo;
-        ValidatorInfo[] validators;
-    }
-
-/*
-ConsensusRegistry storage layout for genesis
-| Name             | Type                          | Slot                                                               | Offset | Bytes |
-|------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| _paused          | bool                          | 0                                                                  | 0      | 1     |
-| _owner           | address                       | 0                                                                  | 1      | 20    |
-| rwTEL            | address                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 12      | 20    |
-| stakeAmount      | uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | 32    |
-| minWithdrawAmount| uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | 32    |
-| currentEpoch     | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | 4     |
-| epochPointer     | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 4      | 1     |
-| epochInfo        | EpochInfo[4]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104 | 0      | x     |
-| stakeInfo        | mapping(address => StakeInfo) | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105 | 0      | y     |
-| validators       | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23106 | 0      | z     |
-
-    - `epochInfo` begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded
-    representation
-        - `stakeInfo` content begins at slot `0x6c559f44aaff501c8c4572f1fe564ba609cd362de315d1241502f2e0437459c2`
-    - `validators` begins at slot `0x14d1f3ad8599cd8151592ddeade449f790add4d7065a031fbe8f7dbb1833e0a9` as abi-encoded
-    representation
-*/
+contract ConsensusRegistry is Pausable, Ownable, IConsensusRegistry {
 
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
     //   & ~bytes32(uint256(0xff))
@@ -113,9 +29,7 @@ ConsensusRegistry storage layout for genesis
      *
      */
 
-    /// @notice Voting Validator Committee changes once every epoch (== 32 rounds)
-    /// @notice Can only be called in a `syscall` context
-    /// @dev Accepts the new epoch's committee of voting validators, which have been ascertained as active via handshake
+    /// @inheritdoc IConsensusRegistry
     function finalizePreviousEpoch(
         uint64 numBlocks,
         uint16[] calldata newCommitteeIndices,
@@ -141,14 +55,14 @@ ConsensusRegistry storage layout for genesis
         emit NewEpoch(EpochInfo(newCommitteeIndices, newBlockHeight));
     }
 
-    /// @dev Returns the current epoch
+    /// @inheritdoc IConsensusRegistry
     function getCurrentEpoch() public view returns (uint32) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         return $.currentEpoch;
     }
 
-    /// @dev Returns information about the provided epoch. Only four latest epochs are stored + accessible
+    /// @inheritdoc IConsensusRegistry
     function getEpochInfo(uint32 epoch) public view returns (EpochInfo memory currentEpochInfo) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         if (epoch >= 4 && epoch < $.currentEpoch - 4) revert InvalidEpoch(epoch);
@@ -157,23 +71,20 @@ ConsensusRegistry storage layout for genesis
         currentEpochInfo = $.epochInfo[pointer];
     }
 
-    /// @dev Returns an array of `ValidatorInfo` structs that match the provided status for this epoch
+    /// @inheritdoc IConsensusRegistry
     function getValidators(ValidatorStatus status) public view returns (ValidatorInfo[] memory) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         return _getValidators($, status);
     }
 
-    /// @dev Fetches the `validatorIndex` for a given validator address
-    /// @notice A returned `validatorIndex` value of `0` is invalid and indicates 
-    /// that the given address is not a known validator's ECDSA public key
+    /// @inheritdoc IConsensusRegistry
     function getValidatorIndex(address ecdsaPubkey) public view returns (uint16 validatorIndex) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         validatorIndex = _getValidatorIndex($, ecdsaPubkey);
     }
 
-    /// @dev Fetches the `ValidatorInfo` for a given validator index
-    /// @notice To enable checks against storage slots initialized to zero by the EVM, `validatorIndex` cannot be `0`
+    /// @inheritdoc IConsensusRegistry
     function getValidatorByIndex(uint16 validatorIndex) public view returns (ValidatorInfo memory validator) {
         if (validatorIndex == 0) revert InvalidIndex(validatorIndex);
 
@@ -181,9 +92,7 @@ ConsensusRegistry storage layout for genesis
         validator = $.validators[uint256(validatorIndex)];
     }
 
-    /// @dev Fetches the claimable rewards accrued for a given validator address
-    /// @notice Does not include the original stake amount and cannot be claimed until surpassing `minWithdrawAmount`
-    /// @return claimableRewards The validator's claimable rewards, not including the validator's stake
+    /// @inheritdoc IConsensusRegistry
     function getRewards(address ecdsaPubkey) public view returns (uint240 claimableRewards) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         claimableRewards = $.stakeInfo[ecdsaPubkey].stakingRewards;
@@ -195,7 +104,7 @@ ConsensusRegistry storage layout for genesis
      *
      */
 
-    /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
+    /// @inheritdoc IConsensusRegistry
     function stake(
         bytes calldata blsPubkey,
         bytes calldata blsSig,
@@ -252,7 +161,7 @@ ConsensusRegistry storage layout for genesis
         }
     }
 
-    /// @dev Used for validators to claim their staking rewards for validating the network
+    /// @inheritdoc IConsensusRegistry
     function claimStakeRewards() external whenNotPaused {
         // require caller is verified protocol validator - check NFT balance
 
@@ -268,13 +177,12 @@ ConsensusRegistry storage layout for genesis
 
         // wipe ledger to prevent reentrancy and send via the `RWTEL` module
         $.stakeInfo[msg.sender].stakingRewards = 0;
-        $.rwTEL.distributeStakeReward(msg.sender, rewards);
+        IRWTEL($.rwTEL).distributeStakeReward(msg.sender, rewards);
 
         emit RewardsClaimed(msg.sender, rewards);
     }
 
-    /// @dev Returns previously staked funds and accrued rewards, if any, to the calling validator
-    /// @notice May only be called after fully exiting
+    /// @inheritdoc IConsensusRegistry
     function unstake() external whenNotPaused {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
@@ -296,7 +204,7 @@ ConsensusRegistry storage layout for genesis
         emit RewardsClaimed(msg.sender, stakeAndRewards);
     }
 
-    /// @dev Issues an exit request for a validator to be ejected from the active validator set
+    /// @inheritdoc IConsensusRegistry
     function exit() external whenNotPaused {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
@@ -494,7 +402,7 @@ ConsensusRegistry storage layout for genesis
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
-        $.rwTEL = IRWTEL(rwTEL_);
+        $.rwTEL = rwTEL_;
 
         // Set stake configs
         $.stakeAmount = stakeAmount_;
