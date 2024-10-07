@@ -15,7 +15,6 @@ import { IConsensusRegistry } from "./IConsensusRegistry.sol";
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
 contract ConsensusRegistry is Pausable, Ownable, IConsensusRegistry {
-
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant ConsensusRegistryStorageSlot =
@@ -35,7 +34,8 @@ contract ConsensusRegistry is Pausable, Ownable, IConsensusRegistry {
         uint16[] calldata newCommitteeIndices,
         StakeInfo[] calldata stakingRewardInfos
     )
-        external returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators)
+        external
+        returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators)
     {
         if (msg.sender != SYSTEM_ADDRESS) revert OnlySystemCall(msg.sender);
 
@@ -287,7 +287,8 @@ contract ConsensusRegistry is Pausable, Ownable, IConsensusRegistry {
     }
 
     /// @dev Checks the given committee size against the total number of active validators using below 3f + 1 BFT rule
-    /// @notice To prevent the network from bricking in the case where validator churn leads to a zero active validator count,
+    /// @notice To prevent the network from bricking in the case where validator churn leads to a zero active validator
+    /// count,
     /// this function explicitly allows `numActiveValidators` to be zero so that the network can continue operating
     function _checkFaultTolerance(uint256 numActiveValidators, uint256 committeeSize) internal pure {
         if (numActiveValidators == 0) {

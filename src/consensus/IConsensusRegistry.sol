@@ -105,7 +105,8 @@ representation
         uint16[] calldata newCommitteeIndices,
         StakeInfo[] calldata stakingRewardInfos
     )
-        external returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators);
+        external
+        returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators);
 
     /// @dev Returns the current epoch
     function getCurrentEpoch() external view returns (uint32);
@@ -117,7 +118,7 @@ representation
     function getValidators(ValidatorStatus status) external view returns (ValidatorInfo[] memory);
 
     /// @dev Fetches the `validatorIndex` for a given validator address
-    /// @notice A returned `validatorIndex` value of `0` is invalid and indicates 
+    /// @notice A returned `validatorIndex` value of `0` is invalid and indicates
     /// that the given address is not a known validator's ECDSA externalkey
     function getValidatorIndex(address ecdsaPubkey) external view returns (uint16 validatorIndex);
 
@@ -137,11 +138,7 @@ representation
      */
 
     /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
-    function stake(
-        bytes calldata blsPubkey,
-        bytes calldata blsSig,
-        bytes32 ed25519Pubkey
-    ) external payable;
+    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable;
 
     /// @dev Used for validators to claim their staking rewards for validating the network
     function claimStakeRewards() external;

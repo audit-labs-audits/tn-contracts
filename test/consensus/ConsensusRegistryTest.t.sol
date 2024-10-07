@@ -43,13 +43,15 @@ contract ConsensusRegistryTest is Test {
                 IConsensusRegistry.ValidatorStatus.Active
             )
         );
-        consensusRegistry = new ConsensusRegistry(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
+        consensusRegistry =
+            new ConsensusRegistry(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
         vm.deal(validator1, 100_000_000 ether);
 
         // deploy an RWTEL module and then use its bytecode to etch on a fixed address (use create2 in prod)
-        RWTEL tmp = new RWTEL(address(consensusRegistry), address(0xbeef), "test", "TEST", 0, address(0x0), address(0x0), 0);
+        RWTEL tmp =
+            new RWTEL(address(consensusRegistry), address(0xbeef), "test", "TEST", 0, address(0x0), address(0x0), 0);
         vm.etch(address(rwTEL), address(tmp).code);
         // deal RWTEL max TEL supply to test reward distribution
         vm.deal(address(rwTEL), telMaxSupply);
@@ -350,9 +352,12 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch twice to reach validator1 activationEpoch
         vm.startPrank(sysAddress);
-        (,, uint256 numActiveValidators) = consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+        (,, uint256 numActiveValidators) =
+            consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
         // use 2 member array for committee now that there are 2 active
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](numActiveValidators + 1), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(
+            32, new uint16[](numActiveValidators + 1), new IConsensusRegistry.StakeInfo[](0)
+        );
 
         // Simulate earning rewards by finalizing an epoch with a `StakeInfo` for validator1
         uint16 validator1Index = 2;
@@ -443,7 +448,7 @@ contract ConsensusRegistryTest is Test {
     function test_finalizePreviousEpoch_activatesValidators() public {
         // enter validator in PendingActivation state
         vm.prank(validator1);
-        consensusRegistry.stake{value: stakeAmount}(blsPubkey, new bytes(96), ed25519Pubkey);
+        consensusRegistry.stake{ value: stakeAmount }(blsPubkey, new bytes(96), ed25519Pubkey);
 
         // Fast forward epochs to reach activatino epoch
         vm.startPrank(sysAddress);
@@ -452,7 +457,8 @@ contract ConsensusRegistryTest is Test {
         vm.stopPrank();
 
         // check validator1 activated
-        IConsensusRegistry.ValidatorInfo[] memory validators = consensusRegistry.getValidators(IConsensusRegistry.ValidatorStatus.Active);
+        IConsensusRegistry.ValidatorInfo[] memory validators =
+            consensusRegistry.getValidators(IConsensusRegistry.ValidatorStatus.Active);
         assertEq(validators.length, 2);
         assertEq(validators[0].ecdsaPubkey, validator0);
         assertEq(validators[1].ecdsaPubkey, validator1);
@@ -462,10 +468,16 @@ contract ConsensusRegistryTest is Test {
         assertEq(returnedVal.ecdsaPubkey, validator1);
     }
 
-    function testFuzz_finalizePreviousEpoch(uint32 fuzzedNumBlocks, uint16 numValidators, uint240 fuzzedRewards) public {
-        numValidators = uint16(bound(uint256(numValidators), 4, 8_000)); // fuzz up to 8k validators
+    function testFuzz_finalizePreviousEpoch(
+        uint32 fuzzedNumBlocks,
+        uint16 numValidators,
+        uint240 fuzzedRewards
+    )
+        public
+    {
+        numValidators = uint16(bound(uint256(numValidators), 4, 8000)); // fuzz up to 8k validators
         fuzzedRewards = uint240(bound(uint256(fuzzedRewards), minWithdrawAmount, telMaxSupply));
-        
+
         // exit existing validator0 which was activated in constructor to clean up calculations
         vm.prank(validator0);
         consensusRegistry.exit();
@@ -512,11 +524,14 @@ contract ConsensusRegistryTest is Test {
         vm.startPrank(sysAddress);
         consensusRegistry.finalizePreviousEpoch(fuzzedNumBlocks, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
         // use 2 member array for committee now that there are 2 active
-        consensusRegistry.finalizePreviousEpoch(fuzzedNumBlocks, newCommitteeIndices, new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(
+            fuzzedNumBlocks, newCommitteeIndices, new IConsensusRegistry.StakeInfo[](0)
+        );
 
         uint256 numRecipients = newCommitteeIndices.length; // all committee members receive rewards
         uint240 rewardPerValidator = uint240(fuzzedRewards / numRecipients);
-        // construct `committeeRewards` array to compensate voting committee equally (total `fuzzedRewards` divided across committee)
+        // construct `committeeRewards` array to compensate voting committee equally (total `fuzzedRewards` divided
+        // across committee)
         IConsensusRegistry.StakeInfo[] memory committeeRewards = new IConsensusRegistry.StakeInfo[](numRecipients);
         for (uint256 i; i < newCommitteeIndices.length; ++i) {
             uint16 recipientIndex = newCommitteeIndices[i];
@@ -525,9 +540,11 @@ contract ConsensusRegistryTest is Test {
 
         // Expect the event
         vm.expectEmit(true, true, true, true);
-        uint64 finalEpochBlockHeight = uint64(fuzzedNumBlocks) * 4; // this test finalizes 4 times using `numBlocks == fuzzedNumBlocks`
-        emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommitteeIndices, finalEpochBlockHeight));        
-        // increment rewards by finalizing an epoch with a `StakeInfo` for constructed committee (new committee not relevant)
+        uint64 finalEpochBlockHeight = uint64(fuzzedNumBlocks) * 4; // this test finalizes 4 times using `numBlocks ==
+            // fuzzedNumBlocks`
+        emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommitteeIndices, finalEpochBlockHeight));
+        // increment rewards by finalizing an epoch with a `StakeInfo` for constructed committee (new committee not
+        // relevant)
         consensusRegistry.finalizePreviousEpoch(fuzzedNumBlocks, newCommitteeIndices, committeeRewards);
         vm.stopPrank();
 
