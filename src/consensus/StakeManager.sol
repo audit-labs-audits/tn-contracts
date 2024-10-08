@@ -78,12 +78,16 @@ abstract contract StakeManager {
     function _unstake() internal virtual returns (uint256 stakeAndRewards) {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
-        // wipe ledger and send staked balance + rewards
-        stakeAndRewards = $.stakeAmount + $.stakeInfo[msg.sender].stakingRewards;
-        //todo: go through RWTEL module
+        // wipe ledger and send rewards, then send stake
+        rewards = $.stakeInfo[msg.sender].stakingRewards;
         $.stakeInfo[msg.sender].stakingRewards = 0;
-        (bool r,) = msg.sender.call{ value: stakeAndRewards }("");
+        IRWTEL($.rwTEL).distributeStakeReward(msg.sender, rewards);
+
+        uint256 stakeAmount = $.stakeAmount;
+        (bool r,) = msg.sender.call{ value: stakeAmount }("");
         require(r);
+
+        return stakeAmount + rewards;
     }
 
     function _checkRewardsExceedMinWithdrawAmount(
