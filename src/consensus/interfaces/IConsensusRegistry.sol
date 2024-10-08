@@ -20,21 +20,24 @@ ConsensusRegistry storage layout for genesis
 | _paused          | bool                          | 0                                                                  | 0      | 1     |
 | _owner           | address                       | 0                                                                  | 1      | 20    |
 |------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| rwTEL            | address                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 12      | 20    |
-| stakeAmount      | uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | 32    |
-| minWithdrawAmount| uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | 32    |
-| stakeInfo        | mapping(address => StakeInfo) | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105 | 0      | y     |
+| rwTEL            | address                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7400 | 12     | 20    |
+| stakeAmount      | uint256                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7401 | 0      | 32    |
+| minWithdrawAmount| uint256                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7402 | 0      | 32    |
+| stakeInfo        | mapping(address => StakeInfo) | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7403 | 0      | s     |
 |------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| currentEpoch     | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | 4     |
-| epochPointer     | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 4      | 1     |
-| epochInfo        | EpochInfo[4]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104 | 0      | x     |
-| futureEpochInfo  | FutureEpochInfo[4]            | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104 | 0      | x     |
-| validators       | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23106 | 0      | z     |
+| currentEpoch     | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 0      | 4     |
+| epochPointer     | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 4      | 1     |
+| epochInfo        | EpochInfo[4]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | x     |
+| futureEpochInfo  | FutureEpochInfo[4]            | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | y     |
+| validators       | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | z     |
 
-- `epochInfo` begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded
+Storage locations for dynamic variables 
+- `stakeInfo` content (s) begins at slot `0x3b2018e21a7d1a934ee474879a6c46622c725c81fe1ab37a62fbdda1c85e54e4`
+- `epochInfo` (x) begins at slot `0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39` as abi-encoded
 representation
-    - `stakeInfo` content begins at slot `0x6c559f44aaff501c8c4572f1fe564ba609cd362de315d1241502f2e0437459c2`
-- `validators` begins at slot `0x14d1f3ad8599cd8151592ddeade449f790add4d7065a031fbe8f7dbb1833e0a9` as abi-encoded
+- `futureEpochInfo` (y) begins at slot `0x3e15a0612117eb21841fac9ea1ce6cd116a911fe4c91a9c367a82cd0c3d79718` as abi-encoded
+representation
+- `validators` (z) begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded
 representation
 */
 
@@ -98,7 +101,12 @@ representation
 
     /// @notice Voting Validator Committee changes once every epoch (== 32 rounds)
     /// @notice Can only be called in a `syscall` context
-    /// @dev Accepts the new epoch's committee of voting validators, which have been ascertained as active via handshake
+    /// @dev Accepts the committee of voting validators for 2 epochs in the future and 
+    /// staking reward info for the previous epoch to finalize
+    /// @param newCommitteeIndices The future validator committee for 2 epochs after 
+    /// the current one is finalized; ie `$.currentEpoch + 3` (this func increments `currentEpoch`)
+    /// @param stakingRewardInfos Staking reward info defining which validators to reward 
+    /// and how much each rewardee earned for the current epoch 
     function finalizePreviousEpoch(
         address[] calldata newCommitteeIndices, // todo: change to addresses && todo: this array refers to 2 epochs forward, if currentepoch == 0 || 1 special case 
         StakeInfo[] calldata stakingRewardInfos

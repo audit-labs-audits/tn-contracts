@@ -394,7 +394,7 @@ contract ConsensusRegistry is
 
     /// @notice Not actually used since this contract is precompiled and written to TN at genesis
     /// It is left in the contract for readable information about the relevant storage slots at genesis
-    /// @param initialValidators_ The initial validator set running Telcoin Network; these validators will 
+    /// @param initialValidators_ The initial validator set running Telcoin Network; these validators will
     /// comprise the voter committee for the first three epochs, ie `epochInfo[0:2]`
     function initialize(
         address rwTEL_,

@@ -12,9 +12,7 @@ import { IStakeManager } from "./interfaces/IStakeManager.sol";
  * @notice This abstract contract provides modular management of consensus validator stake
  * @dev Designed for inheritance by the ConsensusRegistry
  */
-
 abstract contract StakeManager is IStakeManager {
-
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.StakeManager")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant StakeManagerStorageSlot =
@@ -40,7 +38,6 @@ abstract contract StakeManager is IStakeManager {
      *   internals
      *
      */
-    
     function _getRewards(
         StakeManagerStorage storage $,
         address ecdsaPubkey

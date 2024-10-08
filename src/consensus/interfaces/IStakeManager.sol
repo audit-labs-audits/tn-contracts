@@ -15,7 +15,6 @@ struct StakeInfo {
 }
 
 interface IStakeManager {
-
     /// @custom:storage-location erc7201:telcoin.storage.StakeManager
     struct StakeManagerStorage {
         address rwTEL;

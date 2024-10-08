@@ -359,8 +359,7 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch twice to reach validator1 activationEpoch
         vm.startPrank(sysAddress);
-        (, uint256 numActiveValidators) =
-            consensusRegistry.finalizePreviousEpoch(new address[](1), new StakeInfo[](0));
+        (, uint256 numActiveValidators) = consensusRegistry.finalizePreviousEpoch(new address[](1), new StakeInfo[](0));
         // use 2 member array for committee now that there are 2 active
         consensusRegistry.finalizePreviousEpoch(new address[](numActiveValidators + 1), new StakeInfo[](0));
 
@@ -472,12 +471,7 @@ contract ConsensusRegistryTest is Test {
         assertEq(returnedVal.ecdsaPubkey, validator1);
     }
 
-    function testFuzz_finalizePreviousEpoch(
-        uint16 numValidators,
-        uint240 fuzzedRewards
-    )
-        public
-    {
+    function testFuzz_finalizePreviousEpoch(uint16 numValidators, uint240 fuzzedRewards) public {
         numValidators = uint16(bound(uint256(numValidators), 4, 8000)); // fuzz up to 8k validators
         fuzzedRewards = uint240(bound(uint256(fuzzedRewards), minWithdrawAmount, telMaxSupply));
 
@@ -491,7 +485,8 @@ contract ConsensusRegistryTest is Test {
         numValidators = 2000;
         fuzzedRewards = uint240(minWithdrawAmount);
 
-        // activate validators using `stake()` and construct `newCommittee` array as pseudorandom subset (1/3) of all validators
+        // activate validators using `stake()` and construct `newCommittee` array as pseudorandom subset (1/3) of all
+        // validators
         uint256 committeeSize = uint256(numValidators) * 10_000 / 3 / 10_000 + 1; // address precision loss
         address[] memory newCommittee = new address[](committeeSize);
         uint256 committeeCounter;
