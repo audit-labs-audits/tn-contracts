@@ -99,7 +99,7 @@ contract ConsensusRegistry is
 
     /**
      *
-     *   staking
+     *   validators
      *
      */
 
@@ -118,17 +118,20 @@ contract ConsensusRegistry is
         if (blsSig.length != 96) revert InvalidProof();
         _checkStakeValue(msg.value);
 
-        // require caller is a verified protocol validator - how to do this? : must possess a consensus NFT
-        // how to prove ownership of blsPubkey using blsSig - offchain?
-
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
-        uint32 activationEpoch = $.currentEpoch + 2;
         uint16 validatorIndex = _getValidatorIndex(_stakeManagerStorage(), msg.sender);
+        // todo: should ConsensusNFT be issued prior to stake action?
+        // _checkConsensusNFTOwnership(validatorIndex, msg.sender);
+
+        uint32 activationEpoch = $.currentEpoch + 2;
         if (validatorIndex == 0) {
             // caller is a new validator; update its index in `StakeManager` storage
             validatorIndex = uint16($.validators.length);
             _stakeManagerStorage().stakeInfo[msg.sender].validatorIndex = validatorIndex;
+
+            // issue a new ConsensusNFT
+            _mint(msg.sender, validatorIndex);
 
             // push new validator to `validators` array
             ValidatorInfo memory newValidator = ValidatorInfo(
@@ -147,6 +150,10 @@ contract ConsensusRegistry is
         } else {
             // caller is a previously known validator
             ValidatorInfo storage existingValidator = $.validators[validatorIndex];
+
+            // require caller owns a ConsensusNFT
+            _checkConsensusNFTOwnership(msg.sender, validatorIndex);
+
             // for already known validators, only `Exited` status is valid logical branch
             if (existingValidator.currentStatus != ValidatorStatus.Exited) {
                 revert InvalidStatus(existingValidator.currentStatus);
@@ -163,42 +170,26 @@ contract ConsensusRegistry is
 
     /// @inheritdoc StakeManager
     function claimStakeRewards() external override whenNotPaused {
-        // require caller is verified protocol validator - check NFT balance
-
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
-        // require caller is known
-        uint16 validatorIndex = _getValidatorIndex($, msg.sender);
-        if (validatorIndex == 0) revert NotValidator(msg.sender);
+        // require caller is known by this registry
+        uint16 validatorIndex = _checkKnownValidatorIndex($, msg.sender);
+        // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
+        _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
         uint256 rewards = _claimStakeRewards($);
 
         emit RewardsClaimed(msg.sender, rewards);
     }
 
-    /// @inheritdoc StakeManager
-    function unstake() external override whenNotPaused {
-        uint16 index = _getValidatorIndex(_stakeManagerStorage(), msg.sender);
-        if (index == 0) revert NotValidator(msg.sender);
-
-        // check caller is `Exited`
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        ValidatorStatus callerStatus = $.validators[index].currentStatus;
-        if (callerStatus != ValidatorStatus.Exited) revert InvalidStatus(callerStatus);
-        // set to `Undefined` to show stake was withdrawn, preventing reentrancy
-        $.validators[index].currentStatus = ValidatorStatus.Undefined;
-
-        uint256 stakeAndRewards = _unstake();
-
-        emit RewardsClaimed(msg.sender, stakeAndRewards);
-    }
-
     /// @inheritdoc IConsensusRegistry
     function exit() external whenNotPaused {
-        // require caller is a known `ValidatorInfo` with `active` status
-        uint16 validatorIndex = _getValidatorIndex(_stakeManagerStorage(), msg.sender);
-        if (validatorIndex == 0) revert NotValidator(msg.sender);
+        // require caller is known by this registry
+        uint16 validatorIndex = _checkKnownValidatorIndex(_stakeManagerStorage(), msg.sender);
+        // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
+        _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
+        // check caller status is `Active`
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         ValidatorInfo storage validator = $.validators[validatorIndex];
         if (validator.currentStatus != ValidatorStatus.Active) {
@@ -211,6 +202,29 @@ contract ConsensusRegistry is
         validator.currentStatus = ValidatorStatus.PendingExit;
 
         emit ValidatorPendingExit(validator);
+    }
+
+
+    /// @inheritdoc StakeManager
+    function unstake() external override whenNotPaused {
+        // require caller is known by this registry
+        uint16 validatorIndex = _checkKnownValidatorIndex(_stakeManagerStorage(), msg.sender);
+        // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
+        _checkConsensusNFTOwnership(msg.sender, validatorIndex);
+
+        // burn the ConsensusNFT; can be reversed if caller rejoins as validator 
+        _burn(validatorIndex);
+
+        // check caller status is `Exited`
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        ValidatorStatus callerStatus = $.validators[validatorIndex].currentStatus;
+        if (callerStatus != ValidatorStatus.Exited) revert InvalidStatus(callerStatus);
+        // set to `Undefined` to show stake was withdrawn, preventing reentrancy
+        $.validators[validatorIndex].currentStatus = ValidatorStatus.Undefined;
+
+        uint256 stakeAndRewards = _unstake();
+
+        emit RewardsClaimed(msg.sender, stakeAndRewards);
     }
 
     /**
@@ -324,6 +338,12 @@ contract ConsensusRegistry is
         }
     }
 
+    /// @dev Reverts if the provided address doesn't correspond to an existing `validatorIndex`
+    function _checkKnownValidatorIndex(StakeManagerStorage storage $, address caller) private view returns (uint16 validatorIndex) {
+        validatorIndex = _getValidatorIndex($, caller);
+        if (validatorIndex == 0) revert NotValidator(caller);
+    }
+
     function _getValidators(
         ConsensusRegistryStorage storage $,
         ValidatorStatus status
@@ -425,8 +445,6 @@ contract ConsensusRegistry is
         for (uint256 i; i <= initialValidators_.length; ++i) {
             if (i == 0) {
                 // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
-                // this is because undefined validators with empty struct members break checks for uninitialized
-                // validators
                 $C.validators.push(
                     ValidatorInfo(
                         "",
@@ -463,10 +481,12 @@ contract ConsensusRegistry is
                 $C.epochInfo[j].committee.push(currentValidator.ecdsaPubkey);
             }
 
-            _stakeManagerStorage().stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(i);
+            uint256 validatorIndex = i;
+            _stakeManagerStorage().stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(validatorIndex);
             $C.validators.push(currentValidator);
 
-            // todo: issue consensus NFTs to initial validators?
+            __ERC721_init("ConsensusNFT", "CNFT");
+            _mint(currentValidator.ecdsaPubkey, validatorIndex);
 
             emit ValidatorActivated(currentValidator);
         }

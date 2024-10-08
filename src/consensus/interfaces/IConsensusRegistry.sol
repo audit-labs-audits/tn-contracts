@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { StakeInfo } from "./interfaces/IStakeManager.sol";
+import { StakeInfo } from "./IStakeManager.sol";
 
 /**
  * @title ConsensusRegistry Interface
@@ -15,24 +15,39 @@ interface IConsensusRegistry {
 
 /*
 ConsensusRegistry storage layout for genesis
-| Name             | Type                          | Slot                                                               | Offset | Bytes |
-|------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| _paused          | bool                          | 0                                                                  | 0      | 1     |
-| _owner           | address                       | 0                                                                  | 1      | 20    |
-|------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| rwTEL            | address                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7400 | 12     | 20    |
-| stakeAmount      | uint256                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7401 | 0      | 32    |
-| minWithdrawAmount| uint256                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7402 | 0      | 32    |
-| stakeInfo        | mapping(address => StakeInfo) | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7403 | 0      | s     |
-|------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| currentEpoch     | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 0      | 4     |
-| epochPointer     | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 4      | 1     |
-| epochInfo        | EpochInfo[4]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | x     |
-| futureEpochInfo  | FutureEpochInfo[4]            | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | y     |
-| validators       | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | z     |
+| Name               | Type                          | Slot                                                               | Offset | Bytes |
+|--------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
+| _paused            | bool                          | 0xcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f03300 | 0      | 1     |
+| _owner             | address                       | 0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300 | 12     | 20    |
+|--------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
+| rwTEL              | address                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7400 | 12     | 20    |
+| stakeAmount        | uint256                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7401 | 0      | 32    |
+| minWithdrawAmount  | uint256                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7402 | 0      | 32    |
+| stakeInfo          | mapping(address => StakeInfo) | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7403 | 0      | s     |
+|--------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
+| _name              | string                        | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079300 | 0      | 31    |
+| _symbol            | string                        | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079301 | 0      | 31    |
+| _owners            | mapping(uint256 => address)   | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079302 | 0      | o     |
+| _balances          | mapping(address => uint256)   | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079303 | 0      | b     |
+| _tokenApprovals    | mapping(address => uint256)   | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079304 | 0      | ta    |
+| _operatorApprovals | mapping(address => uint256)   | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079305 | 0      | oa    |
+|--------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
+| currentEpoch       | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 0      | 4     |
+| epochPointer       | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 4      | 1     |
+| epochInfo          | EpochInfo[4]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | x     |
+| futureEpochInfo    | FutureEpochInfo[4]            | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | y     |
+| validators         | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | z     |
 
 Storage locations for dynamic variables 
 - `stakeInfo` content (s) begins at slot `0x3b2018e21a7d1a934ee474879a6c46622c725c81fe1ab37a62fbdda1c85e54e4`
+- `_name` comprises the following in slot `0x3b2018e21a7d1a934ee474879a6c46622c725c81fe1ab37a62fbdda1c85e54e4`
+    - 31 bytes of content `"ConsensusNFT" == 0x436f6e73656e7375734e4654` and 1 byte for content length (12 == 0x0c)
+- `_symbol` comprises the following in slot `0x3b2018e21a7d1a934ee474879a6c46622c725c81fe1ab37a62fbdda1c85e54e4`
+    - 31 bytes of content `"CNFT" == 0x434e4654` and 1 byte for content length (4 == 0x04)
+- `_owners` content (o) begins at slot `0xc59ee7f367a669c2b95c44d4fc46cac58e831d2567849aee0be2ad13d39d52cf`
+- `_balances` content (b) begins at slot `0x16ba8a225c41cb03f9a77bfc5b418e9160dc43575312005d8c81f0bd330b3027`
+- `_tokenApprovals` content (ta) begins at slot `0xd885219e08c56b96b65bd58819c48ecf6d3dc77d238ea09abae06bf5e59c88fd`
+- `_operatorApprovals` content (oa) begins at slot `0xac257f7b51b503ba5377632679403cf33f043c21f94b6a842d6b049c3d330efb`
 - `epochInfo` (x) begins at slot `0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39` as abi-encoded
 representation
 - `futureEpochInfo` (y) begins at slot `0x3e15a0612117eb21841fac9ea1ce6cd116a911fe4c91a9c367a82cd0c3d79718` as abi-encoded

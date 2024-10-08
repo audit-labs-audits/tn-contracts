@@ -25,6 +25,8 @@ interface IStakeManager {
 
     error InvalidStakeAmount(uint256 stakeAmount);
     error InsufficientRewards(uint256 withdrawAmount);
+    error NotTransferable();
+    error RequiresConsensusNFT();
 
     /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
     function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable;
