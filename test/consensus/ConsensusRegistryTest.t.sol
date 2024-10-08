@@ -48,7 +48,7 @@ contract ConsensusRegistryTest is Test {
             )
         );
         consensusRegistryImpl = new ConsensusRegistry();
-        consensusRegistry = ConsensusRegistry(payable(address(new ERC1967Proxy(address(consensusRegistryImpl), ''))));
+        consensusRegistry = ConsensusRegistry(payable(address(new ERC1967Proxy(address(consensusRegistryImpl), ""))));
         consensusRegistry.initialize(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
@@ -361,9 +361,7 @@ contract ConsensusRegistryTest is Test {
         (,, uint256 numActiveValidators) =
             consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
         // use 2 member array for committee now that there are 2 active
-        consensusRegistry.finalizePreviousEpoch(
-            32, new uint16[](numActiveValidators + 1), new StakeInfo[](0)
-        );
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](numActiveValidators + 1), new StakeInfo[](0));
 
         // Simulate earning rewards by finalizing an epoch with a `StakeInfo` for validator1
         uint16 validator1Index = 2;
@@ -530,9 +528,7 @@ contract ConsensusRegistryTest is Test {
         vm.startPrank(sysAddress);
         consensusRegistry.finalizePreviousEpoch(fuzzedNumBlocks, new uint16[](1), new StakeInfo[](0));
         // use 2 member array for committee now that there are 2 active
-        consensusRegistry.finalizePreviousEpoch(
-            fuzzedNumBlocks, newCommitteeIndices, new StakeInfo[](0)
-        );
+        consensusRegistry.finalizePreviousEpoch(fuzzedNumBlocks, newCommitteeIndices, new StakeInfo[](0));
 
         uint256 numRecipients = newCommitteeIndices.length; // all committee members receive rewards
         uint240 rewardPerValidator = uint240(fuzzedRewards / numRecipients);

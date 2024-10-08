@@ -17,7 +17,14 @@ import { SystemCallable } from "./SystemCallable.sol";
  * @notice This contract manages consensus validator external keys, staking, and committees
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
-contract ConsensusRegistry is StakeManager, UUPSUpgradeable, PausableUpgradeable, OwnableUpgradeable, SystemCallable, IConsensusRegistry {
+contract ConsensusRegistry is
+    StakeManager,
+    UUPSUpgradeable,
+    PausableUpgradeable,
+    OwnableUpgradeable,
+    SystemCallable,
+    IConsensusRegistry
+{
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant ConsensusRegistryStorageSlot =
@@ -35,7 +42,8 @@ contract ConsensusRegistry is StakeManager, UUPSUpgradeable, PausableUpgradeable
         uint16[] calldata newCommitteeIndices,
         StakeInfo[] calldata stakingRewardInfos
     )
-        external onlySystemCall
+        external
+        onlySystemCall
         returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators)
     {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
@@ -354,14 +362,7 @@ contract ConsensusRegistry is StakeManager, UUPSUpgradeable, PausableUpgradeable
         }
     }
 
-    function _getValidatorIndex(
-        StakeManagerStorage storage $,
-        address ecdsaPubkey
-    )
-        internal
-        view
-        returns (uint16)
-    {
+    function _getValidatorIndex(StakeManagerStorage storage $, address ecdsaPubkey) internal view returns (uint16) {
         return $.stakeInfo[ecdsaPubkey].validatorIndex;
     }
 
@@ -397,14 +398,17 @@ contract ConsensusRegistry is StakeManager, UUPSUpgradeable, PausableUpgradeable
 
     /// @notice Not actually used since this contract is precompiled and written to TN at genesis
     /// It is left in the contract for readable information about the relevant storage slots at genesis
-    /// @param initialValidators_ The initial validator set running Telcoin Network; will comprise the first voter committee
+    /// @param initialValidators_ The initial validator set running Telcoin Network; will comprise the first voter
+    /// committee
     function initialize(
         address rwTEL_,
         uint256 stakeAmount_,
         uint256 minWithdrawAmount_,
         ValidatorInfo[] memory initialValidators_,
         address owner_
-    ) external initializer
+    )
+        external
+        initializer
     {
         if (initialValidators_.length == 0 || initialValidators_.length > type(uint16).max) {
             revert InitializerArityMismatch();

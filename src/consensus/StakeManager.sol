@@ -11,14 +11,12 @@ import { IRWTEL } from "../interfaces/IRWTEL.sol";
  * @notice This abstract contract provides modular management of consensus validator stake
  * @dev Designed for inheritance by the ConsensusRegistry
  */
-
 struct StakeInfo {
     uint16 validatorIndex;
     uint240 stakingRewards; // can be resized to uint104 (100bil $TEL)
 }
 
 abstract contract StakeManager {
-
     /// @custom:storage-location erc7201:telcoin.storage.StakeManager
     struct StakeManagerStorage {
         address rwTEL;
@@ -41,7 +39,7 @@ abstract contract StakeManager {
     function getRewards(address ecdsaPubkey) public view virtual returns (uint240 claimableRewards);
 
     /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
-    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external virtual payable;
+    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable virtual;
 
     /// @dev Used for validators to claim their staking rewards for validating the network
     /// @notice Rewards are incremented every epoch via syscall in `finalizePreviousEpoch()`
@@ -56,12 +54,19 @@ abstract contract StakeManager {
      *   internals
      *
      */
-
-    function _getRewards(StakeManagerStorage storage $, address ecdsaPubkey) internal view virtual returns (uint240 claimableRewards) {
+    function _getRewards(
+        StakeManagerStorage storage $,
+        address ecdsaPubkey
+    )
+        internal
+        view
+        virtual
+        returns (uint240 claimableRewards)
+    {
         return $.stakeInfo[ecdsaPubkey].stakingRewards;
     }
 
-    /// @notice Sends staking rewards only and is not used for withdrawing initial stake 
+    /// @notice Sends staking rewards only and is not used for withdrawing initial stake
     function _claimStakeRewards(StakeManagerStorage storage $) internal virtual returns (uint256 rewards) {
         rewards = _checkRewardsExceedMinWithdrawAmount($, msg.sender);
 
@@ -80,7 +85,14 @@ abstract contract StakeManager {
         require(r);
     }
 
-    function _checkRewardsExceedMinWithdrawAmount(StakeManagerStorage storage $, address caller) internal virtual returns (uint256 rewards) {
+    function _checkRewardsExceedMinWithdrawAmount(
+        StakeManagerStorage storage $,
+        address caller
+    )
+        internal
+        virtual
+        returns (uint256 rewards)
+    {
         rewards = $.stakeInfo[caller].stakingRewards;
         if (rewards < $.minWithdrawAmount) revert InsufficientRewards(rewards);
     }
@@ -90,7 +102,7 @@ abstract contract StakeManager {
         if (value != $.stakeAmount) revert InvalidStakeAmount(msg.value);
     }
 
-    function _stakeManagerStorage() internal virtual pure returns (StakeManagerStorage storage $) {
+    function _stakeManagerStorage() internal pure virtual returns (StakeManagerStorage storage $) {
         assembly {
             $.slot := StakeManagerStorageSlot
         }
