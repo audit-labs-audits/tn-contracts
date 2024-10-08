@@ -34,6 +34,12 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         claimableRewards = _getRewards($, ecdsaPubkey);
     }
 
+    /**
+     *
+     *   ERC721
+     *
+     */
+
     /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
     function transferFrom(address from, address to, uint256 tokenId) public virtual override {
         revert NotTransferable();

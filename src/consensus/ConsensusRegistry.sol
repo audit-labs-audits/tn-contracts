@@ -155,9 +155,7 @@ contract ConsensusRegistry is
             _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
             // for already known validators, only `Exited` status is valid logical branch
-            if (existingValidator.currentStatus != ValidatorStatus.Exited) {
-                revert InvalidStatus(existingValidator.currentStatus);
-            }
+            _checkValidatorStatus($, validatorIndex, ValidatorStatus.Exited);
 
             existingValidator.activationEpoch = activationEpoch;
             existingValidator.currentStatus = ValidatorStatus.PendingActivation;
@@ -189,12 +187,12 @@ contract ConsensusRegistry is
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
         _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
-        // check caller status is `Active`
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+
+        // require caller status is `Active`
+        _checkValidatorStatus($, validatorIndex, ValidatorStatus.Active);
+
         ValidatorInfo storage validator = $.validators[validatorIndex];
-        if (validator.currentStatus != ValidatorStatus.Active) {
-            revert InvalidStatus(validator.currentStatus);
-        }
 
         // enter validator in exit queue (will be ejected in 1.x epochs)
         uint32 exitEpoch = $.currentEpoch + 2;
@@ -215,10 +213,9 @@ contract ConsensusRegistry is
         // burn the ConsensusNFT; can be reversed if caller rejoins as validator 
         _burn(validatorIndex);
 
-        // check caller status is `Exited`
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        ValidatorStatus callerStatus = $.validators[validatorIndex].currentStatus;
-        if (callerStatus != ValidatorStatus.Exited) revert InvalidStatus(callerStatus);
+        // require caller status is `Exited`
+        _checkValidatorStatus($, validatorIndex, ValidatorStatus.Exited);
         // set to `Undefined` to show stake was withdrawn, preventing reentrancy
         $.validators[validatorIndex].currentStatus = ValidatorStatus.Undefined;
 
@@ -344,6 +341,12 @@ contract ConsensusRegistry is
         if (validatorIndex == 0) revert NotValidator(caller);
     }
 
+    /// @dev Reverts if the provided validator's status doesn't match the provided `requiredStatus`
+    function _checkValidatorStatus(ConsensusRegistryStorage storage $, uint16 validatorIndex, ValidatorStatus requiredStatus) private {
+        ValidatorStatus status = $.validators[validatorIndex].currentStatus;
+        if (status != requiredStatus) revert InvalidStatus(status);
+    }
+    
     function _getValidators(
         ConsensusRegistryStorage storage $,
         ValidatorStatus status
