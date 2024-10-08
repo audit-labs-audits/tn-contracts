@@ -202,7 +202,6 @@ contract ConsensusRegistry is
         emit ValidatorPendingExit(validator);
     }
 
-
     /// @inheritdoc StakeManager
     function unstake() external override whenNotPaused {
         // require caller is known by this registry
@@ -210,7 +209,7 @@ contract ConsensusRegistry is
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
         _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
-        // burn the ConsensusNFT; can be reversed if caller rejoins as validator 
+        // burn the ConsensusNFT; can be reversed if caller rejoins as validator
         _burn(validatorIndex);
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
@@ -336,17 +335,30 @@ contract ConsensusRegistry is
     }
 
     /// @dev Reverts if the provided address doesn't correspond to an existing `validatorIndex`
-    function _checkKnownValidatorIndex(StakeManagerStorage storage $, address caller) private view returns (uint16 validatorIndex) {
+    function _checkKnownValidatorIndex(
+        StakeManagerStorage storage $,
+        address caller
+    )
+        private
+        view
+        returns (uint16 validatorIndex)
+    {
         validatorIndex = _getValidatorIndex($, caller);
         if (validatorIndex == 0) revert NotValidator(caller);
     }
 
     /// @dev Reverts if the provided validator's status doesn't match the provided `requiredStatus`
-    function _checkValidatorStatus(ConsensusRegistryStorage storage $, uint16 validatorIndex, ValidatorStatus requiredStatus) private {
+    function _checkValidatorStatus(
+        ConsensusRegistryStorage storage $,
+        uint16 validatorIndex,
+        ValidatorStatus requiredStatus
+    )
+        private view
+    {
         ValidatorStatus status = $.validators[validatorIndex].currentStatus;
         if (status != requiredStatus) revert InvalidStatus(status);
     }
-    
+
     function _getValidators(
         ConsensusRegistryStorage storage $,
         ValidatorStatus status

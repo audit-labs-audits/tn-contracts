@@ -41,12 +41,21 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
      */
 
     /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
-    function transferFrom(address from, address to, uint256 tokenId) public virtual override {
+    function transferFrom(address, /* from */ address, /* to */ uint256 /* tokenId */ ) public virtual override {
         revert NotTransferable();
     }
 
     /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
+    function safeTransferFrom(
+        address, /* from */
+        address, /* to */
+        uint256, /* tokenId */
+        bytes memory /* data */
+    )
+        public
+        virtual
+        override
+    {
         revert NotTransferable();
     }
 
