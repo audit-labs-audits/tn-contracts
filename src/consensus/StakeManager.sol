@@ -80,6 +80,7 @@ abstract contract StakeManager {
 
         // wipe ledger and send staked balance + rewards
         stakeAndRewards = $.stakeAmount + $.stakeInfo[msg.sender].stakingRewards;
+        //todo: go through RWTEL module
         $.stakeInfo[msg.sender].stakingRewards = 0;
         (bool r,) = msg.sender.call{ value: stakeAndRewards }("");
         require(r);

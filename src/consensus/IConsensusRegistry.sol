@@ -19,12 +19,15 @@ ConsensusRegistry storage layout for genesis
 |------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
 | _paused          | bool                          | 0                                                                  | 0      | 1     |
 | _owner           | address                       | 0                                                                  | 1      | 20    |
+|------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
 | rwTEL            | address                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 12      | 20    |
 | stakeAmount      | uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | 32    |
 | minWithdrawAmount| uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | 32    |
+|------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
 | currentEpoch     | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | 4     |
 | epochPointer     | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 4      | 1     |
 | epochInfo        | EpochInfo[4]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104 | 0      | x     |
+| futureEpochInfo  | FutureEpochInfo[4]            | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104 | 0      | x     |
 | stakeInfo        | mapping(address => StakeInfo) | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105 | 0      | y     |
 | validators       | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23106 | 0      | z     |
 
@@ -40,6 +43,7 @@ representation
         uint32 currentEpoch;
         uint8 epochPointer;
         EpochInfo[4] epochInfo;
+        FutureEpochInfo[4] futureEpochInfo;
         ValidatorInfo[] validators;
     }
 
@@ -55,8 +59,13 @@ representation
     }
 
     struct EpochInfo {
-        uint16[] committeeIndices; // voter committee's validator indices
+        address[] committee;
         uint64 blockHeight;
+    }
+
+    /// @dev Used to populate a separate ring buffer to prevent overflow conditions when writing future state
+    struct FutureEpochInfo {
+        address[] committee;
     }
 
     error LowLevelCallFailure();
@@ -91,16 +100,15 @@ representation
     /// @notice Can only be called in a `syscall` context
     /// @dev Accepts the new epoch's committee of voting validators, which have been ascertained as active via handshake
     function finalizePreviousEpoch(
-        uint64 numBlocks,
-        uint16[] calldata newCommitteeIndices,
+        address[] calldata newCommitteeIndices, // todo: change to addresses && todo: this array refers to 2 epochs forward, if currentepoch == 0 || 1 special case 
         StakeInfo[] calldata stakingRewardInfos
     )
         external
-        returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators);
+        returns (uint32 newEpoch, uint256 numActiveValidators);
 
     /// @dev Issues an exit request for a validator to be ejected from the active validator set
     function exit() external;
-    
+
     /// @dev Returns the current epoch
     function getCurrentEpoch() external view returns (uint32);
 

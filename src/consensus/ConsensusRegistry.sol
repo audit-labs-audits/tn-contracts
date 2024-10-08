@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-// import { IRWTEL } from "../interfaces/IRWTEL.sol";
 import { StakeInfo, StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
@@ -38,28 +37,27 @@ contract ConsensusRegistry is
 
     /// @inheritdoc IConsensusRegistry
     function finalizePreviousEpoch(
-        uint64 numBlocks,
-        uint16[] calldata newCommitteeIndices,
+        address[] calldata newCommittee,
         StakeInfo[] calldata stakingRewardInfos
     )
         external
         onlySystemCall
-        returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators)
+        returns (uint32 newEpoch, uint256 numActiveValidators)
     {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         // update epoch and ring buffer info
-        (newEpoch, newBlockHeight) = _updateEpochInfo($, newCommitteeIndices, numBlocks);
+        newEpoch = _updateEpochInfo($, newCommittee);
         // update full validator set by activating/ejecting pending validators
         numActiveValidators = _updateValidatorSet($, newEpoch);
 
         // ensure new epoch's canonical network state is still BFT
-        _checkFaultTolerance(numActiveValidators, newCommitteeIndices.length);
+        _checkFaultTolerance(numActiveValidators, newCommittee.length);
 
         // update each validator's claimable rewards with given amounts
         _incrementRewards($, stakingRewardInfos, newEpoch);
 
-        emit NewEpoch(EpochInfo(newCommitteeIndices, newBlockHeight));
+        emit NewEpoch(EpochInfo(newCommittee, uint64(block.number)));
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -265,21 +263,24 @@ contract ConsensusRegistry is
     /// @dev Stores the number of blocks finalized in previous epoch and the voter committee for the new epoch
     function _updateEpochInfo(
         ConsensusRegistryStorage storage $,
-        uint16[] memory newCommitteeIndices,
-        uint64 numBlocks
+        address[] memory newCommittee
     )
         internal
-        returns (uint32 newEpoch, uint64 newBlockHeight)
+        returns (uint32 newEpoch)
     {
         // cache epoch ring buffer's pointers in memory
         uint8 prevEpochPointer = $.epochPointer;
         uint8 newEpochPointer = (prevEpochPointer + 1) % 4;
-        newBlockHeight = $.epochInfo[prevEpochPointer].blockHeight + numBlocks;
 
         // update new current epoch info
-        $.epochInfo[newEpochPointer] = EpochInfo(newCommitteeIndices, newBlockHeight);
+        address[] storage currentcommittee = $.futureEpochInfo[newEpochPointer].committee;
+        $.epochInfo[newEpochPointer] = EpochInfo(currentcommittee, uint64(block.number));
         $.epochPointer = newEpochPointer;
         newEpoch = ++$.currentEpoch;
+
+        // update future epoch info
+        uint8 twoEpochsInFuturePointer = (newEpochPointer + 2) % 4;
+        $.futureEpochInfo[twoEpochsInFuturePointer].committee = newCommittee;
     }
 
     /// @dev Checks the given committee size against the total number of active validators using below 3f + 1 BFT rule
@@ -398,8 +399,8 @@ contract ConsensusRegistry is
 
     /// @notice Not actually used since this contract is precompiled and written to TN at genesis
     /// It is left in the contract for readable information about the relevant storage slots at genesis
-    /// @param initialValidators_ The initial validator set running Telcoin Network; will comprise the first voter
-    /// committee
+    /// @param initialValidators_ The initial validator set running Telcoin Network; these validators will 
+    /// comprise the voter committee for the first three epochs, ie `epochInfo[0:2]`
     function initialize(
         address rwTEL_,
         uint256 stakeAmount_,
@@ -462,7 +463,11 @@ contract ConsensusRegistry is
                 revert InvalidIndex(currentValidator.validatorIndex);
             }
 
-            $C.epochInfo[0].committeeIndices.push(uint16(i));
+            // first three epochs use initial validators as committee
+            for (uint256 j; j <= 2; ++j) {
+                $C.epochInfo[j].committee.push(currentValidator.ecdsaPubkey);
+            }
+
             _stakeManagerStorage().stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(i);
             $C.validators.push(currentValidator);
 
