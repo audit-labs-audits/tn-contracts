@@ -4,7 +4,8 @@ pragma solidity 0.8.26;
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { IRWTEL } from "../interfaces/IRWTEL.sol";
+// import { IRWTEL } from "../interfaces/IRWTEL.sol";
+import { StakeInfo, StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 
@@ -16,7 +17,7 @@ import { SystemCallable } from "./SystemCallable.sol";
  * @notice This contract manages consensus validator external keys, staking, and committees
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
-contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgradeable, SystemCallable, IConsensusRegistry {
+contract ConsensusRegistry is StakeManager, UUPSUpgradeable, PausableUpgradeable, OwnableUpgradeable, SystemCallable, IConsensusRegistry {
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant ConsensusRegistryStorageSlot =
@@ -78,8 +79,7 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
 
     /// @inheritdoc IConsensusRegistry
     function getValidatorIndex(address ecdsaPubkey) public view returns (uint16 validatorIndex) {
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        validatorIndex = _getValidatorIndex($, ecdsaPubkey);
+        validatorIndex = _getValidatorIndex(_stakeManagerStorage(), ecdsaPubkey);
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -90,19 +90,13 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
         validator = $.validators[uint256(validatorIndex)];
     }
 
-    /// @inheritdoc IConsensusRegistry
-    function getRewards(address ecdsaPubkey) public view returns (uint240 claimableRewards) {
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        claimableRewards = $.stakeInfo[ecdsaPubkey].stakingRewards;
-    }
-
     /**
      *
      *   staking
      *
      */
 
-    /// @inheritdoc IConsensusRegistry
+    /// @inheritdoc StakeManager
     function stake(
         bytes calldata blsPubkey,
         bytes calldata blsSig,
@@ -110,25 +104,26 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
     )
         external
         payable
+        override
         whenNotPaused
     {
         if (blsPubkey.length != 48) revert InvalidBLSPubkey();
         if (blsSig.length != 96) revert InvalidProof();
+        _checkStakeValue(msg.value);
 
         // require caller is a verified protocol validator - how to do this? : must possess a consensus NFT
         // how to prove ownership of blsPubkey using blsSig - offchain?
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        if (msg.value != $.stakeAmount) revert InvalidStakeAmount(msg.value);
 
         uint32 activationEpoch = $.currentEpoch + 2;
-        uint16 validatorIndex = _getValidatorIndex($, msg.sender);
+        uint16 validatorIndex = _getValidatorIndex(_stakeManagerStorage(), msg.sender);
         if (validatorIndex == 0) {
-            // caller is a new validator and will be appended to end of array
+            // caller is a new validator; update its index in `StakeManager` storage
             validatorIndex = uint16($.validators.length);
-            $.stakeInfo[msg.sender].validatorIndex = validatorIndex;
+            _stakeManagerStorage().stakeInfo[msg.sender].validatorIndex = validatorIndex;
 
-            // push new validator to array
+            // push new validator to `validators` array
             ValidatorInfo memory newValidator = ValidatorInfo(
                 blsPubkey,
                 ed25519Pubkey,
@@ -159,56 +154,45 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
         }
     }
 
-    /// @inheritdoc IConsensusRegistry
-    function claimStakeRewards() external whenNotPaused {
+    /// @inheritdoc StakeManager
+    function claimStakeRewards() external override whenNotPaused {
         // require caller is verified protocol validator - check NFT balance
 
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        StakeManagerStorage storage $ = _stakeManagerStorage();
 
         // require caller is known
         uint16 validatorIndex = _getValidatorIndex($, msg.sender);
         if (validatorIndex == 0) revert NotValidator(msg.sender);
 
-        // rewards are incremented every epoch via syscall in `finalizePreviousEpoch()`
-        uint256 rewards = $.stakeInfo[msg.sender].stakingRewards;
-        if (rewards < $.minWithdrawAmount) revert InsufficientRewards(rewards);
-
-        // wipe ledger to prevent reentrancy and send via the `RWTEL` module
-        $.stakeInfo[msg.sender].stakingRewards = 0;
-        IRWTEL($.rwTEL).distributeStakeReward(msg.sender, rewards);
+        uint256 rewards = _claimStakeRewards($);
 
         emit RewardsClaimed(msg.sender, rewards);
     }
 
-    /// @inheritdoc IConsensusRegistry
-    function unstake() external whenNotPaused {
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-
-        uint16 index = _getValidatorIndex($, msg.sender);
+    /// @inheritdoc StakeManager
+    function unstake() external override whenNotPaused {
+        uint16 index = _getValidatorIndex(_stakeManagerStorage(), msg.sender);
         if (index == 0) revert NotValidator(msg.sender);
 
         // check caller is `Exited`
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         ValidatorStatus callerStatus = $.validators[index].currentStatus;
         if (callerStatus != ValidatorStatus.Exited) revert InvalidStatus(callerStatus);
         // set to `Undefined` to show stake was withdrawn, preventing reentrancy
         $.validators[index].currentStatus = ValidatorStatus.Undefined;
 
-        // wipe ledger and send staked balance + rewards
-        uint256 stakeAndRewards = $.stakeAmount + $.stakeInfo[msg.sender].stakingRewards;
-        $.stakeInfo[msg.sender].stakingRewards = 0;
-        (bool r,) = msg.sender.call{ value: stakeAndRewards }("");
-        require(r);
+        uint256 stakeAndRewards = _unstake();
 
         emit RewardsClaimed(msg.sender, stakeAndRewards);
     }
 
     /// @inheritdoc IConsensusRegistry
     function exit() external whenNotPaused {
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-
         // require caller is a known `ValidatorInfo` with `active` status
-        uint16 validatorIndex = _getValidatorIndex($, msg.sender);
+        uint16 validatorIndex = _getValidatorIndex(_stakeManagerStorage(), msg.sender);
         if (validatorIndex == 0) revert NotValidator(msg.sender);
+
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         ValidatorInfo storage validator = $.validators[validatorIndex];
         if (validator.currentStatus != ValidatorStatus.Active) {
             revert InvalidStatus(validator.currentStatus);
@@ -220,6 +204,12 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
         validator.currentStatus = ValidatorStatus.PendingExit;
 
         emit ValidatorPendingExit(validator);
+    }
+
+    /// @inheritdoc StakeManager
+    function getRewards(address ecdsaPubkey) public view virtual override returns (uint240 claimableRewards) {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        claimableRewards = _getRewards($, ecdsaPubkey);
     }
 
     /**
@@ -285,8 +275,7 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
     }
 
     /// @dev Checks the given committee size against the total number of active validators using below 3f + 1 BFT rule
-    /// @notice To prevent the network from bricking in the case where validator churn leads to a zero active validator
-    /// count,
+    /// @notice To prevent the network from bricking in the case where validator churn leads to zero active validators,
     /// this function explicitly allows `numActiveValidators` to be zero so that the network can continue operating
     function _checkFaultTolerance(uint256 numActiveValidators, uint256 committeeSize) internal pure {
         if (numActiveValidators == 0) {
@@ -327,7 +316,7 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
             address validatorAddr = currentValidator.ecdsaPubkey;
             uint240 epochReward = stakingRewardInfos[i].stakingRewards;
 
-            $.stakeInfo[validatorAddr].stakingRewards += epochReward;
+            _stakeManagerStorage().stakeInfo[validatorAddr].stakingRewards += epochReward;
         }
     }
 
@@ -366,7 +355,7 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
     }
 
     function _getValidatorIndex(
-        ConsensusRegistryStorage storage $,
+        StakeManagerStorage storage $,
         address ecdsaPubkey
     )
         internal
@@ -424,21 +413,21 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
         __Ownable_init(owner_);
         __Pausable_init();
 
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        StakeManagerStorage storage $S = _stakeManagerStorage();
 
-        $.rwTEL = rwTEL_;
-
-        // Set stake configs
-        $.stakeAmount = stakeAmount_;
-        $.minWithdrawAmount = minWithdrawAmount_;
+        // Set stake storage configs
+        $S.rwTEL = rwTEL_;
+        $S.stakeAmount = stakeAmount_;
+        $S.minWithdrawAmount = minWithdrawAmount_;
 
         // handle first iteration as a special case, performing an extra iteration to compensate
+        ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
         for (uint256 i; i <= initialValidators_.length; ++i) {
             if (i == 0) {
                 // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
                 // this is because undefined validators with empty struct members break checks for uninitialized
                 // validators
-                $.validators.push(
+                $C.validators.push(
                     ValidatorInfo(
                         "",
                         bytes32(0x0),
@@ -469,9 +458,9 @@ contract ConsensusRegistry is UUPSUpgradeable, PausableUpgradeable, OwnableUpgra
                 revert InvalidIndex(currentValidator.validatorIndex);
             }
 
-            $.epochInfo[0].committeeIndices.push(uint16(i));
-            $.stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(i);
-            $.validators.push(currentValidator);
+            $C.epochInfo[0].committeeIndices.push(uint16(i));
+            _stakeManagerStorage().stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(i);
+            $C.validators.push(currentValidator);
 
             // todo: issue consensus NFTs to initial validators?
 

@@ -6,6 +6,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { IConsensusRegistry } from "src/consensus/IConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
+import { StakeInfo, StakeManager } from "src/consensus/StakeManager.sol";
 import { RWTEL } from "src/RWTEL.sol";
 
 contract ConsensusRegistryTest is Test {
@@ -98,9 +99,9 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch twice to reach validator1 activationEpoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
         // use 2 member array for committee now that there are 2 active
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new StakeInfo[](0));
         vm.stopPrank();
 
         // Check validator information
@@ -127,7 +128,7 @@ contract ConsensusRegistryTest is Test {
     // Test for incorrect stake amount
     function testRevert_stake_invalidStakeAmount() public {
         vm.prank(validator1);
-        vm.expectRevert(abi.encodeWithSelector(IConsensusRegistry.InvalidStakeAmount.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(StakeManager.InvalidStakeAmount.selector, 0));
         consensusRegistry.stake{ value: 0 }(blsPubkey, blsSig, ed25519Pubkey);
     }
 
@@ -138,8 +139,8 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch to twice reach activation epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new StakeInfo[](0));
         vm.stopPrank();
 
         // Check event emission
@@ -172,8 +173,8 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch twice to reach exit epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
         vm.stopPrank();
 
         // Check validator information is exited
@@ -191,8 +192,8 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch to twice reach activation epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new StakeInfo[](0));
         vm.stopPrank();
 
         // Exit
@@ -201,8 +202,8 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch twice to reach exit epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
         vm.stopPrank();
 
         // Check event emission
@@ -266,11 +267,11 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch to process stake
         vm.prank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
 
         // Finalize epoch again to reach validator1 activationEpoch
         vm.prank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new StakeInfo[](0));
 
         // Check validator information
         IConsensusRegistry.ValidatorInfo[] memory validators =
@@ -293,8 +294,8 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch twice to process exit
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
         vm.stopPrank();
 
         // Check validator information
@@ -358,16 +359,16 @@ contract ConsensusRegistryTest is Test {
         // Finalize epoch twice to reach validator1 activationEpoch
         vm.startPrank(sysAddress);
         (,, uint256 numActiveValidators) =
-            consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+            consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
         // use 2 member array for committee now that there are 2 active
         consensusRegistry.finalizePreviousEpoch(
-            32, new uint16[](numActiveValidators + 1), new IConsensusRegistry.StakeInfo[](0)
+            32, new uint16[](numActiveValidators + 1), new StakeInfo[](0)
         );
 
         // Simulate earning rewards by finalizing an epoch with a `StakeInfo` for validator1
         uint16 validator1Index = 2;
-        IConsensusRegistry.StakeInfo[] memory validator1Rewards = new IConsensusRegistry.StakeInfo[](1);
-        validator1Rewards[0] = IConsensusRegistry.StakeInfo(validator1Index, fuzzedRewards);
+        StakeInfo[] memory validator1Rewards = new StakeInfo[](1);
+        validator1Rewards[0] = StakeInfo(validator1Index, fuzzedRewards);
         consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), validator1Rewards);
         vm.stopPrank();
 
@@ -407,21 +408,21 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch twice to reach validator1 activationEpoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](1), new StakeInfo[](0));
         // use 2 member array for committee now that there are 2 active
-        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), new StakeInfo[](0));
 
         // earn too little rewards for withdrawal
         uint240 notEnoughRewards = uint240(minWithdrawAmount - 1);
         uint16 validator1Index = 2;
-        IConsensusRegistry.StakeInfo[] memory validator1Rewards = new IConsensusRegistry.StakeInfo[](1);
-        validator1Rewards[0] = IConsensusRegistry.StakeInfo(validator1Index, notEnoughRewards);
+        StakeInfo[] memory validator1Rewards = new StakeInfo[](1);
+        validator1Rewards[0] = StakeInfo(validator1Index, notEnoughRewards);
         consensusRegistry.finalizePreviousEpoch(32, new uint16[](2), validator1Rewards);
         vm.stopPrank();
 
         // Attempt to claim rewards
         vm.prank(validator1);
-        vm.expectRevert(abi.encodeWithSelector(IConsensusRegistry.InsufficientRewards.selector, notEnoughRewards));
+        vm.expectRevert(abi.encodeWithSelector(StakeManager.InsufficientRewards.selector, notEnoughRewards));
         consensusRegistry.claimStakeRewards();
     }
 
@@ -436,7 +437,7 @@ contract ConsensusRegistryTest is Test {
 
         // Call the function
         vm.prank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(numBlocks, newCommitteeIndices, new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(numBlocks, newCommitteeIndices, new StakeInfo[](0));
 
         // Fetch current epoch and verify it has incremented
         uint32 currentEpoch = consensusRegistry.getCurrentEpoch();
@@ -457,8 +458,8 @@ contract ConsensusRegistryTest is Test {
 
         // Fast forward epochs to reach activatino epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(100, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(100, new uint16[](2), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(100, new uint16[](1), new StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(100, new uint16[](2), new StakeInfo[](0));
         vm.stopPrank();
 
         // check validator1 activated
@@ -488,7 +489,7 @@ contract ConsensusRegistryTest is Test {
         consensusRegistry.exit();
         // Finalize epoch once to reach `PendingExit` for `validator0`
         vm.prank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(fuzzedNumBlocks, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(fuzzedNumBlocks, new uint16[](1), new StakeInfo[](0));
 
         numValidators = 2000;
         fuzzedRewards = uint240(minWithdrawAmount);
@@ -527,20 +528,20 @@ contract ConsensusRegistryTest is Test {
 
         // Finalize epoch twice to reach activationEpoch for validators entered in the `stake()` loop
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(fuzzedNumBlocks, new uint16[](1), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(fuzzedNumBlocks, new uint16[](1), new StakeInfo[](0));
         // use 2 member array for committee now that there are 2 active
         consensusRegistry.finalizePreviousEpoch(
-            fuzzedNumBlocks, newCommitteeIndices, new IConsensusRegistry.StakeInfo[](0)
+            fuzzedNumBlocks, newCommitteeIndices, new StakeInfo[](0)
         );
 
         uint256 numRecipients = newCommitteeIndices.length; // all committee members receive rewards
         uint240 rewardPerValidator = uint240(fuzzedRewards / numRecipients);
         // construct `committeeRewards` array to compensate voting committee equally (total `fuzzedRewards` divided
         // across committee)
-        IConsensusRegistry.StakeInfo[] memory committeeRewards = new IConsensusRegistry.StakeInfo[](numRecipients);
+        StakeInfo[] memory committeeRewards = new StakeInfo[](numRecipients);
         for (uint256 i; i < newCommitteeIndices.length; ++i) {
             uint16 recipientIndex = newCommitteeIndices[i];
-            committeeRewards[i] = IConsensusRegistry.StakeInfo(recipientIndex, rewardPerValidator);
+            committeeRewards[i] = StakeInfo(recipientIndex, rewardPerValidator);
         }
 
         // Expect the event
@@ -564,7 +565,7 @@ contract ConsensusRegistryTest is Test {
     // Attempt to call without sysAddress should revert
     function testRevert_finalizePreviousEpoch_OnlySystemCall() public {
         vm.expectRevert(abi.encodeWithSelector(SystemCallable.OnlySystemCall.selector, address(this)));
-        consensusRegistry.finalizePreviousEpoch(10, new uint16[](0), new IConsensusRegistry.StakeInfo[](0));
+        consensusRegistry.finalizePreviousEpoch(10, new uint16[](0), new StakeInfo[](0));
     }
 
     function _createRandomBlsPubkey(uint256 seed) internal pure returns (bytes memory) {

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import { StakeInfo } from "./StakeManager.sol";
+
 /**
  * @title ConsensusRegistry Interface
  * @author Telcoin Association
@@ -35,13 +37,9 @@ representation
 
     /// @custom:storage-location erc7201:telcoin.storage.ConsensusRegistry
     struct ConsensusRegistryStorage {
-        address rwTEL;
-        uint256 stakeAmount;
-        uint256 minWithdrawAmount;
         uint32 currentEpoch;
         uint8 epochPointer;
         EpochInfo[4] epochInfo;
-        mapping(address => StakeInfo) stakeInfo;
         ValidatorInfo[] validators;
     }
 
@@ -61,11 +59,6 @@ representation
         uint64 blockHeight;
     }
 
-    struct StakeInfo {
-        uint16 validatorIndex;
-        uint240 stakingRewards; // can be resized to uint104 (100bil $TEL)
-    }
-
     error LowLevelCallFailure();
     error InvalidBLSPubkey();
     error InvalidEd25519Pubkey();
@@ -75,11 +68,9 @@ representation
     error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
     error NotValidator(address ecdsaPubkey);
     error AlreadyDefined(address ecdsaPubkey);
-    error InvalidStakeAmount(uint256 stakeAmount);
     error InvalidStatus(ValidatorStatus status);
     error InvalidIndex(uint16 validatorIndex);
     error InvalidEpoch(uint32 epoch);
-    error InsufficientRewards(uint256 withdrawAmount);
 
     event ValidatorPendingActivation(ValidatorInfo validator);
     event ValidatorActivated(ValidatorInfo validator);
@@ -107,6 +98,9 @@ representation
         external
         returns (uint32 newEpoch, uint64 newBlockHeight, uint256 numActiveValidators);
 
+    /// @dev Issues an exit request for a validator to be ejected from the active validator set
+    function exit() external;
+    
     /// @dev Returns the current epoch
     function getCurrentEpoch() external view returns (uint32);
 
@@ -124,28 +118,4 @@ representation
     /// @dev Fetches the `ValidatorInfo` for a given validator index
     /// @notice To enable checks against storage slots initialized to zero by the EVM, `validatorIndex` cannot be `0`
     function getValidatorByIndex(uint16 validatorIndex) external view returns (ValidatorInfo memory validator);
-
-    /// @dev Fetches the claimable rewards accrued for a given validator address
-    /// @notice Does not include the original stake amount and cannot be claimed until surpassing `minWithdrawAmount`
-    /// @return claimableRewards The validator's claimable rewards, not including the validator's stake
-    function getRewards(address ecdsaPubkey) external view returns (uint240 claimableRewards);
-
-    /**
-     *
-     *   staking
-     *
-     */
-
-    /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
-    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable;
-
-    /// @dev Used for validators to claim their staking rewards for validating the network
-    function claimStakeRewards() external;
-
-    /// @dev Returns previously staked funds and accrued rewards, if any, to the calling validator
-    /// @notice May only be called after fully exiting
-    function unstake() external;
-
-    /// @dev Issues an exit request for a validator to be ejected from the active validator set
-    function exit() external;
 }
