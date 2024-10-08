@@ -6,7 +6,8 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { IConsensusRegistry } from "src/consensus/IConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
-import { StakeInfo, StakeManager } from "src/consensus/StakeManager.sol";
+import { StakeManager } from "src/consensus/StakeManager.sol";
+import { StakeInfo, IStakeManager } from "src/consensus/IStakeManager.sol";
 import { RWTEL } from "src/RWTEL.sol";
 
 contract ConsensusRegistryTest is Test {
@@ -128,7 +129,7 @@ contract ConsensusRegistryTest is Test {
     // Test for incorrect stake amount
     function testRevert_stake_invalidStakeAmount() public {
         vm.prank(validator1);
-        vm.expectRevert(abi.encodeWithSelector(StakeManager.InvalidStakeAmount.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(IStakeManager.InvalidStakeAmount.selector, 0));
         consensusRegistry.stake{ value: 0 }(blsPubkey, blsSig, ed25519Pubkey);
     }
 
@@ -420,7 +421,7 @@ contract ConsensusRegistryTest is Test {
 
         // Attempt to claim rewards
         vm.prank(validator1);
-        vm.expectRevert(abi.encodeWithSelector(StakeManager.InsufficientRewards.selector, notEnoughRewards));
+        vm.expectRevert(abi.encodeWithSelector(IStakeManager.InsufficientRewards.selector, notEnoughRewards));
         consensusRegistry.claimStakeRewards();
     }
 

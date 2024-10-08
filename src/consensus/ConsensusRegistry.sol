@@ -4,8 +4,9 @@ pragma solidity 0.8.26;
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { StakeInfo, StakeManager } from "./StakeManager.sol";
-import { IConsensusRegistry } from "./IConsensusRegistry.sol";
+import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeManager } from "./StakeManager.sol";
+import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 
 /**
@@ -210,12 +211,6 @@ contract ConsensusRegistry is
         validator.currentStatus = ValidatorStatus.PendingExit;
 
         emit ValidatorPendingExit(validator);
-    }
-
-    /// @inheritdoc StakeManager
-    function getRewards(address ecdsaPubkey) public view virtual override returns (uint240 claimableRewards) {
-        StakeManagerStorage storage $ = _stakeManagerStorage();
-        claimableRewards = _getRewards($, ecdsaPubkey);
     }
 
     /**

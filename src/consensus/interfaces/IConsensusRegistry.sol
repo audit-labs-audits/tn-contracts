@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { StakeInfo } from "./StakeManager.sol";
+import { StakeInfo } from "./interfaces/IStakeManager.sol";
 
 /**
  * @title ConsensusRegistry Interface
@@ -23,12 +23,12 @@ ConsensusRegistry storage layout for genesis
 | rwTEL            | address                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 12      | 20    |
 | stakeAmount      | uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | 32    |
 | minWithdrawAmount| uint256                       | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | 32    |
+| stakeInfo        | mapping(address => StakeInfo) | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105 | 0      | y     |
 |------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
 | currentEpoch     | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | 4     |
 | epochPointer     | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 4      | 1     |
 | epochInfo        | EpochInfo[4]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104 | 0      | x     |
 | futureEpochInfo  | FutureEpochInfo[4]            | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23104 | 0      | x     |
-| stakeInfo        | mapping(address => StakeInfo) | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105 | 0      | y     |
 | validators       | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23106 | 0      | z     |
 
 - `epochInfo` begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded
