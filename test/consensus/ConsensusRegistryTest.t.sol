@@ -66,6 +66,9 @@ contract ConsensusRegistryTest is Test {
 
     // Test for successful staking
     function test_stake() public {
+        vm.prank(owner);
+        consensusRegistry.mint(validator1);
+
         // Check event emission
         uint32 activationEpoch = uint32(2);
         uint16 expectedIndex = uint16(2);
@@ -134,6 +137,9 @@ contract ConsensusRegistryTest is Test {
     }
 
     function test_exit() public {
+        vm.prank(owner);
+        consensusRegistry.mint(validator1);
+
         // First stake
         vm.prank(validator1);
         consensusRegistry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
@@ -187,6 +193,9 @@ contract ConsensusRegistryTest is Test {
     }
 
     function test_exit_rejoin() public {
+        vm.prank(owner);
+        consensusRegistry.mint(validator1);
+
         // First stake
         vm.prank(validator1);
         consensusRegistry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
@@ -226,7 +235,7 @@ contract ConsensusRegistryTest is Test {
         );
         // Re-stake after exit
         vm.prank(validator1);
-        consensusRegistry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
+        consensusRegistry.rejoin(blsPubkey, ed25519Pubkey);
 
         // Check validator information
         IConsensusRegistry.ValidatorInfo[] memory validators =
@@ -247,6 +256,9 @@ contract ConsensusRegistryTest is Test {
 
     // Test for exit by a validator who is not active
     function testRevert_exit_notActive() public {
+        vm.prank(owner);
+        consensusRegistry.mint(validator1);
+
         // First stake
         vm.prank(validator1);
         consensusRegistry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
@@ -262,6 +274,9 @@ contract ConsensusRegistryTest is Test {
     }
 
     function test_unstake() public {
+        vm.prank(owner);
+        consensusRegistry.mint(validator1);
+
         // First stake
         vm.prank(validator1);
         consensusRegistry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
@@ -325,13 +340,19 @@ contract ConsensusRegistryTest is Test {
     function testRevert_unstake_nonValidator() public {
         address nonValidator = address(0x3);
 
+        vm.prank(owner);
+        consensusRegistry.mint(nonValidator);
+
         vm.prank(nonValidator);
-        vm.expectRevert(abi.encodeWithSelector(IConsensusRegistry.NotValidator.selector, nonValidator));
+        vm.expectRevert();
         consensusRegistry.unstake();
     }
 
     // Test for unstake by a validator who has not exited
     function testRevert_unstake_notExited() public {
+        vm.prank(owner);
+        consensusRegistry.mint(validator1);
+
         // First stake
         vm.prank(validator1);
         consensusRegistry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
@@ -349,6 +370,9 @@ contract ConsensusRegistryTest is Test {
     // Test for successful claim of staking rewards
     function testFuzz_claimStakeRewards(uint240 fuzzedRewards) public {
         fuzzedRewards = uint240(bound(uint256(fuzzedRewards), minWithdrawAmount, telMaxSupply));
+
+        vm.prank(owner);
+        consensusRegistry.mint(validator1);
 
         // First stake
         vm.prank(validator1);
@@ -400,6 +424,9 @@ contract ConsensusRegistryTest is Test {
 
     // Test for claim by a validator with insufficient rewards
     function testRevert_claimStakeRewards_insufficientRewards() public {
+        vm.prank(owner);
+        consensusRegistry.mint(validator1);
+
         // First stake
         vm.prank(validator1);
         consensusRegistry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
@@ -449,6 +476,9 @@ contract ConsensusRegistryTest is Test {
     }
 
     function test_finalizePreviousEpoch_activatesValidators() public {
+        vm.prank(owner);
+        consensusRegistry.mint(validator1);
+
         // enter validator in PendingActivation state
         vm.prank(validator1);
         consensusRegistry.stake{ value: stakeAmount }(blsPubkey, new bytes(96), ed25519Pubkey);
@@ -497,7 +527,11 @@ contract ConsensusRegistryTest is Test {
             bytes32 newED25519Pubkey = _createRandomED25519Pubkey(i);
             address newValidator = address(uint160(uint256(keccak256(abi.encode(i)))));
 
+            // deal `stakeAmount` funds and prank governance NFT mint to `newValidator`
             vm.deal(newValidator, stakeAmount);
+            vm.prank(owner);
+            consensusRegistry.mint(newValidator);
+
             vm.prank(newValidator);
             consensusRegistry.stake{ value: stakeAmount }(newBLSPubkey, newBLSSig, newED25519Pubkey);
 

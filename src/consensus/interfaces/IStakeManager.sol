@@ -29,6 +29,7 @@ interface IStakeManager {
     error RequiresConsensusNFT();
 
     /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
+    /// @notice Caller must already have been issued a `ConsensusNFT` by Telcoin governance
     function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable;
 
     /// @dev Used for validators to claim their staking rewards for validating the network

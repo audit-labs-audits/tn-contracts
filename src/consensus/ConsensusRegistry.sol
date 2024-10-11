@@ -9,6 +9,7 @@ import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 
+import "forge-std/Test.sol";
 /**
  * @title ConsensusRegistry
  * @author Telcoin Association
@@ -29,6 +30,11 @@ contract ConsensusRegistry is
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant ConsensusRegistryStorageSlot =
         0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100;
+
+    /// @dev Validators are permitted to exit and rejoin at will (ie for maintenance),
+    /// but those that `unstake()` are barred from rejoining by setting their validator
+    /// index to `UNSTAKED`, requiring them to stake and enter again with a new index
+    uint16 internal constant UNSTAKED = type(uint16).max;
 
     /**
      *
@@ -121,49 +127,26 @@ contract ConsensusRegistry is
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         uint16 validatorIndex = _getValidatorIndex(_stakeManagerStorage(), msg.sender);
-        // todo: should ConsensusNFT be issued prior to stake action?
-        // _checkConsensusNFTOwnership(validatorIndex, msg.sender);
+        if (validatorIndex == 0) revert NotValidator(msg.sender);
 
+        // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
+        _checkConsensusNFTOwnership(msg.sender, validatorIndex);
+
+        // push new validator to `validators` array
         uint32 activationEpoch = $.currentEpoch + 2;
-        if (validatorIndex == 0) {
-            // caller is a new validator; update its index in `StakeManager` storage
-            validatorIndex = uint16($.validators.length);
-            _stakeManagerStorage().stakeInfo[msg.sender].validatorIndex = validatorIndex;
+        ValidatorInfo memory newValidator = ValidatorInfo(
+            blsPubkey,
+            ed25519Pubkey,
+            msg.sender,
+            activationEpoch,
+            uint32(0),
+            validatorIndex,
+            bytes4(0),
+            ValidatorStatus.PendingActivation
+        );
+        $.validators.push(newValidator);
 
-            // issue a new ConsensusNFT
-            _mint(msg.sender, validatorIndex);
-
-            // push new validator to `validators` array
-            ValidatorInfo memory newValidator = ValidatorInfo(
-                blsPubkey,
-                ed25519Pubkey,
-                msg.sender,
-                activationEpoch,
-                uint32(0),
-                validatorIndex,
-                bytes4(0),
-                ValidatorStatus.PendingActivation
-            );
-            $.validators.push(newValidator);
-
-            emit ValidatorPendingActivation(newValidator);
-        } else {
-            // caller is a previously known validator
-            ValidatorInfo storage existingValidator = $.validators[validatorIndex];
-
-            // require caller owns a ConsensusNFT
-            _checkConsensusNFTOwnership(msg.sender, validatorIndex);
-
-            // for already known validators, only `Exited` status is valid logical branch
-            _checkValidatorStatus($, validatorIndex, ValidatorStatus.Exited);
-
-            existingValidator.activationEpoch = activationEpoch;
-            existingValidator.currentStatus = ValidatorStatus.PendingActivation;
-            existingValidator.ed25519Pubkey = ed25519Pubkey;
-            existingValidator.blsPubkey = blsPubkey;
-
-            emit ValidatorPendingActivation(existingValidator);
-        }
+        emit ValidatorPendingActivation(newValidator);
     }
 
     /// @inheritdoc StakeManager
@@ -192,9 +175,9 @@ contract ConsensusRegistry is
         // require caller status is `Active`
         _checkValidatorStatus($, validatorIndex, ValidatorStatus.Active);
 
-        ValidatorInfo storage validator = $.validators[validatorIndex];
 
         // enter validator in exit queue (will be ejected in 1.x epochs)
+        ValidatorInfo storage validator = $.validators[validatorIndex];
         uint32 exitEpoch = $.currentEpoch + 2;
         validator.exitEpoch = exitEpoch;
         validator.currentStatus = ValidatorStatus.PendingExit;
@@ -202,25 +185,90 @@ contract ConsensusRegistry is
         emit ValidatorPendingExit(validator);
     }
 
-    /// @inheritdoc StakeManager
-    function unstake() external override whenNotPaused {
+    /// @inheritdoc IConsensusRegistry
+    function rejoin(bytes calldata blsPubkey, bytes32 ed25519Pubkey) external override whenNotPaused {
         // require caller is known by this registry
         uint16 validatorIndex = _checkKnownValidatorIndex(_stakeManagerStorage(), msg.sender);
+        // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
+        _checkConsensusNFTOwnership(msg.sender, validatorIndex);
+
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+
+        // require caller status is `Exited`
+        _checkValidatorStatus($, validatorIndex, ValidatorStatus.Exited);
+        
+        // enter validator in `PendingActivation` queue (will be activated in 1.x epochs)
+        ValidatorInfo storage validator = $.validators[validatorIndex];
+        uint32 activationEpoch = $.currentEpoch + 2;
+        validator.activationEpoch = activationEpoch;
+        validator.currentStatus = ValidatorStatus.PendingActivation;
+        
+        // update keys if provided
+        if (blsPubkey.length != 0) {
+            validator.blsPubkey = blsPubkey;
+        }
+        if (ed25519Pubkey.length != 0) {
+                validator.ed25519Pubkey = ed25519Pubkey;
+        }
+
+        emit ValidatorPendingActivation(validator);
+    }
+
+    /// @inheritdoc StakeManager
+    function unstake() external override whenNotPaused {
+        StakeManagerStorage storage $S = _stakeManagerStorage();
+        // require caller is known by this registry
+        uint16 validatorIndex = _checkKnownValidatorIndex($S, msg.sender);
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
         _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
         // burn the ConsensusNFT; can be reversed if caller rejoins as validator
         _burn(validatorIndex);
 
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
+
         // require caller status is `Exited`
-        _checkValidatorStatus($, validatorIndex, ValidatorStatus.Exited);
-        // set to `Undefined` to show stake was withdrawn, preventing reentrancy
-        $.validators[validatorIndex].currentStatus = ValidatorStatus.Undefined;
+        _checkValidatorStatus($C, validatorIndex, ValidatorStatus.Exited);
+        // set status to `Undefined` and index to `UNSTAKED` to prevent rejoining
+        $C.validators[validatorIndex].currentStatus = ValidatorStatus.Undefined;
+        $S.stakeInfo[msg.sender].validatorIndex = UNSTAKED;
 
         uint256 stakeAndRewards = _unstake();
 
         emit RewardsClaimed(msg.sender, stakeAndRewards);
+    }
+
+    /**
+     *
+     *   ERC721
+     *
+     */
+
+    /// @inheritdoc StakeManager
+    function mint(address ecdsaPubkey) external override onlyOwner {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        // prevent remints as validators may only possess one token
+        if (balanceOf(ecdsaPubkey) != 0 || _getValidatorIndex($, ecdsaPubkey) != 0) {
+            revert AlreadyDefined(ecdsaPubkey);
+        }
+
+        // assign canonical validator uid (1-indexed)
+        uint16 validatorIndex = uint16(_consensusRegistryStorage().validators.length);
+        $.stakeInfo[ecdsaPubkey].validatorIndex = validatorIndex;
+
+        // issue a new ConsensusNFT
+        _mint(ecdsaPubkey, validatorIndex);
+    }
+
+    /// @inheritdoc StakeManager
+    function burn(address ecdsaPubkey) external override onlyOwner {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        uint256 validatorIndex = uint256(_getValidatorIndex($, ecdsaPubkey));
+        if (balanceOf(ecdsaPubkey) != 1 || validatorIndex == 0) {
+            revert NotValidator(ecdsaPubkey);
+        }
+
+        _burn(validatorIndex);
     }
 
     /**

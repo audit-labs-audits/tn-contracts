@@ -130,7 +130,14 @@ representation
         returns (uint32 newEpoch, uint256 numActiveValidators);
 
     /// @dev Issues an exit request for a validator to be ejected from the active validator set
+    /// @notice Caller must be a validator with `ValidatorStatus.Active` status
     function exit() external;
+
+    /// @dev Issues a rejoin request for an exited validator to reactivate
+    /// @notice Caller must be a validator with `ValidatorStatus.Exited` status
+    /// @param blsPubkey Callers may provide a new BLS key if they wish to update it
+    /// @param ed25519Pubkey Callers may provide a new ED25519 key if they wish to update it
+    function rejoin(bytes calldata blsPubkey, bytes32 ed25519Pubkey) external;
 
     /// @dev Returns the current epoch
     function getCurrentEpoch() external view returns (uint32);

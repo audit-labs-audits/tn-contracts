@@ -40,6 +40,20 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
      *
      */
 
+    /// @dev The StakeManager's ERC721 ledger serves a permissioning role over validators, requiring
+    /// Telcoin governance to approve each node operator and manually issue them a `ConsensusNFT`
+    /// @param to Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
+    /// @notice The ERC721 `tokenId` corresponds to ConsensusRegistry's validator index
+    /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
+    function mint(address to) external virtual;
+
+    /// @dev In the case of malicious or erroneous node operator behavior, this function can be 
+    /// used by Telcoin governance to eject a validator from consensus and burn their `ConsensusNFT`
+    /// @param from Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
+    /// @notice The ERC721 `tokenId` corresponds to ConsensusRegistry's validator index
+    /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
+    function burn(address from) external virtual;
+
     /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
     function transferFrom(address, /* from */ address, /* to */ uint256 /* tokenId */ ) public virtual override {
         revert NotTransferable();
@@ -90,10 +104,9 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     }
 
     /// @notice Reverts if `validatorIndex` is not already minted as a `tokenId`
-    /// as well as if the returned owner does not match the given `caller` address
+    /// and is not owned by the given `caller` address
     function _checkConsensusNFTOwnership(address caller, uint256 validatorIndex) internal virtual {
-        // `ERC721Upgradeable::ownerOf()` will revert if the given index is not an existing `tokenId`
-        if (ownerOf(validatorIndex) != caller) revert RequiresConsensusNFT();
+        if (_ownerOf(validatorIndex) != caller) revert RequiresConsensusNFT();
     }
 
     function _checkRewardsExceedMinWithdrawAmount(
