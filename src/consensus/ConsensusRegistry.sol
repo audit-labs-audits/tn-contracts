@@ -18,6 +18,7 @@ import "forge-std/Test.sol";
  * @notice This contract manages consensus validator external keys, staking, and committees
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
+
 contract ConsensusRegistry is
     StakeManager,
     UUPSUpgradeable,
@@ -175,7 +176,6 @@ contract ConsensusRegistry is
         // require caller status is `Active`
         _checkValidatorStatus($, validatorIndex, ValidatorStatus.Active);
 
-
         // enter validator in exit queue (will be ejected in 1.x epochs)
         ValidatorInfo storage validator = $.validators[validatorIndex];
         uint32 exitEpoch = $.currentEpoch + 2;
@@ -196,19 +196,19 @@ contract ConsensusRegistry is
 
         // require caller status is `Exited`
         _checkValidatorStatus($, validatorIndex, ValidatorStatus.Exited);
-        
+
         // enter validator in `PendingActivation` queue (will be activated in 1.x epochs)
         ValidatorInfo storage validator = $.validators[validatorIndex];
         uint32 activationEpoch = $.currentEpoch + 2;
         validator.activationEpoch = activationEpoch;
         validator.currentStatus = ValidatorStatus.PendingActivation;
-        
+
         // update keys if provided
         if (blsPubkey.length != 0) {
             validator.blsPubkey = blsPubkey;
         }
         if (ed25519Pubkey.length != 0) {
-                validator.ed25519Pubkey = ed25519Pubkey;
+            validator.ed25519Pubkey = ed25519Pubkey;
         }
 
         emit ValidatorPendingActivation(validator);
@@ -401,7 +401,8 @@ contract ConsensusRegistry is
         uint16 validatorIndex,
         ValidatorStatus requiredStatus
     )
-        private view
+        private
+        view
     {
         ValidatorStatus status = $.validators[validatorIndex].currentStatus;
         if (status != requiredStatus) revert InvalidStatus(status);
