@@ -34,8 +34,8 @@ ConsensusRegistry storage layout for genesis
 |--------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
 | currentEpoch       | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 0      | 4     |
 | epochPointer       | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 4      | 1     |
-| epochInfo          | EpochInfo[4]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | x     |
-| futureEpochInfo    | FutureEpochInfo[4]            | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | y     |
+| epochInfo          | EpochInfo[0]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | x     |
+| futureEpochInfo    | FutureEpochInfo[0]            | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | y     |
 | validators         | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | z     |
 
 Storage locations for dynamic variables 
@@ -48,10 +48,8 @@ Storage locations for dynamic variables
 - `_balances` content (b) begins at slot `0x16ba8a225c41cb03f9a77bfc5b418e9160dc43575312005d8c81f0bd330b3027`
 - `_tokenApprovals` content (ta) begins at slot `0xd885219e08c56b96b65bd58819c48ecf6d3dc77d238ea09abae06bf5e59c88fd`
 - `_operatorApprovals` content (oa) begins at slot `0xac257f7b51b503ba5377632679403cf33f043c21f94b6a842d6b049c3d330efb`
-- `epochInfo` (x) begins at slot `0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39` as abi-encoded
-representation
-- `futureEpochInfo` (y) begins at slot `0x3e15a0612117eb21841fac9ea1ce6cd116a911fe4c91a9c367a82cd0c3d79718` as abi-encoded
-representation
+// - `epochInfo` (x) begins at slot `0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39` as contiguous static array
+// - `futureEpochInfo` (y) begins at slot `0x3e15a0612117eb21841fac9ea1ce6cd116a911fe4c91a9c367a82cd0c3d79718` as contiguous static array
 - `validators` (z) begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded
 representation
 */

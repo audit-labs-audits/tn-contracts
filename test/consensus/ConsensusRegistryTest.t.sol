@@ -16,7 +16,7 @@ contract ConsensusRegistryTest is Test {
     RWTEL public rwTEL;
 
     address public owner = address(0x1);
-    address public validator0 = address(0x2);
+    address public validator0 = address(0xbabe);
     IConsensusRegistry.ValidatorInfo[] initialValidators; // contains validator0 only
     address public validator1 = address(0x42);
     address public sysAddress;
@@ -36,10 +36,12 @@ contract ConsensusRegistryTest is Test {
         rwTEL = RWTEL(address(0x7e1));
 
         // provide an initial validator as the network will launch with at least one validator
+        bytes memory validator0BLSKey = _createRandomBlsPubkey(stakeAmount);
+        bytes32 validator0ED25519Key = keccak256(abi.encode(minWithdrawAmount));
         initialValidators.push(
             IConsensusRegistry.ValidatorInfo(
-                _createRandomBlsPubkey(stakeAmount),
-                keccak256(abi.encode(stakeAmount)),
+                validator0BLSKey,
+                validator0ED25519Key,
                 validator0,
                 uint32(0),
                 uint32(0),
@@ -63,6 +65,106 @@ contract ConsensusRegistryTest is Test {
         // deal RWTEL max TEL supply to test reward distribution
         vm.deal(address(rwTEL), telMaxSupply);
     }
+
+    function test_setUp() public {
+        bytes32 ownerSlot = 0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300;
+        bytes32 ownerWord = vm.load(address(consensusRegistry), ownerSlot);
+        console2.logString("OwnableUpgradeable slot0");
+        console2.logBytes32(ownerWord);
+        assertEq(address(uint160(uint256(ownerWord))), owner);
+
+        bytes32 stakeManagerSlot = 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7400;
+        
+        bytes32 rwtelWord = vm.load(address(consensusRegistry), stakeManagerSlot);
+        console2.logString("StakeManager slot0");
+        console2.logBytes32(rwtelWord);
+        assertEq(address(uint160(uint256(rwtelWord))), address(rwTEL));
+
+        bytes32 stakeAmountWord = vm.load(address(consensusRegistry), bytes32(uint256(stakeManagerSlot) + 1));
+        console2.logString("StakeManager slot1");
+        console2.logBytes32(stakeAmountWord);
+        assertEq(uint256(stakeAmountWord), stakeAmount);
+
+        bytes32 minWithdrawAmountWord = vm.load(address(consensusRegistry), bytes32(uint256(stakeManagerSlot) + 2));
+        console2.logString("StakeManager slot2");
+        console2.logBytes32(minWithdrawAmountWord);
+        assertEq(uint256(minWithdrawAmountWord), minWithdrawAmount);
+
+        bytes32 consensusRegistrySlot = 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100;
+        
+        bytes32 currentEpochAndPointer = vm.load(address(consensusRegistry), consensusRegistrySlot);
+        console2.logString("ConsensusRegistry slot0");
+        console2.logBytes32(currentEpochAndPointer);
+        assertEq(uint256(currentEpochAndPointer), 0);
+
+        bytes32 epochInfoBaseSlot = 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101;
+        
+        bytes32 epochInfoLen = vm.load(address(consensusRegistry), epochInfoBaseSlot);
+        console2.logString("ConsensusRegistry slot1");
+        console2.logBytes32(epochInfoLen);
+        assertEq(uint256(epochInfoLen), 1); // current len for 1 initial validator in committee
+
+        // keccak256(abi.encode(uint256(consensusRegistrySlot) + 1))
+        bytes32 epochInfoSlot = 0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39;
+        console2.logString("slot 0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39");
+        bytes32 epochInfo0 = vm.load(address(consensusRegistry), epochInfoSlot);
+        console2.logBytes32(epochInfo0);
+        assertEq(address(uint160(uint256(epochInfo0))), validator0);
+
+        bytes32 futureEpochInfoBaseSlot = 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102;
+        
+        bytes32 futureEpochInfoLen = vm.load(address(consensusRegistry), futureEpochInfoBaseSlot);
+        console2.logString("ConsensusRegistry slot2");
+        console2.logBytes32(futureEpochInfoLen);
+        assertEq(uint256(futureEpochInfoLen), 0); // incremented by `finalizePreviousEpoch()`
+
+        // keccak256(abi.encode(uint256(consensusRegistrySlot) + 2)))
+        bytes32 futureEpochInfoSlot = 0x3e15a0612117eb21841fac9ea1ce6cd116a911fe4c91a9c367a82cd0c3d79718;
+        bytes32 futureEpochInfo0 = vm.load(address(consensusRegistry), futureEpochInfoSlot);
+        console2.logString("slot 0x3e15a0612117eb21841fac9ea1ce6cd116a911fe4c91a9c367a82cd0c3d79718");
+        console2.logBytes32(futureEpochInfo0);
+        assertEq(address(uint160(uint256(futureEpochInfo0))), address(0x0));
+
+        bytes32 validatorsBaseSlot = 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103;
+
+        bytes32 validatorsLen = vm.load(address(consensusRegistry), validatorsBaseSlot);
+        console2.logString("ConsensusRegistry slot3");
+        console2.logBytes32(validatorsLen);
+        // assertEq(uint256(validatorsLen), 2); // current len for 1 undefined and 1 active validators
+
+        // keccak256(abi.encode(uint256(consensusRegistrySlot) + 3))
+        bytes32 validatorsSlot = 0x6c559f44aaff501c8c4572f1fe564ba609cd362de315d1241502f2e0437459c2;
+        bytes32 validators0 = vm.load(address(consensusRegistry), validatorsSlot);
+        console2.logString("slot 0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b");
+        console2.logBytes32(validators0);
+        // assertEq(address(uint160(uint256(validators0))), validator0);
+
+        // for (uint i; i < 8; ++i)
+        // {
+        //     bytes32 validators1 = vm.load(address(consensusRegistry), bytes32(uint256(validatorsSlot) + i));
+        //     // console2.logString("slot 0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6c");
+        //     console2.logBytes32(validators1);
+        // }
+        // assertEq(address(uint160(uint256(validators1))), validator1);
+
+        // bytes32 validatorsSlot = 0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b;
+        // bytes32 validatorsSlot = 0x9a4a9ed2766d5e32f79c0f98daafb979423be7ffaa3db9c4c4b11902dbd7439b;
+        // uint256 numValidators = consensusRegistry.getValidators(IConsensusRegistry.ValidatorStatus.Undefined).length;
+        // // loop over 8 struct members per validator
+        // for (uint256 i; i <= numValidators * 8; ++i) {
+        //     bytes32 value = vm.load(address(consensusRegistry), bytes32(uint256(validatorsSlot) + i));
+        //     console2.logString("validators slot");
+        //     console2.logUint(i);
+        //     console.logBytes32(value);
+        //     if (i == 0) {
+        //         assertEq(uint256(value), numValidators);
+        //         continue;
+        //     }
+
+        //     // assertEq(uint256(value), rwTEL);
+        // }
+    }
+
 
     // Test for successful staking
     function test_stake() public {
