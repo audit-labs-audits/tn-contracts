@@ -510,13 +510,7 @@ contract ConsensusRegistry is
                 // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
                 $C.validators.push(
                     ValidatorInfo(
-                        "",
-                        bytes32(0x0),
-                        address(0x0),
-                        uint32(0),
-                        uint32(0),
-                        uint24(0),
-                        ValidatorStatus.Undefined
+                        "", bytes32(0x0), address(0x0), uint32(0), uint32(0), uint24(0), ValidatorStatus.Undefined
                     )
                 );
 
