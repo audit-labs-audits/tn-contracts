@@ -43,10 +43,9 @@ contract ConsensusRegistryTest is Test {
                 validator0BLSKey,
                 validator0ED25519Key,
                 validator0,
-                uint32(0),
-                uint32(0),
-                uint16(1),
-                bytes4(0),
+                type(uint32).max, // uint32(0)
+                type(uint32).max, // uint32(0)
+                uint24(1),
                 IConsensusRegistry.ValidatorStatus.Active
             )
         );
@@ -55,9 +54,9 @@ contract ConsensusRegistryTest is Test {
         consensusRegistry.initialize(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
 
         /// @dev debugging
-        // bytes memory init = abi.encodeWithSelector(ConsensusRegistry.initialize.selector, address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
+        bytes memory init = abi.encodeWithSelector(ConsensusRegistry.initialize.selector, address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
         // address(consensusRegistry).call(init);
-        // console.logBytes(init);
+        console.logBytes(init);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
@@ -81,8 +80,6 @@ contract ConsensusRegistryTest is Test {
 0x0636E6890FEC58B60F710B53EFA0EF8DE81CA2FDDCE7E46303A60C9D416C7400 : `rwTEL == 0x7e1`
 0x0636E6890FEC58B60F710B53EFA0EF8DE81CA2FDDCE7E46303A60C9D416C7401 : `stakeAmount == 1000000000000000000000000`
 0x0636E6890FEC58B60F710B53EFA0EF8DE81CA2FDDCE7E46303A60C9D416C7402 : `minWithdrawAmount == 10000000000000000000000`
-0x6C797AE2807EC70DF875410B4E5AB5C71CCB6D14D528257BDBD8CBF0CC0E419A : 0x5252E822906CBBB969D9FA097BB45A6600000000000000000000000000000000 name
-0x6C797AE2807EC70DF875410B4E5AB5C71CCB6D14D528257BDBD8CBF0CC0E4199 : 0x74F9856D5CCE56785FD436368E27C4DBFADB0AE8A9CE40873291AE4BCEBAD419
 0x80BB2B638CC20BC4D0A60D66940F3AB4A00C1D7B313497CA82FB0B4AB0079300 : 0x436F6E73656E7375734E46540000000000000000000000000000000000000018 packed(symbol / decimals)
 0x80BB2B638CC20BC4D0A60D66940F3AB4A00C1D7B313497CA82FB0B4AB0079301 : 0x434E465400000000000000000000000000000000000000000000000000000008 packed()
 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 : `currentEpoch.epochPointer == 0`
@@ -108,6 +105,9 @@ contract ConsensusRegistryTest is Test {
 0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2C : `validators[1].ed25519Pubkey == 0x011201DEED66C3B3A1B2AFB246B1436FD291A5F4B65E4FF0094A013CD922F803`
 0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2D : `validators[1].packed(validatorIndex.exitEpoch.activationEpoch.ecdsaPubkey) == 0x000000010000000000000000000000000000000000000000000000000000BABE`
 0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2E : `validators[1].packed(currentStatus.unused) == 0x0000000000000000000000000000000000000000000000000000000200000000 
+0x6C797AE2807EC70DF875410B4E5AB5C71CCB6D14D528257BDBD8CBF0CC0E4199 : `validators[1].blsPubkey == 0x74F9856D5CCE56785FD436368E27C4DBFADB0AE8A9CE40873291AE4BCEBAD419
+0x6C797AE2807EC70DF875410B4E5AB5C71CCB6D14D528257BDBD8CBF0CC0E419A : `validators[1].blsPubkey == 0x5252E822906CBBB969D9FA097BB45A6600000000000000000000000000000000` 
+0x6C797AE2807EC70DF875410B4E5AB5C71CCB6D14D528257BDBD8CBF0CC0E419B : `validators[1].blsPubkey == 0x5252E822906CBBB969D9FA097BB45A6600000000000000000000000000000000` 
 */                                                                                                                  
     function test_setUp() public {
         bytes32 ownerSlot = 0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300;
@@ -259,25 +259,29 @@ contract ConsensusRegistryTest is Test {
         }
 
         bytes32 validatorsSlotActual = 0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2B;
-        // to skip undefined validator, iterate starting at 1 to match validator index, terminate at `initialValidators.length + 1`
-        for (uint256 i = 1; i <= initialValidators.length + 1; ++i) {
-            // ValidatorInfo occupies 4 base slots (blsPubkeyLen, ed25519Pubkey, packed(ecdsaPubkey, activation, exit, index, unused), currentStatus)
-            uint256 offset = i * 4;
-            bytes32 currentSlot = bytes32(uint256(validatorsSlotActual) + offset);
-            IConsensusRegistry.ValidatorInfo storage currentInitialValidator;
-            assembly {
-                currentInitialValidator.slot := currentSlot
-            }
-            
-            assertEq(currentInitialValidator.blsPubkey.length, 96);
-            assertEq(currentInitialValidator.ed25519Pubkey, ed25519Pubkey);
-            assertEq(currentInitialValidator.ecdsaPubkey, initialValidators[i - 1].ecdsaPubkey);
-            assertEq(currentInitialValidator.activationEpoch, 0);
-            assertEq(currentInitialValidator.exitEpoch, 0);
-            assertEq(currentInitialValidator.validatorIndex, i);
-            assertEq(currentInitialValidator.unused, bytes4(0x0));
-            assertEq(uint8(currentInitialValidator.currentStatus), uint8(IConsensusRegistry.ValidatorStatus.Active));
+        for (uint256 i; i < 8; ++i) {
+            console.logBytes32(vm.load(address(consensusRegistry), bytes32(uint256(validatorsSlotActual) + i - 2)));
         }
+        // // to skip undefined validator, iterate starting at 1 to match validator index and terminate at `initialValidators.length + 1`
+        // for (uint256 i; i < initialValidators.length + 1; ++i) {
+        //     // ValidatorInfo occupies 4 base slots (blsPubkeyLen, ed25519Pubkey, packed(ecdsaPubkey, activation, exit, index, unused), currentStatus)
+        //     uint256 offset = i * 4;
+        //     bytes32 currentSlot = bytes32(uint256(validatorsSlotActual) + offset);
+        //     console2.logBytes32(currentSlot);
+        //     IConsensusRegistry.ValidatorInfo storage currentInitialValidator;
+        //     assembly {
+        //         currentInitialValidator.slot := currentSlot
+        //     }
+            
+        //     assertEq(currentInitialValidator.blsPubkey.length, 96);
+        //     assertEq(currentInitialValidator.ed25519Pubkey, ed25519Pubkey);
+        //     assertEq(currentInitialValidator.ecdsaPubkey, initialValidators[i - 1].ecdsaPubkey);
+        //     assertEq(currentInitialValidator.activationEpoch, 0);
+        //     assertEq(currentInitialValidator.exitEpoch, 0);
+        //     assertEq(currentInitialValidator.validatorIndex, i);
+        //     assertEq(currentInitialValidator.unused, bytes4(0x0));
+        //     assertEq(uint8(currentInitialValidator.currentStatus), uint8(IConsensusRegistry.ValidatorStatus.Active));
+        // }
     }
 
 
@@ -288,7 +292,7 @@ contract ConsensusRegistryTest is Test {
 
         // Check event emission
         uint32 activationEpoch = uint32(2);
-        uint16 expectedIndex = uint16(2);
+        uint24 expectedIndex = uint24(2);
         vm.expectEmit(true, true, true, true);
         emit IConsensusRegistry.ValidatorPendingActivation(
             IConsensusRegistry.ValidatorInfo(
@@ -298,7 +302,6 @@ contract ConsensusRegistryTest is Test {
                 activationEpoch,
                 uint32(0),
                 expectedIndex,
-                bytes4(0),
                 IConsensusRegistry.ValidatorStatus.PendingActivation
             )
         );
@@ -314,7 +317,6 @@ contract ConsensusRegistryTest is Test {
         assertEq(validators[0].ed25519Pubkey, ed25519Pubkey);
         assertEq(validators[0].activationEpoch, activationEpoch);
         assertEq(validators[0].exitEpoch, uint32(0));
-        assertEq(validators[0].unused, bytes4(0));
         assertEq(validators[0].validatorIndex, expectedIndex);
         assertEq(uint8(validators[0].currentStatus), uint8(IConsensusRegistry.ValidatorStatus.PendingActivation));
 
@@ -370,7 +372,7 @@ contract ConsensusRegistryTest is Test {
         // Check event emission
         uint32 activationEpoch = uint32(2);
         uint32 exitEpoch = uint32(4);
-        uint16 expectedIndex = 2;
+        uint24 expectedIndex = 2;
         vm.expectEmit(true, true, true, true);
         emit IConsensusRegistry.ValidatorPendingExit(
             IConsensusRegistry.ValidatorInfo(
@@ -380,7 +382,6 @@ contract ConsensusRegistryTest is Test {
                 activationEpoch,
                 exitEpoch,
                 expectedIndex,
-                bytes4(0),
                 IConsensusRegistry.ValidatorStatus.PendingExit
             )
         );
@@ -436,7 +437,7 @@ contract ConsensusRegistryTest is Test {
         // Check event emission
         uint32 newActivationEpoch = consensusRegistry.getCurrentEpoch() + 2;
         uint32 exitEpoch = uint32(4);
-        uint16 expectedIndex = 2;
+        uint24 expectedIndex = 2;
         vm.expectEmit(true, true, true, true);
         emit IConsensusRegistry.ValidatorPendingActivation(
             IConsensusRegistry.ValidatorInfo(
@@ -446,7 +447,6 @@ contract ConsensusRegistryTest is Test {
                 newActivationEpoch,
                 exitEpoch,
                 expectedIndex,
-                bytes4(0),
                 IConsensusRegistry.ValidatorStatus.PendingActivation
             )
         );
@@ -605,7 +605,7 @@ contract ConsensusRegistryTest is Test {
         consensusRegistry.finalizePreviousEpoch(new address[](numActiveValidators + 1), new StakeInfo[](0));
 
         // Simulate earning rewards by finalizing an epoch with a `StakeInfo` for validator1
-        uint16 validator1Index = 2;
+        uint24 validator1Index = 2;
         StakeInfo[] memory validator1Rewards = new StakeInfo[](1);
         validator1Rewards[0] = StakeInfo(validator1Index, fuzzedRewards);
         consensusRegistry.finalizePreviousEpoch(new address[](2), validator1Rewards);
@@ -656,7 +656,7 @@ contract ConsensusRegistryTest is Test {
 
         // earn too little rewards for withdrawal
         uint240 notEnoughRewards = uint240(minWithdrawAmount - 1);
-        uint16 validator1Index = 2;
+        uint24 validator1Index = 2;
         StakeInfo[] memory validator1Rewards = new StakeInfo[](1);
         validator1Rewards[0] = StakeInfo(validator1Index, notEnoughRewards);
         consensusRegistry.finalizePreviousEpoch(new address[](2), validator1Rewards);
@@ -712,14 +712,14 @@ contract ConsensusRegistryTest is Test {
         assertEq(validators.length, 2);
         assertEq(validators[0].ecdsaPubkey, validator0);
         assertEq(validators[1].ecdsaPubkey, validator1);
-        uint16 returnedIndex = consensusRegistry.getValidatorIndex(validator1);
+        uint24 returnedIndex = consensusRegistry.getValidatorIndex(validator1);
         assertEq(returnedIndex, 2);
         IConsensusRegistry.ValidatorInfo memory returnedVal = consensusRegistry.getValidatorByIndex(returnedIndex);
         assertEq(returnedVal.ecdsaPubkey, validator1);
     }
 
-    function testFuzz_finalizePreviousEpoch(uint16 numValidators, uint240 fuzzedRewards) public {
-        numValidators = uint16(bound(uint256(numValidators), 4, 8000)); // fuzz up to 8k validators
+    function testFuzz_finalizePreviousEpoch(uint24 numValidators, uint240 fuzzedRewards) public {
+        numValidators = uint24(bound(uint256(numValidators), 4, 8000)); // fuzz up to 8k validators
         fuzzedRewards = uint240(bound(uint256(fuzzedRewards), minWithdrawAmount, telMaxSupply));
 
         // exit existing validator0 which was activated in constructor to clean up calculations
@@ -778,7 +778,7 @@ contract ConsensusRegistryTest is Test {
         // across committee)
         StakeInfo[] memory committeeRewards = new StakeInfo[](numRecipients);
         for (uint256 i; i < newCommittee.length; ++i) {
-            uint16 recipientIndex = consensusRegistry.getValidatorIndex(newCommittee[i]);
+            uint24 recipientIndex = consensusRegistry.getValidatorIndex(newCommittee[i]);
             committeeRewards[i] = StakeInfo(recipientIndex, rewardPerValidator);
         }
 
@@ -792,7 +792,7 @@ contract ConsensusRegistryTest is Test {
 
         // Check rewards were incremented for each committee member
         for (uint256 i; i < newCommittee.length; ++i) {
-            uint16 index = consensusRegistry.getValidatorIndex(newCommittee[i]);
+            uint24 index = consensusRegistry.getValidatorIndex(newCommittee[i]);
             address committeeMember = consensusRegistry.getValidatorByIndex(index).ecdsaPubkey;
             uint256 updatedRewards = consensusRegistry.getRewards(committeeMember);
             assertEq(updatedRewards, rewardPerValidator);

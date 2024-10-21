@@ -10,7 +10,7 @@ pragma solidity 0.8.26;
  * @dev Implemented within StakeManager.sol, which is inherited by the ConsensusRegistry
  */
 struct StakeInfo {
-    uint16 validatorIndex;
+    uint24 validatorIndex;
     uint240 stakingRewards;
 }
 

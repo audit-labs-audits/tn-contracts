@@ -35,7 +35,7 @@ contract ConsensusRegistry is
     /// @dev Validators are permitted to exit and rejoin at will (ie for maintenance),
     /// but those that `unstake()` are barred from rejoining by setting their validator
     /// index to `UNSTAKED`, requiring them to stake and enter again with a new index
-    uint16 internal constant UNSTAKED = type(uint16).max;
+    uint24 internal constant UNSTAKED = type(uint24).max;
 
     /**
      *
@@ -92,12 +92,12 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc IConsensusRegistry
-    function getValidatorIndex(address ecdsaPubkey) public view returns (uint16 validatorIndex) {
+    function getValidatorIndex(address ecdsaPubkey) public view returns (uint24 validatorIndex) {
         validatorIndex = _getValidatorIndex(_stakeManagerStorage(), ecdsaPubkey);
     }
 
     /// @inheritdoc IConsensusRegistry
-    function getValidatorByIndex(uint16 validatorIndex) public view returns (ValidatorInfo memory validator) {
+    function getValidatorByIndex(uint24 validatorIndex) public view returns (ValidatorInfo memory validator) {
         if (validatorIndex == 0) revert InvalidIndex(validatorIndex);
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
@@ -127,7 +127,7 @@ contract ConsensusRegistry is
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
-        uint16 validatorIndex = _getValidatorIndex(_stakeManagerStorage(), msg.sender);
+        uint24 validatorIndex = _getValidatorIndex(_stakeManagerStorage(), msg.sender);
         if (validatorIndex == 0) revert NotValidator(msg.sender);
 
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
@@ -142,7 +142,6 @@ contract ConsensusRegistry is
             activationEpoch,
             uint32(0),
             validatorIndex,
-            bytes4(0),
             ValidatorStatus.PendingActivation
         );
         $.validators.push(newValidator);
@@ -155,7 +154,7 @@ contract ConsensusRegistry is
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
         // require caller is known by this registry
-        uint16 validatorIndex = _checkKnownValidatorIndex($, msg.sender);
+        uint24 validatorIndex = _checkKnownValidatorIndex($, msg.sender);
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
         _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
@@ -167,7 +166,7 @@ contract ConsensusRegistry is
     /// @inheritdoc IConsensusRegistry
     function exit() external whenNotPaused {
         // require caller is known by this registry
-        uint16 validatorIndex = _checkKnownValidatorIndex(_stakeManagerStorage(), msg.sender);
+        uint24 validatorIndex = _checkKnownValidatorIndex(_stakeManagerStorage(), msg.sender);
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
         _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
@@ -188,7 +187,7 @@ contract ConsensusRegistry is
     /// @inheritdoc IConsensusRegistry
     function rejoin(bytes calldata blsPubkey, bytes32 ed25519Pubkey) external override whenNotPaused {
         // require caller is known by this registry
-        uint16 validatorIndex = _checkKnownValidatorIndex(_stakeManagerStorage(), msg.sender);
+        uint24 validatorIndex = _checkKnownValidatorIndex(_stakeManagerStorage(), msg.sender);
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
         _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
@@ -218,7 +217,7 @@ contract ConsensusRegistry is
     function unstake() external override whenNotPaused {
         StakeManagerStorage storage $S = _stakeManagerStorage();
         // require caller is known by this registry
-        uint16 validatorIndex = _checkKnownValidatorIndex($S, msg.sender);
+        uint24 validatorIndex = _checkKnownValidatorIndex($S, msg.sender);
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
         _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
@@ -253,7 +252,7 @@ contract ConsensusRegistry is
         }
 
         // assign canonical validator uid (1-indexed)
-        uint16 validatorIndex = uint16(_consensusRegistryStorage().validators.length);
+        uint24 validatorIndex = uint24(_consensusRegistryStorage().validators.length);
         $.stakeInfo[ecdsaPubkey].validatorIndex = validatorIndex;
 
         // issue a new ConsensusNFT
@@ -368,7 +367,7 @@ contract ConsensusRegistry is
         internal
     {
         for (uint256 i; i < stakingRewardInfos.length; ++i) {
-            uint16 index = stakingRewardInfos[i].validatorIndex;
+            uint24 index = stakingRewardInfos[i].validatorIndex;
             ValidatorInfo storage currentValidator = $.validators[index];
             // ensure client provided rewards only to known validators that were active in previous epoch
             if (newEpoch <= currentValidator.activationEpoch || currentValidator.activationEpoch == 0) {
@@ -389,7 +388,7 @@ contract ConsensusRegistry is
     )
         private
         view
-        returns (uint16 validatorIndex)
+        returns (uint24 validatorIndex)
     {
         validatorIndex = _getValidatorIndex($, caller);
         if (validatorIndex == 0) revert NotValidator(caller);
@@ -398,7 +397,7 @@ contract ConsensusRegistry is
     /// @dev Reverts if the provided validator's status doesn't match the provided `requiredStatus`
     function _checkValidatorStatus(
         ConsensusRegistryStorage storage $,
-        uint16 validatorIndex,
+        uint24 validatorIndex,
         ValidatorStatus requiredStatus
     )
         private
@@ -442,7 +441,7 @@ contract ConsensusRegistry is
         }
     }
 
-    function _getValidatorIndex(StakeManagerStorage storage $, address ecdsaPubkey) internal view returns (uint16) {
+    function _getValidatorIndex(StakeManagerStorage storage $, address ecdsaPubkey) internal view returns (uint24) {
         return $.stakeInfo[ecdsaPubkey].validatorIndex;
     }
 
@@ -490,7 +489,7 @@ contract ConsensusRegistry is
         external
         initializer
     {
-        if (initialValidators_.length == 0 || initialValidators_.length > type(uint16).max) {
+        if (initialValidators_.length == 0 || initialValidators_.length > type(uint24).max) {
             revert InitializerArityMismatch();
         }
 
@@ -516,8 +515,7 @@ contract ConsensusRegistry is
                         address(0x0),
                         uint32(0),
                         uint32(0),
-                        uint16(0),
-                        bytes4(0),
+                        uint24(0),
                         ValidatorStatus.Undefined
                     )
                 );
@@ -532,8 +530,8 @@ contract ConsensusRegistry is
             if (currentValidator.blsPubkey.length != 96) revert InvalidBLSPubkey();
             if (currentValidator.ed25519Pubkey == bytes32(0x0)) revert InvalidEd25519Pubkey();
             if (currentValidator.ecdsaPubkey == address(0x0)) revert InvalidECDSAPubkey();
-            if (currentValidator.activationEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
-            if (currentValidator.exitEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
+            // if (currentValidator.activationEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
+            // if (currentValidator.exitEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
             if (currentValidator.currentStatus != ValidatorStatus.Active) {
                 revert InvalidStatus(currentValidator.currentStatus);
             }
@@ -547,7 +545,7 @@ contract ConsensusRegistry is
             }
 
             uint256 validatorIndex = i;
-            _stakeManagerStorage().stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint16(validatorIndex);
+            _stakeManagerStorage().stakeInfo[currentValidator.ecdsaPubkey].validatorIndex = uint24(validatorIndex);
             $C.validators.push(currentValidator);
 
             __ERC721_init("ConsensusNFT", "CNFT");

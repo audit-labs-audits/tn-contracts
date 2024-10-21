@@ -69,8 +69,7 @@ representation
         address ecdsaPubkey;
         uint32 activationEpoch; // uint32 provides ~22000yr for 160s epochs (5s rounds)
         uint32 exitEpoch;
-        uint16 validatorIndex; // up to 65535 validators
-        bytes4 unused; // can be used for other data as well as expanded against activation and exit members
+        uint24 validatorIndex; // up to 65535 validators
         ValidatorStatus currentStatus;
     }
 
@@ -94,7 +93,7 @@ representation
     error NotValidator(address ecdsaPubkey);
     error AlreadyDefined(address ecdsaPubkey);
     error InvalidStatus(ValidatorStatus status);
-    error InvalidIndex(uint16 validatorIndex);
+    error InvalidIndex(uint24 validatorIndex);
     error InvalidEpoch(uint32 epoch);
 
     event ValidatorPendingActivation(ValidatorInfo validator);
@@ -149,9 +148,9 @@ representation
     /// @dev Fetches the `validatorIndex` for a given validator address
     /// @notice A returned `validatorIndex` value of `0` is invalid and indicates
     /// that the given address is not a known validator's ECDSA externalkey
-    function getValidatorIndex(address ecdsaPubkey) external view returns (uint16 validatorIndex);
+    function getValidatorIndex(address ecdsaPubkey) external view returns (uint24 validatorIndex);
 
     /// @dev Fetches the `ValidatorInfo` for a given validator index
     /// @notice To enable checks against storage slots initialized to zero by the EVM, `validatorIndex` cannot be `0`
-    function getValidatorByIndex(uint16 validatorIndex) external view returns (ValidatorInfo memory validator);
+    function getValidatorByIndex(uint24 validatorIndex) external view returns (ValidatorInfo memory validator);
 }
