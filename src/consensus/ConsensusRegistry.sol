@@ -530,8 +530,8 @@ contract ConsensusRegistry is
             if (currentValidator.blsPubkey.length != 96) revert InvalidBLSPubkey();
             if (currentValidator.ed25519Pubkey == bytes32(0x0)) revert InvalidEd25519Pubkey();
             if (currentValidator.ecdsaPubkey == address(0x0)) revert InvalidECDSAPubkey();
-            // if (currentValidator.activationEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
-            // if (currentValidator.exitEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
+            if (currentValidator.activationEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
+            if (currentValidator.exitEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
             if (currentValidator.currentStatus != ValidatorStatus.Active) {
                 revert InvalidStatus(currentValidator.currentStatus);
             }

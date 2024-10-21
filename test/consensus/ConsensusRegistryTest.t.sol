@@ -17,7 +17,8 @@ contract ConsensusRegistryTest is Test {
 
     address public owner = address(0xc0ffee);
     address public validator0 = address(0xbabe);
-    IConsensusRegistry.ValidatorInfo[] initialValidators; // contains validator0 only
+    IConsensusRegistry.ValidatorInfo validatorInfo0;
+    IConsensusRegistry.ValidatorInfo[] initialValidators; // contains validatorInfo0 only
     address public validator1 = address(0x42);
     address public sysAddress;
 
@@ -36,19 +37,18 @@ contract ConsensusRegistryTest is Test {
         rwTEL = RWTEL(address(0x7e1));
 
         // provide an initial validator as the network will launch with at least one validator
-        bytes memory validator0BLSKey = _createRandomBlsPubkey(stakeAmount);
-        bytes32 validator0ED25519Key = keccak256(abi.encode(minWithdrawAmount));
-        initialValidators.push(
-            IConsensusRegistry.ValidatorInfo(
+        bytes memory validator0BLSKey = _createRandomBlsPubkey(0);
+        bytes32 validator0ED25519Key = keccak256(abi.encode(0));
+        validatorInfo0 = IConsensusRegistry.ValidatorInfo(
                 validator0BLSKey,
                 validator0ED25519Key,
                 validator0,
-                type(uint32).max, // uint32(0)
-                type(uint32).max, // uint32(0)
+                uint32(0),
+                uint32(0),
                 uint24(1),
                 IConsensusRegistry.ValidatorStatus.Active
-            )
-        );
+            );
+        initialValidators.push(validatorInfo0);
         consensusRegistryImpl = new ConsensusRegistry();
         consensusRegistry = ConsensusRegistry(payable(address(new ERC1967Proxy(address(consensusRegistryImpl), ""))));
         consensusRegistry.initialize(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
@@ -70,18 +70,17 @@ contract ConsensusRegistryTest is Test {
         vm.deal(address(rwTEL), telMaxSupply);
     }
 
-/* The following slots must be set at genesis, simulated in tests here with `initialize()`
-0x360894A13BA1A3210667C828492DB98DCA3E2076CC3735A920A3CA505D382BBC : 0x65B54A4646369D8AD83CB58A5A6B39F22FCD8CEE (impl addr)
-0x89DC4F27410B0F3ACC713877BE759A601621941908FBC40B97C5004C02763CF8 : 1
+/* The following slots must be set at genesis, simulated in `test_setUp()` here using `initialize()`
+0x360894A13BA1A3210667C828492DB98DCA3E2076CC3735A920A3CA505D382BBC : `implementation`
+0xF0C57E16840DF040F15088DC2F81FE391C3923BEC73E23A9662EFC9C229C6A00 : `_initialized == uint64(1)`
 0x9016D09D72D40FDAE2FD8CEAC6B6234C7706214FD39C1CD1E609A0528C199300 : `owner == 0xc0ffee`
-0xBDB57EBF9F236E21A27420ACA53E57B3F4D9C46B35290CA11821E608CDAB5F19 : 0xBABE 
-0xF0C57E16840DF040F15088DC2F81FE391C3923BEC73E23A9662EFC9C229C6A00 : 1
-0xF72EACDC698A36CB279844370E2C8C845481AD672FF1E7EFFA7264BE6D6A9FD2 : 1
+0x80BB2B638CC20BC4D0A60D66940F3AB4A00C1D7B313497CA82FB0B4AB0079300 : `shortString("ConsensusNFT", length * 2) == 0x436F6E73656E7375734E46540000000000000000000000000000000000000018`
+0x80BB2B638CC20BC4D0A60D66940F3AB4A00C1D7B313497CA82FB0B4AB0079301 : `shortString("CNFT", length * 2) == 0x434E465400000000000000000000000000000000000000000000000000000008`
+0xBDB57EBF9F236E21A27420ACA53E57B3F4D9C46B35290CA11821E608CDAB5F19 : `keccak256(abi.encodePacked(validator0, _owners.slot)) == _owners[validator0] (== validator0)`
+0x89DC4F27410B0F3ACC713877BE759A601621941908FBC40B97C5004C02763CF8 : `keccak256(abi.encodePacked(validator0, _balances.slot)) == _balances[validator0] (== 1)`
 0x0636E6890FEC58B60F710B53EFA0EF8DE81CA2FDDCE7E46303A60C9D416C7400 : `rwTEL == 0x7e1`
 0x0636E6890FEC58B60F710B53EFA0EF8DE81CA2FDDCE7E46303A60C9D416C7401 : `stakeAmount == 1000000000000000000000000`
 0x0636E6890FEC58B60F710B53EFA0EF8DE81CA2FDDCE7E46303A60C9D416C7402 : `minWithdrawAmount == 10000000000000000000000`
-0x80BB2B638CC20BC4D0A60D66940F3AB4A00C1D7B313497CA82FB0B4AB0079300 : 0x436F6E73656E7375734E46540000000000000000000000000000000000000018 packed(symbol / decimals)
-0x80BB2B638CC20BC4D0A60D66940F3AB4A00C1D7B313497CA82FB0B4AB0079301 : 0x434E465400000000000000000000000000000000000000000000000000000008 packed()
 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 : `currentEpoch.epochPointer == 0`
 0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F23101 : `epochInfo[0].committee.length == 1`
 0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F23102 : `epochInfo[0].blockHeight == 0`
@@ -96,25 +95,43 @@ contract ConsensusRegistryTest is Test {
 0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F2310b : `futureEpochInfo[2].committee.length == 0`
 0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F2310c : `futureEpochInfo[3].committee.length == 0`
 0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F2310D : `validators.length == 2`
+0x8127b3d06d1bc4fc33994fe62c6bb5ac3963bb2d1bcb96f34a40e1bdc5624a27-9 : `validators[0]` (undefined)
+0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2A : `validators[1].blsPubkey.length == validator0.blsPubkey.length * 2 + 1 ( == 193)`
+0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2B : `validators[1].ed25519Pubkey == 0x011201DEED66C3B3A1B2AFB246B1436FD291A5F4B65E4FF0094A013CD922F803`
+0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2C : `validators[1].packed(currentStatus.validatorIndex.exitEpoch.activationEpoch.ecdsaPubkey) == 20000010000000000000000000000000000000000000000000000000000BABE`
+0xF693A3577F5F3699D01F01F396D12A401509191AB0370286D497942A2F24F271-3 : `validators[1].blsPubkey` (96 bytes, 3 words)
+0xF72EACDC698A36CB279844370E2C8C845481AD672FF1E7EFFA7264BE6D6A9FD2 : `keccak256(abi.encodePacked(validator0, stakeInfo.slot)) == validatorIndex(1)`
 0x52B83978E270FCD9AF6931F8A7E99A1B79DC8A7AEA355D6241834B19E0A0EC39 : `keccak256(epochInfoBaseSlot) => epochInfos[0].committee` `validator0 == 0xBABE`
 0x96A201C8A417846842C79BE2CD1E33440471871A6CF94B34C8F286AAEB24AD6B : `keccak256(epochInfoBaseSlot + 2) => epochInfos[1].committee` `[validator0] == [0xBABE]`
 0x14D1F3AD8599CD8151592DDEADE449F790ADD4D7065A031FBE8F7DBB1833E0A9 : `keccak256(epochInfoBaseSlot + 4) => epochInfos[2].committee` `[validator0] == [0xBABE]`
 0x79af749cb95fe9cb496550259d0d961dfb54cb2ad0ce32a4118eed13c438a935 : `keccak256(epochInfoBaseSlot + 6) => epochInfos[3].committee` `not set == [address(0x0)]`
-0x8127b3d06d1bc4fc33994fe62c6bb5ac3963bb2d1bcb96f34a40e1bdc5624a27-2A : `validators[0]` (undefined)
-0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2B : `validators[1].blsPubkey.length == 97` (should be 96)
-0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2C : `validators[1].ed25519Pubkey == 0x011201DEED66C3B3A1B2AFB246B1436FD291A5F4B65E4FF0094A013CD922F803`
-0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2D : `validators[1].packed(validatorIndex.exitEpoch.activationEpoch.ecdsaPubkey) == 0x000000010000000000000000000000000000000000000000000000000000BABE`
-0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2E : `validators[1].packed(currentStatus.unused) == 0x0000000000000000000000000000000000000000000000000000000200000000 
-0x6C797AE2807EC70DF875410B4E5AB5C71CCB6D14D528257BDBD8CBF0CC0E4199 : `validators[1].blsPubkey == 0x74F9856D5CCE56785FD436368E27C4DBFADB0AE8A9CE40873291AE4BCEBAD419
-0x6C797AE2807EC70DF875410B4E5AB5C71CCB6D14D528257BDBD8CBF0CC0E419A : `validators[1].blsPubkey == 0x5252E822906CBBB969D9FA097BB45A6600000000000000000000000000000000` 
-0x6C797AE2807EC70DF875410B4E5AB5C71CCB6D14D528257BDBD8CBF0CC0E419B : `validators[1].blsPubkey == 0x5252E822906CBBB969D9FA097BB45A6600000000000000000000000000000000` 
-*/                                                                                                                  
+
+*/                                                                                   
     function test_setUp() public {
         bytes32 ownerSlot = 0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300;
         bytes32 ownerWord = vm.load(address(consensusRegistry), ownerSlot);
         console2.logString("OwnableUpgradeable slot0");
         console2.logBytes32(ownerWord);
         assertEq(address(uint160(uint256(ownerWord))), owner);
+
+        /**
+        *
+        *   ERC721StorageLocation
+        *
+        */
+
+        bytes32 _ownersSlot = 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079302;
+        uint256 tokenId = 1;
+        // 0xbdb57ebf9f236e21a27420aca53e57b3f4d9c46b35290ca11821e608cdab5f19
+        bytes32 tokenId1OwnersSlot = keccak256(abi.encodePacked(bytes32(tokenId), _ownersSlot));
+        bytes32 returnedOwner = vm.load(address(consensusRegistry), tokenId1OwnersSlot);
+        assertEq(address(uint160(uint256(returnedOwner))), validator0);
+
+        bytes32 _balancesSlot = 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079303;
+        // 0x89DC4F27410B0F3ACC713877BE759A601621941908FBC40B97C5004C02763CF8
+        bytes32 validator0BalancesSlot = keccak256(abi.encodePacked(uint256(uint160(validator0)), _balancesSlot));
+        bytes32 returnedBalance = vm.load(address(consensusRegistry), validator0BalancesSlot);
+        assertEq(uint256(returnedBalance), 1);
 
         /**
         *
@@ -138,6 +155,19 @@ contract ConsensusRegistryTest is Test {
         console2.logString("StakeManager slot2");
         console2.logBytes32(minWithdrawAmountWord);
         assertEq(uint256(minWithdrawAmountWord), minWithdrawAmount);
+
+        bytes32 stakeInfoSlot = 0x0636E6890FEC58B60F710B53EFA0EF8DE81CA2FDDCE7E46303A60C9D416C7403;
+        // 0xf72eacdc698a36cb279844370e2c8c845481ad672ff1e7effa7264be6d6a9fd2
+        bytes32 stakeInfoValidator0Slot = keccak256(abi.encodePacked(uint256(uint160(validator0)), stakeInfoSlot));
+        bytes32 returnedStakeInfoIndex = vm.load(address(consensusRegistry), stakeInfoValidator0Slot);
+        assertEq(returnedStakeInfoIndex, bytes32(uint256(uint24(1)))); // validator0's index == 1
+
+
+        /**
+        *
+        *   consensusRegistryStorage
+        *
+        */
 
         bytes32 consensusRegistrySlot = 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100;
         
@@ -225,7 +255,6 @@ contract ConsensusRegistryTest is Test {
             assertEq(uint256(futureEpochInfoCommitteeLen), 0);
         }
 
-        
         for (uint256 i; i < 4; ++i) {
             bytes32 futureEpochInfoSlot = keccak256(abi.encode(uint256(futureEpochInfoBaseSlot) + i));
             console2.logString("slot :");
@@ -252,36 +281,53 @@ contract ConsensusRegistryTest is Test {
 
         // keccak256(abi.encode(validatorsBaseSlot))
         bytes32 validatorsSlot = 0x8127b3d06d1bc4fc33994fe62c6bb5ac3963bb2d1bcb96f34a40e1bdc5624a27;
+        
+        // first 3 slots belong to the undefined validator
+        for (uint256 i; i < 3; ++i) {
+            bytes32 emptySlot = vm.load(address(consensusRegistry), bytes32(uint256(validatorsSlot) + i));
+            assertEq(emptySlot, bytes32(0x0));
+        }
+        
+        // ValidatorInfo occupies 3 base slots (blsPubkeyLen, ed25519Pubkey, packed(ecdsaPubkey, activation, exit, index, currentStatus))
+        bytes32 firstValidatorSlot = 0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2A;        
 
-        IConsensusRegistry.ValidatorInfo storage undefinedValidator;
+        // check BLS pubkey
+        bytes32 returnedBLSPubkeyLen = vm.load(address(consensusRegistry), firstValidatorSlot);
+        /// @notice For byte arrays that store data.length >= 32, the main slot stores `length * 2 + 1` (content is stored as usual in keccak256(slot))
+        assertEq(returnedBLSPubkeyLen, bytes32(uint256(0xc1))); // `0xc1 == blsPubkey.length * 2 + 1`
+        
+        /// @notice this only checks against `validator0` - must change to test multiple initial validators 
+        bytes memory blsKey = validatorInfo0.blsPubkey;
+        // since BLS pubkey is 96bytes, it occupies 3 slots
+        bytes32 blsPubkeyPartA;
+        bytes32 blsPubkeyPartB;
+        bytes32 blsPubkeyPartC;
+
         assembly {
-            undefinedValidator.slot := validatorsSlot
+            // Load the first 32 bytes (leftmost)
+            blsPubkeyPartA := mload(add(blsKey, 0x20))
+            // Load the second 32 bytes (middle)
+            blsPubkeyPartB := mload(add(blsKey, 0x40))
+            // Load the third 32 bytes (rightmost)
+            blsPubkeyPartC := mload(add(blsKey, 0x60))
         }
 
-        bytes32 validatorsSlotActual = 0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2B;
-        for (uint256 i; i < 8; ++i) {
-            console.logBytes32(vm.load(address(consensusRegistry), bytes32(uint256(validatorsSlotActual) + i - 2)));
-        }
-        // // to skip undefined validator, iterate starting at 1 to match validator index and terminate at `initialValidators.length + 1`
-        // for (uint256 i; i < initialValidators.length + 1; ++i) {
-        //     // ValidatorInfo occupies 4 base slots (blsPubkeyLen, ed25519Pubkey, packed(ecdsaPubkey, activation, exit, index, unused), currentStatus)
-        //     uint256 offset = i * 4;
-        //     bytes32 currentSlot = bytes32(uint256(validatorsSlotActual) + offset);
-        //     console2.logBytes32(currentSlot);
-        //     IConsensusRegistry.ValidatorInfo storage currentInitialValidator;
-        //     assembly {
-        //         currentInitialValidator.slot := currentSlot
-        //     }
-            
-        //     assertEq(currentInitialValidator.blsPubkey.length, 96);
-        //     assertEq(currentInitialValidator.ed25519Pubkey, ed25519Pubkey);
-        //     assertEq(currentInitialValidator.ecdsaPubkey, initialValidators[i - 1].ecdsaPubkey);
-        //     assertEq(currentInitialValidator.activationEpoch, 0);
-        //     assertEq(currentInitialValidator.exitEpoch, 0);
-        //     assertEq(currentInitialValidator.validatorIndex, i);
-        //     assertEq(currentInitialValidator.unused, bytes4(0x0));
-        //     assertEq(uint8(currentInitialValidator.currentStatus), uint8(IConsensusRegistry.ValidatorStatus.Active));
-        // }
+        bytes32 returnedBLSPubkeyA = vm.load(address(consensusRegistry), keccak256(abi.encode(firstValidatorSlot)));
+        assertEq(returnedBLSPubkeyA, blsPubkeyPartA);
+        bytes32 returnedBLSPubkeyB = vm.load(address(consensusRegistry), bytes32(uint256(keccak256(abi.encode(firstValidatorSlot))) + 1));
+        assertEq(returnedBLSPubkeyB, blsPubkeyPartB);
+        bytes32 returnedBLSPubkeyC = vm.load(address(consensusRegistry), bytes32(uint256(keccak256(abi.encode(firstValidatorSlot))) + 2));
+        assertEq(returnedBLSPubkeyC, blsPubkeyPartC);
+
+        // check ED25519 pubkey
+        bytes32 returnedED25519Pubkey = vm.load(address(consensusRegistry), bytes32(uint256(firstValidatorSlot) + 1));
+        assertEq(returnedED25519Pubkey, validatorInfo0.ed25519Pubkey);
+
+        // check packed slot
+        /// @notice `ValidatorInfo.ecdsaPubkey == validator0` only for `validator0`; this test should be updated if launching with > 1 validator at genesis 
+        bytes32 expectedPackedValues = bytes32(abi.encodePacked(IConsensusRegistry.ValidatorStatus.Active, uint24(1), uint32(0), uint32(0), validator0));
+        bytes32 returnedPackedValues = vm.load(address(consensusRegistry), bytes32(uint256(firstValidatorSlot) + 2));
+        assertEq(expectedPackedValues, returnedPackedValues);
     }
 
 
