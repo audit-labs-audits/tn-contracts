@@ -121,7 +121,7 @@ contract ConsensusRegistry is
         override
         whenNotPaused
     {
-        if (blsPubkey.length != 48) revert InvalidBLSPubkey();
+        if (blsPubkey.length != 96) revert InvalidBLSPubkey();
         if (blsSig.length != 96) revert InvalidProof();
         _checkStakeValue(msg.value);
 
@@ -529,7 +529,7 @@ contract ConsensusRegistry is
             ValidatorInfo memory currentValidator = initialValidators_[i - 1];
 
             // assert `validatorIndex` struct members match expected value
-            if (currentValidator.blsPubkey.length != 48) revert InvalidBLSPubkey();
+            if (currentValidator.blsPubkey.length != 96) revert InvalidBLSPubkey();
             if (currentValidator.ed25519Pubkey == bytes32(0x0)) revert InvalidEd25519Pubkey();
             if (currentValidator.ecdsaPubkey == address(0x0)) revert InvalidECDSAPubkey();
             if (currentValidator.activationEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);

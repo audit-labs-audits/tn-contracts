@@ -22,7 +22,7 @@ contract ConsensusRegistryTest is Test {
     address public sysAddress;
 
     bytes public blsPubkey =
-        hex"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456";
+        hex"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     bytes public blsSig =
         hex"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890";
     bytes32 public ed25519Pubkey = bytes32(hex"1234567890123456789012345678901234567890123456789012345678901234");
@@ -219,10 +219,10 @@ contract ConsensusRegistryTest is Test {
         
         // all futureEpochInfo base slots store `length == 0`
         for (uint256 i; i < 4; ++i) {
-            bytes32 futureEpochInfoCommitteeLen = vm.load(address(consensusRegistry), futureEpochInfoBaseSlot + i);
+            bytes32 futureEpochInfoCommitteeLen = vm.load(address(consensusRegistry), bytes32(uint256(futureEpochInfoBaseSlot) + i));
             console2.logString("futureEpochInfo[i].committee.length");
             console2.logBytes32(futureEpochInfoCommitteeLen);
-            assertEq(uint256(futureepochInfo0Len), 0);
+            assertEq(uint256(futureEpochInfoCommitteeLen), 0);
         }
 
         
@@ -253,7 +253,7 @@ contract ConsensusRegistryTest is Test {
         // keccak256(abi.encode(validatorsBaseSlot))
         bytes32 validatorsSlot = 0x8127b3d06d1bc4fc33994fe62c6bb5ac3963bb2d1bcb96f34a40e1bdc5624a27;
 
-        ValidatorInfo storage undefinedValidator;
+        IConsensusRegistry.ValidatorInfo storage undefinedValidator;
         assembly {
             undefinedValidator.slot := validatorsSlot
         }
@@ -264,7 +264,7 @@ contract ConsensusRegistryTest is Test {
             // ValidatorInfo occupies 4 base slots (blsPubkeyLen, ed25519Pubkey, packed(ecdsaPubkey, activation, exit, index, unused), currentStatus)
             uint256 offset = i * 4;
             bytes32 currentSlot = bytes32(uint256(validatorsSlotActual) + offset);
-            ValidatorInfo storage currentInitialValidator;
+            IConsensusRegistry.ValidatorInfo storage currentInitialValidator;
             assembly {
                 currentInitialValidator.slot := currentSlot
             }
@@ -276,7 +276,7 @@ contract ConsensusRegistryTest is Test {
             assertEq(currentInitialValidator.exitEpoch, 0);
             assertEq(currentInitialValidator.validatorIndex, i);
             assertEq(currentInitialValidator.unused, bytes4(0x0));
-            assertEq(currentInitialValidator.currentStatus, ValidatorStatus.Active);
+            assertEq(uint8(currentInitialValidator.currentStatus), uint8(IConsensusRegistry.ValidatorStatus.Active));
         }
     }
 
@@ -807,7 +807,7 @@ contract ConsensusRegistryTest is Test {
 
     function _createRandomBlsPubkey(uint256 seed) internal pure returns (bytes memory) {
         bytes32 seedHash = keccak256(abi.encode(seed));
-        return abi.encodePacked(seedHash, bytes16(keccak256(abi.encode(seedHash))));
+        return abi.encodePacked(seedHash, seedHash, seedHash);
     }
 
     function _createRandomBlsSig(uint256 seed) internal pure returns (bytes memory) {
