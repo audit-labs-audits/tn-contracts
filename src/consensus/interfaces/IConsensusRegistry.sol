@@ -69,7 +69,7 @@ representation
         address ecdsaPubkey;
         uint32 activationEpoch; // uint32 provides ~22000yr for 160s epochs (5s rounds)
         uint32 exitEpoch;
-        uint24 validatorIndex; // up to 65535 validators
+        uint24 validatorIndex;
         ValidatorStatus currentStatus;
     }
 

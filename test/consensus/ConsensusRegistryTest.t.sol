@@ -17,9 +17,16 @@ contract ConsensusRegistryTest is Test {
 
     address public owner = address(0xc0ffee);
     address public validator0 = address(0xbabe);
+    address public validator1 = address(0xbababee);
+    address public validator2 = address(0xbabababeee);
+    address public validator3 = address(0xbababababeeee);
     IConsensusRegistry.ValidatorInfo validatorInfo0;
-    IConsensusRegistry.ValidatorInfo[] initialValidators; // contains validatorInfo0 only
-    address public validator1 = address(0x42);
+    IConsensusRegistry.ValidatorInfo validatorInfo1;
+    IConsensusRegistry.ValidatorInfo validatorInfo2;
+    IConsensusRegistry.ValidatorInfo validatorInfo3;
+
+    IConsensusRegistry.ValidatorInfo[] initialValidators; // contains validatorInfo0-3
+
     address public sysAddress;
 
     bytes public blsPubkey =
@@ -40,23 +47,56 @@ contract ConsensusRegistryTest is Test {
         bytes memory validator0BLSKey = _createRandomBlsPubkey(0);
         bytes32 validator0ED25519Key = keccak256(abi.encode(0));
         validatorInfo0 = IConsensusRegistry.ValidatorInfo(
-                validator0BLSKey,
-                validator0ED25519Key,
-                validator0,
-                uint32(0),
-                uint32(0),
-                uint24(1),
-                IConsensusRegistry.ValidatorStatus.Active
-            );
+            validator0BLSKey,
+            validator0ED25519Key,
+            validator0,
+            uint32(0),
+            uint32(0),
+            uint24(1),
+            IConsensusRegistry.ValidatorStatus.Active
+        );
+        validatorInfo1 = IConsensusRegistry.ValidatorInfo(
+            _createRandomBlsPubkey(1),
+            keccak256(abi.encode(1)),
+            validator1,
+            uint32(0),
+            uint32(0),
+            uint24(2),
+            IConsensusRegistry.ValidatorStatus.Active
+        );
+        validatorInfo2 = IConsensusRegistry.ValidatorInfo(
+            _createRandomBlsPubkey(2),
+            keccak256(abi.encode(2)),
+            validator2,
+            uint32(0),
+            uint32(0),
+            uint24(3),
+            IConsensusRegistry.ValidatorStatus.Active
+        );
+        validatorInfo3 = IConsensusRegistry.ValidatorInfo(
+            _createRandomBlsPubkey(3),
+            keccak256(abi.encode(3)),
+            validator3,
+            uint32(0),
+            uint32(0),
+            uint24(4),
+            IConsensusRegistry.ValidatorStatus.Active
+        );
         initialValidators.push(validatorInfo0);
+        initialValidators.push(validatorInfo1);
+        initialValidators.push(validatorInfo2);
+        initialValidators.push(validatorInfo3);
+
         consensusRegistryImpl = new ConsensusRegistry();
         consensusRegistry = ConsensusRegistry(payable(address(new ERC1967Proxy(address(consensusRegistryImpl), ""))));
-        consensusRegistry.initialize(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
+        // consensusRegistry.initialize(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
 
         /// @dev debugging
-        bytes memory init = abi.encodeWithSelector(ConsensusRegistry.initialize.selector, address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
-        // address(consensusRegistry).call(init);
-        console.logBytes(init);
+        // bytes memory init = abi.encodeWithSelector(ConsensusRegistry.initialize.selector, address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
+        bytes memory alloySolCalldata = bytes(hex'61af9e690000000000000000000000002b8fff9ddbebada8c44e26481ed20f0d33abddf300000000000000000000000000000000000000000000d3c21bcecceda000000000000000000000000000000000000000000000000000021e19e0c9bab240000000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000d0309dc1d4d74b508453f2769bde804a7132048b0000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000000000000000000000000000000000000000034000000000000000000000000000000000000000000000000000000000000004a000000000000000000000000000000000000000000000000000000000000000e05c2cf00a87454e353040cda6b13f89384d79a32ce28bd4ca31bcf49c507f08bb000000000000000000000000adc6bead9c9851ace029757ebc709a6712c6a3a40000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000006097f8ce9fd7dd08e9b1bc2438edc740f1163ebac9d7e771a2e00a77b80e1858a9b5d6f9f9255271f30ff34854bebcc72a196e110c806a5fc3ff23b574c6e9e0f8e3e70e7e2c66e0e3cd9183ab49c148483d219197b7843c047483774e5341e7a600000000000000000000000000000000000000000000000000000000000000e030710b15d2bd43974866f4a7a008ac55c4ffcd5258d5fdca3cedc9dd7485732700000000000000000000000027c5c95c755b0e4f7f1d1807ed22d3b8e6e522ad00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000060814b4be81553a9acc708ffe1368175ea90a5547651f13100195a97160c96d209aaa4bc6b4754df0cb7510a74b0f9d55e0f252c9038491c7c8ed770425f76df580eba52ccb03da82611b617fdac5c288dcc341cec907bb5c757151c6d6878155a00000000000000000000000000000000000000000000000000000000000000e0bf85176cc0f677942d2ffc5c97a060dac6467ed075f2da36094e6b551d4faea7000000000000000000000000c9b8899b3725fc07df5e4b0fc3c030136e77b854000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000608d2822eccbfeb03de2501f6fd71b7af3e62b78a5fcf80305421c05967761398ae88a02796361574c7dc97a04811af694178663a9be9229e2f8a6c104ecd6fb663c04abec8eb58c4c6d212b9eec7242fcbf17ea28f77b5e7431a5f2305cc4831e00000000000000000000000000000000000000000000000000000000000000e0c7d972d946c2c19e5f034b878e9bffdaaa97349d27b60f9333ac0c4ff36fe30b000000000000000000000000b890150dca0e49cf380bafbca93c6753e0133f7a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000006090553e55328b315077ce36d7fe5487454bf145aa7c18b709e11ad24d723e26b20f8d97bf3cbc78d1d3862e9db6611d850450792eb00a316ddb21a153c69b76a21b2924f1cc4dfe102492cd1474e288365dd7ff1bb7915481cc69deaa4b5278f6');
+        address(consensusRegistry).call(alloySolCalldata);
+        // console.logBytes(init);
+        return;
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
@@ -105,8 +145,7 @@ contract ConsensusRegistryTest is Test {
 0x96A201C8A417846842C79BE2CD1E33440471871A6CF94B34C8F286AAEB24AD6B : `keccak256(epochInfoBaseSlot + 2) => epochInfos[1].committee` `[validator0] == [0xBABE]`
 0x14D1F3AD8599CD8151592DDEADE449F790ADD4D7065A031FBE8F7DBB1833E0A9 : `keccak256(epochInfoBaseSlot + 4) => epochInfos[2].committee` `[validator0] == [0xBABE]`
 0x79af749cb95fe9cb496550259d0d961dfb54cb2ad0ce32a4118eed13c438a935 : `keccak256(epochInfoBaseSlot + 6) => epochInfos[3].committee` `not set == [address(0x0)]`
-
-*/                                                                                   
+*/
     function test_setUp() public {
         bytes32 ownerSlot = 0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300;
         bytes32 ownerWord = vm.load(address(consensusRegistry), ownerSlot);
