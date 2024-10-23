@@ -229,7 +229,9 @@ contract ConsensusRegistry is
         // require caller status is `Exited`
         _checkValidatorStatus($C, validatorIndex, ValidatorStatus.Exited);
         // set status to `Undefined` and index to `UNSTAKED` to prevent rejoining
-        $C.validators[validatorIndex].currentStatus = ValidatorStatus.Undefined;
+        ValidatorInfo storage callingValidator = $C.validators[validatorIndex];
+        callingValidator.currentStatus = ValidatorStatus.Undefined;
+        callingValidator.validatorIndex = UNSTAKED;
         $S.stakeInfo[msg.sender].validatorIndex = UNSTAKED;
 
         uint256 stakeAndRewards = _unstake();
@@ -244,19 +246,22 @@ contract ConsensusRegistry is
      */
 
     /// @inheritdoc StakeManager
-    function mint(address ecdsaPubkey) external override onlyOwner {
+    function mint(address ecdsaPubkey, uint256 tokenId) external override onlyOwner {
         StakeManagerStorage storage $ = _stakeManagerStorage();
         // prevent remints as validators may only possess one token
         if (balanceOf(ecdsaPubkey) != 0 || _getValidatorIndex($, ecdsaPubkey) != 0) {
             revert AlreadyDefined(ecdsaPubkey);
         }
+        // prevent `validatorIndex` overflow && burned `tokenIds` from being reminted
+        if (tokenId > type(uint24).max ||tokenId < _consensusRegistryStorage().validators.length) {
+            revert InvalidTokenId(tokenId);
+        }
 
         // assign canonical validator uid (1-indexed)
-        uint24 validatorIndex = uint24(_consensusRegistryStorage().validators.length);
-        $.stakeInfo[ecdsaPubkey].validatorIndex = validatorIndex;
+        $.stakeInfo[ecdsaPubkey].validatorIndex = uint24(tokenId);
 
         // issue a new ConsensusNFT
-        _mint(ecdsaPubkey, validatorIndex);
+        _mint(ecdsaPubkey, tokenId);
     }
 
     /// @inheritdoc StakeManager
@@ -370,8 +375,12 @@ contract ConsensusRegistry is
             uint24 index = stakingRewardInfos[i].validatorIndex;
             ValidatorInfo storage currentValidator = $.validators[index];
             // ensure client provided rewards only to known validators that were active in previous epoch
-            if (newEpoch <= currentValidator.activationEpoch || currentValidator.activationEpoch == 0) {
+            if (newEpoch <= currentValidator.activationEpoch) {
                 revert InvalidStatus(ValidatorStatus.PendingActivation);
+            }
+            // only genesis validators can be active with an `activationEpoch == 0`
+            if (index > $.numGenesisValidators) {
+                if (currentValidator.activationEpoch == 0) revert InvalidStatus(ValidatorStatus.Undefined);
             }
 
             address validatorAddr = currentValidator.ecdsaPubkey;
@@ -503,8 +512,9 @@ contract ConsensusRegistry is
         $S.stakeAmount = stakeAmount_;
         $S.minWithdrawAmount = minWithdrawAmount_;
 
-        // handle first iteration as a special case, performing an extra iteration to compensate
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
+
+        // handle first iteration as a special case, performing an extra iteration to compensate
         for (uint256 i; i <= initialValidators_.length; ++i) {
             if (i == 0) {
                 // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`

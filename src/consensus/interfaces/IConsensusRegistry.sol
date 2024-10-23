@@ -61,6 +61,7 @@ representation
         EpochInfo[4] epochInfo;
         FutureEpochInfo[4] futureEpochInfo;
         ValidatorInfo[] validators;
+        uint256 numGenesisValidators;
     }
 
     struct ValidatorInfo {
@@ -92,6 +93,7 @@ representation
     error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
     error NotValidator(address ecdsaPubkey);
     error AlreadyDefined(address ecdsaPubkey);
+    error InvalidTokenId(uint256 tokenId);
     error InvalidStatus(ValidatorStatus status);
     error InvalidIndex(uint24 validatorIndex);
     error InvalidEpoch(uint32 epoch);

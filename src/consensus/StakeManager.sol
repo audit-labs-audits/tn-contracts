@@ -43,9 +43,10 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     /// @dev The StakeManager's ERC721 ledger serves a permissioning role over validators, requiring
     /// Telcoin governance to approve each node operator and manually issue them a `ConsensusNFT`
     /// @param to Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
-    /// @notice The ERC721 `tokenId` corresponds to ConsensusRegistry's validator index
+    /// @param tokenId Refers to the `ERC721::tokenId` which mirrors `ConsensusRegistry::validatorIndex`
+    /// @notice To match ConsensusRegistry's validator index, `tokenId` cannot exceed `type(uint24).max`
     /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
-    function mint(address to) external virtual;
+    function mint(address to, uint256 tokenId) external virtual;
 
     /// @dev In the case of malicious or erroneous node operator behavior, this function can be
     /// used by Telcoin governance to eject a validator from consensus and burn their `ConsensusNFT`
