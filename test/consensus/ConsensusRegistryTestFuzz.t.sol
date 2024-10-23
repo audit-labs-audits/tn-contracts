@@ -146,7 +146,6 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
             bytes memory newBLSSig = _createRandomBlsSig(i);
             bytes32 newED25519Pubkey = _createRandomED25519Pubkey(i);
 
-
             vm.prank(newValidator);
             consensusRegistry.stake{ value: stakeAmount }(newBLSPubkey, newBLSSig, newED25519Pubkey);
 

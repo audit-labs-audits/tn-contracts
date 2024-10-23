@@ -253,7 +253,7 @@ contract ConsensusRegistry is
             revert AlreadyDefined(ecdsaPubkey);
         }
         // prevent `validatorIndex` overflow && burned `tokenIds` from being reminted
-        if (tokenId > type(uint24).max ||tokenId < _consensusRegistryStorage().validators.length) {
+        if (tokenId > type(uint24).max || tokenId < _consensusRegistryStorage().validators.length) {
             revert InvalidTokenId(tokenId);
         }
 
