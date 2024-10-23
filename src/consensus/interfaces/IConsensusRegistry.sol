@@ -91,6 +91,7 @@ representation
     error InvalidProof();
     error InitializerArityMismatch();
     error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
+    error CommitteeRequirement(address ecdsaPubkey);
     error NotValidator(address ecdsaPubkey);
     error AlreadyDefined(address ecdsaPubkey);
     error InvalidTokenId(uint256 tokenId);
@@ -129,6 +130,7 @@ representation
         returns (uint32 newEpoch, uint256 numActiveValidators);
 
     /// @dev Issues an exit request for a validator to be ejected from the active validator set
+    /// @notice Reverts if the caller would cause the network to lose BFT by exiting
     /// @notice Caller must be a validator with `ValidatorStatus.Active` status
     function exit() external;
 

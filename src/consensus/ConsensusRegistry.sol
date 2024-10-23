@@ -170,7 +170,13 @@ contract ConsensusRegistry is
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
         _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
+        // ensure calling validator is not in the current or future committees
+        uint8 epochPointer = _checkNotCommitteeMember(msg.sender);
+
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        uint256 numActiveValidators = _getValidators($, ValidatorStatus.Active).length;
+        uint256 committeeSize = $.epochInfo[epochPointer].committee.length;
+        _checkFaultTolerance(numActiveValidators, committeeSize);
 
         // require caller status is `Active`
         _checkValidatorStatus($, validatorIndex, ValidatorStatus.Active);
@@ -341,11 +347,10 @@ contract ConsensusRegistry is
     }
 
     /// @dev Checks the given committee size against the total number of active validators using below 3f + 1 BFT rule
-    /// @notice To prevent the network from bricking in the case where validator churn leads to zero active validators,
-    /// this function explicitly allows `numActiveValidators` to be zero so that the network can continue operating
+    /// @notice Prevents the network from reaching zero active validators (such as by exit)
     function _checkFaultTolerance(uint256 numActiveValidators, uint256 committeeSize) internal pure {
         if (numActiveValidators == 0) {
-            return;
+            revert InvalidCommitteeSize(0, 0);
         } else if (committeeSize > numActiveValidators) {
             // sanity check committee size is less than number of active validators
             revert InvalidCommitteeSize(numActiveValidators, committeeSize);
@@ -414,6 +419,35 @@ contract ConsensusRegistry is
     {
         ValidatorStatus status = $.validators[validatorIndex].currentStatus;
         if (status != requiredStatus) revert InvalidStatus(status);
+    }
+
+    /// @dev Checks that the given `ecdsaPubkey` is not a member of the current or next two committees
+    function _checkNotCommitteeMember(address ecdsaPubkey) internal view returns (uint8 currentEpochPointer) {
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        currentEpochPointer = $.epochPointer;
+        address[] storage currentCommittee = $.epochInfo[currentEpochPointer].committee;
+        // cache len to memory for gas on iters
+        uint256 currentCommitteeLen = currentCommittee.length;
+        for (uint256 i; i < currentCommitteeLen; ++i) {
+            // revert if `ecdsaPubkey` is a member of current committee
+            if (currentCommittee[i] == ecdsaPubkey) revert CommitteeRequirement(ecdsaPubkey);
+        }
+
+        uint8 nextEpochPointer = (currentEpochPointer + 1) % 4;
+        address[] storage nextCommittee = $.futureEpochInfo[nextEpochPointer].committee;
+        uint256 nextCommitteeLen = nextCommittee.length;
+        for (uint256 i; i < nextCommitteeLen; ++i) {
+            // revert if `ecdsaPubkey` is a member of next committee
+            if (nextCommittee[i] == ecdsaPubkey) revert CommitteeRequirement(ecdsaPubkey);
+        }
+
+        uint8 twoEpochsInFuturePointer = (currentEpochPointer + 2) % 4;
+        address[] storage subsequentCommittee = $.futureEpochInfo[twoEpochsInFuturePointer].committee;
+        uint256 subsequentCommitteeLen = subsequentCommittee.length;
+        for (uint256 i; i < subsequentCommitteeLen; ++i) {
+            // revert if `ecdsaPubkey` is a member of subsequent committee
+            if (subsequentCommittee[i] == ecdsaPubkey) revert CommitteeRequirement(ecdsaPubkey);
+        }
     }
 
     function _getValidators(
