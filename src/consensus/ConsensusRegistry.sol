@@ -513,6 +513,7 @@ contract ConsensusRegistry is
         $S.minWithdrawAmount = minWithdrawAmount_;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
+        $C.numGenesisValidators = initialValidators_.length;
 
         // handle first iteration as a special case, performing an extra iteration to compensate
         for (uint256 i; i <= initialValidators_.length; ++i) {
