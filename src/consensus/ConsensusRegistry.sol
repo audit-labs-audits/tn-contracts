@@ -44,28 +44,43 @@ contract ConsensusRegistry is
      */
 
     /// @inheritdoc IConsensusRegistry
-    function finalizePreviousEpoch(
-        address[] calldata newCommittee,
-        StakeInfo[] calldata stakingRewardInfos
-    )
-        external
-        onlySystemCall
-        returns (uint32 newEpoch, uint256 numActiveValidators)
-    {
+    function concludeEpoch(address[] calldata newCommittee) external override onlySystemCall {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         // update epoch and ring buffer info
-        newEpoch = _updateEpochInfo($, newCommittee);
+        uint32 newEpoch = _updateEpochInfo($, newCommittee);
         // update full validator set by activating/ejecting pending validators
-        numActiveValidators = _updateValidatorSet($, newEpoch);
+        uint256 numActiveValidators = _updateValidatorSet($, newEpoch);
 
         // ensure new epoch's canonical network state is still BFT
         _checkFaultTolerance(numActiveValidators, newCommittee.length);
 
-        // update each validator's claimable rewards with given amounts
-        _incrementRewards($, stakingRewardInfos, newEpoch);
+        emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1)));
+    }
 
-        emit NewEpoch(EpochInfo(newCommittee, uint64(block.number)));
+    /// @inheritdoc IConsensusRegistry
+    function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external override onlySystemCall {
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        uint32 currentEpoch = $.currentEpoch;
+
+        // update each validator's claimable rewards with given amounts
+        for (uint256 i; i < stakingRewardInfos.length; ++i) {
+            uint24 index = stakingRewardInfos[i].validatorIndex;
+            ValidatorInfo storage currentValidator = $.validators[index];
+            // ensure client provided rewards only to known validators that were active in previous epoch
+            if (currentEpoch <= currentValidator.activationEpoch) {
+                revert InvalidStatus(ValidatorStatus.PendingActivation);
+            }
+            // only genesis validators can be active with an `activationEpoch == 0`
+            if (index > $.numGenesisValidators) {
+                if (currentValidator.activationEpoch == 0) revert InvalidStatus(ValidatorStatus.Undefined);
+            }
+
+            address validatorAddr = currentValidator.ecdsaPubkey;
+            uint240 epochReward = stakingRewardInfos[i].stakingRewards;
+
+            _stakeManagerStorage().stakeInfo[validatorAddr].stakingRewards += epochReward;
+        }
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -369,32 +384,6 @@ contract ConsensusRegistry is
         }
     }
 
-    function _incrementRewards(
-        ConsensusRegistryStorage storage $,
-        StakeInfo[] calldata stakingRewardInfos,
-        uint32 newEpoch
-    )
-        internal
-    {
-        for (uint256 i; i < stakingRewardInfos.length; ++i) {
-            uint24 index = stakingRewardInfos[i].validatorIndex;
-            ValidatorInfo storage currentValidator = $.validators[index];
-            // ensure client provided rewards only to known validators that were active in previous epoch
-            if (newEpoch <= currentValidator.activationEpoch) {
-                revert InvalidStatus(ValidatorStatus.PendingActivation);
-            }
-            // only genesis validators can be active with an `activationEpoch == 0`
-            if (index > $.numGenesisValidators) {
-                if (currentValidator.activationEpoch == 0) revert InvalidStatus(ValidatorStatus.Undefined);
-            }
-
-            address validatorAddr = currentValidator.ecdsaPubkey;
-            uint240 epochReward = stakingRewardInfos[i].stakingRewards;
-
-            _stakeManagerStorage().stakeInfo[validatorAddr].stakingRewards += epochReward;
-        }
-    }
-
     /// @dev Reverts if the provided address doesn't correspond to an existing `validatorIndex`
     function _checkKnownValidatorIndex(
         StakeManagerStorage storage $,
@@ -501,13 +490,13 @@ contract ConsensusRegistry is
      */
 
     /// @dev Emergency function to pause validator and stake management
-    /// @notice Does not pause `finalizePreviousEpoch()`. Only accessible by `owner`
+    /// @notice Does not pause `concludeEpoch()`. Only accessible by `owner`
     function pause() external onlyOwner {
         _pause();
     }
 
     /// @dev Emergency function to unpause validator and stake management
-    /// @notice Does not affect `finalizePreviousEpoch()`. Only accessible by `owner`
+    /// @notice Does not affect `concludeEpoch()`. Only accessible by `owner`
     function unpause() external onlyOwner {
         _unpause();
     }

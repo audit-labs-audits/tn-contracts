@@ -120,14 +120,9 @@ representation
     /// staking reward info for the previous epoch to finalize
     /// @param newCommitteeIndices The future validator committee for 2 epochs after 
     /// the current one is finalized; ie `$.currentEpoch + 3` (this func increments `currentEpoch`)
-    /// @param stakingRewardInfos Staking reward info defining which validators to reward 
-    /// and how much each rewardee earned for the current epoch 
-    function finalizePreviousEpoch(
-        address[] calldata newCommitteeIndices, // todo: change to addresses && todo: this array refers to 2 epochs forward, if currentepoch == 0 || 1 special case 
-        StakeInfo[] calldata stakingRewardInfos
-    )
-        external
-        returns (uint32 newEpoch, uint256 numActiveValidators);
+    function concludeEpoch(
+        address[] calldata newCommittee
+    ) external;
 
     /// @dev Issues an exit request for a validator to be ejected from the active validator set
     /// @notice Reverts if the caller would cause the network to lose BFT by exiting

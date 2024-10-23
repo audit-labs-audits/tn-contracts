@@ -13,14 +13,14 @@ These items include
 3.  Managing the active validator set, autonomously bringing them through pending queues for activation and exit
 4.  Storing historical epoch information which includes epoch block heights and voting validator committees. Voter committees are predetermined by the protocol and stored two epochs in the future.
 
-To keep this information up to date, the protocol maintains contract state via the use of a system call to `ConsensusRegistry::finalizePreviousEpoch()` at the end of each epoch. This action is what kickstarts the beginning of each new epoch.
+To keep this information up to date, the protocol maintains contract state via the use of a system call to `ConsensusRegistry::concludeEpoch()` at the end of each epoch. This action is what kickstarts the beginning of each new epoch.
 
 #### Mechanisms
 
-##### The contract's most frequent entrypoint: `finalizePreviousEpoch()`
+##### The contract's most frequent entrypoint: `concludeEpoch()`
 
-- **Finalize Epoch:** The `finalizePreviousEpoch` function is responsible for finalizing the previous epoch, updating the validator set, storing new epoch information, and incrementing staking rewards. Rewards may then be claimed by validators at their discretion.
-- **System Call Context** `finalizePreviousEpoch()` may only be called by the client via `system call`, which occurs every epoch. This logic is abstracted into the `SystemCallable` module.
+- **Finalize Epoch:** The `concludeEpoch` function is responsible for finalizing the previous epoch, updating the validator set, storing new epoch information, and incrementing staking rewards. Rewards may then be claimed by validators at their discretion.
+- **System Call Context** `concludeEpoch()` may only be called by the client via `system call`, which occurs every epoch. This logic is abstracted into the `SystemCallable` module.
 
 ##### ConsensusNFT Whitelist
 
@@ -41,7 +41,7 @@ Below, we follow the general lifecycle of a new validator in roughly chronologic
 
 2. **Activation**
 
-   - **Epoch Advancement:** At the end of each epoch, the `finalizePreviousEpoch()` function is system called directly from the client. This function automatically processes the `PendingActivation` and `PendingExit` queues. Thus, validators in the `PendingActivation` (or `PendingExit`) state are set to `Active` (or `Exited`) state if their activation (or exit) epoch has been reached by advancing an epoch.
+   - **Epoch Advancement:** At the end of each epoch, the `concludeEpoch()` function is system called directly from the client. This function automatically processes the `PendingActivation` and `PendingExit` queues. Thus, validators in the `PendingActivation` (or `PendingExit`) state are set to `Active` (or `Exited`) state if their activation (or exit) epoch has been reached by advancing an epoch.
 
 3. **Reversible Exit**
 

@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { IRWTEL } from "../interfaces/IRWTEL.sol";
-import { IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 
 /**
  * @title StakeManager
@@ -21,6 +21,9 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
 
     /// @inheritdoc IStakeManager
     function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable virtual;
+
+    /// @inheritdoc IStakeManager
+    function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external virtual;
 
     /// @inheritdoc IStakeManager
     function claimStakeRewards() external virtual;

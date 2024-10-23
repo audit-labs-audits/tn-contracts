@@ -32,8 +32,14 @@ interface IStakeManager {
     /// @notice Caller must already have been issued a `ConsensusNFT` by Telcoin governance
     function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable;
 
+    /// @dev Increments the claimable rewards for each validator
+    /// @notice May only be called by the client via system call
+    /// @param stakingRewardInfos Staking reward info defining which validators to reward 
+    /// and how much each rewardee earned for the current epoch 
+    function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external;
+
     /// @dev Used for validators to claim their staking rewards for validating the network
-    /// @notice Rewards are incremented every epoch via syscall in `finalizePreviousEpoch()`
+    /// @notice Rewards are incremented every epoch via syscall in `concludeEpoch()`
     function claimStakeRewards() external;
 
     /// @dev Returns previously staked funds and accrued rewards, if any, to the calling validator
