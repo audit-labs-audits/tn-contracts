@@ -120,17 +120,17 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         }
     }
 
-    function testFuzz_finalizePreviousEpoch(uint24 numValidators, uint240 fuzzedRewards) public {
+    function testFuzz_concludeEpoch(uint24 numValidators, uint240 fuzzedRewards) public {
         numValidators = uint24(bound(uint256(numValidators), 4, 4000)); // fuzz up to 4k validators
         fuzzedRewards = uint240(bound(uint256(fuzzedRewards), minWithdrawAmount, telMaxSupply));
 
-        // exit existing validator0 which was activated in constructor to clean up calculations
-        vm.prank(validator0);
-        consensusRegistry.exit();
+        // // exit existing validator0 which was activated in constructor to clean up calculations
+        // vm.prank(validator0);
+        // consensusRegistry.exit();
         // Finalize epoch once to reach `PendingExit` for `validator0`
         vm.prank(sysAddress);
         // provide `committeeSize == 3` since there are now only 3 active validators
-        consensusRegistry.finalizePreviousEpoch(new address[](3), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
 
         // activate validators via `stake()` and construct `newCommittee` array as pseudorandom subset (1/3)
         uint256 numActiveValidators = uint256(numValidators) + 4;
@@ -159,8 +159,8 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         // Finalize epoch twice to reach activationEpoch for validators entered in the `stake()` loop
         vm.startPrank(sysAddress);
         // provide `committeeSize == 3` since there are now only 3 active validators
-        consensusRegistry.finalizePreviousEpoch(new address[](3), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(newCommittee, new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(newCommittee);
 
         uint256 numRecipients = newCommittee.length; // all committee members receive rewards
         uint240 rewardPerValidator = uint240(fuzzedRewards / numRecipients);
@@ -174,10 +174,11 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
 
         // Expect the event
         vm.expectEmit(true, true, true, true);
-        emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommittee, uint64(block.number)));
+        emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommittee, uint64(block.number + 1)));
         // increment rewards by finalizing an epoch with a `StakeInfo` for constructed committee (new committee not
         // relevant)
-        consensusRegistry.finalizePreviousEpoch(newCommittee, committeeRewards);
+        consensusRegistry.concludeEpoch(newCommittee);
+        consensusRegistry.incrementRewards(committeeRewards);
         vm.stopPrank();
 
         // Check rewards were incremented for each committee member
@@ -205,15 +206,17 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         uint256 initialRewards = consensusRegistry.getRewards(validator4);
 
         // Finalize epoch twice to reach validator4 activationEpoch
+        uint256 numActiveValidators = consensusRegistry.getValidators(IConsensusRegistry.ValidatorStatus.Active).length;
         vm.startPrank(sysAddress);
-        (, uint256 numActiveValidators) = consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(new address[](numActiveValidators + 1), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](numActiveValidators + 1));
 
         // Simulate earning rewards by finalizing an epoch with a `StakeInfo` for validator4
         uint24 validator4Index = 5;
         StakeInfo[] memory validator4Rewards = new StakeInfo[](1);
         validator4Rewards[0] = StakeInfo(validator4Index, fuzzedRewards);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), validator4Rewards);
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.incrementRewards(validator4Rewards);
         vm.stopPrank();
 
         // Check rewards were incremented

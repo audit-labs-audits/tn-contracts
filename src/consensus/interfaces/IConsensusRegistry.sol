@@ -115,10 +115,9 @@ representation
     }
 
     /// @notice Voting Validator Committee changes once every epoch (== 32 rounds)
-    /// @notice Can only be called in a `syscall` context
-    /// @dev Accepts the committee of voting validators for 2 epochs in the future and 
-    /// staking reward info for the previous epoch to finalize
-    /// @param newCommitteeIndices The future validator committee for 2 epochs after 
+    /// @notice Can only be called in a `syscall` context, at the end of an epoch
+    /// @dev Accepts the committee of voting validators for 2 epochs in the future
+    /// @param newCommittee The future validator committee for 2 epochs after 
     /// the current one is finalized; ie `$.currentEpoch + 3` (this func increments `currentEpoch`)
     function concludeEpoch(
         address[] calldata newCommittee
@@ -138,7 +137,8 @@ representation
     /// @dev Returns the current epoch
     function getCurrentEpoch() external view returns (uint32);
 
-    /// @dev Returns information about the provided epoch. Only four latest epochs are stored + accessible
+    /// @dev Returns information about the provided epoch. Only four latest & two future epochs are stored
+    /// @notice When querying for future epochs, `blockHeight` will be 0 as they are not yet known
     function getEpochInfo(uint32 epoch) external view returns (EpochInfo memory currentEpochInfo);
 
     /// @dev Returns an array of `ValidatorInfo` structs that match the provided status for this epoch

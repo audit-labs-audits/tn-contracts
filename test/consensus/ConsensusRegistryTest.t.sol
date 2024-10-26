@@ -288,22 +288,39 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         bytes32 futureEpochInfoBaseSlot = 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23109;
         
-        // all futureEpochInfo base slots store `length == 0`
-        for (uint256 i; i < 4; ++i) {
+        // first 3 futureEpochInfo base slots store `length == 4`
+        for (uint256 i; i < 3; ++i) {
             bytes32 futureEpochInfoCommitteeLen = vm.load(address(consensusRegistry), bytes32(uint256(futureEpochInfoBaseSlot) + i));
             console2.logString("futureEpochInfo[i].committee.length");
             console2.logBytes32(futureEpochInfoCommitteeLen);
-            assertEq(uint256(futureEpochInfoCommitteeLen), 0);
+            assertEq(uint256(futureEpochInfoCommitteeLen), 4);
         }
 
-        for (uint256 i; i < 4; ++i) {
+        // first 3 futureEpochInfo arrays store 
+        for (uint256 i; i < 3; ++i) {
             bytes32 futureEpochInfoSlot = keccak256(abi.encode(uint256(futureEpochInfoBaseSlot) + i));
-            console2.logString("slot :");
+            console2.logString("Start of `futureEpochInfo` array, slot :");
             console2.logBytes32(futureEpochInfoSlot);
-            bytes32 futureEpochInfo = vm.load(address(consensusRegistry), futureEpochInfoSlot);
+            
+            bytes32 futureEpochInfo0 = vm.load(address(consensusRegistry), futureEpochInfoSlot);
             console2.logString("value :");
-            console2.logBytes32(futureEpochInfo);
-            assertEq(address(uint160(uint256(futureEpochInfo))), address(0x0));
+            console2.logBytes32(futureEpochInfo0);
+            assertEq(address(uint160(uint256(futureEpochInfo0))), validator0);
+
+            bytes32 futureEpochInfo1 = vm.load(address(consensusRegistry), bytes32(uint256(futureEpochInfoSlot) + 1));
+            console2.logString("value :");
+            console2.logBytes32(futureEpochInfo1);
+            assertEq(address(uint160(uint256(futureEpochInfo1))), validator1);
+
+            bytes32 futureEpochInfo2 = vm.load(address(consensusRegistry), bytes32(uint256(futureEpochInfoSlot) + 2));
+            console2.logString("value :");
+            console2.logBytes32(futureEpochInfo2);
+            assertEq(address(uint160(uint256(futureEpochInfo2))), validator2);
+
+            bytes32 futureEpochInfo3 = vm.load(address(consensusRegistry), bytes32(uint256(futureEpochInfoSlot) + 3));
+            console2.logString("value :");
+            console2.logBytes32(futureEpochInfo3);
+            assertEq(address(uint160(uint256(futureEpochInfo3))), validator3);
         }
 
 
@@ -369,6 +386,11 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         bytes32 expectedPackedValues = bytes32(abi.encodePacked(IConsensusRegistry.ValidatorStatus.Active, uint24(1), uint32(0), uint32(0), validator0));
         bytes32 returnedPackedValues = vm.load(address(consensusRegistry), bytes32(uint256(firstValidatorSlot) + 2));
         assertEq(expectedPackedValues, returnedPackedValues);
+
+        // (consensusRegistrySlot + 5)
+        bytes32 numGenesisValidatorsSlot = 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23105;
+        bytes32 returnedNumGenesisValidators = vm.load(address(consensusRegistry), numGenesisValidatorsSlot);
+        assertEq(uint256(returnedNumGenesisValidators), 4);
     }
 
 
@@ -410,8 +432,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // Finalize epoch twice to reach validator4 activationEpoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](4));
         vm.stopPrank();
 
         // Check validator information
@@ -456,8 +478,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // Finalize epoch to twice reach activation epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](4));
         vm.stopPrank();
 
         // Check event emission
@@ -489,8 +511,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // Finalize epoch twice to reach exit epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](4));
         vm.stopPrank();
 
         // Check validator information is exited
@@ -512,8 +534,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // Finalize epoch to twice reach activation epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](4));
         vm.stopPrank();
 
         // Exit
@@ -522,8 +544,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // Finalize epoch twice to reach exit epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](4));
         vm.stopPrank();
 
         // Check event emission
@@ -594,11 +616,11 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // Finalize epoch to process stake
         vm.prank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
 
         // Finalize epoch again to reach validator4 activationEpoch
         vm.prank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
 
         // Check validator information
         IConsensusRegistry.ValidatorInfo[] memory validators =
@@ -624,8 +646,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // Finalize epoch twice to process exit
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](4));
         vm.stopPrank();
 
         // Check validator information
@@ -704,15 +726,16 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // Finalize epoch twice to reach validator4 activationEpoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](4));
 
         // earn too little rewards for withdrawal
         uint240 notEnoughRewards = uint240(minWithdrawAmount - 1);
         uint24 validator4Index = 5;
         StakeInfo[] memory validator4Rewards = new StakeInfo[](1);
         validator4Rewards[0] = StakeInfo(validator4Index, notEnoughRewards);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), validator4Rewards);
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.incrementRewards(validator4Rewards);
         vm.stopPrank();
 
         // Attempt to claim rewards
@@ -721,34 +744,36 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         consensusRegistry.claimStakeRewards();
     }
 
-    function test_finalizePreviousEpoch_updatesEpochInfo() public {
+    function test_concludeEpoch_updatesEpochInfo() public {
         // Initialize test data
         address[] memory newCommittee = new address[](4);
         newCommittee[0] = address(0x69);
-        newCommittee[0] = address(0x70);
-        newCommittee[0] = address(0x71);
-        newCommittee[0] = address(0x72);
+        newCommittee[1] = address(0x70);
+        newCommittee[2] = address(0x71);
+        newCommittee[3] = address(0x72);
 
         uint32 initialEpoch = consensusRegistry.getCurrentEpoch();
         assertEq(initialEpoch, 0);
 
         // Call the function
-        vm.prank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(newCommittee, new StakeInfo[](0));
+        vm.startPrank(sysAddress);
+        consensusRegistry.concludeEpoch(newCommittee);
+        consensusRegistry.concludeEpoch(newCommittee);
+        vm.stopPrank();
 
         // Fetch current epoch and verify it has incremented
         uint32 currentEpoch = consensusRegistry.getCurrentEpoch();
-        assertEq(currentEpoch, initialEpoch + 1);
+        assertEq(currentEpoch, initialEpoch + 2);
 
-        // Verify new epoch information
-        IConsensusRegistry.EpochInfo memory epochInfo = consensusRegistry.getEpochInfo(currentEpoch);
-        assertEq(epochInfo.blockHeight, block.number);
+        // Verify future epoch information
+        IConsensusRegistry.EpochInfo memory epochInfo = consensusRegistry.getEpochInfo(currentEpoch + 2);
+        assertEq(epochInfo.blockHeight, 0);
         for (uint256 i; i < epochInfo.committee.length; ++i) {
             assertEq(epochInfo.committee[i], newCommittee[i]);
         }
     }
 
-    function test_finalizePreviousEpoch_activatesValidators() public {
+    function test_concludeEpoch_activatesValidators() public {
         vm.prank(owner);
         uint256 tokenId = 5;
         consensusRegistry.mint(validator4, tokenId);
@@ -759,8 +784,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // Fast forward epochs to reach activation epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](4));
         vm.stopPrank();
 
         // check validator4 activated
@@ -779,8 +804,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
     }
 
     // Attempt to call without sysAddress should revert
-    function testRevert_finalizePreviousEpoch_OnlySystemCall() public {
+    function testRevert_concludeEpoch_OnlySystemCall() public {
         vm.expectRevert(abi.encodeWithSelector(SystemCallable.OnlySystemCall.selector, address(this)));
-        consensusRegistry.finalizePreviousEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
     }
 }

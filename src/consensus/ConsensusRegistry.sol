@@ -58,7 +58,7 @@ contract ConsensusRegistry is
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1)));
     }
 
-    /// @inheritdoc IConsensusRegistry
+    /// @inheritdoc IStakeManager
     function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external override onlySystemCall {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         uint32 currentEpoch = $.currentEpoch;
@@ -91,12 +91,24 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc IConsensusRegistry
-    function getEpochInfo(uint32 epoch) public view returns (EpochInfo memory currentEpochInfo) {
+    function getEpochInfo(uint32 epoch) public view returns (EpochInfo memory epochInfo) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        if (epoch >= 4 && epoch < $.currentEpoch - 4) revert InvalidEpoch(epoch);
+        uint32 currentEpoch = $.currentEpoch;
+        if (epoch > currentEpoch + 2 || (currentEpoch >= 3 && epoch < currentEpoch - 3)) {
+            revert InvalidEpoch(epoch);
+        }
 
-        uint8 pointer = $.epochPointer;
-        currentEpochInfo = $.epochInfo[pointer];
+        if (epoch >= currentEpoch) {
+            // future epoch; epochs up to two in future are stored
+            uint8 futurePointer = (uint8(epoch - currentEpoch) + $.epochPointer) % 4;
+            epochInfo.committee = $.futureEpochInfo[futurePointer].committee;
+        } else {
+            // current or past epoch; up to three in past are stored
+            // identify diff from pointer, preventing underflow by adding 4 (will be modulo'd away)
+            uint8 pointerDiff = uint8(epoch + 4 - currentEpoch);
+            uint8 pointer = ($.epochPointer + pointerDiff) % 4;
+            epochInfo = $.epochInfo[pointer];
+        }
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -351,8 +363,8 @@ contract ConsensusRegistry is
         uint8 newEpochPointer = (prevEpochPointer + 1) % 4;
 
         // update new current epoch info
-        address[] storage currentcommittee = $.futureEpochInfo[newEpochPointer].committee;
-        $.epochInfo[newEpochPointer] = EpochInfo(currentcommittee, uint64(block.number));
+        address[] storage currentCommittee = $.futureEpochInfo[newEpochPointer].committee;
+        $.epochInfo[newEpochPointer] = EpochInfo(currentCommittee, uint64(block.number));
         $.epochPointer = newEpochPointer;
         newEpoch = ++$.currentEpoch;
 
@@ -570,6 +582,7 @@ contract ConsensusRegistry is
             // first three epochs use initial validators as committee
             for (uint256 j; j <= 2; ++j) {
                 $C.epochInfo[j].committee.push(currentValidator.ecdsaPubkey);
+                $C.futureEpochInfo[j].committee.push(currentValidator.ecdsaPubkey);
             }
 
             uint256 validatorIndex = i;
