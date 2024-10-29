@@ -34,8 +34,8 @@ interface IStakeManager {
 
     /// @dev Increments the claimable rewards for each validator
     /// @notice May only be called by the client via system call, at the start of a new epoch
-    /// @param stakingRewardInfos Staking reward info defining which validators to reward 
-    /// and how much each rewardee earned for the current epoch 
+    /// @param stakingRewardInfos Staking reward info defining which validators to reward
+    /// and how much each rewardee earned for the current epoch
     function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external;
 
     /// @dev Used for validators to claim their staking rewards for validating the network
