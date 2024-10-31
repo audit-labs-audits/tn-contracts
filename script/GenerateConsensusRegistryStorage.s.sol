@@ -130,7 +130,9 @@ contract GenerateConsensusRegistryStorage is Script, Test {
         }
 
         string memory root = vm.projectRoot();
-        string memory dest = string.concat(root, "/deployments/consensus-registry-storage.txt");
+        string memory dest = string.concat(root, "/deployments/consensus-registry-storage.yaml");
+        vm.writeLine(dest, "---"); // indicate yaml format
+
         // read all unique storage slots touched by `initialize()` and fetch their final value
         for (uint256 i; i < writtenStorageSlots.length; ++i) {
             // load slot value
@@ -159,9 +161,9 @@ contract GenerateConsensusRegistryStorage is Script, Test {
             }
 
             // write slot and value to file
-            string memory slot = LibString.toString(uint256(currentSlot));
-            string memory value = LibString.toString(uint256(slotValue));
-            string memory entry = string.concat(slot, " ==> ", value);
+            string memory slot = LibString.toHexString(uint256(currentSlot), 32);
+            string memory value = LibString.toHexString(uint256(slotValue), 32);
+            string memory entry = string.concat(slot, ": ", value);
 
             vm.writeLine(dest, entry);
         }

@@ -14,7 +14,7 @@
   libs = ["node_modules"]
   fs_permissions = [
     { access = "write", path = "./log/deployments.json"},
-    { access = "write", path = "./deployments/consensus-registry-storage.txt"},
+    { access = "write", path = "./deployments/consensus-registry-storage.yaml"},
     { access = "read-write", path = "./deployments/deployments.json"},
     { access = "read", path = "./external/uniswap/precompiles"}
   ]
