@@ -30,9 +30,31 @@ contract GenerateConsensusRegistryStorage is Script, Test {
     IConsensusRegistry.ValidatorInfo public validatorInfo2;
     IConsensusRegistry.ValidatorInfo public validatorInfo3;
     IConsensusRegistry.ValidatorInfo public validatorInfo4;
-    bytes public sharedBLSPubkey =
-        hex"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    bytes32 sharedED25519Pubkey = bytes32(type(uint256).max); // 0xffff..
+    bytes32 constant VALIDATOR_1_BLS_A = keccak256("VALIDATOR_1_BLS_A");
+    bytes32 constant VALIDATOR_1_BLS_B = keccak256("VALIDATOR_1_BLS_B");
+    bytes32 constant VALIDATOR_1_BLS_C = keccak256("VALIDATOR_1_BLS_C");
+    bytes validator1BlsPubkey;
+
+    bytes32 constant VALIDATOR_2_BLS_A = keccak256("VALIDATOR_2_BLS_A");
+    bytes32 constant VALIDATOR_2_BLS_B = keccak256("VALIDATOR_2_BLS_B");
+    bytes32 constant VALIDATOR_2_BLS_C = keccak256("VALIDATOR_2_BLS_C");
+    bytes validator2BlsPubkey;
+
+    bytes32 constant VALIDATOR_3_BLS_A = keccak256("VALIDATOR_3_BLS_A");
+    bytes32 constant VALIDATOR_3_BLS_B = keccak256("VALIDATOR_3_BLS_B");
+    bytes32 constant VALIDATOR_3_BLS_C = keccak256("VALIDATOR_3_BLS_C");
+    bytes validator3BlsPubkey;
+
+    bytes32 constant VALIDATOR_4_BLS_A = keccak256("VALIDATOR_4_BLS_A");
+    bytes32 constant VALIDATOR_4_BLS_B = keccak256("VALIDATOR_4_BLS_B");
+    bytes32 constant VALIDATOR_4_BLS_C = keccak256("VALIDATOR_4_BLS_C");
+    bytes validator4BlsPubkey;
+
+    bytes32 VALIDATOR_1_ED25519 = keccak256("VALIDATOR_1_ED25519");
+    bytes32 VALIDATOR_2_ED25519 = keccak256("VALIDATOR_2_ED25519");
+    bytes32 VALIDATOR_3_ED25519 = keccak256("VALIDATOR_3_ED25519");
+    bytes32 VALIDATOR_4_ED25519 = keccak256("VALIDATOR_4_ED25519");
+
     address public validator1 = address(0xbabe);
     address public validator2 = address(0xbeefbabe);
     address public validator3 = address(0xdeadbeefbabe);
@@ -45,10 +67,15 @@ contract GenerateConsensusRegistryStorage is Script, Test {
     function setUp() public {
         consensusRegistryImpl = new ConsensusRegistry();
 
+        validator1BlsPubkey = abi.encodePacked(VALIDATOR_1_BLS_A, VALIDATOR_1_BLS_B, VALIDATOR_1_BLS_C);
+        validator2BlsPubkey = abi.encodePacked(VALIDATOR_2_BLS_A, VALIDATOR_2_BLS_B, VALIDATOR_2_BLS_C);
+        validator3BlsPubkey = abi.encodePacked(VALIDATOR_3_BLS_A, VALIDATOR_3_BLS_B, VALIDATOR_3_BLS_C);
+        validator4BlsPubkey = abi.encodePacked(VALIDATOR_4_BLS_A, VALIDATOR_4_BLS_B, VALIDATOR_4_BLS_C);
+
         // populate `initialValidators` array with base struct from storage
         validatorInfo1 = IConsensusRegistry.ValidatorInfo(
-            sharedBLSPubkey,
-            sharedED25519Pubkey,
+            validator1BlsPubkey,
+            VALIDATOR_1_ED25519,
             validator1,
             uint32(0),
             uint32(0),
@@ -58,8 +85,8 @@ contract GenerateConsensusRegistryStorage is Script, Test {
         initialValidators.push(validatorInfo1);
 
         validatorInfo2 = IConsensusRegistry.ValidatorInfo(
-            sharedBLSPubkey,
-            sharedED25519Pubkey,
+            validator2BlsPubkey,
+            VALIDATOR_2_ED25519,
             validator2,
             uint32(0),
             uint32(0),
@@ -69,8 +96,8 @@ contract GenerateConsensusRegistryStorage is Script, Test {
         initialValidators.push(validatorInfo2);
 
         validatorInfo3 = IConsensusRegistry.ValidatorInfo(
-            sharedBLSPubkey,
-            sharedED25519Pubkey,
+            validator3BlsPubkey,
+            VALIDATOR_3_ED25519,
             validator3,
             uint32(0),
             uint32(0),
@@ -80,8 +107,8 @@ contract GenerateConsensusRegistryStorage is Script, Test {
         initialValidators.push(validatorInfo3);
 
         validatorInfo4 = IConsensusRegistry.ValidatorInfo(
-            sharedBLSPubkey,
-            sharedED25519Pubkey,
+            validator4BlsPubkey,
+            VALIDATOR_4_ED25519,
             validator4,
             uint32(0),
             uint32(0),
@@ -89,8 +116,6 @@ contract GenerateConsensusRegistryStorage is Script, Test {
             IConsensusRegistry.ValidatorStatus.Active
         );
         initialValidators.push(validatorInfo4);
-
-        sharedBLSWord = bytes32(hex"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     }
 
     function run() public {
@@ -141,23 +166,13 @@ contract GenerateConsensusRegistryStorage is Script, Test {
 
             // check if value is a validator ecdsaPubkey and assign collision-resistant label for replacement
             if (uint256(slotValue) == uint256(uint160(validator1))) {
-                slotValue = keccak256("VALIDATOR1");
+                slotValue = keccak256("VALIDATOR_1_ECDSA");
             } else if (uint256(slotValue) == uint256(uint160(validator2))) {
-                slotValue = keccak256("VALIDATOR2");
+                slotValue = keccak256("VALIDATOR_2_ECDSA");
             } else if (uint256(slotValue) == uint256(uint160(validator3))) {
-                slotValue = keccak256("VALIDATOR3");
+                slotValue = keccak256("VALIDATOR_3_ECDSA");
             } else if (uint256(slotValue) == uint256(uint160(validator4))) {
-                slotValue = keccak256("VALIDATOR4");
-            }
-
-            // if value is a validator blsPubkey, apply label to indicate replacement
-            if (uint256(slotValue) == uint256(sharedBLSWord)) {
-                slotValue = keccak256("BLS_PUBKEY");
-            }
-
-            // check if value is a validator ed25519Key, apply label to indicate replacement
-            if (uint256(slotValue) == uint256(sharedED25519Pubkey)) {
-                slotValue = keccak256("ED25519_PUBKEY");
+                slotValue = keccak256("VALIDATOR_4_ECDSA");
             }
 
             // write slot and value to file
