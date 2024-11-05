@@ -14,6 +14,7 @@
   libs = ["node_modules"]
   fs_permissions = [
     { access = "write", path = "./log/deployments.json"},
+    { access = "write", path = "./deployments/consensus-registry-storage.yaml"},
     { access = "read-write", path = "./deployments/deployments.json"},
     { access = "read", path = "./external/uniswap/precompiles"}
   ]
@@ -31,5 +32,6 @@
   quote_style = "double"
   tab_width = 4
   wrap_comments = true
+  ignore = ["src/consensus/interfaces/IConsensusRegistry.sol", "test/consensus/ConsensusRegistryTest.t.sol", "script/GenerateConsensusRegistryStorage.s.sol"]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
