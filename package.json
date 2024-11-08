@@ -9,7 +9,8 @@
   },
   "scripts": {
     "build": "npm run clean && tsc",
-    "start": "node node/dist/bridgeLocal.js",
+    "start": "node node/dist/relay.js",
+    "bridge-local": "node node/dist/bridgeLocal.js",
     "build-and-start": "npm run build && npm run start",
     "clean": "rm -rf node/dist",
     "watch": "tsc --watch",
@@ -39,7 +40,8 @@
     "forge-std": "github:foundry-rs/forge-std",
     "recoverable-wrapper": "git@github.com:robriks/recoverable-wrapper.git",
     "solady": "^0.0.227",
-    "telcoin-contracts": "^1.0.0"
+    "telcoin-contracts": "^1.0.0",
+    "viem": "^2.21.43"
   },
   "devDependencies": {
     "@types/node": "^20.14.11",
