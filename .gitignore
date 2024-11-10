@@ -19,6 +19,10 @@ docs/
 # Dotenv file
 .env
 
+# Client Certificates
+client.csr
+client.key
+
 # Dependencies
 */node_modules
 node_modules
