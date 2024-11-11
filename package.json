@@ -9,7 +9,9 @@
   },
   "scripts": {
     "build": "npm run clean && tsc",
-    "start": "node node/dist/relay.js",
+    "start": "node node/dist/subscriber.js",
+    "subscriber": "node node/dist/subscriber.js",
+    "includer": "node node/dist/includer.js",
     "bridge-local": "node node/dist/bridgeLocal.js",
     "build-and-start": "npm run build && npm run start",
     "clean": "rm -rf node/dist",
