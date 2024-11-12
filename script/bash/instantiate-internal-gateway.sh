@@ -1,5 +1,7 @@
+#!/bin/bash
 export GATEWAY_CODE_ID=616
-export MY_VERIFIER_ADDRESS=""
+export MY_WALLET_ADDRESS="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
+export MY_VERIFIER_ADDRESS="axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxuvtxx"
 
 axelard tx wasm instantiate $GATEWAY_CODE_ID \
     '{
@@ -13,3 +15,5 @@ axelard tx wasm instantiate $GATEWAY_CODE_ID \
     --node http://devnet-amplifier.axelar.dev:26657 \
     --label test-gateway-tn \
     --admin $MY_WALLET_ADDRESS
+
+# Resulting internal-gateway address: axelar16zy7kl6nv8zk0racw6nsm6n0yl7h02lz4s9zz4lt8cfl0vxhfp8sqmtqcr

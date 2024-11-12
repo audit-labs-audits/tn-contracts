@@ -1,6 +1,6 @@
-# todo: rewrite in rust
+#!/bin/bash
 export VERIFIER_CODE_ID=626
-export MY_WALLET_ADDRESS=axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk
+export MY_WALLET_ADDRESS="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
 export MY_SOURCE_CHAIN_GATEWAY_ADDRESS="0xBf02955Dc36E54Fe0274159DbAC8A7B79B4e4dc3"
 
 axelard tx wasm instantiate $VERIFIER_CODE_ID \
@@ -25,3 +25,4 @@ axelard tx wasm instantiate $VERIFIER_CODE_ID \
     --label test-voting-verifier-tn \
     --admin $MY_WALLET_ADDRESS
     
+# Resulting voting-verifier address: axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxuvtxx
