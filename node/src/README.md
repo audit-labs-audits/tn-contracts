@@ -105,14 +105,9 @@ The Amplifier-Devnet AVM contract deployment addresses for Telcoin-Network use t
 #### Misc Notes and TODOs:
 
 - verifier == NVV, watches consensus, performs normal validator duties without voting
-- use ampd alongside verifierNVV & axelar as intended
-
-todo:
-
-- implement relayer - markus
 - verifier spec
   - runs alongside ampd
   - when poll starts ampd calls `RPCFinalizedBlock` -> latestHeightAndHash on the verifierNVV
   - vote on multisig prover (investigate possible changes)
   - how many? third parties
-- deploy contracts - markus
+- use ampd alongside verifierNVV & axelar as intended
