@@ -15,6 +15,8 @@ const KEY = readFileSync(KEY_PATH);
 const GMP_API_URL: string | undefined = process.env.GMP_API_URL;
 if (!GMP_API_URL) throw new Error("Set Axelar GMP api url in .env");
 
+// const httpsAgent = new https.Agent({CERT, KEY});
+
 // mainnet
 // const MAINNET_RPC_URL: string | undefined = process.env.MAINNET_RPC_URL;
 // if (!MAINNET_RPC_URL) throw new Error("Set mainnet rpc url in .env");
@@ -30,7 +32,6 @@ const client = createPublicClient({
   chain: mainnet,
   transport: http(SEPOLIA_RPC_URL), // MAINNET_RPC_URL
 });
-// const httpsAgent = new https.Agent({CERT, KEY}); //todo: onboard to receive mTLS cert first
 
 let lastCheckedBlock: bigint;
 
@@ -90,6 +91,7 @@ async function processLogs(logs: Log[]) {
 
       // construct info for API call
       const request = {
+        // todo: make a single API request for all logs
         events: [
           {
             type: "CALL",
