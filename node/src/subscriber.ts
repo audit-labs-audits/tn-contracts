@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { createPublicClient, http, Log } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet, sepolia } from "viem/chains";
 import axelarAmplifierGatewayArtifact from "../../artifacts/AxelarAmplifierGateway.json" assert { type: "json" };
 import * as dotenv from "dotenv";
 dotenv.config();
@@ -29,7 +29,7 @@ const AXL_SEPOLIA_EXTERNAL_GATEWAY =
   "0xBf02955Dc36E54Fe0274159DbAC8A7B79B4e4dc3";
 
 const client = createPublicClient({
-  chain: mainnet,
+  chain: sepolia, //mainnet,
   transport: http(SEPOLIA_RPC_URL), // MAINNET_RPC_URL
 });
 
