@@ -54,6 +54,9 @@ sequenceDiagram
 12. Includer polls Amplifier Tasks API for new valid `tasks`
 13. Includer relays new valid `tasks` which contain fully signed proofs (from the prover) to TN to be executed via transactions on TN.
 
+System Diagram (omitting GMP API)
+![img](https://i.imgur.com/0tvOXdu.png)
+
 ## The Subscriber
 
 ### Subscriber spec:
@@ -78,7 +81,7 @@ The Includer’s job is to guarantee that some payload (termed `task` by Axelar)
 - monitor transaction & adjust gas params if necessary
 - must push latest task ID to some persistent storage as a fallback in the case where the `Includer` goes offline and `taskID` has been consumed at TaskAPI
 
-### Axelar GMP API Endpoints
+## Axelar GMP API Endpoints
 
 ##### Note: These can only be accessed after obtaining an mTLS authentication cert and instantiating the voting-verifier, internal-gateway, and multisig-prover contracts for Telcoin Network on the Axelar devnet. The path to the mTLS cert and key file must be provided in the `.env` file
 
