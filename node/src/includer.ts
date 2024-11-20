@@ -3,9 +3,12 @@ import {
   createWalletClient,
   http,
   publicActions,
+  PublicClient,
+  toHex,
   TransactionReceipt,
+  WalletClient,
 } from "viem";
-import { forma, mainnet, sepolia, telcoinTestnet } from "viem/chains";
+import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
 import * as dotenv from "dotenv";
 import { privateKeyToAccount } from "viem/accounts";
 dotenv.config();
@@ -13,34 +16,30 @@ dotenv.config();
 // todo:
 // Amplifier GMP API config
 const CRT_PATH: string | undefined = process.env.CRT_PATH;
-if (!CRT_PATH) throw new Error("Set cert path in .env");
-const CERT = readFileSync(CRT_PATH);
 const KEY_PATH: string | undefined = process.env.KEY_PATH;
-if (!KEY_PATH) throw new Error("Set key path in .env");
-const KEY = readFileSync(KEY_PATH);
 const GMP_API_URL: string | undefined = process.env.GMP_API_URL;
-if (!GMP_API_URL) throw new Error("Set Axelar GMP api url in .env");
-
-// const httpsAgent = new https.Agent({CERT, KEY});
-
-const TN_RPC_URL: string | undefined = process.env.TN_RPC_URL;
-if (!TN_RPC_URL) throw new Error("Set TN rpc url in .env");
-const AXL_TN_EXTERNAL_GATEWAY = "0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3";
+// const TN_RPC_URL: string | undefined = process.env.TN_RPC_URL;
 // todo: use encrypted keystore
 const RELAYER_PK: string | undefined = process.env.RELAYER_PK;
-if (!RELAYER_PK) throw new Error("Set relayer private key in .env");
+if (!CRT_PATH || !KEY_PATH || !GMP_API_URL || !RELAYER_PK) {
+  throw new Error("Set all required ENV vars in .env");
+}
 
-const relayerAccount = privateKeyToAccount(`0x${RELAYER_PK}`);
-const walletClient = createWalletClient({
-  account: relayerAccount,
-  transport: http(TN_RPC_URL),
-  chain: telcoinTestnet,
-}).extend(publicActions);
+const CERT = readFileSync(CRT_PATH);
+const KEY = readFileSync(KEY_PATH);
+// const httpsAgent = new https.Agent({CERT, KEY});
+const relayerAccount = privateKeyToAccount(toHex(RELAYER_PK));
 
-let latestTask: string;
-let pollInterval = 12000;
-// let sourceChain: string = CLI arg
-// let destinationChain: string = CLI arg
+let rpcUrl: string;
+let walletClient;
+let sourceChain: string = "";
+let destinationChain: string = "";
+let targetContract: string = "";
+let latestTask: string = ""; // optional CLI arg
+let pollInterval = 12000; // optional CLI arg, default to mainnet block time
+
+let externalGatewayContract: `0x${string}` =
+  "0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3"; // `== targetContract` (default to Sepolia)
 
 interface TaskItem {
   id: string;
@@ -59,6 +58,13 @@ interface TaskItem {
 
 async function main() {
   console.log("Starting up includer...");
+  const args = process.argv.slice(2);
+  processIncluderCLIArgs(args);
+  externalGatewayContract = toHex(targetContract);
+
+  console.log(`Includer running for ${sourceChain} => ${destinationChain}`);
+  console.log(`Using relayer address: ${relayerAccount}`);
+  console.log(`Including approval transactions bound for ${targetContract}`);
 
   // poll amplifier Task API for new tasks
   setInterval(async () => {
@@ -66,7 +72,7 @@ async function main() {
     if (tasks.length === 0) return;
 
     for (const task of tasks) {
-      await processTask(task);
+      await processTask(sourceChain, destinationChain, task);
     }
   }, pollInterval);
 }
@@ -100,14 +106,23 @@ async function fetchTasks() {
 }
 
 // process both approvals and executes
-async function processTask(taskItem: TaskItem) {
+async function processTask(
+  sourceChain: string,
+  destinationChain: string,
+  taskItem: TaskItem
+) {
   // todo: check whether new tasks are already executed (ie by another includer)
-  let txHash: `0x${string}` = "0x";
+  walletClient = createWalletClient({
+    account: relayerAccount,
+    transport: http(rpcUrl),
+    chain: telcoinTestnet,
+  }).extend(publicActions);
 
+  let txHash: `0x${string}` = "0x";
   if (taskItem.type == "GATEWAY_TX") {
     const executeData = taskItem.task.executeData;
     txHash = await walletClient.sendTransaction({
-      to: AXL_TN_EXTERNAL_GATEWAY,
+      to: externalGatewayContract,
       data: executeData,
       chain: telcoinTestnet,
     });
@@ -122,21 +137,24 @@ async function processTask(taskItem: TaskItem) {
     });
   } else {
     console.warn("Unknown task type: ", taskItem.type);
+    return;
   }
 
   const receipt = await walletClient.waitForTransactionReceipt({
     hash: txHash,
   });
 
-  // inform taskAPI of `GATEWAY_TX` or `EXECUTE` completion
-  await recordTaskExecuted(taskItem, receipt);
-
   console.log("Transaction hash: ", txHash);
   console.log("Transaction receipt: ", receipt);
+
+  // inform taskAPI of `GATEWAY_TX` or `EXECUTE` completion
+  await recordTaskExecuted(sourceChain, destinationChain, taskItem, receipt);
 }
 
 // todo: abstract GMP API functionality to reusable unopinionated file
 async function recordTaskExecuted(
+  sourceChain: string,
+  destinationChain: string,
   taskItem: TaskItem,
   txReceipt: TransactionReceipt
 ) {
@@ -153,14 +171,13 @@ async function recordTaskExecuted(
             txID: txReceipt.transactionHash,
             finalized: true,
           },
-          sourceChain: "ethereum", // todo: enable two-way inclusion via CLI
+          sourceChain: sourceChain,
           status: "SUCCESSFUL",
         },
       ],
     };
 
-    //todo: change 'telcoin-network' to `${destinationChain}` from CLI arg
-    const response = await fetch(`${GMP_API_URL}/telcoin-network/events`, {
+    const response = await fetch(`${GMP_API_URL}/${destinationChain}/events`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -174,6 +191,31 @@ async function recordTaskExecuted(
     console.log("Success: ", responseData);
   } catch (err) {
     console.error("GMP API Error: ", err);
+  }
+}
+
+function processIncluderCLIArgs(args: string[]) {
+  args.forEach((arg, index) => {
+    const valueIndex = index + 1;
+    if (arg === "--source-chain" && args[valueIndex]) {
+      sourceChain = args[valueIndex];
+    }
+    if (arg === "--destination-chain" && args[valueIndex]) {
+      destinationChain = args[valueIndex];
+    }
+    if (arg === "--target-contract" && args[valueIndex]) {
+      targetContract = args[valueIndex];
+    }
+    if (arg === "--latest-task" && args[valueIndex]) {
+      latestTask = args[valueIndex];
+    }
+    if (arg === "--poll-interval" && args[valueIndex]) {
+      pollInterval = parseInt(args[valueIndex], 10);
+    }
+  });
+
+  if (!sourceChain || !destinationChain) {
+    throw new Error("Must set --source-chain and --destination-chain");
   }
 }
 

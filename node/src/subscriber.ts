@@ -1,37 +1,38 @@
 import { readFileSync } from "fs";
-import { createPublicClient, http, Log } from "viem";
-import { mainnet, sepolia } from "viem/chains";
+import {
+  Chain,
+  createPublicClient,
+  http,
+  Log,
+  PublicClient,
+  toHex,
+} from "viem";
+import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
 import axelarAmplifierGatewayArtifact from "../../artifacts/AxelarAmplifierGateway.json" assert { type: "json" };
 import * as dotenv from "dotenv";
 dotenv.config();
 
 // env config
 const CRT_PATH: string | undefined = process.env.CRT_PATH;
-if (!CRT_PATH) throw new Error("Set cert path in .env");
-const CERT = readFileSync(CRT_PATH);
 const KEY_PATH: string | undefined = process.env.KEY_PATH;
-if (!KEY_PATH) throw new Error("Set key path in .env");
-const KEY = readFileSync(KEY_PATH);
 const GMP_API_URL: string | undefined = process.env.GMP_API_URL;
-if (!GMP_API_URL) throw new Error("Set Axelar GMP api url in .env");
 
+if (!CRT_PATH || !KEY_PATH || !GMP_API_URL) {
+  throw new Error("Set all required ENV vars in .env");
+}
+
+const CERT = readFileSync(CRT_PATH);
+const KEY = readFileSync(KEY_PATH);
 // const httpsAgent = new https.Agent({CERT, KEY});
 
-// mainnet
-// const MAINNET_RPC_URL: string | undefined = process.env.MAINNET_RPC_URL;
-// if (!MAINNET_RPC_URL) throw new Error("Set mainnet rpc url in .env");
+let rpcUrl: string;
+let client: PublicClient;
+let targetChain: Chain;
+let targetContract: string;
+
+let externalGatewayContract: `0x${string}` =
+  "0xBf02955Dc36E54Fe0274159DbAC8A7B79B4e4dc3"; // `== targetContract` (default to Sepolia)
 // const AXL_ETH_EXTERNAL_GATEWAY = "0x4F4495243837681061C4743b74B3eEdf548D56A5";
-
-// testnet
-const SEPOLIA_RPC_URL: string | undefined = process.env.SEPOLIA_RPC_URL;
-if (!SEPOLIA_RPC_URL) throw new Error("Set mainnet rpc url in .env");
-const AXL_SEPOLIA_EXTERNAL_GATEWAY =
-  "0xBf02955Dc36E54Fe0274159DbAC8A7B79B4e4dc3";
-
-const client = createPublicClient({
-  chain: sepolia, //mainnet,
-  transport: http(SEPOLIA_RPC_URL), // MAINNET_RPC_URL
-});
 
 let lastCheckedBlock: bigint;
 
@@ -48,12 +49,25 @@ interface ExtendedLog extends Log {
 
 async function main() {
   console.log("Starting up subscriber...");
+
+  const args = process.argv.slice(2);
+  processSubscriberCLIArgs(args);
+  externalGatewayContract = toHex(targetContract);
+
+  console.log(`Subscriber running for ${targetChain}`);
+  console.log(`Subscribed to ${targetContract}`);
+
+  client = createPublicClient({
+    chain: targetChain,
+    transport: http(rpcUrl),
+  });
+
   try {
     const currentBlock = await client.getBlockNumber();
     console.log("Current block: ", currentBlock);
 
     const terminateSubscriber = client.watchContractEvent({
-      address: AXL_SEPOLIA_EXTERNAL_GATEWAY, //AXL_ETH_EXTERNAL_GATEWAY,
+      address: externalGatewayContract,
       abi: axelarAmplifierGatewayArtifact.abi,
       eventName: "ContractCall",
       fromBlock: currentBlock,
@@ -109,23 +123,55 @@ async function processLogs(logs: Log[]) {
         ],
       };
 
-      // make post request // todo: onboard to receive api key first
-      //   const response = await fetch(`${GMP_API_URL}/ethereum/events`, {
-      //     method: "POST",
-      //     headers: {
-      //       "Content-Type": "application/json",
-      //     },
-      //     body: JSON.stringify(request),
-      //   });
+      // make post request
+      const response = await fetch(`${GMP_API_URL}/ethereum/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
 
-      //   if (!response.ok)
-      //     throw new Error(`HTTP error! Status: ${response.status}`);
+      if (!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`);
 
-      //   const responseData = await response.json();
-      //   console.log("Success: ", responseData);
+      const responseData = await response.json();
+      console.log("Success: ", responseData);
     } catch (err) {
       console.error("GMP API error: ", err);
     }
+  }
+}
+
+function processSubscriberCLIArgs(args: string[]) {
+  args.forEach((arg, index) => {
+    const valueIndex = index + 1;
+    if (arg === "--target-chain" && args[valueIndex]) {
+      if (args[valueIndex] === "sepolia") {
+        targetChain = sepolia;
+        const sepoliaRpcUrl = process.env.SEPOLIA_RPC_URL;
+        if (!sepoliaRpcUrl) throw new Error("Sepolia RPC URL not in .env");
+        rpcUrl = sepoliaRpcUrl;
+      } else if (args[valueIndex] === "ethereum") {
+        targetChain = mainnet;
+        const mainnetRpcUrl = process.env.MAINNET_RPC_URL;
+        if (!mainnetRpcUrl) throw new Error("Mainnet RPC URL not in .env");
+        rpcUrl = mainnetRpcUrl;
+      } else if (args[valueIndex] === "telcoin-network") {
+        targetChain = telcoinTestnet;
+        const tnRpcUrl = process.env.TN_RPC_URL;
+        if (!tnRpcUrl) throw new Error("Sepolia RPC URL not in .env");
+        rpcUrl = tnRpcUrl;
+      }
+    }
+
+    if (arg === "--target-contract" && args[valueIndex]) {
+      targetContract = args[valueIndex];
+    }
+  });
+
+  if (!targetChain || !targetContract) {
+    throw new Error("Must set --target-chain and --target-contract");
   }
 }
 
