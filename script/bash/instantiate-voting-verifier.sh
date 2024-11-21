@@ -1,6 +1,6 @@
 #!/bin/bash
 export VERIFIER_CODE_ID=626
-export MY_WALLET_ADDRESS="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
+export MY_SECOND_WALLET_ADDRESS="axelar1sky56slxkswwd8e68ln8da3j44vlhjdvqkxnqg"
 export MY_SOURCE_CHAIN_GATEWAY_ADDRESS="0xBf02955Dc36E54Fe0274159DbAC8A7B79B4e4dc3"
 
 axelard tx wasm instantiate $VERIFIER_CODE_ID \
@@ -12,7 +12,7 @@ axelard tx wasm instantiate $VERIFIER_CODE_ID \
         "voting_threshold":["1","1"],
         "block_expiry":"10",
         "confirmation_height":1,
-        "source_chain":"sepolia",
+        "source_chain":"telcoin-network",
         "rewards_address":"axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk",
         "msg_id_format":"hex_tx_hash_and_event_index",
         "address_format": "eip55"
@@ -23,6 +23,6 @@ axelard tx wasm instantiate $VERIFIER_CODE_ID \
     --chain-id devnet-amplifier \
     --node http://devnet-amplifier.axelar.dev:26657 \
     --label test-voting-verifier-tn \
-    --admin $MY_WALLET_ADDRESS
+    --admin $MY_SECOND_WALLET_ADDRESS
     
-# Resulting voting-verifier address: axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxuvtxx
+# Resulting voting-verifier address: axelar16rlsy2vs89yv6wvexur0sgq3kvcq6glu4cy6xz2et36hsmehhhuswxuw05
