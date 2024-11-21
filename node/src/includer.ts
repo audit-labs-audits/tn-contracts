@@ -1,16 +1,22 @@
+import { exec } from "child_process";
 import { readFileSync } from "fs";
 import {
   createWalletClient,
   http,
+  keccak256,
+  parseSignature,
   publicActions,
   PublicClient,
+  serializeTransaction,
   toHex,
   TransactionReceipt,
+  TransactionSerializable,
   WalletClient,
 } from "viem";
 import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
 import * as dotenv from "dotenv";
 import { privateKeyToAccount } from "viem/accounts";
+import { executionAsyncId } from "async_hooks";
 dotenv.config();
 
 // todo:
@@ -18,22 +24,29 @@ dotenv.config();
 const CRT_PATH: string | undefined = process.env.CRT_PATH;
 const KEY_PATH: string | undefined = process.env.KEY_PATH;
 const GMP_API_URL: string | undefined = process.env.GMP_API_URL;
-// const TN_RPC_URL: string | undefined = process.env.TN_RPC_URL;
-// todo: use encrypted keystore
-const RELAYER_PK: string | undefined = process.env.RELAYER_PK;
-if (!CRT_PATH || !KEY_PATH || !GMP_API_URL || !RELAYER_PK) {
+const KEYSTORE_PATH: string | undefined = process.env.KEYSTORE_PATH;
+const KS_PW: string | undefined = process.env.KS_PW;
+const RELAYER: string | undefined = process.env.RELAYER;
+if (
+  !CRT_PATH ||
+  !KEY_PATH ||
+  !GMP_API_URL ||
+  !KEYSTORE_PATH ||
+  !KS_PW ||
+  !RELAYER
+) {
   throw new Error("Set all required ENV vars in .env");
 }
 
 const CERT = readFileSync(CRT_PATH);
 const KEY = readFileSync(KEY_PATH);
 // const httpsAgent = new https.Agent({CERT, KEY});
-const relayerAccount = privateKeyToAccount(toHex(RELAYER_PK));
 
 let rpcUrl: string;
 let walletClient;
 let sourceChain: string = "";
 let destinationChain: string = "";
+let relayerAccount: `0x${string}` = RELAYER as `0x${string}`;
 let targetContract: string = "";
 let latestTask: string = ""; // optional CLI arg
 let pollInterval = 12000; // optional CLI arg, default to mainnet block time
@@ -112,6 +125,7 @@ async function processTask(
   taskItem: TaskItem
 ) {
   // todo: check whether new tasks are already executed (ie by another includer)
+
   walletClient = createWalletClient({
     account: relayerAccount,
     transport: http(rpcUrl),
@@ -119,21 +133,94 @@ async function processTask(
   }).extend(publicActions);
 
   let txHash: `0x${string}` = "0x";
+  let signature: `0x${string}` = "0x";
+  // todo: abstract to func and flip gateway/execute flows
   if (taskItem.type == "GATEWAY_TX") {
     const executeData = taskItem.task.executeData;
-    txHash = await walletClient.sendTransaction({
+
+    // fetch tx params (gas, nonce, etc)
+    const txRequest = await walletClient.prepareTransactionRequest({
       to: externalGatewayContract,
       data: executeData,
-      chain: telcoinTestnet,
+    });
+    // serialize tx with fetched params
+    const txSerializable: TransactionSerializable = {
+      chainId: 2017,
+      gas: txRequest.gas,
+      maxFeePerGas: txRequest.maxFeePerGas,
+      maxPriorityFeePerGas: txRequest.maxPriorityFeePerGas,
+      nonce: txRequest.nonce,
+      to: externalGatewayContract,
+      data: executeData,
+    };
+    const serializedTransaction = serializeTransaction(txSerializable);
+
+    // pre-derive tx hash to be securely signed before submission
+    txHash = keccak256(serializedTransaction);
+    const command = `cast wallet sign ${txHash} --keystore ${KEYSTORE_PATH} --password ${KS_PW} --no-hash`;
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`child_process::exec error: ${error}`);
+        return;
+      }
+      console.log(`stdout: ${stdout}`);
+      console.log(`stderr: ${stderr}`);
+
+      signature = stdout as `0x${string}`;
+    });
+
+    // attach signature and re-serialize tx
+    const parsedSignature = parseSignature(signature);
+    txSerializable.r = parsedSignature.r;
+    txSerializable.s = parsedSignature.s;
+    txSerializable.v = parsedSignature.v;
+
+    // send raw signed tx
+    const rawTx = serializeTransaction(txSerializable);
+    txHash = await walletClient.sendRawTransaction({
+      serializedTransaction: rawTx,
     });
   } else if (taskItem.type == "EXECUTE") {
     // must == RWTEL
     const destinationAddress = taskItem.task.message.destinationAddress;
     const payload = taskItem.task.payload;
-    txHash = await walletClient.sendTransaction({
+    const txRequest = await walletClient.prepareTransactionRequest({
       to: destinationAddress,
       data: payload,
-      chain: telcoinTestnet,
+    });
+
+    const txSerializable: TransactionSerializable = {
+      chainId: 2017,
+      gas: txRequest.gas,
+      maxFeePerGas: txRequest.maxFeePerGas,
+      maxPriorityFeePerGas: txRequest.maxPriorityFeePerGas,
+      nonce: txRequest.nonce,
+      to: destinationAddress,
+      data: payload,
+    };
+    const serializedTransaction = serializeTransaction(txSerializable);
+
+    txHash = keccak256(serializedTransaction);
+    const command = `cast wallet sign ${txHash} --keystore ${KEYSTORE_PATH} --password ${KS_PW} --no-hash`;
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`child_process::exec error: ${error}`);
+        return;
+      }
+      console.log(`stdout: ${stdout}`);
+      console.log(`stderr: ${stderr}`);
+
+      signature = stdout as `0x${string}`;
+    });
+
+    const parsedSignature = parseSignature(signature);
+    txSerializable.r = parsedSignature.r;
+    txSerializable.s = parsedSignature.s;
+    txSerializable.v = parsedSignature.v;
+
+    const rawTx = serializeTransaction(txSerializable);
+    txHash = await walletClient.sendRawTransaction({
+      serializedTransaction: rawTx,
     });
   } else {
     console.warn("Unknown task type: ", taskItem.type);
