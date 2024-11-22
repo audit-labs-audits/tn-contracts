@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { exec, execSync } from "child_process";
 import { readFileSync } from "fs";
 import {
   createWalletClient,
@@ -6,17 +6,14 @@ import {
   keccak256,
   parseSignature,
   publicActions,
-  PublicClient,
   serializeTransaction,
   toHex,
   TransactionReceipt,
+  TransactionRequest,
   TransactionSerializable,
-  WalletClient,
 } from "viem";
 import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
 import * as dotenv from "dotenv";
-import { privateKeyToAccount } from "viem/accounts";
-import { executionAsyncId } from "async_hooks";
 dotenv.config();
 
 // todo:
@@ -133,7 +130,6 @@ async function processTask(
   }).extend(publicActions);
 
   let txHash: `0x${string}` = "0x";
-  let signature: `0x${string}` = "0x";
   // todo: abstract to func and flip gateway/execute flows
   if (taskItem.type == "GATEWAY_TX") {
     const executeData = taskItem.task.executeData;
@@ -143,37 +139,8 @@ async function processTask(
       to: externalGatewayContract,
       data: executeData,
     });
-    // serialize tx with fetched params
-    const txSerializable: TransactionSerializable = {
-      chainId: 2017,
-      gas: txRequest.gas,
-      maxFeePerGas: txRequest.maxFeePerGas,
-      maxPriorityFeePerGas: txRequest.maxPriorityFeePerGas,
-      nonce: txRequest.nonce,
-      to: externalGatewayContract,
-      data: executeData,
-    };
-    const serializedTransaction = serializeTransaction(txSerializable);
-
-    // pre-derive tx hash to be securely signed before submission
-    txHash = keccak256(serializedTransaction);
-    const command = `cast wallet sign ${txHash} --keystore ${KEYSTORE_PATH} --password ${KS_PW} --no-hash`;
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`child_process::exec error: ${error}`);
-        return;
-      }
-      console.log(`stdout: ${stdout}`);
-      console.log(`stderr: ${stderr}`);
-
-      signature = stdout as `0x${string}`;
-    });
-
-    // attach signature and re-serialize tx
-    const parsedSignature = parseSignature(signature);
-    txSerializable.r = parsedSignature.r;
-    txSerializable.s = parsedSignature.s;
-    txSerializable.v = parsedSignature.v;
+    // sign tx using encrypted keystore
+    const txSerializable = await signViaEncryptedKeystore(txRequest);
 
     // send raw signed tx
     const rawTx = serializeTransaction(txSerializable);
@@ -189,35 +156,10 @@ async function processTask(
       data: payload,
     });
 
-    const txSerializable: TransactionSerializable = {
-      chainId: 2017,
-      gas: txRequest.gas,
-      maxFeePerGas: txRequest.maxFeePerGas,
-      maxPriorityFeePerGas: txRequest.maxPriorityFeePerGas,
-      nonce: txRequest.nonce,
-      to: destinationAddress,
-      data: payload,
-    };
-    const serializedTransaction = serializeTransaction(txSerializable);
+    // sign tx using encrypted keystore
+    const txSerializable = await signViaEncryptedKeystore(txRequest);
 
-    txHash = keccak256(serializedTransaction);
-    const command = `cast wallet sign ${txHash} --keystore ${KEYSTORE_PATH} --password ${KS_PW} --no-hash`;
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`child_process::exec error: ${error}`);
-        return;
-      }
-      console.log(`stdout: ${stdout}`);
-      console.log(`stderr: ${stderr}`);
-
-      signature = stdout as `0x${string}`;
-    });
-
-    const parsedSignature = parseSignature(signature);
-    txSerializable.r = parsedSignature.r;
-    txSerializable.s = parsedSignature.s;
-    txSerializable.v = parsedSignature.v;
-
+    // send raw signed tx
     const rawTx = serializeTransaction(txSerializable);
     txHash = await walletClient.sendRawTransaction({
       serializedTransaction: rawTx,
@@ -278,6 +220,42 @@ async function recordTaskExecuted(
     console.log("Success: ", responseData);
   } catch (err) {
     console.error("GMP API Error: ", err);
+  }
+}
+
+/// @dev Viem does not support signing via encrypted keystore so
+/// a context switch dipping into Foundry is required
+async function signViaEncryptedKeystore(txRequest: TransactionRequest) {
+  // convert tx to serializable format
+  const txSerializable: TransactionSerializable = {
+    chainId: 2017,
+    gas: txRequest.gas,
+    maxFeePerGas: txRequest.maxFeePerGas,
+    maxPriorityFeePerGas: txRequest.maxPriorityFeePerGas,
+    nonce: txRequest.nonce,
+    to: txRequest.to,
+    data: txRequest.data,
+  };
+  const serializedTx = serializeTransaction(txSerializable);
+
+  // pre-derive tx hash to be securely signed before submission
+  const txHash = keccak256(serializedTx);
+  const command = `cast wallet sign ${txHash} --keystore ${KEYSTORE_PATH} --password ${KS_PW} --no-hash`;
+  try {
+    const stdout = execSync(command, { encoding: "utf8" });
+    console.log(`stdout: ${stdout}`);
+
+    const signature = stdout.trim() as `0x${string}`;
+    // attach signature and re-serialize tx
+    const parsedSignature = parseSignature(signature);
+    txSerializable.r = parsedSignature.r;
+    txSerializable.s = parsedSignature.s;
+    txSerializable.v = parsedSignature.v;
+
+    return txSerializable;
+  } catch (err) {
+    console.error(`Error signing tx: ${err}`);
+    throw err;
   }
 }
 
