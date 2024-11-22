@@ -1,5 +1,5 @@
-import { exec, execSync } from "child_process";
-import { readFileSync } from "fs";
+import { execSync } from "child_process";
+import { readFileSync, writeFile } from "fs";
 import {
   createWalletClient,
   http,
@@ -178,6 +178,11 @@ async function processTask(
 
   // inform taskAPI of `GATEWAY_TX` or `EXECUTE` completion
   await recordTaskExecuted(sourceChain, destinationChain, taskItem, receipt);
+  // save latest task to disk
+  writeFile("./latest-task.txt", taskItem.id, (err) => {
+    if (err) throw new Error(`${err}`);
+    console.log("Latest task saved to disk");
+  });
 }
 
 // todo: abstract GMP API functionality to reusable unopinionated file
@@ -290,5 +295,4 @@ main();
     - check whether new tasks are already executed (ie by another includer)
     - use aggregation via Multicall3
     - monitor transaction & adjust gas params if necessary
-    - must push latest task ID to some persistent storage as a fallback in the case where the `Includer` goes offline and `taskID` has been consumed at TaskAPI
 */
