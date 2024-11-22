@@ -56,13 +56,13 @@ interface TaskItem {
   timestamp: string;
   type: string;
   task: {
-    executeData: `0x${string}`;
+    executeData: string;
     message: {
       messageID: string;
       sourceAddress: `0x${string}`;
       destinationAddress: `0x${string}`; // RWTEL module
     };
-    payload: `0x${string}`;
+    payload: string;
   };
 }
 
@@ -130,9 +130,11 @@ async function processTask(
   }).extend(publicActions);
 
   let txHash: `0x${string}` = "0x";
-  // todo: abstract to func and flip gateway/execute flows
   if (taskItem.type == "GATEWAY_TX") {
-    const executeData = taskItem.task.executeData;
+    const executeData: `0x${string}` = `0x${Buffer.from(
+      taskItem.task.executeData,
+      "base64"
+    )}`;
 
     // fetch tx params (gas, nonce, etc)
     const txRequest = await walletClient.prepareTransactionRequest({
@@ -150,7 +152,9 @@ async function processTask(
   } else if (taskItem.type == "EXECUTE") {
     // must == RWTEL
     const destinationAddress = taskItem.task.message.destinationAddress;
-    const payload = taskItem.task.payload;
+    const payload: `0x${string}` = `0x${
+      (Buffer.from(taskItem.task.payload), "base64")
+    }`;
     const txRequest = await walletClient.prepareTransactionRequest({
       to: destinationAddress,
       data: payload,

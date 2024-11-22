@@ -8,7 +8,7 @@ import {
   toHex,
 } from "viem";
 import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
-import axelarAmplifierGatewayArtifact from "../../artifacts/AxelarAmplifierGateway.json" assert { type: "json" };
+import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGateway.json" assert { type: "json" };
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -88,58 +88,57 @@ async function main() {
 }
 
 async function processLogs(logs: Log[]) {
+  const events = [];
   for (const log of logs) {
-    try {
-      console.log("New event: ", log);
-      const txHash = log.transactionHash;
-      const logIndex = log.logIndex;
-      const id = `${txHash}-${logIndex}`;
+    console.log("New event: ", log);
+    const txHash = log.transactionHash;
+    const logIndex = log.logIndex;
+    const id = `${txHash}-${logIndex}`;
 
-      const extendedLog = log as ExtendedLog;
-      const sender = extendedLog.args.sender;
-      const payloadHash = extendedLog.args.payloadHash;
-      const destinationChain = extendedLog.args.destinationChain;
-      const destinationContractAddress =
-        extendedLog.args.destinationContractAddress;
-      const payload = extendedLog.args.payload;
+    const extendedLog = log as ExtendedLog;
+    const sender = extendedLog.args.sender;
+    const payloadHash = extendedLog.args.payloadHash;
+    const destinationChain = extendedLog.args.destinationChain;
+    const destinationContractAddress =
+      extendedLog.args.destinationContractAddress;
+    const payload = extendedLog.args.payload;
 
-      // construct info for API call
-      const request = {
-        // todo: make a single API request for all logs
-        events: [
-          {
-            type: "CALL",
-            eventID: id,
-            message: {
-              messageID: id,
-              sourceChain: "ethereum",
-              sourceAddress: sender,
-              destinationAddress: destinationContractAddress,
-              payloadHash: payloadHash,
-            },
-            destinationChain: destinationChain,
-            payload: payload,
-          },
-        ],
-      };
+    // construct array info for API call
+    events.push({
+      type: "CALL",
+      eventID: id,
+      message: {
+        messageID: id,
+        sourceChain: "ethereum",
+        sourceAddress: sender,
+        destinationAddress: destinationContractAddress,
+        payloadHash: payloadHash,
+      },
+      destinationChain: destinationChain,
+      payload: payload,
+    });
+  }
 
-      // make post request
-      const response = await fetch(`${GMP_API_URL}/ethereum/events`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(request),
-      });
+  try {
+    const request = {
+      events: events,
+    };
 
-      if (!response.ok)
-        throw new Error(`HTTP error! Status: ${response.status}`);
+    // make post request
+    const response = await fetch(`${GMP_API_URL}/ethereum/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
 
-      const responseData = await response.json();
-      console.log("Success: ", responseData);
-    } catch (err) {
-      console.error("GMP API error: ", err);
-    }
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+    const responseData = await response.json();
+    console.log("Success: ", responseData);
+  } catch (err) {
+    console.error("GMP API error: ", err);
   }
 }
 
