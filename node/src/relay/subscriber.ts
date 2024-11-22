@@ -1,4 +1,6 @@
 import { readFileSync } from "fs";
+import * as https from "https";
+import axios from "axios";
 import {
   Chain,
   createPublicClient,
@@ -23,7 +25,7 @@ if (!CRT_PATH || !KEY_PATH || !GMP_API_URL) {
 
 const CERT = readFileSync(CRT_PATH);
 const KEY = readFileSync(KEY_PATH);
-// const httpsAgent = new https.Agent({CERT, KEY});
+const httpsAgent = new https.Agent({ cert: CERT, key: KEY });
 
 let rpcUrl: string;
 let client: PublicClient;
@@ -125,18 +127,18 @@ async function processLogs(logs: Log[]) {
     };
 
     // make post request
-    const response = await fetch(`${GMP_API_URL}/ethereum/events`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-    });
+    const response = await axios.post(
+      `${GMP_API_URL}/ethereum/events`,
+      request,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        httpsAgent,
+      }
+    );
 
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-
-    const responseData = await response.json();
-    console.log("Success: ", responseData);
+    console.log("Success: ", response.data);
   } catch (err) {
     console.error("GMP API error: ", err);
   }

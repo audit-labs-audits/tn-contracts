@@ -1,5 +1,7 @@
 import { execSync } from "child_process";
 import { readFileSync, writeFile } from "fs";
+import * as https from "https";
+import axios from "axios";
 import {
   createWalletClient,
   http,
@@ -37,7 +39,7 @@ if (
 
 const CERT = readFileSync(CRT_PATH);
 const KEY = readFileSync(KEY_PATH);
-// const httpsAgent = new https.Agent({CERT, KEY});
+const httpsAgent = new https.Agent({ cert: CERT, key: KEY });
 
 let rpcUrl: string;
 let walletClient;
@@ -96,20 +98,16 @@ async function fetchTasks() {
 
   // call API endpoint
   try {
-    const response = await fetch(url, {
-      method: "GET",
+    const response = await axios.get(url, {
       headers: {
         "Content-Type": "application/json",
       },
+      httpsAgent,
     });
 
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+    console.log("Response from Amplifier GMP API: ", response.data);
 
-    const responseData = await response.json();
-    console.log("Response from Amplifier GMP API: ", responseData);
-
-    const tasks = responseData.data.tasks;
-    return tasks;
+    return response.data.data.tasks;
   } catch (err) {
     console.error("GMP API error: ", err);
   }
@@ -215,18 +213,18 @@ async function recordTaskExecuted(
       ],
     };
 
-    const response = await fetch(`${GMP_API_URL}/${destinationChain}/events`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-    });
+    const response = await axios.post(
+      `${GMP_API_URL}/${destinationChain}/events`,
+      request,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        httpsAgent,
+      }
+    );
 
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-
-    const responseData = await response.json();
-    console.log("Success: ", responseData);
+    console.log("Success: ", response.data);
   } catch (err) {
     console.error("GMP API Error: ", err);
   }
