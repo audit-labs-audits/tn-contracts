@@ -89,7 +89,7 @@ echo "Using target reward pool address: $VOTING_VERIFIER_OR_MULTISIG_CONTRACT_AD
 echo "Using native token amount: $AMOUNT"
 echo "Using RPC url: $RPC"
 
-axelard tx wasm execute $REWARDS_CONTRACT_ADDRESS \
+axelard tx wasm execute $REWARDS_CONTRACT_ADDR \
     '{
         "add_rewards":
             {

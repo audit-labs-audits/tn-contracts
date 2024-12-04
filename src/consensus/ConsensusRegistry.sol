@@ -9,7 +9,6 @@ import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 
-import "forge-std/Test.sol";
 /**
  * @title ConsensusRegistry
  * @author Telcoin Association
