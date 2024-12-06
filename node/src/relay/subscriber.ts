@@ -54,9 +54,8 @@ async function main() {
 
   const args = process.argv.slice(2);
   processSubscriberCLIArgs(args);
-  externalGatewayContract = toHex(targetContract);
 
-  console.log(`Subscriber running for ${targetChain}`);
+  console.log(`Subscriber running for ${targetChain.name}`);
   console.log(`Subscribed to ${targetContract}`);
 
   client = createPublicClient({
@@ -69,7 +68,7 @@ async function main() {
     console.log("Current block: ", currentBlock);
 
     const terminateSubscriber = client.watchContractEvent({
-      address: externalGatewayContract,
+      address: toHex(targetContract),
       abi: axelarAmplifierGatewayArtifact.abi,
       eventName: "ContractCall",
       fromBlock: currentBlock,
@@ -111,7 +110,7 @@ async function processLogs(logs: Log[]) {
       eventID: id,
       message: {
         messageID: id,
-        sourceChain: "ethereum",
+        sourceChain: targetChain.name.toLowerCase(),
         sourceAddress: sender,
         destinationAddress: destinationContractAddress,
         payloadHash: payloadHash,
@@ -128,7 +127,7 @@ async function processLogs(logs: Log[]) {
 
     // make post request
     const response = await axios.post(
-      `${GMP_API_URL}/ethereum/events`,
+      `${GMP_API_URL}/${targetChain.name}/events`,
       request,
       {
         headers: {
