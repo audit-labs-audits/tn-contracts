@@ -4,15 +4,17 @@ import axios from "axios";
 import {
   Chain,
   createPublicClient,
+  getAddress,
   http,
   Log,
   PublicClient,
-  toHex,
 } from "viem";
 import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
 import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGateway.json" assert { type: "json" };
 import * as dotenv from "dotenv";
 dotenv.config();
+
+/// @dev Usage Example: `npm run subscriber -- --target-chain sepolia --target-contract 0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319`
 
 // env config
 const CRT_PATH: string | undefined = process.env.CRT_PATH;
@@ -33,7 +35,7 @@ let targetChain: Chain;
 let targetContract: string;
 
 let externalGatewayContract: `0x${string}` =
-  "0xBf02955Dc36E54Fe0274159DbAC8A7B79B4e4dc3"; // `== targetContract` (default to Sepolia)
+  "0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319"; // `== targetContract` (default to Sepolia)
 // const AXL_ETH_EXTERNAL_GATEWAY = "0x4F4495243837681061C4743b74B3eEdf548D56A5";
 
 let lastCheckedBlock: bigint;
@@ -65,10 +67,10 @@ async function main() {
 
   try {
     const currentBlock = await client.getBlockNumber();
-    console.log("Current block: ", currentBlock);
+    console.log("Current block (saved as `lastCheckedBlock`): ", currentBlock);
 
     const terminateSubscriber = client.watchContractEvent({
-      address: toHex(targetContract),
+      address: getAddress(targetContract),
       abi: axelarAmplifierGatewayArtifact.abi,
       eventName: "ContractCall",
       fromBlock: currentBlock,
@@ -96,6 +98,10 @@ async function processLogs(logs: Log[]) {
     const logIndex = log.logIndex;
     const id = `${txHash}-${logIndex}`;
 
+    // handle axelar's custom nomenclature for sepolia
+    let sourceChain = targetChain.name.toLowerCase();
+    if (targetChain === sepolia) sourceChain = `eth-${sourceChain}`;
+
     const extendedLog = log as ExtendedLog;
     const sender = extendedLog.args.sender;
     const payloadHash = extendedLog.args.payloadHash;
@@ -110,7 +116,7 @@ async function processLogs(logs: Log[]) {
       eventID: id,
       message: {
         messageID: id,
-        sourceChain: targetChain.name.toLowerCase(),
+        sourceChain: sourceChain,
         sourceAddress: sender,
         destinationAddress: destinationContractAddress,
         payloadHash: payloadHash,
@@ -127,7 +133,7 @@ async function processLogs(logs: Log[]) {
 
     // make post request
     const response = await axios.post(
-      `${GMP_API_URL}/${targetChain.name}/events`,
+      `${GMP_API_URL}/eth-${targetChain.name.toLowerCase()}/events`,
       request,
       {
         headers: {

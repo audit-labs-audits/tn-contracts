@@ -9,7 +9,7 @@ import {
   parseSignature,
   publicActions,
   serializeTransaction,
-  toHex,
+  getAddress,
   TransactionReceipt,
   TransactionRequest,
   TransactionSerializable,
@@ -72,7 +72,6 @@ async function main() {
   console.log("Starting up includer...");
   const args = process.argv.slice(2);
   processIncluderCLIArgs(args);
-  externalGatewayContract = toHex(targetContract);
 
   console.log(`Includer running for ${sourceChain} => ${destinationChain}`);
   console.log(`Using relayer address: ${relayerAccount}`);
@@ -136,7 +135,7 @@ async function processTask(
 
     // fetch tx params (gas, nonce, etc)
     const txRequest = await walletClient.prepareTransactionRequest({
-      to: externalGatewayContract,
+      to: getAddress(targetContract),
       data: executeData,
     });
     // sign tx using encrypted keystore
