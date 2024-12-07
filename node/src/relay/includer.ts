@@ -52,9 +52,6 @@ let targetContract: string = "";
 let latestTask: string = ""; // optional CLI arg
 let pollInterval = 12000; // optional CLI arg, default to mainnet block time
 
-let externalGatewayContract: `0x${string}` =
-  "0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319"; // `== targetContract` (default to eth-sepolia)
-
 interface TaskItem {
   id: string;
   timestamp: string;

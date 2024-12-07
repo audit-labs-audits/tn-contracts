@@ -34,10 +34,6 @@ let client: PublicClient;
 let targetChain: Chain;
 let targetContract: string;
 
-let externalGatewayContract: `0x${string}` =
-  "0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319"; // `== targetContract` (default to eth-sepolia)
-// const AXL_ETH_EXTERNAL_GATEWAY = "0x4F4495243837681061C4743b74B3eEdf548D56A5";
-
 let lastCheckedBlock: bigint;
 
 interface ExtendedLog extends Log {
@@ -152,6 +148,8 @@ async function processLogs(logs: Log[]) {
 function processSubscriberCLIArgs(args: string[]) {
   args.forEach((arg, index) => {
     const valueIndex = index + 1;
+
+    // parse target chain for subscription
     if (arg === "--target-chain" && args[valueIndex]) {
       if (args[valueIndex] === "sepolia") {
         targetChain = sepolia;
@@ -171,6 +169,7 @@ function processSubscriberCLIArgs(args: string[]) {
       }
     }
 
+    // parse target contract to watch
     if (arg === "--target-contract" && args[valueIndex]) {
       targetContract = args[valueIndex];
     }

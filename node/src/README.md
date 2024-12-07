@@ -154,7 +154,25 @@ curl -X GET https://amplifier-devnet-amplifier.devnet.axelar.dev/chains/telcoin-
   --cert client.crt
 ```
 
-### Amplifier-Devnet Contract Deployments
+### Relevant Contract Deployments
+
+All of Axelar's canonical deployments are listed [here](https://github.com/axelarnetwork/axelar-contract-deployments/tree/main/axelar-chains-config/info)
+
+#### EVM Network Deployments
+
+Please note that the Telcoin-Network deployments are being iterated on and liable to change, leaving their entries in the following table outdated. For canonical deployments on TN which are guaranteed to be up to date, refer to `deployments/deployments.json`
+
+| Name          | Network         | Address                                    |
+| ------------- | --------------- | ------------------------------------------ |
+| Gateway Proxy | Sepolia         | 0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319 |
+| Gateway Impl  | Sepolia         | 0x80b70F5f8c8018ff919AcfdcF1026cf28D2c81bc |
+| Gateway Proxy | Ethereum        | 0x4F4495243837681061C4743b74B3eEdf548D56A5 |
+| Gateway Impl  | Ethereum        | 0x99B5FA03a5ea4315725c43346e55a6A6fbd94098 |
+| Gateway Proxy | Telcoin-Network | 0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3 |
+| Gateway Impl  | Telcoin-Network | 0xd118b3966488e29008e7355fc9090c5bca9fdef8 |
+| RWTEL (exec)  | Telcoin-Network | 0xca568d148d23a4ca9b77bef783dca0d2f5962c12 |
+
+#### Amplifier-Devnet Deployments
 
 The Amplifier-Devnet AVM contract deployment addresses for Telcoin-Network use the pre-existing implementations and are as follows:
 
@@ -171,5 +189,4 @@ The Amplifier-Devnet AVM contract deployment addresses for Telcoin-Network use t
   - runs alongside ampd
   - when poll starts ampd calls `RPCFinalizedBlock` -> latestHeightAndHash on the verifierNVV
   - vote on multisig prover (investigate possible changes)
-  - how many? third parties
 - use ampd alongside verifierNVV & axelar as intended
