@@ -13,10 +13,13 @@ import {
   TransactionReceipt,
   TransactionRequest,
   TransactionSerializable,
+  Chain,
 } from "viem";
 import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
 import * as dotenv from "dotenv";
 dotenv.config();
+
+/// @dev Usage Example: `npm run includer -- --source-chain telcoin-network --destination-chain sepolia --target-contract 0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3`
 
 // todo:
 // Amplifier GMP API config
@@ -43,15 +46,14 @@ const httpsAgent = new https.Agent({ cert: CERT, key: KEY });
 
 let rpcUrl: string;
 let walletClient;
-let sourceChain: string = "";
-let destinationChain: string = "";
+let destinationChain: Chain;
 let relayerAccount: `0x${string}` = RELAYER as `0x${string}`;
 let targetContract: string = "";
 let latestTask: string = ""; // optional CLI arg
 let pollInterval = 12000; // optional CLI arg, default to mainnet block time
 
 let externalGatewayContract: `0x${string}` =
-  "0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3"; // `== targetContract` (default to Sepolia)
+  "0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319"; // `== targetContract` (default to eth-sepolia)
 
 interface TaskItem {
   id: string;
@@ -61,6 +63,7 @@ interface TaskItem {
     executeData: string;
     message: {
       messageID: string;
+      sourceChain: string;
       sourceAddress: `0x${string}`;
       destinationAddress: `0x${string}`; // RWTEL module
     };
@@ -73,16 +76,19 @@ async function main() {
   const args = process.argv.slice(2);
   processIncluderCLIArgs(args);
 
-  console.log(`Includer running for ${sourceChain} => ${destinationChain}`);
+  console.log(
+    `Includer submitting transactions of tasks bound for ${destinationChain.name}`
+  );
   console.log(`Using relayer address: ${relayerAccount}`);
   console.log(`Including approval transactions bound for ${targetContract}`);
 
   // poll amplifier Task API for new tasks
   setInterval(async () => {
-    const tasks = await fetchTasks();
+    const tasks: TaskItem[] = await fetchTasks();
     if (tasks.length === 0) return;
 
     for (const task of tasks) {
+      const sourceChain = task.task.message.sourceChain;
       await processTask(sourceChain, destinationChain, task);
     }
   }, pollInterval);
@@ -106,16 +112,16 @@ async function fetchTasks() {
 
     console.log("Response from Amplifier GMP API: ", response.data);
 
-    return response.data.data.tasks;
+    return response?.data?.data?.tasks || [];
   } catch (err) {
-    console.error("GMP API error: ", err);
+    console.error("Error fetching tasks: ", err);
   }
 }
 
 // process both approvals and executes
 async function processTask(
   sourceChain: string,
-  destinationChain: string,
+  destinationChain: Chain,
   taskItem: TaskItem
 ) {
   // todo: check whether new tasks are already executed (ie by another includer)
@@ -123,7 +129,7 @@ async function processTask(
   walletClient = createWalletClient({
     account: relayerAccount,
     transport: http(rpcUrl),
-    chain: telcoinTestnet,
+    chain: destinationChain,
   }).extend(publicActions);
 
   let txHash: `0x${string}` = "0x";
@@ -186,14 +192,18 @@ async function processTask(
   });
 }
 
-// todo: abstract GMP API functionality to reusable unopinionated file
 async function recordTaskExecuted(
   sourceChain: string,
-  destinationChain: string,
+  destinationChain: Chain,
   taskItem: TaskItem,
   txReceipt: TransactionReceipt
 ) {
-  // make post request // todo: onboard to receive api key first
+  // handle axelar's custom nomenclature for sepolia
+  let destinationChainName = destinationChain.name.toLowerCase();
+  if (destinationChain === sepolia)
+    destinationChainName = `eth-${destinationChainName}`;
+
+  // make post request
   try {
     const request = {
       events: [
@@ -213,7 +223,7 @@ async function recordTaskExecuted(
     };
 
     const response = await axios.post(
-      `${GMP_API_URL}/${destinationChain}/events`,
+      `${GMP_API_URL}/chains/${destinationChainName}/events`,
       request,
       {
         headers: {
@@ -225,7 +235,7 @@ async function recordTaskExecuted(
 
     console.log("Success: ", response.data);
   } catch (err) {
-    console.error("GMP API Error: ", err);
+    console.error("Error recording task executed: ", err);
   }
 }
 
@@ -268,15 +278,33 @@ async function signViaEncryptedKeystore(txRequest: TransactionRequest) {
 function processIncluderCLIArgs(args: string[]) {
   args.forEach((arg, index) => {
     const valueIndex = index + 1;
-    if (arg === "--source-chain" && args[valueIndex]) {
-      sourceChain = args[valueIndex];
-    }
+
+    // parse destination chain and set rpc url for onchain settlement
     if (arg === "--destination-chain" && args[valueIndex]) {
-      destinationChain = args[valueIndex];
+      if (args[valueIndex] === "sepolia") {
+        destinationChain = sepolia;
+        const sepoliaRpcUrl = process.env.SEPOLIA_RPC_URL;
+        if (!sepoliaRpcUrl) throw new Error("Sepolia RPC URL not in .env");
+        rpcUrl = sepoliaRpcUrl;
+      } else if (args[valueIndex] === "ethereum") {
+        destinationChain = mainnet;
+        const mainnetRpcUrl = process.env.MAINNET_RPC_URL;
+        if (!mainnetRpcUrl) throw new Error("Mainnet RPC URL not in .env");
+        rpcUrl = mainnetRpcUrl;
+      } else if (args[valueIndex] === "telcoin-network") {
+        destinationChain = telcoinTestnet;
+        const tnRpcUrl = process.env.TN_RPC_URL;
+        if (!tnRpcUrl) throw new Error("Sepolia RPC URL not in .env");
+        rpcUrl = tnRpcUrl;
+      }
     }
+
+    // parse target contract (can be an external gateway or AxelarGMPExecutable)
     if (arg === "--target-contract" && args[valueIndex]) {
       targetContract = args[valueIndex];
     }
+
+    // optional flags
     if (arg === "--latest-task" && args[valueIndex]) {
       latestTask = args[valueIndex];
     }
@@ -285,8 +313,8 @@ function processIncluderCLIArgs(args: string[]) {
     }
   });
 
-  if (!sourceChain || !destinationChain) {
-    throw new Error("Must set --source-chain and --destination-chain");
+  if (!destinationChain) {
+    throw new Error("Must set --destination-chain and --target-contract");
   }
 }
 

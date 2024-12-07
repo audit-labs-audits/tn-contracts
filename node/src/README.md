@@ -59,6 +59,17 @@ System Diagram (omitting GMP API)
 
 ## The Subscriber
 
+The Subscriber can be configured at runtime with the flags below.
+
+`--target-chain`: The chain at which to point the subscriber
+`--target-contract`: The specific contract to which to subscribe; may be an external gateway or AxelarGMPExecutable
+
+For example, to run the Subscriber set up to subscribe to `ContractCall` events from the RWTEL module on Telcoin Network:
+
+```bash
+npm run subscriber -- --target-chain telcoin-network --target-contract 0xca568d148d23a4ca9b77bef783dca0d2f5962c12
+```
+
 ### Subscriber spec:
 
 The Subscriber’s job is to guarantee that every protocol event on the Amplifier chain is detected and successfully published to the Amplifier API. The relayer detects outgoing GMP messages from the chain to the AVM and publishes them to the GMP API so that they can be verified, routed, signed, and delivered to the destination chain.
@@ -69,6 +80,19 @@ The Subscriber’s job is to guarantee that every protocol event on the Amplifie
 - publish to amplifier GMP API via `fetch()` & using CallEvent schema, obtain confirmation response
 
 ## The Includer
+
+The Includer can be configured at runtime with the flags below.
+
+`--destination-chain`: The chain to transact tasks on
+`--target-contract`: The contract to call into; may be an external gateway or AxelarGMPExecutable
+`--latest-task`: **Optional**; used to specify the most recently completed task
+`--poll-interval`: **Optional**; used to customize API polling interval
+
+For example, to run the Includer set up to fetch tasks verified by Axelar Network and forward their payloads to the external AxelarAmplifierGateway on Telcoin-Network:
+
+```bash
+npm run includer -- --destination-chain telcoin-network --target-contract 0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3`
+```
 
 ### Includer spec:
 
@@ -87,13 +111,48 @@ The Includer’s job is to guarantee that some payload (termed `task` by Axelar)
 
 #### Events Endpoint
 
-`POST /chains/{chain}/events`
+`POST ${GMP_API_URL}/chains/{chain}/events`
 In this endpoint, events are published that indicate completed actions for the cross-chain messaging process. Developers can use this endpoint to submit the completion of new actions (e.g., that an new contract call was made, or a message was approved).
+
+Curl example (do this programmatically):
+
+```bash
+curl -X POST https://amplifier-devnet-amplifier.devnet.axelar.dev/chains/telcoin-network/events \
+  -H "Content-Type: application/json" \
+  --key client.key \
+  --cert client.crt \
+  -d '{
+    "events": [
+      {
+        "type": "CALL",
+        "eventID": "0x26da7e8de02dec9f881327756807639dfd004ea06ca94fcb042ad054d33a119b-76",
+        "message": {
+          "messageID": "0x26da7e8de02dec9f881327756807639dfd004ea06ca94fcb042ad054d33a119b-76",
+          "sourceChain": "telcoin-network",
+          "sourceAddress": "0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180",
+          "destinationAddress": "0xca568d148d23a4ca9b77bef783dca0d2f5962c12",
+          "payloadHash": "0xea00237ef11bd9615a3b6d2629f2c6259d67b19bb94947a1bd739bae3415141c"
+        },
+        "destinationChain": "eth-sepolia",
+        "payload": "0x69"
+      }
+    ]
+  }'
+```
 
 #### Tasks Endpoint
 
-`GET /chains/{chain}/tasks`:
+`GET {GMP_API_URL}/chains/{chain}/tasks`:
 This endpoint returns tasks associated with the cross-chain messaging protocol. Each one of these tasks indicates an operation that needs to take place in order to proceed with the process of a GMP call. Developers can use this endpoint to monitor and react to various tasks (e.g., trigger an execution, or a refund).
+
+Curl example to get all pending tasks after UUID `550e8400-e29b-41d4-a716-446655440000` (do this programmatically):
+
+```bash
+curl -X GET https://amplifier-devnet-amplifier.devnet.axelar.dev/chains/telcoin-network/tasks?after=550e8400-e29b-41d4-a716-446655440000&limit=20 \
+  -H "Content-Type: application/json" \
+  --key client.key \
+  --cert client.crt
+```
 
 ### Amplifier-Devnet Contract Deployments
 

@@ -14,7 +14,7 @@ import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGa
 import * as dotenv from "dotenv";
 dotenv.config();
 
-/// @dev Usage Example: `npm run subscriber -- --target-chain sepolia --target-contract 0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319`
+/// @dev Usage Example: `npm run subscriber -- --target-chain telcoin-network --target-contract 0xca568d148d23a4ca9b77bef783dca0d2f5962c12`
 
 // env config
 const CRT_PATH: string | undefined = process.env.CRT_PATH;
@@ -35,7 +35,7 @@ let targetChain: Chain;
 let targetContract: string;
 
 let externalGatewayContract: `0x${string}` =
-  "0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319"; // `== targetContract` (default to Sepolia)
+  "0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319"; // `== targetContract` (default to eth-sepolia)
 // const AXL_ETH_EXTERNAL_GATEWAY = "0x4F4495243837681061C4743b74B3eEdf548D56A5";
 
 let lastCheckedBlock: bigint;
@@ -91,16 +91,16 @@ async function main() {
 }
 
 async function processLogs(logs: Log[]) {
+  // handle axelar's custom nomenclature for sepolia
+  let sourceChain = targetChain.name.toLowerCase();
+  if (targetChain === sepolia) sourceChain = `eth-${sourceChain}`;
+
   const events = [];
   for (const log of logs) {
     console.log("New event: ", log);
     const txHash = log.transactionHash;
     const logIndex = log.logIndex;
     const id = `${txHash}-${logIndex}`;
-
-    // handle axelar's custom nomenclature for sepolia
-    let sourceChain = targetChain.name.toLowerCase();
-    if (targetChain === sepolia) sourceChain = `eth-${sourceChain}`;
 
     const extendedLog = log as ExtendedLog;
     const sender = extendedLog.args.sender;
@@ -133,7 +133,7 @@ async function processLogs(logs: Log[]) {
 
     // make post request
     const response = await axios.post(
-      `${GMP_API_URL}/eth-${targetChain.name.toLowerCase()}/events`,
+      `${GMP_API_URL}/chains/${sourceChain}/events`,
       request,
       {
         headers: {
