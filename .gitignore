@@ -21,6 +21,7 @@ docs/
 
 # Dotenv file
 .env
+**/.env
 
 # Client Certificates
 client.csr

@@ -2,7 +2,7 @@
 
 Running a verifier on Axelar Network constitutes running an instance of tofnd and of ampd in tandem. These services perform Axelar GMP message verification and sign transactions representing votes which are submitted to Axelar Network as part of Telcoin-Network's bridging flow.
 
-### Note: These instructions center around running a TN Verifier for testing on devnet and testnet by the Telcoin Network team. For mainnet, Axelar Network already has an existing set of verifiers who will run verifiers alongside a TN NVV client.
+### Note: This document's instructions detail the process to run a TN Verifier for testing on devnet and testnet by the Telcoin Network team. For mainnet, Axelar Network already has an existing set of verifiers who will run verifiers alongside a TN NVV client. Thus this document is not relevant to mainnet deployment
 
 ## Running a TOFND instance
 
@@ -15,11 +15,17 @@ Create a default mnemonic and configuration in ~/.tofnd/, then back it up and de
 mv ~/.tofnd/export ~/.tofnd/export-new-location
 ```
 
-Now run tofnd. Be sure to specify the correct file name which may be a different architecture or later version than v1.0.1
-
-TODO: document making an alias for tofnd-binary -> tofnd
+Create an alias or symlink to the `tofnd` binary in your `.bashrc`. Be sure to specify the correct file name which may be a different architecture or later version than v1.0.1.
 
 ```bash
+echo "alias tofnd=~/Downloads/tofnd-linux-amd64-v1.0.1" >> ~/.bashrc
+source ~/.bashrc
+```
+
+Now run tofnd. This can be done with the alias or with the binary directly:
+
+```bash
+tofnd
 ./tofnd-linux-amd64-v1.0.1 -m existing
 ```
 
@@ -29,18 +35,20 @@ TODO: document making an alias for tofnd-binary -> tofnd
 
 Download the ampd binary depending on machine architecture from the [latest release tag](https://github.com/axelarnetwork/axelar-amplifier/releases)
 
-Add ampd to your PATH by adding an alias to ampd at the end of the .bashrc file on your machine:
+Add ampd to your PATH by adding an alias to ampd at the end of the .bashrc file on your machine and then reload the file to apply all changes:
 
-`echo "alias ampd=~/Downloads/ampd-darwin-arm64-v1.2.0" >> ~/.bashrc`
+```bash
+echo "alias ampd=~/Downloads/ampd-linux-amd64-v1.2.0" >> ~/.bashrc
+source ~/.bashrc
+```
 
-Replace ampd-darwin-arm64-v1.2.0 with the correct ampd binary if needed.
-TODO: docs missing `alias` keyword, save and close is not necessary with `echo`
+Replace ampd-linux-amd64-v1.2.0 with the correct ampd binary if needed
 
-Reload the file to apply all changes:
+Now you can run ampd, for example:
 
-`source ~/.bashrc`
-
-Now you can run ampd, for example with `ampd --version`
+```bash
+ampd --version
+```
 
 ### Configure ampd for Telcoin-Network and a source chain (eg Sepolia)
 
@@ -137,14 +145,73 @@ cosmwasm_contract="axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxu
 type="EvmVerifierSetVerifier"
 ```
 
-### Fund and bond the Verifier associated with the ampd instance
+### Fund the Verifier associated with the ampd instance
 
 To determine the verifier address associated with the ampd instance we've configure thus far, run:
 
 `ampd verifier-address`
 
-TODO: TN <> devnet-amplifier <> Sepolia verifier address is `axelar1t055c4qmplk8dwfaqf55dnm29ddg75rjh4jlle`
+##### For reference, the Telcoin Network verifier for devnet is `axelar1t055c4qmplk8dwfaqf55dnm29ddg75rjh4jlle`. This verifier is the sole verifier for both the voting verifier and multisig prover contracts associated with Telcoin Network GMP messages on Axelar devnet-amplifier.
 
-After determining the verifier address, fund it for gas purposes:
+After determining the verifier address, fund it for gas purposes. This can be done using the Axelar faucet or with a transaction on devnet:
 
-TODO: funding cmd
+`axelard tx bank send wallet axelar1t055c4qmplk8dwfaqf55dnm29ddg75rjh4jlle 100uamplifier --node http://devnet-amplifier.axelar.dev:26657`
+
+To query the verifier's balance to ensure it has been funded:
+
+`axelard q bank balances axelar1t055c4qmplk8dwfaqf55dnm29ddg75rjh4jlle --node http://devnet-amplifier.axelar.dev:26657`
+
+### Submit the Verifier onboarding form
+
+Once funded, submit [the Amplifier Verifier onboarding form](https://docs.google.com/forms/d/e/1FAIpQLSfQQhk292yT9j8sJF5ARRIE8PpI3LjuFc8rr7xZW7posSLtJA/viewform) for whitelisting
+
+### Bond the Verifier
+
+Verifiers must post a bond; note that the bond amount varies between devnet-amplifier, testnet, and mainnet. Remember that there is an existing network of mainnet verifiers who have already posted this bond.
+
+Note that each network possesses a corresponding "service name" which is the terminology that `ampd` recognizes, where:
+
+- devnet-amplifier is called "validators"
+- testnet is called "amplifier"
+
+#### For devnet-amplifier ie "validators", the bond amount is 100 uamplifier (equivalent to the faucet distribution amount):
+
+`ampd bond-verifier validators 100 uamplifier`
+
+[Here is the bonding transaction for the TN <> devnet-amplifier verifier](https://devnet-amplifier.axelarscan.io/tx/8822B3CBDDAC6F83B80E748DDF05BC7F6F66A14B54C73FD44327EC841C1F098F)
+
+#### For testnet ie "amplifier", the bond amount is 100k uAXL:
+
+`ampd bond-verifier amplifier 100000000000 uaxl`
+
+#### For mainnet, the bond amount is 500k uAXL:
+
+`ampd bond-verifier amplifier 50000000000 uaxl`
+
+### Register the ampd instance's public key
+
+This step registers the ampd instances public key
+
+`ampd register-public-key ecdsa`
+
+[Here is the public key registration transaction for the TN <> devnet-amplifier verifier](https://devnet-amplifier.axelarscan.io/tx/8CBC0F77B0C3A1E1BE6C4DBE9505BC21CC582429CBCBFBC90B77DEE2DFCB019B)
+
+### Register support for specified chains,
+
+Use `ampd register-chain-support` to register support for specific chains, in this case Telcoin-Network and Sepolia. Be sure to pass in the correct "service name"!
+
+`ampd register-chain-support validators ethereum-sepolia telcoin-network`
+
+#### Important: any chain included in the `register-chain-support` command must have associated handler declarations in the `~/.ampd/config.toml` file above
+
+### Run the `ampd` daemon
+
+Once the ampd verifier instance has been whitelisted and authorized in accordance with the form submitted above, the `ampd` daemon can be run (alongside `tofnd`) to begin verifying GMP messages which are submitted to the GMP API.
+
+While running, the verifier instance will monitor the voting verifier and multisig prover contracts and submit transactions to vote on GMP message veracity upon detecting new polls.
+
+To determine veracity, ampd performs an RPC call to the endpoint specified in the `~/.ampd/config.toml` to confirm that the GMP message being voted on (ie received by the voting verifier) was indeed emitted on the source chain's external gateway contract.
+
+As such, GMP message veracity is dependent on the source chain's finality properties. Put another way, a GMP message is unequivocally valid if it was emitted in the external gateway contract's `ContractCall` event as part of a block that has reached finality. This is because once a chain has come to consensus on a block, the block's execution is irreversible, immutable, and permanent on every node in the network.
+
+To learn what constitutes finality properties on the source chain, ampd performs an RPC call to the standard `RPCFinalizedBlock`.
