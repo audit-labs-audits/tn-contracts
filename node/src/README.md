@@ -1,178 +1,164 @@
-# Telcoin-Network Cross-Chain Bridge Relayers
+# Telcoin Network Bridging
 
-## Relayer High-Level Flow:
+Because the Telcoin token $TEL was deployed as an ERC20 token on Ethereum as part of its ICO in 2017, a native bridging mechanism needed to be devised in order to use $TEL as the native currency for Telcoin Network.
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant EthGateway as Ethereum Mainnet External Gateway
-    participant Subscriber
-    participant AmplifierApi
-    participant AxelarEth as Axelar:ETH Gateway
-    participant VotingVerifier as ETH Voting Verifier
-    participant Listener
-    participant Amplifier as Amplifier Router
-    participant AxelarTN as Axelar:TN Gateway
-    participant Prover
-    participant TNVerifiers as TN Verifiers
-    participant Includer
+At the very highest level, Telcoin Network utilizes four component categories to enable native cross-chain bridging. These are:
 
-    User ->> EthGateway: 1 Send bridge transaction (lock ETH:TEL)
-    EthGateway ->> Subscriber: 1a Emit callContract event
-    Subscriber ->> Subscriber: 2 Listen for bridge events
-    Subscriber ->> AmplifierApi: 2a Process, publish events to Amplifier API
-    AmplifierApi ->> AxelarEth: 3 Call verify_messages on internal gateway
-    AxelarEth ->> VotingVerifier: 4 Call voting verifier
-    VotingVerifier ->> VotingVerifier: 4a Start ETH verifier poll (voting via ampd)
-    VotingVerifier ->> Listener: 5 Emit quorum votes reached event
-    Listener ->> Listener: 6 Listen for quorum
-    Listener ->> AxelarEth: 6a Call route_messages with quorumed msgs
-    AxelarEth ->> Amplifier: 7 Pass message
-    Amplifier ->> AxelarTN: 7a Initiate dest verification flow of msgs
+- Axelar Gateway and Executable contracts
+- [offchain relayers](./relay/README.md)
+- [Axelar's "General Message Passing" GMP API](https://www.axelar.network/blog/general-message-passing-and-how-can-it-change-web3)
+- [verifiers](./verifier-instructions.md) implemented as the Telcoin Network Non-Voting Validator "NVV" Client
 
-    Listener ->> Prover: 8 Call construct_proof
-    Prover ->> Prover: 9 Emit signing session event
-    TNVerifiers ->> Prover: 10 Participate in signing session via ampd, eventually reaching quorum signatures
+## In a (very abstract) nutshell
 
-    Prover ->> Listener: 11 Listener notices proof is fully signed & has reached quorum
-    Listener ->> AmplifierApi: 11a Listener records a new task to AmplifierAPI
-    AmplifierApi ->> Includer: 12 Includer polls Amplifier Tasks API for new tasks
-    Includer ->> AmplifierApi: 13 Includer constructs and submits txs relaying proof to TN for execution
-```
+### Gateway and Executable Contracts
 
-1. user sends bridge tx to eth mainnet gateway causing a `ContractCall` event to be emitted (1a)
-2. Subscriber is listening for these events and picks up event 1a, processing it and submitting it to Amplifier API (2a)
-3. Axelar internally calls `verify_messages` on Axelar (internal) gateway contract for eth
-4. Axelar:eth internal gateway calls voting verifier, which starts ETH verifier voting poll via ampd (4a)
-5. once quorum of votes are cast for the message, an event is emitted.
-6. another axelar-specific relayer "Listener" listens for this event to call `route_messages` on Axelar:eth gateway (6a)
-7. chain’s Axelar gateway passes the message to the Amplifier router, which then passes it on to Axelar:TN gateway (7a)
-8. Listener calls `construct_proof` to start the process of creating a signed batch that can be relayed back to eth as well as pass the now-outbound message from the Axelar:TN gateway to the prover.
-9. prover starts a signing session with the multisig contract by emitting event
-10. noticing the event, TN verifiers participate in the signing session via ampd
-11. once quorum signatures are submitted, Listener records a new valid `taskID` to the Amplifier Tasks API (11a)
-12. Includer polls Amplifier Tasks API for new valid `tasks`
-13. Includer relays new valid `tasks` which contain fully signed proofs (from the prover) to TN to be executed via transactions on TN.
+Each chain that enables cross-chain communication via Axelar Network integrates to the Axelar hub by deploying at minimum two smart contracts: an external gateway contract and an executable contract. For Telcoin Network these are the AxelarAmplifierGateway and the RWTEL module, respectively. The external gateway's role is to both emit outgoing cross-chain messages and to accept incoming cross-chain messages, whereas the RWTEL executable performs the actual $TEL minting (for $TEL incoming from another chain) and locking (for $TEL being sent to another chain).
 
-System Diagram (omitting GMP API)
-![img](https://i.imgur.com/0tvOXdu.png)
+### Relayers
 
-## The Subscriber
+Relayers are offchain components that handle the transfer of cross-chain messages by monitoring the external gateways for new outbound messages and relaying them to the Axelar GMP API or vice versa. In the reverse case, relayers poll the GMP API for new incoming messages which have been verified by Axelar Network and deliver them to the chain's external gateway as well as execute them through the executable contract via transactions.
 
-The Subscriber can be configured at runtime with the flags below.
+### GMP API
 
-`--target-chain`: The chain at which to point the subscriber
-`--target-contract`: The specific contract to which to subscribe; may be an external gateway or AxelarGMPExecutable
+The Axelar GMP API abstracts away Axelar Network's internals [which are discussed here](https://forum.telcoin.org/t/light-clients-independent-verification/296/6?u=robriks). Under the hood, the GMP API handles a series of CosmWasm transactions required to push cross-chain messages through various verification steps codified by smart contracts deployed on the Axelar blockchain.
 
-For example, to run the Subscriber set up to subscribe to `ContractCall` events from the RWTEL module on Telcoin Network:
+### Verifiers
 
-```bash
-npm run subscriber -- --target-chain telcoin-network --target-contract 0xca568d148d23a4ca9b77bef783dca0d2f5962c12
-```
+To validate cross-chain messages within the Axelar chain, whitelisted services called "verifiers" check new messages against their source chain's finality by performing RPC calls to ensure the messages were emitted by the source chain's gateway in a block which has reached finality. The verifiers themselves run a copy of a Telcoin Network Non-Voting Validator client to track TN's execution and consensus, and in turn quorum-vote on whether or not the message in question is finalized.
 
-### Subscriber spec:
+## User Flow
 
-The Subscriber’s job is to guarantee that every protocol event on the Amplifier chain is detected and successfully published to the Amplifier API. The relayer detects outgoing GMP messages from the chain to the AVM and publishes them to the GMP API so that they can be verified, routed, signed, and delivered to the destination chain.
+From a user's perspective, only two transactions are required to initiate the bridging sequence:
 
-- subscribe to external eth gateway, hooking into onchain events
-- filter for `ContractCall(address indexed sender, string destinationChain, string destinationContractAddress, bytes32 indexed payloadHash, bytes payload)`
-- ensure target function is `execute(bytes32 commandId, string calldata sourceChain, string calldatasourceAddress, bytes calldata payload)` ?
-- publish to amplifier GMP API via `fetch()` & using CallEvent schema, obtain confirmation response
+1. Approve the token balance to be bridged for the external gateway to spend. This is necessary because the gateway transfers tokens from the user to itself in the subsequent bridge transaction, locking those tokens so they can be delivered and used on the destination chain.
 
-## The Includer
+2. Perform a call to the external gateway's `callContractWithToken()` function. This transaction locks the tokens to be bridged in the external gateway, where they remain until the tokens are bridged back from the destination chain.
 
-The Includer can be configured at runtime with the flags below.
+Telcoin-Network provides a canonical bridge interface for a convenient UI to perform the transactions above, but bridging remains permissionless because it can be performed by any user with TEL tokens on their own. Below is an example for how to do so using ethers:
 
-`--destination-chain`: The chain to transact tasks on
-`--target-contract`: The contract to call into; may be an external gateway or AxelarGMPExecutable
-`--latest-task`: **Optional**; used to specify the most recently completed task
-`--poll-interval`: **Optional**; used to customize API polling interval
+```javascript
+const { ethers } = require("ethers");
+const provider = new ethers.providers.JsonRpcProvider(
+  "https://source_chain_endpoint"
+);
 
-For example, to run the Includer set up to fetch tasks verified by Axelar Network and forward their payloads to the external AxelarAmplifierGateway on Telcoin-Network:
+/// @dev This example demonstrates bridging from sepolia -> TN
 
-```bash
-npm run includer -- --destination-chain telcoin-network --target-contract 0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3`
-```
+// Sepolia external gateway
+const axlExtGatewayContract = "0xe432150cce91c13a887f7D836923d5597adD8E31";
+// must use Axelar’s exact naming convention for each chain. Sepolia is as follows:
+const sourceChain = "ethereum-sepolia";
+const destinationChain = "telcoin-network";
+// this must be the destination chain’s Axelar Executable contract. On TN this is RWTEL
+const destinationContractAddress = "0xca568d148d23a4ca9b77bef783dca0d2f5962c12";
+// open to user input; generally defaults to the user wallet
+const recipientAddress = "0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180";
+const erc20Symbol = "TEL";
+// must be <= the amount previously approved to the external gateway
+const bridgeAmount = 42;
 
-### Includer spec:
-
-The Includer’s job is to guarantee that some payload (termed `task` by Axelar) gets included in a transaction in a block on the Amplifier chain. The relayer receives incoming GMP messages from the AVM to the chain and executes them by writing the transaction payloads to a block on the Amplifier chain.
-
-- poll amplifier Task API for new tasks
-- check whether new tasks are already executed (ie by another includer)
-- translate task payload into transaction
-- sign transaction and publish to TN (via RPC or direct-to-node?)
-- monitor transaction & adjust gas params if necessary
-- must push latest task ID to some persistent storage as a fallback in the case where the `Includer` goes offline and `taskID` has been consumed at TaskAPI
-
-## Axelar GMP API Endpoints
-
-##### Note: These can only be accessed after obtaining an mTLS authentication cert and instantiating the voting-verifier, internal-gateway, and multisig-prover contracts for Telcoin Network on the Axelar devnet. The path to the mTLS cert and key file must be provided in the `.env` file
-
-#### Events Endpoint
-
-`POST ${GMP_API_URL}/chains/{chain}/events`
-In this endpoint, events are published that indicate completed actions for the cross-chain messaging process. Developers can use this endpoint to submit the completion of new actions (e.g., that an new contract call was made, or a message was approved).
-
-Curl example (do this programmatically):
-
-```bash
-curl -X POST https://amplifier-devnet-amplifier.devnet.axelar.dev/chains/telcoin-network/events \
-  -H "Content-Type: application/json" \
-  --key client.key \
-  --cert client.crt \
-  -d '{
-    "events": [
+const gatewayCallContractWithTokenABI = [
+  {
+    inputs: [
       {
-        "type": "CALL",
-        "eventID": "0x26da7e8de02dec9f881327756807639dfd004ea06ca94fcb042ad054d33a119b-76",
-        "message": {
-          "messageID": "0x26da7e8de02dec9f881327756807639dfd004ea06ca94fcb042ad054d33a119b-76",
-          "sourceChain": "telcoin-network",
-          "sourceAddress": "0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180",
-          "destinationAddress": "0xca568d148d23a4ca9b77bef783dca0d2f5962c12",
-          "payloadHash": "0xea00237ef11bd9615a3b6d2629f2c6259d67b19bb94947a1bd739bae3415141c"
-        },
-        "destinationChain": "eth-sepolia",
-        "payload": "0x69"
-      }
-    ]
-  }'
+        internalType: "string",
+        name: "destinationChain",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "destinationContractAddress",
+        type: "string",
+      },
+      { internalType: "bytes", name: "payload", type: "bytes" },
+      { internalType: "string", name: "symbol", type: "string" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
+    ],
+    name: "callContractWithToken",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+];
+
+const axlExtGateway = new ethers.Contract(
+  axlExtGatewayContract,
+  gatewayCallContractWithTokenABI,
+  provider
+);
+
+async function bridgeERC20() {
+  // bridge txs to TN as destination chain are restricted to 'RWTEL::execute()'
+  const executeFuncSignature = "execute(bytes32,string,string,bytes)";
+  // parameters for the 'execute' function
+  const commandId = ethers.constants.HashZero; // deprecated by axelar- use bytes32(0)
+  const sourceAddress = axlExtGatewayContract;
+
+  // payload param must be abi-encoded representation of ExtCall solidity struct below
+  /// struct ExtCall {
+  ///      address target; // ie recipient
+  ///      uint256 value; // ie bridge amount
+  ///      bytes data; // empty, but can be used for more granularity in future
+  ///  }
+
+  // Define the ExtCall object and abi-encode as solidity struct
+  const extCall = {
+    target: recipientAddress,
+    value: bridgeAmount, // must conform to ERC20 decimals and be <= approved amount
+    data: "", // for plain ERC20 bridging, enforce data field to be empty
+  };
+
+  const payload = ethers.utils.defaultAbiCoder.encode(
+    ["address", "uint256", "bytes"],
+    [extCall.target, extCall.value, extCall.data]
+  );
+
+  // ABI encode the outer function call using previously defined parameters
+  const abiEncodedExecuteParams = ethers.utils.defaultAbiCoder.encode(
+    ["bytes32", "string", "string", "bytes"],
+    [commandId, sourceChain, sourceAddress, payload]
+  );
+
+  // hash signature & slice first 10 chars (‘0x’ + 4-byte func selector)
+  const execFuncSelector = ethers.utils.id(execFuncSignature).slice(0, 10);
+  // concatenate the function selector with the encoded data (less the ‘0x’)
+  const transactionData = functionSelector + abiEncodedFuncParams.slice(2);
+
+  const tx = await axlExtGateway.callContractWithToken(
+    destinationChain,
+    destinationContractAddress,
+    payload,
+    erc20Symbol,
+    bridgeAmount
+  );
+  await tx.wait();
+}
+
+await bridgeERC20();
 ```
 
-#### Tasks Endpoint
-
-`GET {GMP_API_URL}/chains/{chain}/tasks`:
-This endpoint returns tasks associated with the cross-chain messaging protocol. Each one of these tasks indicates an operation that needs to take place in order to proceed with the process of a GMP call. Developers can use this endpoint to monitor and react to various tasks (e.g., trigger an execution, or a refund).
-
-Curl example to get all pending tasks after UUID `550e8400-e29b-41d4-a716-446655440000` (do this programmatically):
-
-```bash
-curl -X GET https://amplifier-devnet-amplifier.devnet.axelar.dev/chains/telcoin-network/tasks?after=550e8400-e29b-41d4-a716-446655440000&limit=20 \
-  -H "Content-Type: application/json" \
-  --key client.key \
-  --cert client.crt
-```
-
-### Relevant Contract Deployments
+## Relevant Bridging Contract Deployments
 
 All of Axelar's canonical deployments are listed [here](https://github.com/axelarnetwork/axelar-contract-deployments/tree/main/axelar-chains-config/info)
 
-#### EVM Network Deployments
+### EVM Network Deployments
 
 Please note that the Telcoin-Network deployments are being iterated on and liable to change, leaving their entries in the following table outdated. For canonical deployments on TN which are guaranteed to be up to date, refer to `deployments/deployments.json`
 
 | Name          | Network         | Address                                    |
 | ------------- | --------------- | ------------------------------------------ |
-| Gateway Proxy | Sepolia         | 0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319 |
-| Gateway Impl  | Sepolia         | 0x80b70F5f8c8018ff919AcfdcF1026cf28D2c81bc |
+| Gateway Proxy | Sepolia         | 0xe432150cce91c13a887f7D836923d5597adD8E31 |
+| Gateway Impl  | Sepolia         | 0xc1712652326E87D193Ac11910934085FF45C2F48 |
 | Gateway Proxy | Ethereum        | 0x4F4495243837681061C4743b74B3eEdf548D56A5 |
 | Gateway Impl  | Ethereum        | 0x99B5FA03a5ea4315725c43346e55a6A6fbd94098 |
+| Gateway Proxy | Polygon         | 0x6f015F16De9fC8791b234eF68D486d2bF203FBA8 |
+| Gateway Impl  | Polygon         | 0x99B5FA03a5ea4315725c43346e55a6A6fbd94098 |
 | Gateway Proxy | Telcoin-Network | 0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3 |
 | Gateway Impl  | Telcoin-Network | 0xd118b3966488e29008e7355fc9090c5bca9fdef8 |
 | RWTEL (exec)  | Telcoin-Network | 0xca568d148d23a4ca9b77bef783dca0d2f5962c12 |
 
-#### Amplifier-Devnet Deployments
+### Amplifier-Devnet Deployments
 
 The Amplifier-Devnet AVM contract deployment addresses for Telcoin-Network use the pre-existing implementations and are as follows:
 
@@ -181,12 +167,3 @@ The Amplifier-Devnet AVM contract deployment addresses for Telcoin-Network use t
 | Voting Verifier  | Amplifier-Devnet | axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxuvtxx | 626    |
 | Internal Gateway | Amplifier-Devnet | axelar16zy7kl6nv8zk0racw6nsm6n0yl7h02lz4s9zz4lt8cfl0vxhfp8sqmtqcr | 616    |
 | Multisig Prover  | Amplifier-Devnet | axelar162t7mxkcnu7psw7qxlsd4cc5u6ywm399h8xg6qhgseg8nq6qhf6s7q8m0e | 618    |
-
-#### Misc Notes and TODOs:
-
-- verifier == NVV, watches consensus, performs normal validator duties without voting
-- verifier spec
-  - runs alongside ampd
-  - when poll starts ampd calls `RPCFinalizedBlock` -> latestHeightAndHash on the verifierNVV
-  - vote on multisig prover (investigate possible changes)
-- use ampd alongside verifierNVV & axelar as intended

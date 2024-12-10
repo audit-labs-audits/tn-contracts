@@ -26,6 +26,7 @@ struct Deployments {
     address eSDR;
     address eSGD;
     address rwTEL;
+    address sepoliaTEL;
     address wTEL;
     address wTEL_eAUD_Pool;
     address wTEL_eCAD_Pool;

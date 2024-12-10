@@ -1,4 +1,4 @@
-# Instructions for a verifier for Telcoin-Network bridging
+# Verifier instructions for Telcoin-Network bridging
 
 Running a verifier on Axelar Network constitutes running an instance of tofnd and of ampd in tandem. These services perform Axelar GMP message verification and sign transactions representing votes which are submitted to Axelar Network as part of Telcoin-Network's bridging flow.
 
