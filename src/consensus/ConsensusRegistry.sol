@@ -17,7 +17,6 @@ import { SystemCallable } from "./SystemCallable.sol";
  * @notice This contract manages consensus validator external keys, staking, and committees
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
-
 contract ConsensusRegistry is
     StakeManager,
     UUPSUpgradeable,
