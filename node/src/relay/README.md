@@ -72,7 +72,7 @@ npm run subscriber -- --target-chain telcoin-network --target-contract 0xca568d1
 
 ### Subscriber spec:
 
-The Subscriber’s job is to guarantee that every protocol event on the Amplifier chain is detected and successfully published to the Amplifier API. The relayer detects outgoing GMP messages from the chain to the AVM and publishes them to the GMP API so that they can be verified, routed, signed, and delivered to the destination chain.
+The Subscriber’s job is to guarantee that every protocol event on the Amplifier chain is detected and successfully published to the GMP API. The relayer detects outgoing GMP messages from the chain to the AVM and publishes them to the GMP API so that they can be verified, routed, signed, and delivered to the destination chain.
 
 - subscribe to external eth gateway, hooking into onchain events
 - filter for `ContractCall(address indexed sender, string destinationChain, string destinationContractAddress, bytes32 indexed payloadHash, bytes payload)`

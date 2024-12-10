@@ -95,7 +95,7 @@ The registry contract uses explicit namespaced storage to sandbox sensitive stat
 
 ### Role
 
-The Recoverable Wrapped Telcoin (rwTEL) contract serves as TN's bridge architecture entry and exit point with respect to execution. In simpler terms, this module performs the actual delivery of inbound $TEL from Ethereum ("ethTEL") and exports outbound $TEL ("tnTEL") which has been settled by waiting out the RecoverableWrapper's timelock.
+The Recoverable Wrapped Telcoin (rwTEL) contract serves as TN's bridge architecture entry and exit point with respect to execution. In simpler terms, this module performs the actual delivery of inbound $TEL from Ethereum ("ethTEL") and exports outbound $TEL ("TEL") which has been settled by waiting out the RecoverableWrapper's timelock.
 
 ### Design Decisions
 
@@ -103,76 +103,29 @@ RWTEL.sol combines Circle Research's recoverable wrapper utility with the requir
 
 Rather than revert execution of failing bridge transfers, `_execute()` emits an `ExecutionFailed` event. This is inspired by ERC4337's handling of failed UserOperations and ensures that failed bridge transfers don't reach an invalid state where the message is marked as `BaseAxelarAmplifierGateway::MESSAGE_APPROVED` but can never be executed to reach `BaseAxelarAmplifierGateway::MESSAGE_EXECUTED`. Such a state would only confuse relayers watching these states who might repeatedly try to re-execute failures.
 
-Instead, bridge transfers that fail execution on the destination chain will emit `ExecutionFailed` and still be marked as executed even when the destination address rejects a native tnTEL transfer. The onus is then on the user/bridger to resubmit a valid, non-reverting bridge transfer on the source chain that succeeds. It is important to note that this type of execution failure will be exceedingly rare, resulting only from invalid transactions such as attempting to send $TEL to a non-payable contract which rejects native tokens.
+Instead, bridge transfers that fail execution on the destination chain will emit `ExecutionFailed` and still be marked as executed even when the destination address rejects a native TEL transfer. The onus is then on the user/bridger to resubmit a valid, non-reverting bridge transfer on the source chain that succeeds.
+
+It is important to note that this type of execution failure will be exceedingly rare, resulting only from invalid transactions such as attempting to send $TEL to a non-payable contract which rejects native tokens.
 
 ### Mechanisms
 
-As a reminder, the only way to engender tnTEL on Telcoin-Network is via legitimate bridge transactions. The high-level concept of secure TN bridging for a TEL holder pre-genesis is:
+As a reminder, the only way to obtain TEL on Telcoin-Network is via bridging. The high-level concept of secure TN bridging for a TEL holder pre-genesis is:
 
 - **A.** Own the $TEL ERC20 on Ethereum (which we have been calling "ethTEL")
 - **B.** Perform an ERC20 spend approval for the Axelar External Gateway
 - **C.** Submit a bridge message to Axelar Network for verification by locking ethTEL in the Axelar external gateway on Ethereum
 
-Because ethTEL is the canonical $TEL token which will be used as native currency on TN (in the form of tnTEL), a way for incoming ethTEL ERC20 tokens to be converted to a non-ERC20 base layer currency must be implemented at the bridge entrypoint. This is one primary function of the RWTEL module.
+Because ethTEL is the canonical $TEL token which will be used as native currency on TN (in the form of TEL), a way for incoming ethTEL ERC20 tokens to be converted to a non-ERC20 base layer currency must be implemented at the bridge entrypoint. This is one primary function of the RWTEL module.
 
-Without this functionality, incoming ethTEL from Ethereum mainnet would be delivered as the ERC20 wTEL and cannot be unwrapped to native tnTEL without already having some to pay gas. In such a scenario, no entity would even be able to transact on TN as there would be no currency to pay gas with.
+Without this functionality, incoming ethTEL from Ethereum mainnet would be delivered as the ERC20 wTEL and cannot be unwrapped to native TEL without already having some to pay gas. In such a scenario, no entity would even be able to transact on TN as there would be no currency to pay gas with.
 
-There are two viable approaches to address this using the RWTEL module:
+### TEL Minted at Genesis
 
-1. **Minting at Genesis:**
+The total supply of ethTEL is "minted" to the RWTEL module as native TEL at genesis, and exists there but cannot be accessed by anyone in any way other than bridging from Ethereum.
 
-The total supply of ethTEL is "minted" to the RWTEL module as native tnTEL at genesis, and exists there but cannot be accessed by anyone in any way other than bridging from Ethereum.
+The locked status of tokens on Ethereum must be independently verified by a quorum of Axelar verifiers before that bridge request can be carried out on TN.
 
-- In this case, the tnTEL native currency exists from network genesis but is locked and can only be unlocked when a corresponding amount of ethTEL ERC20 token is locked in the bridge gateway contract on Ethereum.
-- **Security Posture:** Achieving security is sandboxed to the two usual smart contract security concepts: ECDSA integrity and upgradeability. In this case rogue access to tnTEL without bridging is infeasible unless brute forcing a private key for the RWTEL address or performing a malicious upgrade. Thus security considerations are:
-  - **A.** ECDSA integrity of RWTEL (brute force its private key, considered impossible)
+- While the total supply of TEL native currency exists from network genesis, it is locked in the RWTEL module and can only be unlocked when a corresponding amount of ethTEL ERC20 token is locked in the bridge gateway contract on Ethereum. This binary relationship of lock <> release state between chains is what maintain's the token supply's integrity.
+- **Security Posture:** Achieving security is sandboxed to the two usual smart contract security concepts: ECDSA integrity and upgradeability. In this case rogue access to TEL without bridging is infeasible unless brute forcing a private key for the RWTEL address or performing a malicious upgrade. Thus security considerations are:
+  - **A.** ECDSA integrity of RWTEL (brute force its private key, probabilistically impossible)
   - **B.** Exploitation of the RWTEL module's upgradeability (steal private keys for the multisig owner)
-
-2. **Minting on Demand:**
-
-The RWTEL module is granted special authority to access the TN db directly using a system call which is used to mint new native tnTEL directly to the protocol db each time a valid bridge request is processed and received by the RWTEL contract.
-
-- In this case, tnTEL doesn't exist until it is bridged from Ethereum.
-- **Security Posture:** Achieving security requires manifold effort, since exposed surface area now includes the chain's most sensitive components. Security considerations in this case are:
-  - **A.** ECDSA integrity of RWTEL (brute force its private key, considered impossible)
-  - **B.** Exploitation of the RWTEL module's upgradeability (steal private keys for the multisig owner)
-  - **C.** Exploitation of the RWTEL module's contract logic (Solidity side)
-  - **D.** Exploitation of the RWTEL module's system call logic (Rust side)
-
-In both cases above, the locked status of tokens on Ethereum must be independently verified by a quorum of Axelar verifiers before that bridge request can be carried out on TN. Currently, the RWTEL module is designed along the points described by #1.
-
-## Telcoin Network System Contract Audit Scope
-
-| File                                | Logic Contracts                                     | Interfaces                            | nSLOC          |
-| ----------------------------------- | --------------------------------------------------- | ------------------------------------- | -------------- |
-| src/RWTEL.sol                       | 1 (RWTEL)                                           | 1 (IRWTEL)                            | 141            |
-| src/consensus/ConsensusRegistry.sol | 3 (ConsensusRegistry, StakeManager, SystemCallable) | 2 (IConsensusRegistry, IStakeManager) | (600, 150, 21) |
-| node/src/relay/Includer.ts          | 0 (Offchain Relayer)                                | 0 (Offchain component)                | 300            |
-
-### Dependencies (audited)
-
-RWTEL:
-
-- [RecoverableWrapper](./node_modules/recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol)
-- [AxelarGMPExecutable](./node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarGMPExecutable.sol)
-- [UUPSUpgradeable](./node_modules/@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol)
-- [Ownable](./node_modules/solady/src/auth/Ownable.sol)
-
-ConsensusRegistry:
-
-- [PausableUpgradeable](./node_modules/@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol)
-- [OwnableUpgradeable](./node_modules/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol)
-- [UUPSUpgradeable](./node_modules/@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol)
-- [ERC721Upgradeable](./node_modules/@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol)
-
-### Documentation
-
-##### For developers and auditors, please note that this codebase adheres to [the SolidityLang NatSpec guidelines](https://docs.soliditylang.org/en/latest/natspec-format.html), meaning documentation for each contract is best viewed in its interface file. For example, to learn about the RWTEL module you should consult the IRWTEL interface and likewise, for info about the ConsensusRegistry, see IConsensusRegistry.sol.
-
-##### Please also note that while these contracts are still a work in progress, documentation is limited to the repo's READMEs and forum posts from developers. Once finalized but still preceding audit, tn-contracts system documentation will be hosted on a standard rust-lang/mdbook.
-
-- RWTEL system design is documented in [this Telcoin Forum post](https://forum.telcoin.org/t/light-clients-independent-verification/296/7?u=robriks). This content will soon be merged into the tn-contracts repo README.
-
-- ConsensusRegistry system design is documented in the [tn-contracts README](./README.md#consensusregistry) and there is some more system design discussion in [this Telcoin Forum post](https://forum.telcoin.org/t/validator-onboarding-staking-consensusregistry/364/2?u=robriks)
-
-- Offchain relayer system design is documented in the [tn-contracts NodeJS subdirectory's README](./node/src/README.md)
