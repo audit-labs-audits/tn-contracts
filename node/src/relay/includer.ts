@@ -19,7 +19,8 @@ import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-/// @dev Usage Example: `npm run includer -- --source-chain telcoin-network --destination-chain sepolia --target-contract 0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3`
+/// @dev Usage example for including GMP API tasks as transactions to the Axelar sepolia gateway:
+/// `npm run includer -- --source-chain telcoin-network --destination-chain sepolia --target-contract 0xe432150cce91c13a887f7D836923d5597adD8E31`
 
 // todo:
 // Amplifier GMP API config
@@ -198,7 +199,7 @@ async function recordTaskExecuted(
   // handle axelar's custom nomenclature for sepolia
   let destinationChainName = destinationChain.name.toLowerCase();
   if (destinationChain === sepolia)
-    destinationChainName = `eth-${destinationChainName}`;
+    destinationChainName = `ethereum-${destinationChainName}`;
 
   // make post request
   try {

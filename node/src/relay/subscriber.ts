@@ -14,7 +14,8 @@ import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGa
 import * as dotenv from "dotenv";
 dotenv.config();
 
-/// @dev Usage Example: `npm run subscriber -- --target-chain telcoin-network --target-contract 0xca568d148d23a4ca9b77bef783dca0d2f5962c12`
+/// @dev Usage example for subscribing to the RWTEL contract on TN:
+/// `npm run subscriber -- --target-chain telcoin-network --target-contract 0xca568d148d23a4ca9b77bef783dca0d2f5962c12`
 
 // env config
 const CRT_PATH: string | undefined = process.env.CRT_PATH;
@@ -89,7 +90,7 @@ async function main() {
 async function processLogs(logs: Log[]) {
   // handle axelar's custom nomenclature for sepolia
   let sourceChain = targetChain.name.toLowerCase();
-  if (targetChain === sepolia) sourceChain = `eth-${sourceChain}`;
+  if (targetChain === sepolia) sourceChain = `ethereum-${sourceChain}`;
 
   const events = [];
   for (const log of logs) {
