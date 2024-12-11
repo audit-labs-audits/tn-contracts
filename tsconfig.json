@@ -7,8 +7,9 @@
     /* Modules */
     "module": "nodenext" /* Specify what module code is generated. */,
     "moduleResolution": "nodenext",
+    "resolveJsonModule": true,
     "esModuleInterop": true /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */,
-    // "preserveSymlinks": true,                         /* Disable resolving symlinks to their realpath. This correlates to the same flag in node. */
+    "incremental": true,
     "forceConsistentCasingInFileNames": true /* Ensure that casing is correct in imports. */,
     "declaration": true,
     "outDir": "./node/dist",

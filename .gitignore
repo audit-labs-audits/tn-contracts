@@ -13,11 +13,20 @@ dist/
 # Ignore script outputs
 log
 
+# Ignore incremental build info
+tsconfig.tsbuildinfo
+
 # Docs
 docs/
 
 # Dotenv file
 .env
+**/.env
+
+# Client Certificates
+client.csr
+client.key
+client.crt
 
 # Dependencies
 */node_modules
