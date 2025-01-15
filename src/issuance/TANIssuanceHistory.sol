@@ -5,9 +5,14 @@ import { Checkpoints } from "@openzeppelin/contracts/utils/structs/Checkpoints.s
 import { Time } from "@openzeppelin/contracts/utils/types/Time.sol";
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IPlugin } from "telcoin-contracts/contracts/swap/interfaces/ISimplePlugin.sol";
 
-/// @dev Temporary TANIssuancePlugin, oversimplified to avoid handling funds for now
-contract TANIssuancePlugin {
+/// @title TANIssuanceHistory
+/// @notice This contract persists historical information related to TAN Issuance onchain
+/// The stored data is required for TAN Issuance rewards calculations, specifically rewards caps
+/// It is designed to serve as the `increaser` for a Telcoin `SimplePlugin` module 
+/// attached to the canonical TEL `StakingModule` contract.
+contract TANIssuanceHistory {
     using Checkpoints for Checkpoints.Trace224;
     using SafeERC20 for IERC20;
 
@@ -15,27 +20,18 @@ contract TANIssuancePlugin {
     error ERC6372InconsistentClock();
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
 
-    IERC20 public immutable tel;
+    // todo: tether this contract to its plugin's `deactivated()` state
+    IPlugin immutable public tanIssuancePlugin;
 
     mapping(address => Checkpoints.Trace224) private _cumulativeRewards;
 
     uint256 public lastSettlementBlock;
-    address public increaser;
 
     /// @notice Emitted when users' (temporarily mocked) claimable rewards are increased
     event ClaimableIncreased(address indexed account, uint256 oldClaimable, uint256 newClaimable);
 
-    /// @notice Emitted when increaser changes
-    event IncreaserChanged(address indexed oldIncreaser, address indexed newIncreaser);
-
-    constructor(IERC20 tel_, address increaser_) {
-        tel = tel_;
-        increaser = increaser_;
-    }
-
-    modifier onlyIncreaser() {
-        require(msg.sender == increaser, "SimplePlugin: Caller is not onlyIncreaser");
-        _;
+    constructor(IPlugin tanIssuancePlugin_) {
+        tanIssuancePlugin = tanIssuancePlugin_;
     }
 
     /// @dev Returns the current cumulative rewards for an account
@@ -79,16 +75,15 @@ contract TANIssuancePlugin {
         uint256 len = accounts.length;
         if (amounts.length != len) revert ArityMismatch();
 
+        lastSettlementBlock = block.number;
+
         for (uint256 i; i < len; ++i) {
             uint256 prevCumulativeReward = SafeCast.toUint256(_cumulativeRewards[accounts[i]].latest());
             uint256 newCumulativeReward = prevCumulativeReward + amounts[i];
 
             _cumulativeRewards[accounts[i]].push(newCumulativeReward);
 
-            // omitted claimable state updates
-            // omitted approval logic
-
-            emit ClaimableIncreased(accounts[i], prevCumulativeReward, newCumulativeReward);
+            IPlugin(tanIssuanceSimplePlugin).increaseClaimableBy();
         }
     }
 
