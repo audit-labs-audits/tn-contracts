@@ -2,9 +2,9 @@
 pragma solidity 0.8.26;
 
 import "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {StablecoinHandler} from "telcoin-contracts/contracts/stablecoin/StablecoinHandler.sol";
-import {Stablecoin} from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { StablecoinHandler } from "telcoin-contracts/contracts/stablecoin/StablecoinHandler.sol";
+import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
 import "../src/StablecoinManager.sol";
 
 contract StablecoinManagerTest is Test {
@@ -27,31 +27,17 @@ contract StablecoinManagerTest is Test {
     function setUp() public {
         faucets.push(address(0xc0ffee));
 
-        stablecoinManagerImpl = new StablecoinManager{
-            salt: stablecoinManagerSalt
-        }();
+        stablecoinManagerImpl = new StablecoinManager{ salt: stablecoinManagerSalt }();
 
         bytes memory initCall = abi.encodeWithSelector(
             StablecoinManager.initialize.selector,
             StablecoinManager.StablecoinManagerInitParams(
-                admin,
-                maintainer,
-                new address[](0),
-                max,
-                min,
-                faucets,
-                dripAmount,
-                nativeDripAmount
+                admin, maintainer, new address[](0), max, min, faucets, dripAmount, nativeDripAmount
             )
         );
 
         stablecoinManager = StablecoinManager(
-            payable(
-                new ERC1967Proxy{salt: stablecoinManagerSalt}(
-                    address(stablecoinManagerImpl),
-                    initCall
-                )
-            )
+            payable(new ERC1967Proxy{ salt: stablecoinManagerSalt }(address(stablecoinManagerImpl), initCall))
         );
     }
 
@@ -165,10 +151,7 @@ contract StablecoinManagerTest is Test {
         }
 
         address[] memory enabledXYZs = stablecoinManager.getEnabledXYZs();
-        assertEq(
-            enabledXYZs.length,
-            numTokens - numRemove + initEnabledXYZs.length
-        );
+        assertEq(enabledXYZs.length, numTokens - numRemove + initEnabledXYZs.length);
 
         for (uint256 i; i < tokens.length; ++i) {
             bool validity = i >= numRemove ? true : false;
@@ -203,8 +186,7 @@ contract StablecoinManagerTest is Test {
 
         vm.prank(maintainer);
         stablecoinManager.setNativeDripAmount(newNativeDripAmount);
-        uint256 storedNativeDripAmount = stablecoinManager
-            .getNativeDripAmount();
+        uint256 storedNativeDripAmount = stablecoinManager.getNativeDripAmount();
         assertEq(storedNativeDripAmount, newNativeDripAmount);
     }
 
@@ -233,8 +215,7 @@ contract StablecoinManagerTest is Test {
         uint256 dripAmt = stablecoinManager.getDripAmount();
         assertEq(balBefore + dripAmt, balAfter);
 
-        uint256 lastFulfilledDrip = stablecoinManager
-            .getLastFulfilledDripTimestamp(address(currency), recipient);
+        uint256 lastFulfilledDrip = stablecoinManager.getLastFulfilledDripTimestamp(address(currency), recipient);
         assertEq(lastFulfilledDrip, block.timestamp);
     }
 
@@ -254,8 +235,7 @@ contract StablecoinManagerTest is Test {
 
         assertEq(balBefore + nativeDripAmt, balAfter);
 
-        uint256 lastFulfilledDrip = stablecoinManager
-            .getLastFulfilledDripTimestamp(address(0), recipient);
+        uint256 lastFulfilledDrip = stablecoinManager.getLastFulfilledDripTimestamp(address(0), recipient);
         assertEq(lastFulfilledDrip, block.timestamp);
     }
 

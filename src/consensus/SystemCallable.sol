@@ -12,8 +12,7 @@ pragma solidity 0.8.26;
 abstract contract SystemCallable {
     error OnlySystemCall(address invalidCaller);
 
-    address public constant SYSTEM_ADDRESS =
-        address(0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
+    address public constant SYSTEM_ADDRESS = address(0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
 
     modifier onlySystemCall() {
         if (msg.sender != SYSTEM_ADDRESS) revert OnlySystemCall(msg.sender);
