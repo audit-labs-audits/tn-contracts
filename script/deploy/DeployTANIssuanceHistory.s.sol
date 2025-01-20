@@ -34,7 +34,7 @@ contract TestnetDeployTANIssuanceHistory is Script {
         vm.startBroadcast();
 
         // tanIssuancePlugin = new SimplePlugin{salt: bytes32(0x0)}()
-        tanIssuanceHistory = new TANIssuanceHistory{salt: bytes32(0x0)}(tanIssuancePlugin);
+        // tanIssuanceHistory = new TANIssuanceHistory{salt: bytes32(0x0)}(tanIssuancePlugin);
 
         vm.stopBroadcast();
     }

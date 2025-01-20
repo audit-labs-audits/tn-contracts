@@ -5,14 +5,15 @@ import { Checkpoints } from "@openzeppelin/contracts/utils/structs/Checkpoints.s
 import { Time } from "@openzeppelin/contracts/utils/types/Time.sol";
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IPlugin } from "telcoin-contracts/contracts/swap/interfaces/ISimplePlugin.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ISimplePlugin } from "telcoin-contracts/contracts/swap/interfaces/ISimplePlugin.sol";
 
 /// @title TANIssuanceHistory
 /// @notice This contract persists historical information related to TAN Issuance onchain
 /// The stored data is required for TAN Issuance rewards calculations, specifically rewards caps
 /// It is designed to serve as the `increaser` for a Telcoin `SimplePlugin` module 
 /// attached to the canonical TEL `StakingModule` contract.
-contract TANIssuanceHistory {
+contract TANIssuanceHistory is Ownable {
     using Checkpoints for Checkpoints.Trace224;
     using SafeERC20 for IERC20;
 
@@ -21,7 +22,7 @@ contract TANIssuanceHistory {
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
 
     // todo: tether this contract to its plugin's `deactivated()` state
-    IPlugin immutable public tanIssuancePlugin;
+    ISimplePlugin immutable public tanIssuancePlugin;
 
     mapping(address => Checkpoints.Trace224) private _cumulativeRewards;
 
@@ -30,18 +31,18 @@ contract TANIssuanceHistory {
     /// @notice Emitted when users' (temporarily mocked) claimable rewards are increased
     event ClaimableIncreased(address indexed account, uint256 oldClaimable, uint256 newClaimable);
 
-    constructor(IPlugin tanIssuancePlugin_) {
+    constructor(ISimplePlugin tanIssuancePlugin_) Ownable(msg.sender) {
         tanIssuancePlugin = tanIssuancePlugin_;
     }
 
     /// @dev Returns the current cumulative rewards for an account
-    function cumulativeRewards(address account) external view returns (uint256) {
+    function cumulativeRewards(address account) public view returns (uint256) {
         return _cumulativeRewards[account].latest();
     }
 
     /// @dev Returns the cumulative rewards for an account at the **end** of the supplied block
     function cumulativeRewardsAtBlock(address account, uint256 queryBlock) external view returns (uint256) {
-        uint48 validatedBlock = _validateQueryBlock(queryBlock);
+        uint32 validatedBlock = SafeCast.toUint32(_validateQueryBlock(queryBlock));
         return _cumulativeRewards[account].upperLookupRecent(validatedBlock);
     }
 
@@ -57,7 +58,8 @@ contract TANIssuanceHistory {
     {
         uint48 validatedBlock;
         if (queryBlock == 0) {
-            validatedBlock = block.number;
+            // no need for safecast when dealing with global block number variable
+            validatedBlock = uint48(block.number);
         } else {
             validatedBlock = _validateQueryBlock(queryBlock);
         }
@@ -71,19 +73,19 @@ contract TANIssuanceHistory {
         return rewards;
     }
 
-    function settle(address[] calldata accounts, uint256[] calldata amounts) public onlyIncreaser {
+    function settle(address[] calldata accounts, uint256[] calldata amounts) public onlyOwner {
         uint256 len = accounts.length;
         if (amounts.length != len) revert ArityMismatch();
 
         lastSettlementBlock = block.number;
 
         for (uint256 i; i < len; ++i) {
-            uint256 prevCumulativeReward = SafeCast.toUint256(_cumulativeRewards[accounts[i]].latest());
-            uint256 newCumulativeReward = prevCumulativeReward + amounts[i];
+            uint256 prevCumulativeReward = cumulativeRewards(accounts[i]);
+            uint224 newCumulativeReward = SafeCast.toUint224(prevCumulativeReward + amounts[i]);
 
-            _cumulativeRewards[accounts[i]].push(newCumulativeReward);
+            _cumulativeRewards[accounts[i]].push(uint32(block.number), newCumulativeReward);
 
-            IPlugin(tanIssuanceSimplePlugin).increaseClaimableBy();
+            ISimplePlugin(tanIssuancePlugin).increaseClaimableBy(accounts[i], amounts[i]);
         }
     }
 
@@ -136,7 +138,7 @@ contract TANIssuanceHistory {
         return SafeCast.toUint48(queryBlock);
     }
 
-    function _cumulativeRewardsAtBlock(address account, uint256 queryBlock) internal view returns (uint256) {
-        return _cumulativeRewards[account].upperLookupRecent(queryBlock);
+    function _cumulativeRewardsAtBlock(address account, uint48 queryBlock) internal view returns (uint256) {
+        return _cumulativeRewards[account].upperLookupRecent(SafeCast.toUint32(queryBlock));
     }
 }
