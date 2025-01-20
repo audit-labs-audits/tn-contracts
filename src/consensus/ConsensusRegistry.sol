@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -71,7 +71,9 @@ contract ConsensusRegistry is
             }
             // only genesis validators can be active with an `activationEpoch == 0`
             if (index > $.numGenesisValidators) {
-                if (currentValidator.activationEpoch == 0) revert InvalidStatus(ValidatorStatus.Undefined);
+                if (currentValidator.activationEpoch == 0) {
+                    revert InvalidStatus(ValidatorStatus.Undefined);
+                }
             }
 
             address validatorAddr = currentValidator.ecdsaPubkey;
@@ -386,11 +388,13 @@ contract ConsensusRegistry is
             revert InvalidCommitteeSize(numActiveValidators, committeeSize);
         } else {
             // calculate number of tolerable faults for given node count using 33% threshold
-            uint256 tolerableFaults = numActiveValidators * 10_000 / 3;
+            uint256 tolerableFaults = (numActiveValidators * 10_000) / 3;
 
             // committee size must be greater than tolerable faults
             uint256 minCommitteeSize = tolerableFaults / 10_000 + 1;
-            if (committeeSize < minCommitteeSize) revert InvalidCommitteeSize(minCommitteeSize, committeeSize);
+            if (committeeSize < minCommitteeSize) {
+                revert InvalidCommitteeSize(minCommitteeSize, committeeSize);
+            }
         }
     }
 
@@ -429,7 +433,9 @@ contract ConsensusRegistry is
         uint256 currentCommitteeLen = currentCommittee.length;
         for (uint256 i; i < currentCommitteeLen; ++i) {
             // revert if `ecdsaPubkey` is a member of current committee
-            if (currentCommittee[i] == ecdsaPubkey) revert CommitteeRequirement(ecdsaPubkey);
+            if (currentCommittee[i] == ecdsaPubkey) {
+                revert CommitteeRequirement(ecdsaPubkey);
+            }
         }
 
         uint8 nextEpochPointer = (currentEpochPointer + 1) % 4;
@@ -437,7 +443,9 @@ contract ConsensusRegistry is
         uint256 nextCommitteeLen = nextCommittee.length;
         for (uint256 i; i < nextCommitteeLen; ++i) {
             // revert if `ecdsaPubkey` is a member of next committee
-            if (nextCommittee[i] == ecdsaPubkey) revert CommitteeRequirement(ecdsaPubkey);
+            if (nextCommittee[i] == ecdsaPubkey) {
+                revert CommitteeRequirement(ecdsaPubkey);
+            }
         }
 
         uint8 twoEpochsInFuturePointer = (currentEpochPointer + 2) % 4;
@@ -445,7 +453,9 @@ contract ConsensusRegistry is
         uint256 subsequentCommitteeLen = subsequentCommittee.length;
         for (uint256 i; i < subsequentCommitteeLen; ++i) {
             // revert if `ecdsaPubkey` is a member of subsequent committee
-            if (subsequentCommittee[i] == ecdsaPubkey) revert CommitteeRequirement(ecdsaPubkey);
+            if (subsequentCommittee[i] == ecdsaPubkey) {
+                revert CommitteeRequirement(ecdsaPubkey);
+            }
         }
     }
 
@@ -565,11 +575,21 @@ contract ConsensusRegistry is
             ValidatorInfo memory currentValidator = initialValidators_[i - 1];
 
             // assert `validatorIndex` struct members match expected value
-            if (currentValidator.blsPubkey.length != 96) revert InvalidBLSPubkey();
-            if (currentValidator.ed25519Pubkey == bytes32(0x0)) revert InvalidEd25519Pubkey();
-            if (currentValidator.ecdsaPubkey == address(0x0)) revert InvalidECDSAPubkey();
-            if (currentValidator.activationEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
-            if (currentValidator.exitEpoch != uint32(0)) revert InvalidEpoch(currentValidator.activationEpoch);
+            if (currentValidator.blsPubkey.length != 96) {
+                revert InvalidBLSPubkey();
+            }
+            if (currentValidator.ed25519Pubkey == bytes32(0x0)) {
+                revert InvalidEd25519Pubkey();
+            }
+            if (currentValidator.ecdsaPubkey == address(0x0)) {
+                revert InvalidECDSAPubkey();
+            }
+            if (currentValidator.activationEpoch != uint32(0)) {
+                revert InvalidEpoch(currentValidator.activationEpoch);
+            }
+            if (currentValidator.exitEpoch != uint32(0)) {
+                revert InvalidEpoch(currentValidator.activationEpoch);
+            }
             if (currentValidator.currentStatus != ValidatorStatus.Active) {
                 revert InvalidStatus(currentValidator.currentStatus);
             }

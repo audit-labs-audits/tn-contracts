@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -212,7 +212,9 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
     /// @notice Rather than set `nativeDripAmount` to 0, disable the token
     /// @inheritdoc TNFaucet
     function setNativeDripAmount(uint256 newNativeDripAmount) external override onlyRole(MAINTAINER_ROLE) {
-        if (newNativeDripAmount == 0) revert InvalidDripAmount(newNativeDripAmount);
+        if (newNativeDripAmount == 0) {
+            revert InvalidDripAmount(newNativeDripAmount);
+        }
         _setNativeDripAmount(newNativeDripAmount);
     }
 
@@ -331,7 +333,9 @@ contract StablecoinManager is StablecoinHandler, TNFaucet, UUPSUpgradeable {
     function _checkRole(bytes32 role) internal view virtual override {
         address caller = _msgSender();
         bool hasRoleOrInitializing = hasRole(role, caller) || _isInitializing();
-        if (!hasRoleOrInitializing) revert AccessControlUnauthorizedAccount(caller, role);
+        if (!hasRoleOrInitializing) {
+            revert AccessControlUnauthorizedAccount(caller, role);
+        }
     }
 
     /// @notice Only the admin may perform an upgrade

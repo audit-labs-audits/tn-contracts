@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity ^0.8.20;
 
 import { AxelarGMPExecutable } from
@@ -39,8 +39,11 @@ interface IRWTEL {
 
     /// @dev Permissioned setter functions
     function setName(string memory newName) external;
+
     function setSymbol(string memory newSymbol) external;
+
     function setGovernanceAddress(address newGovernanceAddress) external;
+
     /// @notice Workaround function to alter `RecoverableWrapper::MAX_TO_CLEAN` without forking audited code
     /// Provided because `MAX_TO_CLEAN` may require alteration in the future, as opposed to `baseERC20`,
     /// @dev `MAX_TO_CLEAN` is stored in slot 11
