@@ -6,23 +6,28 @@ import { Time } from "@openzeppelin/contracts/utils/types/Time.sol";
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { ISimplePlugin } from "telcoin-contracts/contracts/swap/interfaces/ISimplePlugin.sol";
+import { ISimplePlugin } from "../interfaces/ISimplePlugin.sol";
 
-/// @title TANIssuanceHistory
-/// @notice This contract persists historical information related to TAN Issuance onchain
-/// The stored data is required for TAN Issuance rewards calculations, specifically rewards caps
-/// It is designed to serve as the `increaser` for a Telcoin `SimplePlugin` module 
-/// attached to the canonical TEL `StakingModule` contract.
+/**
+ * @title TANIssuanceHistory
+ * @author Robriks 📯️📯️📯️.eth
+ * @notice A Telcoin Contract
+ *
+ * @notice This contract persists historical information related to TAN Issuance onchain
+ * The stored data is required for TAN Issuance rewards calculations, specifically rewards caps
+ * It is designed to serve as the `increaser` for a Telcoin `SimplePlugin` module
+ * which is attached to the canonical TEL `StakingModule` contract.
+ */
 contract TANIssuanceHistory is Ownable {
     using Checkpoints for Checkpoints.Trace224;
     using SafeERC20 for IERC20;
 
     error ArityMismatch();
+    error Deactivated();
     error ERC6372InconsistentClock();
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
 
-    // todo: tether this contract to its plugin's `deactivated()` state
-    ISimplePlugin immutable public tanIssuancePlugin;
+    ISimplePlugin public immutable tanIssuancePlugin;
 
     mapping(address => Checkpoints.Trace224) private _cumulativeRewards;
 
@@ -31,9 +36,18 @@ contract TANIssuanceHistory is Ownable {
     /// @notice Emitted when users' (temporarily mocked) claimable rewards are increased
     event ClaimableIncreased(address indexed account, uint256 oldClaimable, uint256 newClaimable);
 
+    modifier whenNotDeactivated() {
+        if (deactivated()) revert Deactivated();
+        _;
+    }
+
     constructor(ISimplePlugin tanIssuancePlugin_) Ownable(msg.sender) {
         tanIssuancePlugin = tanIssuancePlugin_;
     }
+
+    /**
+     * Views
+     */
 
     /// @dev Returns the current cumulative rewards for an account
     function cumulativeRewards(address account) public view returns (uint256) {
@@ -54,7 +68,7 @@ contract TANIssuanceHistory is Ownable {
     )
         external
         view
-        returns (uint256[] memory)
+        returns (address[] memory, uint256[] memory)
     {
         uint48 validatedBlock;
         if (queryBlock == 0) {
@@ -70,48 +84,56 @@ contract TANIssuanceHistory is Ownable {
             rewards[i] = _cumulativeRewardsAtBlock(accounts[i], validatedBlock);
         }
 
-        return rewards;
+        return (accounts, rewards);
     }
 
-    function settle(address[] calldata accounts, uint256[] calldata amounts) public onlyOwner {
+    /// @dev The active status of this contract is tethered to its designated plugin
+    function deactivated() public view returns (bool) {
+        return tanIssuancePlugin.deactivated();
+    }
+
+    /**
+     * Writes
+     */
+
+    /// @dev Saves the settlement block, updates cumulative rewards history, and settles TEL rewards on the plugin
+    function increaseClaimableByBatch(
+        address[] calldata accounts,
+        uint256[] calldata amounts
+    )
+        external
+        onlyOwner
+        whenNotDeactivated
+    {
         uint256 len = accounts.length;
         if (amounts.length != len) revert ArityMismatch();
 
         lastSettlementBlock = block.number;
 
+        // reentrancy of external call to plugin is not possible due to non-upgradability
+        // as well as permissioning on the StakingModule, SimplePlugin, and this contract
         for (uint256 i; i < len; ++i) {
-            uint256 prevCumulativeReward = cumulativeRewards(accounts[i]);
-            uint224 newCumulativeReward = SafeCast.toUint224(prevCumulativeReward + amounts[i]);
+            // if input contains a zero amount do nothing to save gas
+            if (amounts[i] == 0) continue;
+            _incrementCumulativeRewards(accounts[i], amounts[i]);
 
-            _cumulativeRewards[accounts[i]].push(uint32(block.number), newCumulativeReward);
-
-            ISimplePlugin(tanIssuancePlugin).increaseClaimableBy(accounts[i], amounts[i]);
+            // event emission on this contract is omitted since the plugin emits a `ClaimableIncreased` event
+            tanIssuancePlugin.increaseClaimableBy(accounts[i], amounts[i]);
         }
     }
 
-    /// @dev May be needed if batch settling exceeds gas limit
-    /// @notice Temporarily omitted modifier: whenNotDeactivated
-    // function increaseClaimableBy(address account, uint256 amount) external onlyIncreaser returns (bool) {
-    //     // if amount is zero do nothing; this is for backend compatibility with earlier `IPlugins`
-    //     if (amount == 0) return false;
-
-    //     uint256 prevCumulativeReward = SafeCast.toUint256(cumulativeRewards[account].latest());
-    //     uint256 newCumulativeReward = prevCumulativeReward + amount;
-
-    //     cumulativeRewards[account].push(newCumulativeReward);
-
-    //     // omitted claimable state updates
-    //     // omitted transfer logic
-
-    //     emit ClaimableIncreased(account, prevCumulativeReward, newCumulativeReward);
-    //     return true;
-    // }
-
-    /**
-     * IPlugin
-     */
-
-    /// @dev Omitted
+    /// @notice rescues any stuck erc20
+    /// @dev if the token is TEL, then it only allows maximum of balanceOf(this) - _totalOwed to be rescued
+    function rescueTokens(IERC20 token, address to) external onlyOwner {
+        if (token == tanIssuancePlugin.tel()) {
+            // for TEL, only send the extra amount. Do not send anything that is meant for users.
+            uint256 userRewardsOwed = tanIssuancePlugin.totalClaimable();
+            token.safeTransfer(to, token.balanceOf(address(this)) - userRewardsOwed);
+        } else {
+            // for other ERC20 tokens, any tokens owned by this address are accidental; send the full balance.
+            token.safeTransfer(to, token.balanceOf(address(this)));
+        }
+    }
 
     /**
      * ERC6372
@@ -130,6 +152,12 @@ contract TANIssuanceHistory is Ownable {
     /**
      * Internals
      */
+    function _incrementCumulativeRewards(address account, uint256 amount) internal {
+        uint256 prevCumulativeReward = cumulativeRewards(account);
+        uint224 newCumulativeReward = SafeCast.toUint224(prevCumulativeReward + amount);
+
+        _cumulativeRewards[account].push(uint32(block.number), newCumulativeReward);
+    }
 
     /// @dev Validate that user-supplied block is in the past, and return it as a uint48.
     function _validateQueryBlock(uint256 queryBlock) internal view returns (uint48) {

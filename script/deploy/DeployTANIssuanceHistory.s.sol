@@ -12,7 +12,6 @@ import { TANIssuanceHistory } from "../../src/issuance/TANIssuanceHistory.sol";
 // import { StakingModule } from "";
 
 contract TestnetDeployTANIssuanceHistory is Script {
-    
     TANIssuanceHistory tanIssuanceHistory;
     // SimplePlugin tanIssuancePlugin;
 
