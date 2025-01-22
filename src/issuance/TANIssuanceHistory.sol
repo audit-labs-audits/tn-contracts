@@ -25,6 +25,7 @@ contract TANIssuanceHistory is Ownable {
     error ArityMismatch();
     error Deactivated();
     error ERC6372InconsistentClock();
+    error InvalidBlock(uint256 endBlock);
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
 
     ISimplePlugin public immutable tanIssuancePlugin;
@@ -41,7 +42,7 @@ contract TANIssuanceHistory is Ownable {
         _;
     }
 
-    constructor(ISimplePlugin tanIssuancePlugin_) Ownable(msg.sender) {
+    constructor(ISimplePlugin tanIssuancePlugin_) Ownable(tx.origin) {
         tanIssuancePlugin = tanIssuancePlugin_;
     }
 
@@ -99,7 +100,8 @@ contract TANIssuanceHistory is Ownable {
     /// @dev Saves the settlement block, updates cumulative rewards history, and settles TEL rewards on the plugin
     function increaseClaimableByBatch(
         address[] calldata accounts,
-        uint256[] calldata amounts
+        uint256[] calldata amounts,
+        uint256 endBlock
     )
         external
         onlyOwner
@@ -108,7 +110,8 @@ contract TANIssuanceHistory is Ownable {
         uint256 len = accounts.length;
         if (amounts.length != len) revert ArityMismatch();
 
-        lastSettlementBlock = block.number;
+        if (endBlock > block.number) revert InvalidBlock(endBlock);
+        lastSettlementBlock = endBlock;
 
         // reentrancy of external call to plugin is not possible due to non-upgradability
         // as well as permissioning on the StakingModule, SimplePlugin, and this contract

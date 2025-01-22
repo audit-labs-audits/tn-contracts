@@ -7,14 +7,15 @@ import { LibString } from "solady/utils/LibString.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Deployments } from "../../deployments/Deployments.sol";
 import { TANIssuanceHistory } from "../../src/issuance/TANIssuanceHistory.sol";
+import { ISimplePlugin } from "../../src/interfaces/ISimplePlugin.sol";
 
 contract DeployTANIssuanceHistory is Script {
     TANIssuanceHistory tanIssuanceHistory;
-    
+
     // config
     Deployments deployments;
     IERC20 tel;
-    SimplePlugin tanIssuancePlugin;
+    ISimplePlugin tanIssuancePlugin;
 
     function setUp() public {
         string memory root = vm.projectRoot();
@@ -26,14 +27,14 @@ contract DeployTANIssuanceHistory is Script {
         // both mocks and prod contracts use canonical TEL
         tel = IERC20(0xdF7837DE1F2Fa4631D716CF2502f8b230F1dcc32);
 
-        // polygon mock plugin
-        tanIssuancePlugin = SimplePlugin(/**address tbd */);
+        // polygon mock plugin; todo: update to prod
+        tanIssuancePlugin = ISimplePlugin(0xd5ac3373187e34DFf4Fd156f8aEf9B1De5123caE);
     }
 
     function run() public {
         vm.startBroadcast();
 
-        tanIssuanceHistory = new TANIssuanceHistory{salt: bytes32(0x0)}(tanIssuancePlugin);
+        tanIssuanceHistory = new TANIssuanceHistory{ salt: bytes32(0x0) }(tanIssuancePlugin);
 
         vm.stopBroadcast();
 
@@ -46,14 +47,10 @@ contract DeployTANIssuanceHistory is Script {
         string memory root = vm.projectRoot();
         string memory dest = string.concat(root, "/deployments/deployments.json");
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(tanIssuancePlugin))), 20),
-            dest,
-            ".TanIssuancePlugin"
+            LibString.toHexString(uint256(uint160(address(tanIssuancePlugin))), 20), dest, ".TanIssuancePlugin"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(tanIssuanceHistory))), 20),
-            dest,
-            ".TanIssuanceHistory"
+            LibString.toHexString(uint256(uint160(address(tanIssuanceHistory))), 20), dest, ".TanIssuanceHistory"
         );
     }
 }

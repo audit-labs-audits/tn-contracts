@@ -37,7 +37,7 @@ contract TANIssuanceHistoryTest is Test {
         vm.prank(owner); // Ensure the caller is the owner
         uint256 someBlock = block.number + 5;
         vm.roll(someBlock);
-        tanIssuanceHistory.increaseClaimableByBatch(accounts, amounts);
+        tanIssuanceHistory.increaseClaimableByBatch(accounts, amounts, someBlock);
 
         for (uint256 i; i < numUsers; ++i) {
             assertEq(tanIssuanceHistory.cumulativeRewards(accounts[i]), amounts[i]);
@@ -52,7 +52,7 @@ contract TANIssuanceHistoryTest is Test {
 
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(TANIssuanceHistory.ArityMismatch.selector));
-        tanIssuanceHistory.increaseClaimableByBatch(accounts, amounts);
+        tanIssuanceHistory.increaseClaimableByBatch(accounts, amounts, block.number);
     }
 
     function testIncreaseClaimableByBatchWhenDeactivated() public {
@@ -64,7 +64,7 @@ contract TANIssuanceHistoryTest is Test {
 
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(TANIssuanceHistory.Deactivated.selector));
-        tanIssuanceHistory.increaseClaimableByBatch(accounts, amounts);
+        tanIssuanceHistory.increaseClaimableByBatch(accounts, amounts, block.number);
     }
 
     function testCumulativeRewardsAtBlock() public {
@@ -77,7 +77,7 @@ contract TANIssuanceHistoryTest is Test {
         amounts[0] = 100;
         amounts[1] = 200;
 
-        tanIssuanceHistory.increaseClaimableByBatch(accounts, amounts);
+        tanIssuanceHistory.increaseClaimableByBatch(accounts, amounts, block.number);
 
         // Move forward in blocks
         vm.roll(block.number + 10);
@@ -112,7 +112,7 @@ contract MockPlugin is ISimplePlugin {
         return true;
     }
 
-    function supportsInterface(bytes4 interfaceId) external view returns (bool) {
+    function supportsInterface(bytes4) external pure returns (bool) {
         return true;
     }
 }
