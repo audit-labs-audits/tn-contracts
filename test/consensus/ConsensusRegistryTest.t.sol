@@ -143,11 +143,12 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 0x14D1F3AD8599CD8151592DDEADE449F790ADD4D7065A031FBE8F7DBB1833E0A9 : `keccak256(epochInfoBaseSlot + 4) => epochInfos[2].committee` `[validator0] == [0xBABE]`
 0x79af749cb95fe9cb496550259d0d961dfb54cb2ad0ce32a4118eed13c438a935 : `keccak256(epochInfoBaseSlot + 6) => epochInfos[3].committee` `not set == [address(0x0)]`
 */
+    /// @dev To examine the ConsensusRegistry's storage, uncomment the console log statements
     function test_setUp() public view {
         bytes32 ownerSlot = 0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300;
         bytes32 ownerWord = vm.load(address(consensusRegistry), ownerSlot);
-        console2.logString("OwnableUpgradeable slot0");
-        console2.logBytes32(ownerWord);
+        // console2.logString("OwnableUpgradeable slot0");
+        // console2.logBytes32(ownerWord);
         assertEq(address(uint160(uint256(ownerWord))), owner);
 
         /**
@@ -178,18 +179,18 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         bytes32 stakeManagerSlot = 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7400;
         
         bytes32 rwtelWord = vm.load(address(consensusRegistry), stakeManagerSlot);
-        console2.logString("StakeManager slot0");
-        console2.logBytes32(rwtelWord);
+        // console2.logString("StakeManager slot0");
+        // console2.logBytes32(rwtelWord);
         assertEq(address(uint160(uint256(rwtelWord))), address(rwTEL));
 
         bytes32 stakeAmountWord = vm.load(address(consensusRegistry), bytes32(uint256(stakeManagerSlot) + 1));
-        console2.logString("StakeManager slot1");
-        console2.logBytes32(stakeAmountWord);
+        // console2.logString("StakeManager slot1");
+        // console2.logBytes32(stakeAmountWord);
         assertEq(uint256(stakeAmountWord), stakeAmount);
 
         bytes32 minWithdrawAmountWord = vm.load(address(consensusRegistry), bytes32(uint256(stakeManagerSlot) + 2));
-        console2.logString("StakeManager slot2");
-        console2.logBytes32(minWithdrawAmountWord);
+        // console2.logString("StakeManager slot2");
+        // console2.logBytes32(minWithdrawAmountWord);
         assertEq(uint256(minWithdrawAmountWord), minWithdrawAmount);
 
         bytes32 stakeInfoSlot = 0x0636E6890FEC58B60F710B53EFA0EF8DE81CA2FDDCE7E46303A60C9D416C7403;
@@ -208,8 +209,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         bytes32 consensusRegistrySlot = 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100;
         
         bytes32 currentEpochAndPointer = vm.load(address(consensusRegistry), consensusRegistrySlot);
-        console2.logString("ConsensusRegistry slot0 : currentEpoch & epochPointer");
-        console2.logBytes32(currentEpochAndPointer);
+        // console2.logString("ConsensusRegistry slot0 : currentEpoch & epochPointer");
+        // console2.logBytes32(currentEpochAndPointer);
         assertEq(uint256(currentEpochAndPointer), 0);
 
         /**
@@ -222,57 +223,57 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         
         // epochInfo[0]
         bytes32 epochInfo0Len = vm.load(address(consensusRegistry), epochInfoBaseSlot);
-        console2.logString("ConsensusRegistry slot1 : epochInfo[0].committee.length");
-        console2.logBytes32(epochInfo0Len);
+        // console2.logString("ConsensusRegistry slot1 : epochInfo[0].committee.length");
+        // console2.logBytes32(epochInfo0Len);
         assertEq(uint256(epochInfo0Len), 4); // current len for 4 initial validators in committee
 
         // epochInfo[0].committee => keccak256(abi.encode(epochInfoBaseSlot)
         bytes32 epochInfo0Slot = 0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39;
-        console2.logString("epochInfo[0].committee == slot 0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39");
+        // console2.logString("epochInfo[0].committee == slot 0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39");
         bytes32 epochInfo0 = vm.load(address(consensusRegistry), epochInfo0Slot);
-        console2.logBytes32(epochInfo0);
+        // console2.logBytes32(epochInfo0);
         assertEq(address(uint160(uint256(epochInfo0))), validator0);
 
         // epochInfo[1]
         bytes32 epochInfo1Len = vm.load(address(consensusRegistry), bytes32(uint256(epochInfoBaseSlot) + 2));
         // blockHeight, ie slot2, is not known at genesis 
-        console2.logString("ConsensusRegistry slot3 : epochInfo[1].committee.length");
-        console2.logBytes32(epochInfo1Len);
+        // console2.logString("ConsensusRegistry slot3 : epochInfo[1].committee.length");
+        // console2.logBytes32(epochInfo1Len);
         assertEq(uint256(epochInfo1Len), 4); // current len for 4 initial validators in committee
 
         // epochInfo[1].committee => keccak256(abi.encode(epochInfoBaseSlot + 2)
         bytes32 epochInfo1Slot = 0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b;
-        console2.logString("epochInfo[1].committee == slot 0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b");
+        // console2.logString("epochInfo[1].committee == slot 0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b");
         bytes32 epochInfo1 = vm.load(address(consensusRegistry), epochInfo1Slot);
-        console2.logBytes32(epochInfo1);
+        // console2.logBytes32(epochInfo1);
         assertEq(address(uint160(uint256(epochInfo1))), validator0);
 
         // epochInfo[2]
         bytes32 epochInfo2Len = vm.load(address(consensusRegistry), bytes32(uint256(epochInfoBaseSlot) + 4));
         // blockHeight, ie slot4, is not known at genesis 
-        console2.logString("ConsensusRegistry slot5 : epochInfo[2].committee.length");
-        console2.logBytes32(epochInfo2Len);
+        // console2.logString("ConsensusRegistry slot5 : epochInfo[2].committee.length");
+        // console2.logBytes32(epochInfo2Len);
         assertEq(uint256(epochInfo2Len), 4); // current len for 4 initial validators in committee
 
         // epochInfo[2].committee => keccak256(abi.encode(epochInfoBaseSlot + 4)
         bytes32 epochInfo2Slot = 0x14d1f3ad8599cd8151592ddeade449f790add4d7065a031fbe8f7dbb1833e0a9;
-        console2.logString("epochInfo[2].committee == slot 0x14d1f3ad8599cd8151592ddeade449f790add4d7065a031fbe8f7dbb1833e0a9");
+        // console2.logString("epochInfo[2].committee == slot 0x14d1f3ad8599cd8151592ddeade449f790add4d7065a031fbe8f7dbb1833e0a9");
         bytes32 epochInfo2 = vm.load(address(consensusRegistry), epochInfo2Slot);
-        console2.logBytes32(epochInfo2);
+        // console2.logBytes32(epochInfo2);
         assertEq(address(uint160(uint256(epochInfo2))), validator0);
 
         // epochInfo[3] (not set at genesis so all members are 0)
         bytes32 epochInfo3Len = vm.load(address(consensusRegistry), bytes32(uint256(epochInfoBaseSlot) + 6));
         // blockHeight, ie slot4, is not known (and not set) at genesis 
-        console2.logString("ConsensusRegistry slot7 : epochInfo[3].committee.length");
-        console2.logBytes32(epochInfo3Len);
+        // console2.logString("ConsensusRegistry slot7 : epochInfo[3].committee.length");
+        // console2.logBytes32(epochInfo3Len);
         assertEq(uint256(epochInfo3Len), 0); // not set at genesis
 
         // epochInfo[3].committee => keccak256(abi.encode(epochInfoBaseSlot + 6)
         bytes32 epochInfo3Slot = 0x79af749cb95fe9cb496550259d0d961dfb54cb2ad0ce32a4118eed13c438a935;
-        console2.logString("epochInfo[3].committee == slot 0x79af749cb95fe9cb496550259d0d961dfb54cb2ad0ce32a4118eed13c438a935");
+        // console2.logString("epochInfo[3].committee == slot 0x79af749cb95fe9cb496550259d0d961dfb54cb2ad0ce32a4118eed13c438a935");
         bytes32 epochInfo3 = vm.load(address(consensusRegistry), epochInfo3Slot);
-        console2.logBytes32(epochInfo3);
+        // console2.logBytes32(epochInfo3);
         assertEq(address(uint160(uint256(epochInfo3))), address(0x0));
 
         /**
@@ -286,35 +287,35 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         // first 3 futureEpochInfo base slots store `length == 4`
         for (uint256 i; i < 3; ++i) {
             bytes32 futureEpochInfoCommitteeLen = vm.load(address(consensusRegistry), bytes32(uint256(futureEpochInfoBaseSlot) + i));
-            console2.logString("futureEpochInfo[i].committee.length");
-            console2.logBytes32(futureEpochInfoCommitteeLen);
+            // console2.logString("futureEpochInfo[i].committee.length");
+            // console2.logBytes32(futureEpochInfoCommitteeLen);
             assertEq(uint256(futureEpochInfoCommitteeLen), 4);
         }
 
         // first 3 futureEpochInfo arrays store 
         for (uint256 i; i < 3; ++i) {
             bytes32 futureEpochInfoSlot = keccak256(abi.encode(uint256(futureEpochInfoBaseSlot) + i));
-            console2.logString("Start of `futureEpochInfo` array, slot :");
-            console2.logBytes32(futureEpochInfoSlot);
+            // console2.logString("Start of `futureEpochInfo` array, slot :");
+            // console2.logBytes32(futureEpochInfoSlot);
             
             bytes32 futureEpochInfo0 = vm.load(address(consensusRegistry), futureEpochInfoSlot);
-            console2.logString("value :");
-            console2.logBytes32(futureEpochInfo0);
+            // console2.logString("value :");
+            // console2.logBytes32(futureEpochInfo0);
             assertEq(address(uint160(uint256(futureEpochInfo0))), validator0);
 
             bytes32 futureEpochInfo1 = vm.load(address(consensusRegistry), bytes32(uint256(futureEpochInfoSlot) + 1));
-            console2.logString("value :");
-            console2.logBytes32(futureEpochInfo1);
+            // console2.logString("value :");
+            // console2.logBytes32(futureEpochInfo1);
             assertEq(address(uint160(uint256(futureEpochInfo1))), validator1);
 
             bytes32 futureEpochInfo2 = vm.load(address(consensusRegistry), bytes32(uint256(futureEpochInfoSlot) + 2));
-            console2.logString("value :");
-            console2.logBytes32(futureEpochInfo2);
+            // console2.logString("value :");
+            // console2.logBytes32(futureEpochInfo2);
             assertEq(address(uint160(uint256(futureEpochInfo2))), validator2);
 
             bytes32 futureEpochInfo3 = vm.load(address(consensusRegistry), bytes32(uint256(futureEpochInfoSlot) + 3));
-            console2.logString("value :");
-            console2.logBytes32(futureEpochInfo3);
+            // console2.logString("value :");
+            // console2.logBytes32(futureEpochInfo3);
             assertEq(address(uint160(uint256(futureEpochInfo3))), validator3);
         }
 

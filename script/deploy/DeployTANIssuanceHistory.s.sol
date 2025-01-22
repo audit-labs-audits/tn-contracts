@@ -16,6 +16,7 @@ contract DeployTANIssuanceHistory is Script {
     Deployments deployments;
     IERC20 tel;
     ISimplePlugin tanIssuancePlugin;
+    address owner;
 
     function setUp() public {
         string memory root = vm.projectRoot();
@@ -23,6 +24,8 @@ contract DeployTANIssuanceHistory is Script {
         string memory json = vm.readFile(path);
         bytes memory data = vm.parseJson(json);
         deployments = abi.decode(data, (Deployments));
+
+        owner = deployments.admin;
 
         // both mocks and prod contracts use canonical TEL
         tel = IERC20(0xdF7837DE1F2Fa4631D716CF2502f8b230F1dcc32);
@@ -34,7 +37,7 @@ contract DeployTANIssuanceHistory is Script {
     function run() public {
         vm.startBroadcast();
 
-        tanIssuanceHistory = new TANIssuanceHistory{ salt: bytes32(0x0) }(tanIssuancePlugin);
+        tanIssuanceHistory = new TANIssuanceHistory{ salt: bytes32(0x0) }(tanIssuancePlugin, owner);
 
         vm.stopBroadcast();
 

@@ -21,7 +21,7 @@ contract TANIssuanceHistoryTest is Test {
 
         // Deploy the TANIssuanceHistory contract as owner
         vm.prank(owner);
-        tanIssuanceHistory = new TANIssuanceHistory(mockPlugin);
+        tanIssuanceHistory = new TANIssuanceHistory(mockPlugin, owner);
     }
 
     /// @dev Useful as a benchmark for the maximum batch size which is ~15000 users

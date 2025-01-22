@@ -42,7 +42,7 @@ contract TANIssuanceHistory is Ownable {
         _;
     }
 
-    constructor(ISimplePlugin tanIssuancePlugin_) Ownable(tx.origin) {
+    constructor(ISimplePlugin tanIssuancePlugin_, address owner_) Ownable(owner_) {
         tanIssuancePlugin = tanIssuancePlugin_;
     }
 
