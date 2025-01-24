@@ -165,7 +165,7 @@ contract TANIssuanceHistory is Ownable {
     /// @dev Validate that user-supplied block is in the past, and return it as a uint48.
     function _validateQueryBlock(uint256 queryBlock) internal view returns (uint48) {
         uint48 currentBlock = clock();
-        if (queryBlock >= currentBlock) revert FutureLookup(queryBlock, currentBlock);
+        if (queryBlock > currentBlock) revert FutureLookup(queryBlock, currentBlock);
         return SafeCast.toUint48(queryBlock);
     }
 
