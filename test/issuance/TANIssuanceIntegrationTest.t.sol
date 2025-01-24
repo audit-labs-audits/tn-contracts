@@ -21,6 +21,22 @@ contract TANIssuanceIntegrationTest is Test {
     address public user = address(0xabc);
     address public referrer = address(0xdef);
 
+    // for fork test
+    string POLYGON_RPC_URL = vm.envString("POLYGON_RPC_URL");
+    uint256 polygonFork;
+
+    MockAmirX public amirXPol;
+    ERC20 public telPol = ERC20(0xdF7837DE1F2Fa4631D716CF2502f8b230F1dcc32);
+    address public stakingModulePol = 0x1c815F579Ea0E342aA59224c2e403018E7E8f995;
+    ISimplePlugin public pluginPol = ISimplePlugin(0xd5ac3373187e34DFf4Fd156f8aEf9B1De5123caE);
+    TANIssuanceHistory public tanIssuanceHistoryPol = TANIssuanceHistory(0x5B16071Fb5c48c4103C971DcB78a4D06d7CB7A06);
+
+    address public ownerPol = 0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180;
+    address public defiAggPol = address(0x456);
+    address public executorPol = address(0x789);
+    address public userPol = 0x2ff79955Aad11fA93B84d79D45F504E6168935BC;
+    address public referrerPol = address(0xdef);
+
     function setUp() public {
         // Deploy mocks
         tel = new MockTel("mockTEL", "TEL");
@@ -36,6 +52,8 @@ contract TANIssuanceIntegrationTest is Test {
 
         // Deploy the TANIssuanceHistory contract
         tanIssuanceHistory = new TANIssuanceHistory(plugin, owner);
+
+        polygonFork = vm.createFork(POLYGON_RPC_URL);
     }
 
     function testIntegrationTANIssuanceHistory() public {
@@ -68,6 +86,58 @@ contract TANIssuanceIntegrationTest is Test {
 
         assertEq(tanIssuanceHistory.lastSettlementBlock(), block.number);
         assertEq(tanIssuanceHistory.cumulativeRewards(user), userReward);
+    }
+
+    function testForkIntegrationTANIssuanceHistory() public {
+        vm.selectFork(polygonFork);
+
+        // first stake for incentive eligibility
+        vm.startPrank(userPol);
+        telPol.approve(stakingModulePol, 100);
+        (bool res,) = stakingModulePol.call(abi.encodeWithSignature("stake(uint256)", 100));
+        require(res);
+        vm.stopPrank();
+
+        // deploy mock amirX to fork
+        amirXPol = new MockAmirX(IERC20(address(telPol)), executorPol, defiAggPol);
+
+        // send tokens to `defiAggPol` from existing polygon holder
+        vm.prank(userPol);
+        telPol.transfer(defiAggPol, 1_000_000);
+
+        // approve tokens to `amirX`
+        vm.prank(defiAggPol);
+        telPol.approve(address(amirXPol), 1_000_000);
+
+        // perform swap, initiating user fee transfer
+        uint256 amount = 10;
+        MockAmirX.DefiSwap memory defi =
+            MockAmirX.DefiSwap(address(0x0), address(0x0), plugin, IERC20(address(0x0)), referrer, amount, "", "");
+
+        vm.prank(executorPol);
+        amirXPol.defiSwap(userPol, defi);
+
+        /// @dev calculator analyzes resulting user fee transfer event, checks stake eligibility
+        /// and then calculates rewards for distribution
+
+        uint256 prevBlock = block.number;
+        vm.roll(block.number + 1);
+        (bool r, bytes memory ret) = stakingModulePol.call(abi.encodeWithSignature("stakedByAt(address,uint256)", userPol, prevBlock));
+        require(r);
+        uint256 stakedByUserPol = uint256(bytes32(ret));
+        uint256 prevRewards = tanIssuanceHistoryPol.cumulativeRewardsAtBlock(userPol, prevBlock);
+        uint256 userRewardPol = stakedByUserPol - prevRewards;
+        address[] memory rewardees = new address[](1);
+        rewardees[0] = userPol;
+        uint256[] memory rewards = new uint256[](1);
+        rewards[0] = userRewardPol;
+
+        /// @dev Calculator performs pro-rata calculation but in this case there is just 1 user
+        vm.prank(ownerPol);
+        tanIssuanceHistoryPol.increaseClaimableByBatch(rewardees, rewards, block.number);
+
+        assertEq(tanIssuanceHistoryPol.lastSettlementBlock(), block.number);
+        assertEq(tanIssuanceHistoryPol.cumulativeRewards(userPol), userRewardPol);
     }
 }
 
@@ -110,6 +180,8 @@ contract MockAmirX is Ownable {
         /// but it is used here for simplicity
         tel.transferFrom(defiAggIntermediary, address(this), defi.referralFee);
     }
+
+    fallback() external {}
 }
 
 /// @notice This contract did not need to be deployed for testing as one already exists
