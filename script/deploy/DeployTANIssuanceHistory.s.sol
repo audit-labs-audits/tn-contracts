@@ -25,24 +25,26 @@ contract DeployTANIssuanceHistory is Script {
         bytes memory data = vm.parseJson(json);
         deployments = abi.decode(data, (Deployments));
 
-        owner = deployments.admin;
+        // calls `TANIssuanceHistory::increaseClaimableByBatch()`
+        // owner = todo: prod owner;
 
         // both mocks and prod contracts use canonical TEL
         tel = IERC20(0xdF7837DE1F2Fa4631D716CF2502f8b230F1dcc32);
 
-        // polygon mock plugin; todo: update to prod
-        tanIssuancePlugin = ISimplePlugin(0xd5ac3373187e34DFf4Fd156f8aEf9B1De5123caE);
+        // polygon mock plugin; todo: prod deployment
+        // tanIssuancePlugin = ISimplePlugin(deployments.TanIssuancePlugin);
     }
 
     function run() public {
         vm.startBroadcast();
 
-        tanIssuanceHistory = new TANIssuanceHistory{ salt: bytes32(0x0) }(tanIssuancePlugin, owner);
+        // tanIssuanceHistory = new TANIssuanceHistory{ salt: bytes32(0x0) }(tanIssuancePlugin, owner);
 
         vm.stopBroadcast();
 
         // asserts
-        assert(tanIssuanceHistory.owner() == msg.sender);
+        assert(tanIssuanceHistory.tel() == tel);
+        assert(tanIssuanceHistory.owner() == owner);
         assert(tanIssuanceHistory.tanIssuancePlugin() == tanIssuancePlugin);
         assert(tanIssuanceHistory.clock() == block.number);
 

@@ -29,6 +29,7 @@ contract TANIssuanceHistory is Ownable {
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
 
     ISimplePlugin public immutable tanIssuancePlugin;
+    IERC20 public immutable tel;
 
     mapping(address => Checkpoints.Trace224) private _cumulativeRewards;
 
@@ -44,6 +45,7 @@ contract TANIssuanceHistory is Ownable {
 
     constructor(ISimplePlugin tanIssuancePlugin_, address owner_) Ownable(owner_) {
         tanIssuancePlugin = tanIssuancePlugin_;
+        tel = tanIssuancePlugin.tel();
     }
 
     /**
@@ -113,13 +115,17 @@ contract TANIssuanceHistory is Ownable {
         if (endBlock > block.number) revert InvalidBlock(endBlock);
         lastSettlementBlock = endBlock;
 
-        // reentrancy of external call to plugin is not possible due to non-upgradability
-        // as well as permissioning on the StakingModule, SimplePlugin, and this contract
+        uint256 totalAmount;
         for (uint256 i; i < len; ++i) {
-            // if input contains a zero amount do nothing to save gas
             if (amounts[i] == 0) continue;
-            _incrementCumulativeRewards(accounts[i], amounts[i]);
 
+            totalAmount += amounts[i];
+            _incrementCumulativeRewards(accounts[i], amounts[i]);
+        }
+
+        // set approval as `SimplePlugin::increaseClaimableBy()` pulls TEL from this address to itself
+        tel.approve(address(tanIssuancePlugin), totalAmount);
+        for (uint256 i; i < len; ++i) {
             // event emission on this contract is omitted since the plugin emits a `ClaimableIncreased` event
             tanIssuancePlugin.increaseClaimableBy(accounts[i], amounts[i]);
         }
