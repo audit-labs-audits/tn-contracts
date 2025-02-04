@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
 import "forge-std/Test.sol";
@@ -134,7 +134,7 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
 
         // activate validators via `stake()` and construct `newCommittee` array as pseudorandom subset (1/3)
         uint256 numActiveValidators = uint256(numValidators) + 4;
-        uint256 committeeSize = uint256(numActiveValidators) * 10_000 / 3 / 10_000 + 1; // address precision loss
+        uint256 committeeSize = (uint256(numActiveValidators) * 10_000) / 3 / 10_000 + 1; // address precision loss
         address[] memory newCommittee = new address[](committeeSize);
         uint256 committeeCounter;
         for (uint256 i; i < numValidators; ++i) {

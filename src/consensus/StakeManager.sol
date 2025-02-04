@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
@@ -59,7 +59,17 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     function burn(address from) external virtual;
 
     /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
-    function transferFrom(address, /* from */ address, /* to */ uint256 /* tokenId */ ) public virtual override {
+    function transferFrom(
+        address,
+        /* from */
+        address,
+        /* to */
+        uint256 /* tokenId */
+    )
+        public
+        virtual
+        override
+    {
         revert NotTransferable();
     }
 

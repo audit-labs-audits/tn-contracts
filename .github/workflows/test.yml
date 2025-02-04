@@ -1,9 +1,9 @@
 name: CI
 
 on:
-  push:
   pull_request:
-  workflow_dispatch:
+    branches: [main]
+    types: [opened, synchronize, reopened, review_requested, ready_for_review]
 
 env:
   FOUNDRY_PROFILE: ci
