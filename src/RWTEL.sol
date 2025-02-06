@@ -7,7 +7,7 @@ import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/Recoverabl
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
 import { Context } from "@openzeppelin/contracts/utils/Context.sol";
-import { IRWTEL } from "./interfaces/IRWTEL.sol";
+import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
 
 /* RecoverableWrapper Storage Layout (Provided because RW is non-ERC7201 compliant)
      _______________________________________________________________________________________

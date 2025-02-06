@@ -8,14 +8,14 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { Ownable } from "solady/auth/Ownable.sol";
 import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 
-interface IRWTEL {
-    /// @dev Designed for AxelarGMPExecutable's required implementation of `_execute()`
-    struct ExtCall {
-        address target;
-        uint256 value;
-        bytes data;
-    }
+/// @dev Designed for AxelarGMPExecutable's required implementation of `_execute()`
+struct ExtCall {
+    address target;
+    uint256 value;
+    bytes data;
+}
 
+interface IRWTEL {
     error OnlyConsensusRegistry();
     error RewardDistributionFailure(address validator);
 
