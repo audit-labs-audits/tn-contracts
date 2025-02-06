@@ -278,3 +278,4 @@ contract StablecoinManagerTest is Test {
         vm.prank(faucets[0]);
         stablecoinManager.drip(address(0x0), admin);
     }
+}
