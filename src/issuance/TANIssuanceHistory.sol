@@ -25,10 +25,11 @@ contract TANIssuanceHistory is Ownable {
     error ArityMismatch();
     error Deactivated();
     error ERC6372InconsistentClock();
+    error InvalidAddress(address invalidAddress);
     error InvalidBlock(uint256 endBlock);
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
 
-    ISimplePlugin public immutable tanIssuancePlugin;
+    ISimplePlugin public tanIssuancePlugin;
     IERC20 public immutable tel;
 
     mapping(address => Checkpoints.Trace224) private _cumulativeRewards;
@@ -131,16 +132,24 @@ contract TANIssuanceHistory is Ownable {
         }
     }
 
-    /// @notice rescues any stuck erc20
-    /// @dev if the token is TEL, then it only allows maximum of balanceOf(this) - _totalOwed to be rescued
-    function rescueTokens(IERC20 token, address to) external onlyOwner {
-        if (token == tanIssuancePlugin.tel()) {
-            // for TEL, only send the extra amount. Do not send anything that is meant for users.
-            uint256 userRewardsOwed = tanIssuancePlugin.totalClaimable();
-            token.safeTransfer(to, token.balanceOf(address(this)) - userRewardsOwed);
+    /// @dev Permissioned function to set a new issuance plugin
+    function setTanIssuancePlugin(ISimplePlugin newPlugin) external onlyOwner {
+        if (address(newPlugin) == address(0x0) || address(newPlugin).code.length == 0) {
+            revert InvalidAddress(address(newPlugin));
+        }
+        tanIssuancePlugin = newPlugin;
+    }
+
+    /// @notice Rescues any tokens stuck on this contract
+    /// @dev Provide `address(0x0)` to recover native gas token
+    function rescueTokens(IERC20 token, address recipient) external onlyOwner {
+        if (address(token) == address(0x0)) {
+            uint256 bal = address(this).balance;
+            (bool r,) = recipient.call{ value: bal }("");
+            if (!r) revert InvalidAddress(recipient);
         } else {
             // for other ERC20 tokens, any tokens owned by this address are accidental; send the full balance.
-            token.safeTransfer(to, token.balanceOf(address(this)));
+            token.safeTransfer(recipient, token.balanceOf(address(this)));
         }
     }
 
