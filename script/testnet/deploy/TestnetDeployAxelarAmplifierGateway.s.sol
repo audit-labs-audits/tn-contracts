@@ -16,8 +16,9 @@ import {
 import { Deployments } from "../../../deployments/Deployments.sol";
 
 /// @dev Usage: 
-///`forge script script/testnet/deploy/TestnetDeployTNBridgeContracts.s.sol --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
-contract TestnetDeployTNBridgeContracts is Script {
+/// `forge script script/testnet/deploy/TestnetDeployAxelarAmplifierGateway.s.sol \
+/// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
+contract TestnetDeployAxelarAmplifierGateway is Script {
     AxelarAmplifierGateway axelarAmplifierImpl; // (numPrevSignersToRetain, domainSeparator, minRotationDelay)
     AxelarAmplifierGateway axelarAmplifier; // (gatewayImpl, owner, setupParams)
 

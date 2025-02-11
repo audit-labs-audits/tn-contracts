@@ -10,6 +10,8 @@ import { TANIssuanceHistory } from "../../../src/issuance/TANIssuanceHistory.sol
 import { ISimplePlugin } from "../../../src/interfaces/ISimplePlugin.sol";
 import { MockAmirX } from "../../../test/issuance/mocks/MockImplementations.sol";
 
+/// @dev Usage: `forge script script/testnet/deploy/TestnetDeployTANIssuanceHistory.s.sol \
+/// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 contract TestnetDeployTANIssuanceHistory is Script {
     ISimplePlugin tanIssuancePlugin;
     MockAmirX mockAmirX;

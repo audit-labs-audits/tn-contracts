@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: MIT or Apache-2.0
+pragma solidity 0.8.26;
+
+import { Test, console2 } from "forge-std/Test.sol";
+import { Script } from "forge-std/Script.sol";
+import { LibString } from "solady/utils/LibString.sol";
+import { RWTEL } from "../../../src/RWTEL.sol";
+import { Deployments } from "../../../deployments/Deployments.sol";
+
+/// @dev Usage: `forge script script/testnet/deploy/TestnetDeployRWTEL.s.sol \
+/// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
+// To verify RWTEL: `forge verify-contract <address> src/RWTEL.sol:RWTEL \
+// --rpc-url $TN_RPC_URL --verifier sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
+contract TestnetDeployTokens is Script {
+    RWTEL rwTEL;
+
+    Deployments deployments;
+    address admin; // admin, support, minter, burner role
+
+    // rwTEL constructor params
+    address consensusRegistry_;
+    address gateway_;
+    string name_;
+    string symbol_;
+    uint256 recoverableWindow_;
+    address governanceAddress_;
+    address baseERC20_;
+    uint16 maxToClean;
+    bytes32 rwTELsalt;
+
+    function setUp() public {
+        string memory root = vm.projectRoot();
+        string memory path = string.concat(root, "/deployments/deployments.json");
+        string memory json = vm.readFile(path);
+        bytes memory data = vm.parseJson(json);
+        deployments = abi.decode(data, (Deployments));
+
+        admin = deployments.admin;
+        rwTELsalt = bytes32(bytes("rwTEL"));
+        consensusRegistry_ = deployments.ConsensusRegistry;
+        gateway_ = deployments.AxelarAmplifierGateway;
+        name_ = "Recoverable Wrapped Telcoin";
+        symbol_ = "rwTEL";
+        recoverableWindow_ = 86_400; // ~1 day; Telcoin Network blocktime is ~1s
+        governanceAddress_ = admin; // multisig/council/DAO address in prod
+        baseERC20_ = deployments.wTEL;
+        maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
+    }
+
+    function run() public {
+        vm.startBroadcast();
+
+        rwTEL = new RWTEL{ salt: rwTELsalt }(
+            consensusRegistry_, gateway_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
+        );
+
+        vm.stopBroadcast();
+
+        // asserts
+        assert(rwTEL.baseToken() == deployments.wTEL);
+        assert(rwTEL.governanceAddress() == admin);
+
+        // logs
+        string memory root = vm.projectRoot();
+        string memory dest = string.concat(root, "/deployments/deployments.json");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTEL))), 20), dest, ".rwTEL");
+    }
+}

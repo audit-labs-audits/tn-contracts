@@ -7,6 +7,7 @@ struct Deployments {
     address ArachnidDeterministicDeployFactory;
     address AxelarAmplifierGateway;
     address AxelarAmplifierGatewayImpl;
+    address ConsensusRegistry;
     address GitAttestationRegistry;
     address StablecoinImpl;
     address StablecoinManager;
