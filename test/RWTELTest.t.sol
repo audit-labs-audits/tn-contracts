@@ -8,6 +8,7 @@ import { BaseAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/BaseAmplifierGateway.sol";
 import { Message, CommandType } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/AmplifierGatewayTypes.sol";
 import { WeightedSigner, WeightedSigners, Proof } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { WTEL } from "../src/WTEL.sol";
 import { RWTEL } from "../src/RWTEL.sol";
 import { ExtCall } from "../src/interfaces/IRWTEL.sol";
@@ -30,11 +31,24 @@ contract RWTELTest is Test {
     uint256 sepoliaFork;
     uint256 tnFork;
 
+    IERC20 sepoliaTel = IERC20(0x92bc9f0D42A3194Df2C5AB55c3bbDD82e6Fb2F92);
     IAxelarGateway sepoliaGateway = IAxelarGateway(0xB906fC799C9E51f1231f37B867eEd1d9C5a6D472); //todo: mocked
     AxelarAmplifierGateway tnGateway = AxelarAmplifierGateway(0xBf02955Dc36E54Fe0274159DbAC8A7B79B4e4dc3);
 
     address admin;
+    address telDistributor;
     address user;
+    string destChain;
+    string destAddress;
+    string symbol;
+    uint256 amount;
+    bytes data;
+    bytes payload;
+    bytes32 payloadHash;
+    string sourceAddress;
+    address contractAddress;
+    string messageId;
+    Message[] messages;
 
     function setUp() public {
         wTEL = new WTEL();
@@ -59,7 +73,7 @@ contract RWTELTest is Test {
         );
 
         admin = vm.addr(vm.envUint("ADMIN_PK"));
-        user = address(0x123);
+        user = address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180);
     }
 
     function test_setUp() public view {
@@ -86,17 +100,23 @@ contract RWTELTest is Test {
         sepoliaFork = vm.createFork(SEPOLIA_RPC_URL);
         vm.selectFork(sepoliaFork);
 
-        string memory destChain = "telcoin-network";
-        string memory destAddress = "0xca568d148d23a4ca9b77bef783dca0d2f5962c12"; // tn::rwtel
-        uint256 value = 100; // 1 tel
-        bytes memory data = "";
-        bytes memory payload = abi.encode(ExtCall({ target: user, value: value, data: data }));
-        bytes32 payloadHash = keccak256(payload);
+        destChain = "telcoin-network";
+        destAddress = "0xca568d148d23a4ca9b77bef783dca0d2f5962c12"; // tn::rwtel
+        symbol = "TEL";
+        amount = 100; // 1 tel
+        // `data` is empty for standard bridging
+        payload = abi.encode(ExtCall({ target: user, value: amount, data: data }));
+        payloadHash = keccak256(payload);
 
+        vm.startPrank(user);
+        // user must have tokens and approve gateway
+        sepoliaTel.approve(address(sepoliaGateway), amount);
+        
+        // subscriber will monitor `ContractCall` events
         vm.expectEmit(true, true, true, true);
-        emit ContractCall(user, destChain, destAddress, payloadHash, payload);
-        vm.prank(user);
-        sepoliaGateway.callContract(destChain, destAddress, payload);
+        emit ContractCallWithToken(user, destChain, destAddress, payloadHash, payload, symbol, amount);
+        sepoliaGateway.callContractWithToken(destChain, destAddress, payload, symbol, amount);
+        vm.stopPrank();
 
         // relayer actions:
         // subscriber picks up event + forwards to GMP API where it is processed by TN verifier
@@ -106,18 +126,20 @@ contract RWTELTest is Test {
         vm.selectFork(tnFork);
 
         //todo: should this be gateway or user?
-        string memory sourceAddress = "0xe432150cce91c13a887f7D836923d5597adD8E31";
-        address contractAddress = 0xCA568D148d23a4CA9B77BeF783dCa0d2F5962C12;
-        string memory messageId = "42";
-        Message[] memory messages = new Message[](1);
-        messages[0] = Message(destChain, messageId, sourceAddress, contractAddress, payloadHash);
+        sourceAddress = "0xe432150cce91c13a887f7D836923d5597adD8E31";
+        contractAddress = 0xCA568D148d23a4CA9B77BeF783dCa0d2F5962C12;
+        messageId = "42";
+        messages.push(Message(destChain, messageId, sourceAddress, contractAddress, payloadHash));
         // proof must be signed keccak hash of abi encoded `CommandType.ApproveMessages` & message array
         bytes32 dataHash = keccak256(abi.encode(CommandType.ApproveMessages, messages));
         // `domainSeparator` and `signersHash` for the current epoch are queriable on gateway 
-        bytes32 domainSeparator = tnGateway.domainSeparator();
-        bytes32 signersHash = tnGateway.signerHashByEpoch(tnGateway.epoch());
         bytes32 ethSignPrefixedMsgHash =
-            keccak256(bytes.concat("\x19Ethereum Signed Message:\n96", domainSeparator, signersHash, dataHash));
+            keccak256(bytes.concat(
+                "\x19Ethereum Signed Message:\n96", 
+                tnGateway.domainSeparator(), 
+                tnGateway.signerHashByEpoch(tnGateway.epoch()), 
+                dataHash
+            ));
         
         // TN gateway currently uses a single signer of `admin` with weight 1
         WeightedSigner[] memory signers = new WeightedSigner[](1);
@@ -136,16 +158,20 @@ contract RWTELTest is Test {
         emit MessageApproved(commandId, destChain, messageId, sourceAddress, contractAddress, payloadHash);
         vm.prank(admin);
         tnGateway.approveMessages(messages, proof);
+
+        // todo: execute
     }
 }
 
 /// @notice Redeclared event from `AxelarGateway` for testing
-event ContractCall(
+event ContractCallWithToken(
     address indexed sender,
     string destinationChain,
     string destinationContractAddress,
     bytes32 indexed payloadHash,
-    bytes payload
+    bytes payload,
+    string symbol,
+    uint256 amount
 );
 
 /// @notice Redeclared event from `BaseAmplifierGateway` for testing
