@@ -29,8 +29,6 @@ interface IRWTEL {
     /// @dev This function and all functions invoked within are only available on devnet and testnet
     /// Since it will never change, no assembly workaround function such as `setMaxToClean()` is implemented
     function initialize(
-        string memory name_,
-        string memory symbol_,
         address governanceAddress_,
         uint16 maxToClean_,
         address owner_

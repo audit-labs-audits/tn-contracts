@@ -39,8 +39,8 @@ contract TestnetDeployTokens is Script {
         admin = deployments.admin;
         rwTELsalt = bytes32(bytes("rwTEL"));
         gateway_ = deployments.AxelarAmplifierGateway;
-        name_ = "Recoverable Wrapped Telcoin";
-        symbol_ = "rwTEL";
+        name_ = "Recoverable Wrapped Telcoin"; // used only for assertion
+        symbol_ = "rwTEL"; // used only for assertion
         recoverableWindow_ = 86_400; // ~1 day; Telcoin Network blocktime is ~1s
         governanceAddress_ = admin; // multisig/council/DAO address in prod
         baseERC20_ = deployments.wTEL;
@@ -63,6 +63,8 @@ contract TestnetDeployTokens is Script {
         assert(rwTEL.baseToken() == deployments.wTEL);
         assert(rwTEL.governanceAddress() == admin);
         assert(rwTEL.owner() == admin);
+        assert(keccak256(bytes(rwTEL.name())) == keccak256(bytes(name_)));
+        assert(keccak256(bytes(rwTEL.symbol())) == keccak256(bytes(symbol_)));
 
         // logs
         string memory root = vm.projectRoot();

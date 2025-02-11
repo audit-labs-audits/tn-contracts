@@ -9,6 +9,8 @@ import { Ownable } from "solady/auth/Ownable.sol";
 import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
 
+import { Test, console2 } from "forge-std/Test.sol"; //todo
+
 /* RecoverableWrapper Storage Layout (Provided because RW is non-ERC7201 compliant)
      _______________________________________________________________________________________
     | Name              | Type                                                       | Slot |
@@ -31,10 +33,12 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
     address public constant consensusRegistry = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
     /// @dev Overrides for `ERC20` storage since `RecoverableWrapper` dep restricts them
-    string internal _name_;
-    string internal _symbol_;
+    string internal constant _name_ = "Recoverable Wrapped Telcoin";
+    string internal constant _symbol_ = "rwTEL";
 
     /// @dev Required by `RecoverableWrapper` and `AxelarGMPExecutable` deps to write immutable vars to bytecode
+    /// @param name_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
+    /// @param symbol_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
     constructor(
         address axelarGateway_,
         string memory name_,
@@ -64,8 +68,6 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
 
     /// @inheritdoc IRWTEL
     function initialize(
-        string memory name_,
-        string memory symbol_,
         address governanceAddress_,
         uint16 maxToClean_,
         address owner_
@@ -74,8 +76,6 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
         initializer
     {
         _initializeOwner(owner_);
-        _name_ = name_;
-        _symbol_ = symbol_;
         _setGovernanceAddress(governanceAddress_);
         _setMaxToClean(maxToClean_);
     }
