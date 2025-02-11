@@ -15,7 +15,7 @@ import {
 } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
 import { Deployments } from "../../../deployments/Deployments.sol";
 
-/// @dev Usage: 
+/// @dev Usage:
 /// `forge script script/testnet/deploy/TestnetDeployAxelarAmplifierGateway.s.sol \
 /// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 contract TestnetDeployAxelarAmplifierGateway is Script {

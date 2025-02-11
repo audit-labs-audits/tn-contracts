@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import { Test, console2 } from "forge-std/Test.sol";
 import { Script } from "forge-std/Script.sol";
 import { LibString } from "solady/utils/LibString.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { RWTEL } from "../../../src/RWTEL.sol";
 import { Deployments } from "../../../deployments/Deployments.sol";
 
@@ -12,13 +13,13 @@ import { Deployments } from "../../../deployments/Deployments.sol";
 // To verify RWTEL: `forge verify-contract <address> src/RWTEL.sol:RWTEL \
 // --rpc-url $TN_RPC_URL --verifier sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
 contract TestnetDeployTokens is Script {
+    RWTEL rwTELImpl;
     RWTEL rwTEL;
 
     Deployments deployments;
     address admin; // admin, support, minter, burner role
 
     // rwTEL constructor params
-    address consensusRegistry_;
     address gateway_;
     string name_;
     string symbol_;
@@ -37,7 +38,6 @@ contract TestnetDeployTokens is Script {
 
         admin = deployments.admin;
         rwTELsalt = bytes32(bytes("rwTEL"));
-        consensusRegistry_ = deployments.ConsensusRegistry;
         gateway_ = deployments.AxelarAmplifierGateway;
         name_ = "Recoverable Wrapped Telcoin";
         symbol_ = "rwTEL";
@@ -50,19 +50,24 @@ contract TestnetDeployTokens is Script {
     function run() public {
         vm.startBroadcast();
 
-        rwTEL = new RWTEL{ salt: rwTELsalt }(
-            consensusRegistry_, gateway_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
+        rwTELImpl = new RWTEL{ salt: rwTELsalt }(
+            gateway_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
         );
+        rwTEL = RWTEL(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), "")));
 
         vm.stopBroadcast();
 
         // asserts
+        assert(rwTEL.consensusRegistry() == deployments.ConsensusRegistry);
+        assert(address(rwTEL.gateway()) == deployments.AxelarAmplifierGateway);
         assert(rwTEL.baseToken() == deployments.wTEL);
         assert(rwTEL.governanceAddress() == admin);
+        assert(rwTEL.owner() == admin);
 
         // logs
         string memory root = vm.projectRoot();
         string memory dest = string.concat(root, "/deployments/deployments.json");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTELImpl))), 20), dest, ".rwTELImpl");
         vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTEL))), 20), dest, ".rwTEL");
     }
 }

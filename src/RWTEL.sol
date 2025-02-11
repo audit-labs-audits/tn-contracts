@@ -27,17 +27,16 @@ import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
 */
 
 contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Ownable {
-    address private immutable consensusRegistry;
+    /// @dev ConsensusRegistry system contract defined by protocol to always exist at a constant address
+    address public constant consensusRegistry = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
     /// @dev Overrides for `ERC20` storage since `RecoverableWrapper` dep restricts them
     string internal _name_;
     string internal _symbol_;
 
-    /// @notice For use when deployed as singleton
     /// @dev Required by `RecoverableWrapper` and `AxelarGMPExecutable` deps to write immutable vars to bytecode
     constructor(
-        address consensusRegistry_,
-        address gateway_,
+        address axelarGateway_,
         string memory name_,
         string memory symbol_,
         uint256 recoverableWindow_,
@@ -45,11 +44,9 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
         address baseERC20_,
         uint16 maxToClean
     )
-        AxelarGMPExecutable(gateway_)
+        AxelarGMPExecutable(axelarGateway_)
         RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
-    {
-        consensusRegistry = consensusRegistry_;
-    }
+    {}
 
     /// @inheritdoc IRWTEL
     function distributeStakeReward(address validator, uint256 rewardAmount) external {
@@ -77,29 +74,20 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
         initializer
     {
         _initializeOwner(owner_);
-        setName(name_);
-        setSymbol(symbol_);
-        setGovernanceAddress(governanceAddress_);
-        setMaxToClean(maxToClean_);
+        _name_ = name_;
+        _symbol_ = symbol_;
+        _setGovernanceAddress(governanceAddress_);
+        _setMaxToClean(maxToClean_);
     }
 
-    function setName(string memory newName) public override onlyOwner {
-        _name_ = newName;
-    }
-
-    function setSymbol(string memory newSymbol) public override onlyOwner {
-        _symbol_ = newSymbol;
-    }
-
+    /// @inheritdoc IRWTEL
     function setGovernanceAddress(address newGovernanceAddress) public override onlyOwner {
-        governanceAddress = newGovernanceAddress;
+        _setGovernanceAddress(newGovernanceAddress);
     }
 
     /// @inheritdoc IRWTEL
     function setMaxToClean(uint16 newMaxToClean) public override onlyOwner {
-        assembly {
-            sstore(11, newMaxToClean)
-        }
+        _setMaxToClean(newMaxToClean);
     }
 
     /// @notice Overrides `RecoverableWrapper::ERC20::name()` which accesses a private var
@@ -135,6 +123,16 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
         (bool res,) = target.call{ value: bridgeMsg.value }(bridgeMsg.data);
         // to prevent stuck messages, emit failure event rather than revert
         if (!res) emit ExecutionFailed(commandId, target);
+    }
+
+    function _setGovernanceAddress(address newGovernanceAddress) internal {
+        governanceAddress = newGovernanceAddress;
+    }
+
+    function _setMaxToClean(uint16 newMaxToClean) internal {
+        assembly {
+            sstore(11, newMaxToClean)
+        }
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }

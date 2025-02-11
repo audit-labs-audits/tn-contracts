@@ -7,8 +7,13 @@ import { AxelarAmplifierGateway } from
 import { BaseAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/BaseAmplifierGateway.sol";
 import { Message, CommandType } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/AmplifierGatewayTypes.sol";
-import { WeightedSigner, WeightedSigners, Proof } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
+import {
+    WeightedSigner,
+    WeightedSigners,
+    Proof
+} from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { WTEL } from "../src/WTEL.sol";
 import { RWTEL } from "../src/RWTEL.sol";
 import { ExtCall } from "../src/interfaces/IRWTEL.sol";
@@ -16,9 +21,11 @@ import { Deployments } from "../deployments/Deployments.sol";
 
 contract RWTELTest is Test {
     WTEL wTEL;
+    RWTEL rwTELImpl;
     RWTEL rwTEL;
 
     // rwTEL constructor params
+    bytes32 rwTELsalt;
     address consensusRegistry_; // currently points to TN
     address gateway_; // currently points to TN
     string name_;
@@ -65,6 +72,9 @@ contract RWTELTest is Test {
         deployments = abi.decode(data, (Deployments));
 
         wTEL = new WTEL();
+        console2.logAddress(deployments.ArachnidDeterministicDeployFactory);
+        console2.logAddress(deployments.ConsensusRegistry);
+        console2.logAddress(deployments.AxelarAmplifierGateway);
 
         // todo: currently using TN values, deploy these
         consensusRegistry_ = deployments.ConsensusRegistry;
@@ -75,20 +85,15 @@ contract RWTELTest is Test {
         governanceAddress_ = address(this); // multisig/council/DAO address in prod
         baseERC20_ = address(wTEL);
         maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
-
-        // using placeholder for consensus registry
-        rwTEL = new RWTEL(
-            consensusRegistry_,
-            gateway_,
-            name_,
-            symbol_,
-            recoverableWindow_,
-            governanceAddress_,
-            baseERC20_,
-            maxToClean
-        );
-
         admin = deployments.admin;
+
+        // deploy impl + proxy and initialize
+        rwTELImpl = new RWTEL{ salt: rwTELsalt }(
+            gateway_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
+        );
+        rwTEL = RWTEL(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), "")));
+        rwTEL.initialize(name_, symbol_, governanceAddress_, maxToClean, admin);
+
         user = address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180);
     }
 
@@ -101,6 +106,9 @@ contract RWTELTest is Test {
         assertEq(wSymbol, "wTEL");
 
         // rwTEL sanity tests
+        assertEq(rwTEL.consensusRegistry(), deployments.ConsensusRegistry);
+        assertEq(address(rwTEL.gateway()), deployments.AxelarAmplifierGateway);
+        assertEq(rwTEL.owner(), admin);
         assertTrue(address(rwTEL).code.length > 0);
         string memory rwName = rwTEL.name();
         assertEq(rwName, "Recoverable Wrapped Telcoin");
@@ -113,7 +121,7 @@ contract RWTELTest is Test {
     }
 
     function test_bridgeSimulationSepoliaToTN() public {
-        /// @dev This test is skipped because it relies on signing with a local key 
+        /// @dev This test is skipped because it relies on signing with a local key
         /// and to save on RPC calls. Remove to unskip
         // vm.skip(true);
 
@@ -136,7 +144,7 @@ contract RWTELTest is Test {
         vm.startPrank(user);
         // user must have tokens and approve gateway
         sepoliaTel.approve(address(sepoliaGateway), amount);
-        
+
         // subscriber will monitor `ContractCall` events
         vm.expectEmit(true, true, true, true);
         emit ContractCallWithToken(user, destChain, destAddress, payloadHash, payload, symbol, amount);
@@ -147,7 +155,6 @@ contract RWTELTest is Test {
          * @dev Relayer Action: Monitor Source Gateway for GMP Message Event Emission
          * subscriber picks up event + forwards to GMP API where it is processed by TN verifier
          */
-
         tnFork = vm.createFork(TN_RPC_URL);
         vm.selectFork(tnFork);
 
@@ -157,18 +164,19 @@ contract RWTELTest is Test {
         messages.push(Message(destChain, messageId, sourceAddress, address(tnRWTEL), payloadHash));
         // proof must be signed keccak hash of abi encoded `CommandType.ApproveMessages` & message array
         bytes32 dataHash = keccak256(abi.encode(CommandType.ApproveMessages, messages));
-        // `domainSeparator` and `signersHash` for the current epoch are queriable on gateway 
-        bytes32 ethSignPrefixedMsgHash =
-            keccak256(bytes.concat(
-                "\x19Ethereum Signed Message:\n96", 
-                tnGateway.domainSeparator(), 
-                tnGateway.signerHashByEpoch(tnGateway.epoch()), 
+        // `domainSeparator` and `signersHash` for the current epoch are queriable on gateway
+        bytes32 ethSignPrefixedMsgHash = keccak256(
+            bytes.concat(
+                "\x19Ethereum Signed Message:\n96",
+                tnGateway.domainSeparator(),
+                tnGateway.signerHashByEpoch(tnGateway.epoch()),
                 dataHash
-            ));
+            )
+        );
 
         /**
          * @dev Verifier Action: Vote on GMP Message Event Validity via Ampd
-         * GMP message reaches Axelar Network Voting Verifier contract, where a "verifier" (ampd client ECDSA key) 
+         * GMP message reaches Axelar Network Voting Verifier contract, where a "verifier" (ampd client ECDSA key)
          * signs and submits signatures ie "votes" or "proofs" via RPC. Verifiers are also known as `WeightedSigners`
          * @notice Must restrict verifiers to only signing "voting" GMP messages emitted as `ContractCallWithToken`
          */
@@ -183,14 +191,13 @@ contract RWTELTest is Test {
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = abi.encodePacked(r, s, v);
         Proof memory proof = Proof(weightedSigners, signatures);
-        
+
         /**
          * @dev Relayer Action: Approve GMP Message on Destination Gateway
          * includer polls GMP API for the message processed by Axelar Network verifiers, writes to TN gateway in TX
          * Once settled, GMP message has been successfully sent across chains (bridged) and awaits execution
          */
 
-        // string memory sourceChain = "ethereum-sepolia";//todo
         bytes32 commandId = tnGateway.messageToCommandId(destChain, messageId);
         vm.expectEmit(true, true, true, true);
         emit MessageApproved(commandId, destChain, messageId, sourceAddress, address(tnRWTEL), payloadHash);
@@ -202,9 +209,8 @@ contract RWTELTest is Test {
          * includer executes GMP messages that have been written to the TN gateway in previous step
          * this tx calls RWTEL module which mints the TEL tokens and delivers them to recipient
          */
-
         vm.prank(admin);
-        tnRWTEL.execute(commandId, '', '', payload);
+        tnRWTEL.execute(commandId, "", "", payload);
     }
 }
 
