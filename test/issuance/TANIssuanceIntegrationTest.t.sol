@@ -52,8 +52,6 @@ contract TANIssuanceIntegrationTest is Test {
 
         // Deploy the TANIssuanceHistory contract
         tanIssuanceHistory = new TANIssuanceHistory(plugin, owner);
-
-        polygonFork = vm.createFork(POLYGON_RPC_URL);
     }
 
     function testIntegrationTANIssuanceHistory() public {
@@ -89,6 +87,10 @@ contract TANIssuanceIntegrationTest is Test {
     }
 
     function testForkIntegrationTANIssuanceHistory() public {
+        /// @dev This test is skipped to save on RPC calls. Remove to unskip
+        vm.skip(true);
+
+        polygonFork = vm.createFork(POLYGON_RPC_URL);
         vm.selectFork(polygonFork);
 
         // first stake for incentive eligibility
