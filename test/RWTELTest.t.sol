@@ -78,8 +78,8 @@ contract RWTELTest is Test {
         // console2.logAddress(deployments.ConsensusRegistry);
         // console2.logAddress(deployments.AxelarAmplifierGateway);
 
-        // todo: currently using TN values, deploy these
         consensusRegistry_ = deployments.ConsensusRegistry;
+        // todo: currently using duplicate gateway while awaiting Axelar token registration
         gateway_ = deployments.AxelarAmplifierGateway;
         name_ = "Recoverable Wrapped Telcoin";
         symbol_ = "rwTEL";
@@ -93,13 +93,11 @@ contract RWTELTest is Test {
         rwTELImpl = new RWTEL{ salt: rwTELsalt }(
             gateway_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
         );
-        rwTEL = RWTEL(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), "")));
+        rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), ""))));
         rwTEL.initialize(governanceAddress_, maxToClean, admin);
-
-        user = address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180);
     }
 
-    function test_setUp() public {
+    function test_setUp() public view {
         // wTEL sanity tests
         assertTrue(address(wTEL).code.length > 0);
         string memory wName = wTEL.name();
@@ -122,29 +120,35 @@ contract RWTELTest is Test {
         assertEq(governanceAddress, address(this));
     }
 
+    function setUpForkConfig() internal {
+        // todo: currently replica; change to canonical Axelar sepolia gateway
+        sepoliaGateway = IAxelarGateway(0xB906fC799C9E51f1231f37B867eEd1d9C5a6D472);
+        sepoliaTel = IERC20(deployments.sepoliaTEL);
+        tnGateway = AxelarAmplifierGateway(deployments.AxelarAmplifierGateway);
+        tnRWTEL = RWTEL(payable(deployments.rwTEL));
+
+        user = address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180);
+        symbol = "TEL";
+        amount = 100; // 1 tel
+        // `extCallData` is empty for standard bridging
+        payload = abi.encode(ExtCall({ target: user, value: amount, data: extCallData }));
+        payloadHash = keccak256(payload);
+    }
+
     function test_bridgeSimulationSepoliaToTN() public {
         /// @dev This test is skipped because it relies on signing with a local key
         /// and to save on RPC calls. Remove to unskip
         // vm.skip(true); //todo
 
+        setUpForkConfig();
+
         sepoliaFork = vm.createFork(SEPOLIA_RPC_URL);
         vm.selectFork(sepoliaFork);
-
-        // todo: 
-        sepoliaGateway = IAxelarGateway(0xB906fC799C9E51f1231f37B867eEd1d9C5a6D472);
-        sepoliaTel = IERC20(deployments.sepoliaTEL);
-        tnGateway = AxelarAmplifierGateway(deployments.AxelarAmplifierGateway);
-        tnRWTEL = RWTEL(deployments.rwTEL);
 
         sourceChain = "ethereum-sepolia";
         sourceAddress = LibString.toHexString(uint256(uint160(address(sepoliaGateway))), 20);
         destChain = "telcoin-network";
         destAddress = LibString.toHexString(uint256(uint160(address(tnRWTEL))), 20);
-        symbol = "TEL";
-        amount = 100; // 1 tel
-        // `data` is empty for standard bridging
-        payload = abi.encode(ExtCall({ target: user, value: amount, data: extCallData }));
-        payloadHash = keccak256(payload);
 
         vm.startPrank(user);
         // user must have tokens and approve gateway
@@ -213,10 +217,22 @@ contract RWTELTest is Test {
          * this tx calls RWTEL module which mints the TEL tokens and delivers them to recipient
          */
         
+        //todo: RWTEL funding transaction can't be submitted to chain RN so prank it here
+        (bool res,) = address(tnRWTEL).call{value: amount}('');
+        require(res);
+
+        uint256 userBalBefore = user.balance;
+
         vm.expectEmit(true, true, true, true);
-        emit ContractCallExecuted(commandId);
-        vm.prank(admin);
+        emit MessageExecuted(commandId);
+        vm.startPrank(admin);
+        
         tnRWTEL.execute(commandId, sourceChain, sourceAddress, payload);
+        vm.stopPrank();
+
+        // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
+        //todo: consider how to handle cross chain decimals (native TEL uses 18; ERC20 TEL uses 2)
+        assertEq(user.balance, userBalBefore + amount);
     }
 }
 
@@ -242,7 +258,7 @@ event MessageApproved(
 );
 
 /// @notice Redeclared event from `BaseAmplifierGateway` for testing
-event ContractCallExecuted(bytes32 indexed commandId);
+event MessageExecuted(bytes32 indexed commandId);
 
 interface IAxelarGateway {
     function sendToken(

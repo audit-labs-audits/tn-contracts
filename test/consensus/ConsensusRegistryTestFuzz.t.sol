@@ -47,7 +47,7 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
 
     function setUp() public {
         // set RWTEL address (its bytecode is written after deploying ConsensusRegistry)
-        rwTEL = RWTEL(address(0x7e1));
+        rwTEL = RWTEL(payable(address(0x7e1)));
 
         // provide an initial validator as the network will launch with at least one validator
         bytes memory validator0BLSKey = _createRandomBlsPubkey(0);

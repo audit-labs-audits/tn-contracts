@@ -100,6 +100,16 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
         return _symbol_;
     }
 
+    /// @notice Included only on testnet in versions before this system contract is integrated to protocol
+    /// @notice Must be removed once Telcoin-Network genesis is restarted with funding to RWTEL module
+    function reclaim() external onlyOwner {
+        (bool r,) = msg.sender.call{value: address(this).balance}('');
+        require(r, "Failed to reclaim stuck native TEL");
+    }
+    /// @notice Included only on testnet in versions before this system contract is integrated to protocol
+    /// @notice Must be removed once Telcoin-Network genesis is restarted with funding to RWTEL module
+    receive() external payable {}
+
     /**
      *
      *   internals

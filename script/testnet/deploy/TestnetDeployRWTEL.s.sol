@@ -41,7 +41,7 @@ contract TestnetDeployTokens is Script {
         gateway_ = deployments.AxelarAmplifierGateway;
         name_ = "Recoverable Wrapped Telcoin"; // used only for assertion
         symbol_ = "rwTEL"; // used only for assertion
-        recoverableWindow_ = 86_400; // ~1 day; Telcoin Network blocktime is ~1s
+        recoverableWindow_ = 604_800; // ~1 week; Telcoin Network blocktime is ~1s
         governanceAddress_ = admin; // multisig/council/DAO address in prod
         baseERC20_ = deployments.wTEL;
         maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
@@ -53,7 +53,8 @@ contract TestnetDeployTokens is Script {
         rwTELImpl = new RWTEL{ salt: rwTELsalt }(
             gateway_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
         );
-        rwTEL = RWTEL(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), "")));
+        rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), ""))));
+        rwTEL.initialize(governanceAddress_, maxToClean, admin);
 
         vm.stopBroadcast();
 
@@ -62,6 +63,7 @@ contract TestnetDeployTokens is Script {
         assert(address(rwTEL.gateway()) == deployments.AxelarAmplifierGateway);
         assert(rwTEL.baseToken() == deployments.wTEL);
         assert(rwTEL.governanceAddress() == admin);
+        assert(rwTEL.recoverableWindow() == recoverableWindow_);
         assert(rwTEL.owner() == admin);
         assert(keccak256(bytes(rwTEL.name())) == keccak256(bytes(name_)));
         assert(keccak256(bytes(rwTEL.symbol())) == keccak256(bytes(symbol_)));
@@ -69,7 +71,8 @@ contract TestnetDeployTokens is Script {
         // logs
         string memory root = vm.projectRoot();
         string memory dest = string.concat(root, "/deployments/deployments.json");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTELImpl))), 20), dest, ".rwTELImpl");
+        //todo: bug in Foundry with long JSONs; add this once resolved
+        // vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTELImpl))), 20), dest, ".rwTELImpl");
         vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTEL))), 20), dest, ".rwTEL");
     }
 }
