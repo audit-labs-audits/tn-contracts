@@ -73,7 +73,7 @@ contract TestnetDeployTokens is Script {
         admin = deployments.admin;
         wTELsalt = bytes32(bytes("wTEL"));
 
-        numStables = 11;
+        numStables = 14;
         decimals_ = 6;
 
         // populate metadatas
@@ -85,9 +85,12 @@ contract TestnetDeployTokens is Script {
         metadatas.push(TokenMetadata("Telcoin HKD", "eHKD"));
         metadatas.push(TokenMetadata("Telcoin MXN", "eMXN"));
         metadatas.push(TokenMetadata("Telcoin NOK", "eNOK"));
+        metadatas.push(TokenMetadata("Telcoin NZD", "eNZD"));
         metadatas.push(TokenMetadata("Telcoin JPY", "eJPY"));
         metadatas.push(TokenMetadata("Telcoin SDR", "eSDR"));
         metadatas.push(TokenMetadata("Telcoin SGD", "eSGD"));
+        metadatas.push(TokenMetadata("Telcoin USD", "eUSD"));
+        metadatas.push(TokenMetadata("Telcoin ZAR", "eZAR"));
 
         // populate deployDatas
         for (uint256 i; i < numStables; ++i) {
@@ -104,12 +107,16 @@ contract TestnetDeployTokens is Script {
     function run() public {
         vm.startBroadcast();
 
-        // deploly wTEL
+        // deploy wTEL
         wTEL = new WTEL{ salt: wTELsalt }();
 
         // deploy stablecoin impl and proxies
         stablecoinSalt = bytes32(bytes("Stablecoin"));
+
+        /// @dev Configure as necessary for new / existing deployments
         stablecoinImpl = new Stablecoin{ salt: stablecoinSalt }();
+        // stablecoinImpl = Stablecoin(deployments.StablecoinImpl);
+
         address[] memory deployedTokens = new address[](numStables);
         for (uint256 i; i < numStables; ++i) {
             bytes32 currentSalt = bytes32(bytes(metadatas[i].symbol));
@@ -133,6 +140,7 @@ contract TestnetDeployTokens is Script {
 
         vm.stopBroadcast();
 
+        // asserts
         for (uint256 i; i < numStables; ++i) {
             TokenMetadata memory tokenMetadata = metadatas[i];
 

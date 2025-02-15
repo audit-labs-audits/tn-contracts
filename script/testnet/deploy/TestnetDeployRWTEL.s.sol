@@ -71,8 +71,7 @@ contract TestnetDeployTokens is Script {
         // logs
         string memory root = vm.projectRoot();
         string memory dest = string.concat(root, "/deployments/deployments.json");
-        //todo: bug in Foundry with long JSONs; add this once resolved
-        // vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTELImpl))), 20), dest, ".rwTELImpl");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTELImpl))), 20), dest, ".rwTELImpl");
         vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTEL))), 20), dest, ".rwTEL");
     }
 }

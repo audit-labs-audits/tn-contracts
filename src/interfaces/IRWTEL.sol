@@ -28,12 +28,7 @@ interface IRWTEL {
     /// @notice `RW::constructor()` accepts a `baseERC20_` parameter which is set as an immutable variable in bytecode
     /// @dev This function and all functions invoked within are only available on devnet and testnet
     /// Since it will never change, no assembly workaround function such as `setMaxToClean()` is implemented
-    function initialize(
-        address governanceAddress_,
-        uint16 maxToClean_,
-        address owner_
-    )
-        external;
+    function initialize(address governanceAddress_, uint16 maxToClean_, address owner_) external;
 
     /// @dev Permissioned setter functions
     function setGovernanceAddress(address newGovernanceAddress) external;

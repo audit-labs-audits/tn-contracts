@@ -26,22 +26,46 @@ struct Deployments {
     address eJPY;
     address eMXN;
     address eNOK;
+    address eNZD;
     address eSDR;
     address eSGD;
+    address eUSD;
+    address eZAR;
     address rwTEL;
+    address rwTELImpl;
     address sepoliaTEL;
+    UniV2Pools uniV2Pools;
     address wTEL;
-    address wTEL_eAUD_Pool;
-    address wTEL_eCAD_Pool;
-    address wTEL_eCHF_Pool;
+}
+
+struct UniV2Pools {
+    address eEUR_eAUD_Pool;
+    address eEUR_eCAD_Pool;
+    address eEUR_eCHF_Pool;
+    address eEUR_eGBP_Pool;
+    address eEUR_eHKD_Pool;
+    address eEUR_eJPY_Pool;
+    address eEUR_eMXN_Pool;
+    address eEUR_eNOK_Pool;
+    address eEUR_eNZD_Pool;
+    address eEUR_eSDR_Pool;
+    address eEUR_eSGD_Pool;
+    address eEUR_eZAR_Pool;
+    address eUSD_eAUD_Pool;
+    address eUSD_eCAD_Pool;
+    address eUSD_eCHF_Pool;
+    address eUSD_eEUR_Pool;
+    address eUSD_eGBP_Pool;
+    address eUSD_eHKD_Pool;
+    address eUSD_eJPY_Pool;
+    address eUSD_eMXN_Pool;
+    address eUSD_eNOK_Pool;
+    address eUSD_eNZD_Pool;
+    address eUSD_eSDR_Pool;
+    address eUSD_eSGD_Pool;
+    address eUSD_eZAR_Pool;
+    address wTEL_eUSD_Pool;
     address wTEL_eEUR_Pool;
-    address wTEL_eGBP_Pool;
-    address wTEL_eHKD_Pool;
-    address wTEL_eJPY_Pool;
-    address wTEL_eMXN_Pool;
-    address wTEL_eNOK_Pool;
-    address wTEL_eSDR_Pool;
-    address wTEL_eSGD_Pool;
 }
 
 /// @dev Raw tx calldatas required to achieve desired create2 addresses for the faucet.

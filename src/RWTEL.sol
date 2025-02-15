@@ -50,7 +50,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
     )
         AxelarGMPExecutable(axelarGateway_)
         RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
-    {}
+    { }
 
     /// @inheritdoc IRWTEL
     function distributeStakeReward(address validator, uint256 rewardAmount) external {
@@ -67,14 +67,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
      */
 
     /// @inheritdoc IRWTEL
-    function initialize(
-        address governanceAddress_,
-        uint16 maxToClean_,
-        address owner_
-    )
-        public
-        initializer
-    {
+    function initialize(address governanceAddress_, uint16 maxToClean_, address owner_) public initializer {
         _initializeOwner(owner_);
         _setGovernanceAddress(governanceAddress_);
         _setMaxToClean(maxToClean_);
@@ -103,12 +96,13 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
     /// @notice Included only on testnet in versions before this system contract is integrated to protocol
     /// @notice Must be removed once Telcoin-Network genesis is restarted with funding to RWTEL module
     function reclaim() external onlyOwner {
-        (bool r,) = msg.sender.call{value: address(this).balance}('');
+        (bool r,) = msg.sender.call{ value: address(this).balance }("");
         require(r, "Failed to reclaim stuck native TEL");
     }
     /// @notice Included only on testnet in versions before this system contract is integrated to protocol
     /// @notice Must be removed once Telcoin-Network genesis is restarted with funding to RWTEL module
-    receive() external payable {}
+
+    receive() external payable { }
 
     /**
      *

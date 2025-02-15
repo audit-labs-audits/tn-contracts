@@ -13,14 +13,13 @@ import { UniswapV2Router02Bytecode } from "external/uniswap/precompiles/UniswapV
 import { WTEL } from "../../../src/WTEL.sol";
 import { Deployments } from "../../../deployments/Deployments.sol";
 
-/// @dev Usage: `forge script script/testnet/deploy/TestnetDeployUniswapV2.s.sol -vvvv --rpc-url $TN_RPC_URL
-/// --private-key
-/// $ADMIN_PK`
+/// @dev Usage: `forge script script/testnet/deploy/TestnetDeployUniswapV2.s.sol -vvvv \
+///--rpc-url $TN_RPC_URL --private-key $ADMIN_PK`
 contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Router02Bytecode {
     // deploys the following:
     IUniswapV2Factory uniswapV2Factory;
     IUniswapV2Router02 uniswapV2Router02;
-    IUniswapV2Pair[] pairs; // 11 wTEL - stable pools
+    IUniswapV2Pair[] pairs; // 27 pairs: 13 for eUSD, 12 for eEUR, wTEL<>eUSD, wTEL<>eEUR
 
     // config
     Deployments deployments;
@@ -30,6 +29,8 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
     bytes32 factorySalt;
     bytes32 routerSalt;
     address[] stables;
+    uint256 eEURNumPairs; // 14 stables less eEUR and eUSD == 12
+    uint256 eUSDNumPairs; // 14 stables less eUSD == 13
 
     function setUp() public {
         string memory root = vm.projectRoot();
@@ -53,16 +54,21 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         stables.push(deployments.eJPY);
         stables.push(deployments.eMXN);
         stables.push(deployments.eNOK);
+        stables.push(deployments.eNZD);
         stables.push(deployments.eSDR);
         stables.push(deployments.eSGD);
+        stables.push(deployments.eUSD);
+        stables.push(deployments.eZAR);
     }
 
     function run() public {
-        /// @dev Uncomment for debugging
-        // uniswapV2Factory = IUniswapV2Factory(0x764EcA68A03Ff1Eb710E7d1a02c2e7c008877f2F);
-        // uniswapV2Router02 = IUniswapV2Router02(0x76b5628C7071c9CB587F38c78943c5a55C77Ee3F);
         vm.startBroadcast();
 
+        /// @dev Customize appropriately; for existing deployments:
+        // uniswapV2Factory = IUniswapV2Factory(0x764EcA68A03Ff1Eb710E7d1a02c2e7c008877f2F);
+        // uniswapV2Router02 = IUniswapV2Router02(0x76b5628C7071c9CB587F38c78943c5a55C77Ee3F);
+
+        /// @dev Customize appropriately; for new deployments:
         // deploy v2 core contracts
         bytes memory factoryInitcode = bytes.concat(UNISWAPV2FACTORY_BYTECODE, abi.encode(feeToSetter_));
         (bool factoryRes, bytes memory factoryRet) =
@@ -81,11 +87,29 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         require(routerRes);
         uniswapV2Router02 = IUniswapV2Router02(address(bytes20(routerRet)));
 
-        // deploy v2 pools and record pair
+        // deploy v2 pools for eEUR and record pairs
         for (uint256 i; i < stables.length; ++i) {
-            IUniswapV2Pair currentPair = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, stables[i]));
-            pairs.push(currentPair);
+            // for eEUR pools, skip eEUR (can't be paired with self) && eUSD (deployed in last loop)
+            if (stables[i] == deployments.eUSD || stables[i] == deployments.eEUR) continue;
+
+            IUniswapV2Pair eEURcurrentPair = IUniswapV2Pair(uniswapV2Factory.createPair(deployments.eEUR, stables[i]));
+            pairs.push(eEURcurrentPair);
         }
+
+        // deploy v2 pools for eUSD and record pairs
+        for (uint256 i; i < stables.length; ++i) {
+            // for eUSD pools, skip eUSD (can't be paired with self)
+            if (stables[i] == deployments.eUSD) continue;
+
+            IUniswapV2Pair eUSDcurrentPair = IUniswapV2Pair(uniswapV2Factory.createPair(deployments.eUSD, stables[i]));
+            pairs.push(eUSDcurrentPair);
+        }
+
+        // deploy wTEL pools for both eEUR and eUSD, record pairs
+        IUniswapV2Pair wTELeEURPair = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eEUR));
+        pairs.push(wTELeEURPair);
+        IUniswapV2Pair wTELeUSDPair = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eUSD));
+        pairs.push(wTELeUSDPair);
 
         vm.stopBroadcast();
 
@@ -96,8 +120,8 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         assert(uniswapV2Router02.factory() == address(uniswapV2Factory));
         assert(uniswapV2Router02.WETH() == wTEL);
 
-        assert(stables.length == 11);
-        assert(pairs.length == stables.length);
+        assert(stables.length == 14);
+        assert(pairs.length == 27); // 13 for eUSD pairs, 12 for eEUR pairs, wTEL<>eUSD, wTEL<>eEUR
         for (uint256 i; i < pairs.length; ++i) {
             IUniswapV2Pair currentPair = pairs[i];
             bool correctFactory = currentPair.factory() == address(uniswapV2Factory);
@@ -105,8 +129,36 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
 
             address token0 = currentPair.token0();
             address token1 = currentPair.token1();
-            bool correctToken0 = token0 == stables[i] || token0 == wTEL;
-            bool correctToken1 = token1 == stables[i] || token1 == wTEL;
+
+            bool correctToken0;
+            bool correctToken1;
+            eEURNumPairs = stables.length - 2;
+            eUSDNumPairs = stables.length - 1;
+            if (i < eEURNumPairs) {
+                // search stables array
+                for (uint256 j; j < stables.length; ++j) {
+                    // skip eEUR && eUSD
+                    if (stables[j] == deployments.eEUR || stables[j] == deployments.eUSD) continue;
+
+                    // should be a stable paired with eEUR; skip matches already found
+                    if (!correctToken0) correctToken0 = token0 == stables[j] || token0 == deployments.eEUR;
+                    if (!correctToken1) correctToken1 = token1 == stables[j] || token1 == deployments.eEUR;
+                }
+            } else if (i >= eEURNumPairs && i < eEURNumPairs + eUSDNumPairs) {
+                // search stables array
+                for (uint256 j; j < stables.length; ++j) {
+                    // skip eUSD
+                    if (stables[j] == deployments.eUSD) continue;
+
+                    // should be a stable paired with eUSD; skip matches already found
+                    if (!correctToken0) correctToken0 = token0 == stables[j] || token0 == deployments.eUSD;
+                    if (!correctToken1) correctToken1 = token1 == stables[j] || token1 == deployments.eUSD;
+                }
+            } else {
+                // should be wTEL<>eEUR or wTEL<>eUSD; skip matches already found
+                if (!correctToken0) correctToken0 = token0 == wTEL || token0 == deployments.eEUR;
+                if (!correctToken1) correctToken1 = token1 == wTEL || token1 == deployments.eUSD;
+            }
             assert(correctToken0);
             assert(correctToken1);
         }
@@ -118,16 +170,66 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         vm.writeJson(
             LibString.toHexString(uint256(uint160(address(uniswapV2Router02))), 20), dest, ".UniswapV2Router02"
         );
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[0]))), 20), dest, ".wTEL_eAUD_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[1]))), 20), dest, ".wTEL_eCAD_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[2]))), 20), dest, ".wTEL_eCHF_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[3]))), 20), dest, ".wTEL_eEUR_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[4]))), 20), dest, ".wTEL_eGBP_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[5]))), 20), dest, ".wTEL_eHKD_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[6]))), 20), dest, ".wTEL_eMXN_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[7]))), 20), dest, ".wTEL_eNOK_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[8]))), 20), dest, ".wTEL_eJPY_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[9]))), 20), dest, ".wTEL_eSDR_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[10]))), 20), dest, ".wTEL_eSGD_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[0]))), 20), dest, ".uniV2Pools.eEUR_eAUD_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[1]))), 20), dest, ".uniV2Pools.eEUR_eCAD_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[2]))), 20), dest, ".uniV2Pools.eEUR_eCHF_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[3]))), 20), dest, ".uniV2Pools.eEUR_eGBP_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[4]))), 20), dest, ".uniV2Pools.eEUR_eHKD_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[5]))), 20), dest, ".uniV2Pools.eEUR_eJPY_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[6]))), 20), dest, ".uniV2Pools.eEUR_eMXN_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[7]))), 20), dest, ".uniV2Pools.eEUR_eNOK_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[8]))), 20), dest, ".uniV2Pools.eEUR_eNZD_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[9]))), 20), dest, ".uniV2Pools.eEUR_eSDR_Pool");
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[10]))), 20), dest, ".uniV2Pools.eEUR_eSGD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[11]))), 20), dest, ".uniV2Pools.eEUR_eZAR_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[12]))), 20), dest, ".uniV2Pools.eUSD_eAUD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[13]))), 20), dest, ".uniV2Pools.eUSD_eCAD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[14]))), 20), dest, ".uniV2Pools.eUSD_eCHF_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[15]))), 20), dest, ".uniV2Pools.eUSD_eEUR_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[16]))), 20), dest, ".uniV2Pools.eUSD_eGBP_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[17]))), 20), dest, ".uniV2Pools.eUSD_eHKD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[18]))), 20), dest, ".uniV2Pools.eUSD_eJPY_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[19]))), 20), dest, ".uniV2Pools.eUSD_eMXN_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[20]))), 20), dest, ".uniV2Pools.eUSD_eNOK_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[21]))), 20), dest, ".uniV2Pools.eUSD_eNZD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[22]))), 20), dest, ".uniV2Pools.eUSD_eSDR_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[23]))), 20), dest, ".uniV2Pools.eUSD_eSGD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[24]))), 20), dest, ".uniV2Pools.eUSD_eZAR_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[25]))), 20), dest, ".uniV2Pools.wTEL_eUSD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[26]))), 20), dest, ".uniV2Pools.wTEL_eEUR_Pool"
+        );
     }
 }
