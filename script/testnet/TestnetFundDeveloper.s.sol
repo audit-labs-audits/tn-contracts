@@ -7,10 +7,11 @@ import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.so
 import { Deployments } from "../../deployments/Deployments.sol";
 import { WTEL } from "../../src/WTEL.sol";
 
-/// @dev Usage: `forge script script/TestnetFundDexGuru.s.sol -vvvv --rpc-url $TN_RPC_URL --private-key $ADMIN_PK`
-contract TestnetFundDexGuru is Script {
+/// @dev Usage: `forge script script/testnet/TestnetFundDeveloper.s.sol \
+/// -vvvv --rpc-url $TN_RPC_URL --private-key $ADMIN_PK`
+contract TestnetFundDeveloper is Script {
     // config: send $wTEL and stables to the following address
-    address dexGuru = 0x3da87b1c3743BD2dA60DF2ef1BC6F26Ef9Da6086;
+    address developer = 0x6A7aE3671672D1d7dc250f60C46F14E35d383a80;
     uint256 telAmount;
     uint256 wTelAmount;
     uint256 stablecoinAmount;
@@ -43,25 +44,28 @@ contract TestnetFundDexGuru is Script {
         stables.push(Stablecoin(deployments.eJPY));
         stables.push(Stablecoin(deployments.eMXN));
         stables.push(Stablecoin(deployments.eNOK));
+        stables.push(Stablecoin(deployments.eNZD));
         stables.push(Stablecoin(deployments.eSDR));
         stables.push(Stablecoin(deployments.eSGD));
+        stables.push(Stablecoin(deployments.eUSD));
+        stables.push(Stablecoin(deployments.eZAR));
     }
 
     function run() public {
         vm.startBroadcast(); // must be called by minter role
 
         // send $TEL for gas
-        (bool r,) = dexGuru.call{ value: telAmount }("");
+        (bool r,) = developer.call{ value: telAmount }("");
         require(r);
 
         // wrap $TEL and send $wTEL
         wTEL.deposit{ value: wTelAmount }();
-        wTEL.transfer(dexGuru, wTelAmount);
+        wTEL.transfer(developer, wTelAmount);
 
         // mint and transfer stables
         for (uint256 i; i < stables.length; ++i) {
             stables[i].mint(stablecoinAmount);
-            stables[i].transfer(dexGuru, stablecoinAmount);
+            stables[i].transfer(developer, stablecoinAmount);
         }
 
         vm.stopBroadcast();

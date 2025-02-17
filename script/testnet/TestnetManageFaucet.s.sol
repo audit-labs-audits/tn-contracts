@@ -28,7 +28,7 @@ contract TestnetManageFaucet is Script {
         admin = deployments.admin;
 
         /// @dev Configure for each run!
-        enableOrDisable = true;
+        enableOrDisable = false;
 
         stablecoinManager = StablecoinManager(payable(deployments.StablecoinManager));
         if (enableOrDisable == false) {
@@ -69,6 +69,6 @@ contract TestnetManageFaucet is Script {
 
         // asserts
         address[] memory enabledStables = stablecoinManager.getEnabledXYZs();
-        assert(enabledStables.length == 14); // customize accordingly
+        assert(enabledStables.length == 0); // customize accordingly
     }
 }
