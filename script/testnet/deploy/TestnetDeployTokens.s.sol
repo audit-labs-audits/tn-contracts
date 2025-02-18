@@ -28,17 +28,6 @@ contract TestnetDeployTokens is Script {
     WTEL wTEL;
 
     Stablecoin stablecoinImpl;
-    Stablecoin eAUD;
-    Stablecoin eCAD;
-    Stablecoin eCHF;
-    Stablecoin eEUR;
-    Stablecoin eGBP;
-    Stablecoin eHKD;
-    Stablecoin eMXN;
-    Stablecoin eNOK;
-    Stablecoin eJPY;
-    Stablecoin eSDR;
-    Stablecoin eSGD;
 
     Deployments deployments;
     address admin; // admin, support, minter, burner role
@@ -73,22 +62,31 @@ contract TestnetDeployTokens is Script {
         admin = deployments.admin;
         wTELsalt = bytes32(bytes("wTEL"));
 
-        numStables = 14;
+        numStables = 23;
         decimals_ = 6;
 
         // populate metadatas
         metadatas.push(TokenMetadata("Telcoin AUD", "eAUD"));
         metadatas.push(TokenMetadata("Telcoin CAD", "eCAD"));
+        metadatas.push(TokenMetadata("Telcoin CFA", "eCFA"));
         metadatas.push(TokenMetadata("Telcoin CHF", "eCHF"));
+        metadatas.push(TokenMetadata("Telcoin CZK", "eCZK"));
+        metadatas.push(TokenMetadata("Telcoin DKK", "eDKK"));
         metadatas.push(TokenMetadata("Telcoin EUR", "eEUR"));
         metadatas.push(TokenMetadata("Telcoin GBP", "eGBP"));
         metadatas.push(TokenMetadata("Telcoin HKD", "eHKD"));
+        metadatas.push(TokenMetadata("Telcoin HUF", "eHUF"));
+        metadatas.push(TokenMetadata("Telcoin INR", "eINR"));
+        metadatas.push(TokenMetadata("Telcoin ISK", "eISK"));
+        metadatas.push(TokenMetadata("Telcoin JPY", "eJPY"));
+        metadatas.push(TokenMetadata("Telcoin KES", "eKES"));
         metadatas.push(TokenMetadata("Telcoin MXN", "eMXN"));
         metadatas.push(TokenMetadata("Telcoin NOK", "eNOK"));
         metadatas.push(TokenMetadata("Telcoin NZD", "eNZD"));
-        metadatas.push(TokenMetadata("Telcoin JPY", "eJPY"));
         metadatas.push(TokenMetadata("Telcoin SDR", "eSDR"));
+        metadatas.push(TokenMetadata("Telcoin SEK", "eSEK"));
         metadatas.push(TokenMetadata("Telcoin SGD", "eSGD"));
+        metadatas.push(TokenMetadata("Telcoin TRY", "eTRY"));
         metadatas.push(TokenMetadata("Telcoin USD", "eUSD"));
         metadatas.push(TokenMetadata("Telcoin ZAR", "eZAR"));
 

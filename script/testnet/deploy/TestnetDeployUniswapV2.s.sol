@@ -19,7 +19,7 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
     // deploys the following:
     IUniswapV2Factory uniswapV2Factory;
     IUniswapV2Router02 uniswapV2Router02;
-    IUniswapV2Pair[] pairs; // 27 pairs: 13 for eUSD, 12 for eEUR, wTEL<>eUSD, wTEL<>eEUR
+    IUniswapV2Pair[] pairs; // 45 pairs: 22 for eUSD, 21 for eEUR, wTEL<>eUSD, wTEL<>eEUR
 
     // config
     Deployments deployments;
@@ -29,8 +29,8 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
     bytes32 factorySalt;
     bytes32 routerSalt;
     address[] stables;
-    uint256 eEURNumPairs; // 14 stables less eEUR and eUSD == 12
-    uint256 eUSDNumPairs; // 14 stables less eUSD == 13
+    uint256 eEURNumPairs; // 23 stables less eEUR and eUSD == 21
+    uint256 eUSDNumPairs; // 23 stables less eUSD == 22
 
     function setUp() public {
         string memory root = vm.projectRoot();
@@ -47,16 +47,25 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
 
         stables.push(deployments.eAUD);
         stables.push(deployments.eCAD);
+        stables.push(deployments.eCFA);
         stables.push(deployments.eCHF);
+        stables.push(deployments.eCZK);
+        stables.push(deployments.eDKK);
         stables.push(deployments.eEUR);
         stables.push(deployments.eGBP);
         stables.push(deployments.eHKD);
+        stables.push(deployments.eHUF);
+        stables.push(deployments.eINR);
+        stables.push(deployments.eISK);
         stables.push(deployments.eJPY);
+        stables.push(deployments.eKES);
         stables.push(deployments.eMXN);
         stables.push(deployments.eNOK);
         stables.push(deployments.eNZD);
         stables.push(deployments.eSDR);
+        stables.push(deployments.eSEK);
         stables.push(deployments.eSGD);
+        stables.push(deployments.eTRY);
         stables.push(deployments.eUSD);
         stables.push(deployments.eZAR);
     }
@@ -120,8 +129,8 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         assert(uniswapV2Router02.factory() == address(uniswapV2Factory));
         assert(uniswapV2Router02.WETH() == wTEL);
 
-        assert(stables.length == 14);
-        assert(pairs.length == 27); // 13 for eUSD pairs, 12 for eEUR pairs, wTEL<>eUSD, wTEL<>eEUR
+        assert(stables.length == 23);
+        assert(pairs.length == 45); // 22 for eUSD pairs, 21 for eEUR pairs, wTEL<>eUSD, wTEL<>eEUR
         for (uint256 i; i < pairs.length; ++i) {
             IUniswapV2Pair currentPair = pairs[i];
             bool correctFactory = currentPair.factory() == address(uniswapV2Factory);
@@ -172,64 +181,118 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         );
         vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[0]))), 20), dest, ".uniV2Pools.eEUR_eAUD_Pool");
         vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[1]))), 20), dest, ".uniV2Pools.eEUR_eCAD_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[2]))), 20), dest, ".uniV2Pools.eEUR_eCHF_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[3]))), 20), dest, ".uniV2Pools.eEUR_eGBP_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[4]))), 20), dest, ".uniV2Pools.eEUR_eHKD_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[5]))), 20), dest, ".uniV2Pools.eEUR_eJPY_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[6]))), 20), dest, ".uniV2Pools.eEUR_eMXN_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[7]))), 20), dest, ".uniV2Pools.eEUR_eNOK_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[8]))), 20), dest, ".uniV2Pools.eEUR_eNZD_Pool");
-        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[9]))), 20), dest, ".uniV2Pools.eEUR_eSDR_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[2]))), 20), dest, ".uniV2Pools.eEUR_eCFA_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[3]))), 20), dest, ".uniV2Pools.eEUR_eCHF_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[4]))), 20), dest, ".uniV2Pools.eEUR_eCZK_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[5]))), 20), dest, ".uniV2Pools.eEUR_eDKK_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[6]))), 20), dest, ".uniV2Pools.eEUR_eGBP_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[7]))), 20), dest, ".uniV2Pools.eEUR_eHKD_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[8]))), 20), dest, ".uniV2Pools.eEUR_eHUF_Pool");
+        vm.writeJson(LibString.toHexString(uint256(uint160(address(pairs[9]))), 20), dest, ".uniV2Pools.eEUR_eINR_Pool");
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[10]))), 20), dest, ".uniV2Pools.eEUR_eSGD_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[10]))), 20), dest, ".uniV2Pools.eEUR_eISK_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[11]))), 20), dest, ".uniV2Pools.eEUR_eZAR_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[11]))), 20), dest, ".uniV2Pools.eEUR_eJPY_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[12]))), 20), dest, ".uniV2Pools.eUSD_eAUD_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[12]))), 20), dest, ".uniV2Pools.eEUR_eKES_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[13]))), 20), dest, ".uniV2Pools.eUSD_eCAD_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[13]))), 20), dest, ".uniV2Pools.eEUR_eMXN_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[14]))), 20), dest, ".uniV2Pools.eUSD_eCHF_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[14]))), 20), dest, ".uniV2Pools.eEUR_eNOK_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[15]))), 20), dest, ".uniV2Pools.eUSD_eEUR_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[15]))), 20), dest, ".uniV2Pools.eEUR_eNZD_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[16]))), 20), dest, ".uniV2Pools.eUSD_eGBP_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[16]))), 20), dest, ".uniV2Pools.eEUR_eSDR_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[17]))), 20), dest, ".uniV2Pools.eUSD_eHKD_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[17]))), 20), dest, ".uniV2Pools.eEUR_eSEK_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[18]))), 20), dest, ".uniV2Pools.eUSD_eJPY_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[18]))), 20), dest, ".uniV2Pools.eEUR_eSGD_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[19]))), 20), dest, ".uniV2Pools.eUSD_eMXN_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[19]))), 20), dest, ".uniV2Pools.eEUR_eTRY_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[20]))), 20), dest, ".uniV2Pools.eUSD_eNOK_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[20]))), 20), dest, ".uniV2Pools.eEUR_eZAR_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[21]))), 20), dest, ".uniV2Pools.eUSD_eNZD_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[21]))), 20), dest, ".uniV2Pools.eUSD_eAUD_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[22]))), 20), dest, ".uniV2Pools.eUSD_eSDR_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[22]))), 20), dest, ".uniV2Pools.eUSD_eCAD_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[23]))), 20), dest, ".uniV2Pools.eUSD_eSGD_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[23]))), 20), dest, ".uniV2Pools.eUSD_eCFA_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[24]))), 20), dest, ".uniV2Pools.eUSD_eZAR_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[24]))), 20), dest, ".uniV2Pools.eUSD_eCHF_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[25]))), 20), dest, ".uniV2Pools.wTEL_eUSD_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[25]))), 20), dest, ".uniV2Pools.eUSD_eCZK_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[26]))), 20), dest, ".uniV2Pools.wTEL_eEUR_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[26]))), 20), dest, ".uniV2Pools.eUSD_eDKK_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[27]))), 20), dest, ".uniV2Pools.eUSD_eEUR_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[28]))), 20), dest, ".uniV2Pools.eUSD_eGBP_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[29]))), 20), dest, ".uniV2Pools.eUSD_eHKD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[30]))), 20), dest, ".uniV2Pools.eUSD_eHUF_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[31]))), 20), dest, ".uniV2Pools.eUSD_eINR_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[32]))), 20), dest, ".uniV2Pools.eUSD_eISK_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[33]))), 20), dest, ".uniV2Pools.eUSD_eJPY_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[34]))), 20), dest, ".uniV2Pools.eUSD_eKES_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[35]))), 20), dest, ".uniV2Pools.eUSD_eMXN_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[36]))), 20), dest, ".uniV2Pools.eUSD_eNOK_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[37]))), 20), dest, ".uniV2Pools.eUSD_eNZD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[38]))), 20), dest, ".uniV2Pools.eUSD_eSDR_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[39]))), 20), dest, ".uniV2Pools.eUSD_eSEK_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[40]))), 20), dest, ".uniV2Pools.eUSD_eSGD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[41]))), 20), dest, ".uniV2Pools.eUSD_eTRY_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[42]))), 20), dest, ".uniV2Pools.eUSD_eZAR_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[43]))), 20), dest, ".uniV2Pools.wTEL_eUSD_Pool"
+        );
+        vm.writeJson(
+            LibString.toHexString(uint256(uint160(address(pairs[44]))), 20), dest, ".uniV2Pools.wTEL_eEUR_Pool"
         );
     }
 }

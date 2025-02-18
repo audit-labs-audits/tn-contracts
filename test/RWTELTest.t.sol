@@ -78,7 +78,6 @@ contract RWTELTest is Test {
         // console2.logAddress(deployments.ConsensusRegistry);
         // console2.logAddress(deployments.AxelarAmplifierGateway);
 
-        consensusRegistry_ = deployments.ConsensusRegistry;
         // todo: currently using duplicate gateway while awaiting Axelar token registration
         gateway_ = deployments.AxelarAmplifierGateway;
         name_ = "Recoverable Wrapped Telcoin";
@@ -204,7 +203,6 @@ contract RWTELTest is Test {
          * includer polls GMP API for the message processed by Axelar Network verifiers, writes to TN gateway in TX
          * Once settled, GMP message has been successfully sent across chains (bridged) and awaits execution
          */
-
         bytes32 commandId = tnGateway.messageToCommandId(sourceChain, messageId);
         vm.expectEmit(true, true, true, true);
         emit MessageApproved(commandId, sourceChain, messageId, sourceAddress, address(tnRWTEL), payloadHash);
@@ -216,23 +214,46 @@ contract RWTELTest is Test {
          * includer executes GMP messages that have been written to the TN gateway in previous step
          * this tx calls RWTEL module which mints the TEL tokens and delivers them to recipient
          */
-        
+
         //todo: RWTEL funding transaction can't be submitted to chain RN so prank it here
-        (bool res,) = address(tnRWTEL).call{value: amount}('');
+        (bool res,) = address(tnRWTEL).call{ value: amount }("");
         require(res);
 
         uint256 userBalBefore = user.balance;
 
         vm.expectEmit(true, true, true, true);
         emit MessageExecuted(commandId);
-        vm.startPrank(admin);
-        
+        vm.prank(admin);
         tnRWTEL.execute(commandId, sourceChain, sourceAddress, payload);
-        vm.stopPrank();
 
         // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
         //todo: consider how to handle cross chain decimals (native TEL uses 18; ERC20 TEL uses 2)
         assertEq(user.balance, userBalBefore + amount);
+    }
+
+    function test_bridgeSimulationTNToSepolia() public {
+        /// @dev This test is skipped because it relies on signing with a local key
+        /// and to save on RPC calls. Remove to unskip
+        // vm.skip(true); //todo
+
+        setUpForkConfig();
+
+        tnFork = vm.createFork(TN_RPC_URL);
+        vm.selectFork(tnFork);
+
+        sourceChain = "telcoin-network";
+        sourceAddress = LibString.toHexString(uint256(uint160(address(tnGateway))), 20);
+        destChain = "ethereum-sepolia";
+        // destAddress = LibString.toHexString(uint256(uint160(address(sepoliaAxelarExecutable))), 20);
+
+        // vm.startPrank(user);
+        // wrap amount to wTEL
+        // rwTEL.deposit(amount);
+        // vm.warp(block.timestamp + recoverableWindow_);
+        // identify address & payload encoding for sepoliaAxelarExecutable
+        // expect emit
+        // tnGateway.callContractWithToken(destChain, destAddress, payload, symbol, amount);
+        //todo
     }
 }
 

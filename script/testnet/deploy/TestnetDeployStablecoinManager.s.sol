@@ -59,15 +59,27 @@ contract TestnetDeployStablecoinManager is Script {
         // populate stables array
         stables.push(deployments.eAUD);
         stables.push(deployments.eCAD);
+        stables.push(deployments.eCFA);
         stables.push(deployments.eCHF);
+        stables.push(deployments.eCZK);
+        stables.push(deployments.eDKK);
         stables.push(deployments.eEUR);
         stables.push(deployments.eGBP);
         stables.push(deployments.eHKD);
+        stables.push(deployments.eHUF);
+        stables.push(deployments.eINR);
+        stables.push(deployments.eISK);
+        stables.push(deployments.eJPY);
+        stables.push(deployments.eKES);
         stables.push(deployments.eMXN);
         stables.push(deployments.eNOK);
-        stables.push(deployments.eJPY);
+        stables.push(deployments.eNZD);
         stables.push(deployments.eSDR);
+        stables.push(deployments.eSEK);
         stables.push(deployments.eSGD);
+        stables.push(deployments.eTRY);
+        stables.push(deployments.eUSD);
+        stables.push(deployments.eZAR);
 
         faucets.push(faucet0);
         faucets.push(faucet1);
