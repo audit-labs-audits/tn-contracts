@@ -48,6 +48,7 @@ contract RWTELTest is Test {
     IAxelarGateway sepoliaGateway;
     IERC20 sepoliaTel;
     AxelarAmplifierGateway tnGateway;
+    WTEL tnWTEL;
     RWTEL tnRWTEL;
 
     address admin;
@@ -73,10 +74,6 @@ contract RWTELTest is Test {
         deployments = abi.decode(data, (Deployments));
 
         wTEL = new WTEL();
-        //todo breaks when JSON has too many members
-        // console2.logAddress(deployments.ArachnidDeterministicDeployFactory);
-        // console2.logAddress(deployments.ConsensusRegistry);
-        // console2.logAddress(deployments.AxelarAmplifierGateway);
 
         // todo: currently using duplicate gateway while awaiting Axelar token registration
         gateway_ = deployments.AxelarAmplifierGateway;
@@ -124,6 +121,7 @@ contract RWTELTest is Test {
         sepoliaGateway = IAxelarGateway(0xB906fC799C9E51f1231f37B867eEd1d9C5a6D472);
         sepoliaTel = IERC20(deployments.sepoliaTEL);
         tnGateway = AxelarAmplifierGateway(deployments.AxelarAmplifierGateway);
+        tnWTEL = WTEL(payable(deployments.wTEL));
         tnRWTEL = RWTEL(payable(deployments.rwTEL));
 
         user = address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180);
@@ -137,7 +135,7 @@ contract RWTELTest is Test {
     function test_bridgeSimulationSepoliaToTN() public {
         /// @dev This test is skipped because it relies on signing with a local key
         /// and to save on RPC calls. Remove to unskip
-        // vm.skip(true); //todo
+        vm.skip(true); //todo
 
         setUpForkConfig();
 
@@ -241,19 +239,45 @@ contract RWTELTest is Test {
         tnFork = vm.createFork(TN_RPC_URL);
         vm.selectFork(tnFork);
 
+        vm.deal(user, amount + 100);
         sourceChain = "telcoin-network";
         sourceAddress = LibString.toHexString(uint256(uint160(address(tnGateway))), 20);
         destChain = "ethereum-sepolia";
-        // destAddress = LibString.toHexString(uint256(uint160(address(sepoliaAxelarExecutable))), 20);
+        // Axelar Ethereum-Sepolia gateway predates AxelarExecutable contract; it contains execution logic
+        destAddress = LibString.toHexString(uint256(uint160(address(sepoliaGateway))), 20);
 
-        // vm.startPrank(user);
-        // wrap amount to wTEL
-        // rwTEL.deposit(amount);
-        // vm.warp(block.timestamp + recoverableWindow_);
-        // identify address & payload encoding for sepoliaAxelarExecutable
-        // expect emit
-        // tnGateway.callContractWithToken(destChain, destAddress, payload, symbol, amount);
-        //todo
+        vm.startPrank(user);
+        // wrap amount to wTEL and then to rwTEL, which initiates `recoverableWindow`
+        tnWTEL.deposit{value: amount}();
+        tnRWTEL.wrap(amount);
+        
+        // construct payload
+        messageId = "42";
+        bytes32[] memory commandIds = new bytes32[](1);
+        commandIds[0] = tnGateway.messageToCommandId(sourceChain, messageId);
+        string[] memory commands = new string[](1);
+        commands[0] = "mintToken";
+        bytes[] memory params = new bytes[](1);
+        bytes memory mintTokenParams = abi.encode(symbol, user, amount);
+        params[0] = mintTokenParams;
+        bytes memory data = abi.encode(115566, commandIds, commands, params);
+        bytes memory proof = "";
+        payload = abi.encode(data, proof);
+
+        // bridge attempts should revert until `recoverableWindow` has elapsed
+        vm.expectRevert();
+        tnGateway.callContract(destChain, destAddress, payload);
+
+        // elapse time
+        vm.warp(block.timestamp + recoverableWindow_);
+        
+        //todo: enforce behavior similar to `callContractWithToken` by using RWTEL as sole caller for callContract?
+        vm.expectEmit();
+        emit ContractCall(user, destChain, destAddress, keccak256(payload), payload);
+        tnGateway.callContract(destChain, destAddress, payload);
+        
+        //todo sepolia side
+        //todo asserts
     }
 }
 
@@ -276,6 +300,15 @@ event MessageApproved(
     string sourceAddress,
     address indexed contractAddress,
     bytes32 indexed payloadHash
+);
+
+/// @notice Redeclared event from `IAxelarGMPGateway` for testing
+event ContractCall(
+    address indexed sender,
+    string destinationChain,
+    string destinationContractAddress,
+    bytes32 indexed payloadHash,
+    bytes payload
 );
 
 /// @notice Redeclared event from `BaseAmplifierGateway` for testing
