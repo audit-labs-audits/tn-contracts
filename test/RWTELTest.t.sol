@@ -248,37 +248,39 @@ contract RWTELTest is Test {
 
         vm.startPrank(user);
         // wrap amount to wTEL and then to rwTEL, which initiates `recoverableWindow`
-        tnWTEL.deposit{value: amount}();
+        tnWTEL.deposit{ value: amount }();
         tnWTEL.approve(address(tnRWTEL), amount);
         tnRWTEL.wrap(amount);
-        
+
         // construct payload
         messageId = "42";
         bytes32[] memory commandIds = new bytes32[](1);
-        commandIds[0] = tnGateway.messageToCommandId(sourceChain, messageId);
+        bytes32 commandId = tnGateway.messageToCommandId(sourceChain, messageId);
+        commandIds[0] = commandId;
         string[] memory commands = new string[](1);
         commands[0] = "mintToken";
         bytes[] memory params = new bytes[](1);
         bytes memory mintTokenParams = abi.encode(symbol, user, amount);
         params[0] = mintTokenParams;
-        bytes memory data = abi.encode(115566, commandIds, commands, params);
+        bytes memory data = abi.encode(11_155_111, commandIds, commands, params);
         bytes memory proof = "";
         payload = abi.encode(data, proof);
 
-        // bridge attempts should revert until `recoverableWindow` has elapsed
-        // vm.expectRevert();
-        // tnGateway.callContract(destChain, destAddress, payload);
+        //todo: bridge attempts should revert until `recoverableWindow` has elapsed
 
         // elapse time
         vm.warp(block.timestamp + recoverableWindow_);
-        
+
         //todo: enforce behavior similar to `callContractWithToken` by using RWTEL as sole caller for callContract?
         vm.expectEmit();
         emit ContractCall(user, destChain, destAddress, keccak256(payload), payload);
         tnGateway.callContract(destChain, destAddress, payload);
-        
-        //todo sepolia side
-        //todo asserts
+
+        // sepolia side
+        sepoliaFork = vm.createFork(SEPOLIA_RPC_URL);
+        vm.selectFork(sepoliaFork);
+
+        sepoliaGateway.execute(payload);
     }
 }
 
@@ -337,6 +339,8 @@ interface IAxelarGateway {
         uint256 amount
     )
         external;
+    function approveContractCall(bytes calldata params, bytes32 commandId) external;
+    function approveContractCallWithMint(bytes calldata params, bytes32 commandId) external;
     function isContractCallApproved(
         bytes32 commandId,
         string calldata sourceChain,
