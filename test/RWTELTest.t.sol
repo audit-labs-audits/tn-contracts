@@ -79,7 +79,7 @@ contract RWTELTest is Test {
         gateway_ = deployments.AxelarAmplifierGateway;
         name_ = "Recoverable Wrapped Telcoin";
         symbol_ = "rwTEL";
-        recoverableWindow_ = 86_400; // ~1 day; Telcoin Network blocktime is ~1s
+        recoverableWindow_ = 604_800; // 1 week
         governanceAddress_ = address(this); // multisig/council/DAO address in prod
         baseERC20_ = address(wTEL);
         maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
