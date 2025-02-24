@@ -46,15 +46,27 @@ contract TestnetGrantRole is Script {
         recipients.push(recipient3);
         stables.push(Stablecoin(deployments.eAUD));
         stables.push(Stablecoin(deployments.eCAD));
+        stables.push(Stablecoin(deployments.eCFA));
         stables.push(Stablecoin(deployments.eCHF));
+        stables.push(Stablecoin(deployments.eCZK));
+        stables.push(Stablecoin(deployments.eDKK));
         stables.push(Stablecoin(deployments.eEUR));
         stables.push(Stablecoin(deployments.eGBP));
         stables.push(Stablecoin(deployments.eHKD));
+        stables.push(Stablecoin(deployments.eHUF));
+        stables.push(Stablecoin(deployments.eINR));
+        stables.push(Stablecoin(deployments.eISK));
         stables.push(Stablecoin(deployments.eJPY));
+        stables.push(Stablecoin(deployments.eKES));
         stables.push(Stablecoin(deployments.eMXN));
         stables.push(Stablecoin(deployments.eNOK));
+        stables.push(Stablecoin(deployments.eNZD));
         stables.push(Stablecoin(deployments.eSDR));
+        stables.push(Stablecoin(deployments.eSEK));
         stables.push(Stablecoin(deployments.eSGD));
+        stables.push(Stablecoin(deployments.eTRY));
+        stables.push(Stablecoin(deployments.eUSD));
+        stables.push(Stablecoin(deployments.eZAR));
     }
 
     function run() public {

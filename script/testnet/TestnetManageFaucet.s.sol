@@ -41,16 +41,25 @@ contract TestnetManageFaucet is Script {
             /// @dev will enable all stablecoin XYZs. Customize accordingly
             tokensToManage.push(deployments.eAUD);
             tokensToManage.push(deployments.eCAD);
+            tokensToManage.push(deployments.eCFA);
             tokensToManage.push(deployments.eCHF);
+            tokensToManage.push(deployments.eCZK);
+            tokensToManage.push(deployments.eDKK);
             tokensToManage.push(deployments.eEUR);
             tokensToManage.push(deployments.eGBP);
             tokensToManage.push(deployments.eHKD);
+            tokensToManage.push(deployments.eHUF);
+            tokensToManage.push(deployments.eINR);
+            tokensToManage.push(deployments.eISK);
             tokensToManage.push(deployments.eJPY);
+            tokensToManage.push(deployments.eKES);
             tokensToManage.push(deployments.eMXN);
             tokensToManage.push(deployments.eNOK);
             tokensToManage.push(deployments.eNZD);
             tokensToManage.push(deployments.eSDR);
+            tokensToManage.push(deployments.eSEK);
             tokensToManage.push(deployments.eSGD);
+            tokensToManage.push(deployments.eTRY);
             tokensToManage.push(deployments.eUSD);
             tokensToManage.push(deployments.eZAR);
         }

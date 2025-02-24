@@ -11,13 +11,13 @@ import { WTEL } from "../../src/WTEL.sol";
 /// -vvvv --rpc-url $TN_RPC_URL --private-key $ADMIN_PK`
 contract TestnetFundDeveloper is Script {
     // config: send $wTEL and stables to the following address
-    address developer = 0x6A7aE3671672D1d7dc250f60C46F14E35d383a80;
+    address developer = 0x3DCc9a6f3A71F0A6C8C659c65558321c374E917a; //0x6A7aE3671672D1d7dc250f60C46F14E35d383a80;
     uint256 telAmount;
     uint256 wTelAmount;
     uint256 stablecoinAmount;
 
     WTEL wTEL;
-    Stablecoin[] stables; // 11 canonical Telcoin stablecoins
+    Stablecoin[] stables; // 23 canonical Telcoin stablecoins
 
     // json source
     Deployments deployments;
@@ -30,23 +30,32 @@ contract TestnetFundDeveloper is Script {
         deployments = abi.decode(data, (Deployments));
 
         telAmount = 1e18;
-        wTelAmount = 10_000e18; // wTel.decimals() == 18
-        stablecoinAmount = 10_000e6; // stablecoin.decimals() == 6
+        wTelAmount = 1_000_000e18; // wTel.decimals() == 18
+        stablecoinAmount = 1_000_000e6; // stablecoin.decimals() == 6
 
         wTEL = WTEL(payable(deployments.wTEL));
         // populate array for iteration
         stables.push(Stablecoin(deployments.eAUD));
         stables.push(Stablecoin(deployments.eCAD));
+        stables.push(Stablecoin(deployments.eCFA));
         stables.push(Stablecoin(deployments.eCHF));
+        stables.push(Stablecoin(deployments.eCZK));
+        stables.push(Stablecoin(deployments.eDKK));
         stables.push(Stablecoin(deployments.eEUR));
         stables.push(Stablecoin(deployments.eGBP));
         stables.push(Stablecoin(deployments.eHKD));
+        stables.push(Stablecoin(deployments.eHUF));
+        stables.push(Stablecoin(deployments.eINR));
+        stables.push(Stablecoin(deployments.eISK));
         stables.push(Stablecoin(deployments.eJPY));
+        stables.push(Stablecoin(deployments.eKES));
         stables.push(Stablecoin(deployments.eMXN));
         stables.push(Stablecoin(deployments.eNOK));
         stables.push(Stablecoin(deployments.eNZD));
         stables.push(Stablecoin(deployments.eSDR));
+        stables.push(Stablecoin(deployments.eSEK));
         stables.push(Stablecoin(deployments.eSGD));
+        stables.push(Stablecoin(deployments.eTRY));
         stables.push(Stablecoin(deployments.eUSD));
         stables.push(Stablecoin(deployments.eZAR));
     }
