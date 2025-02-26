@@ -47,6 +47,7 @@ struct Deployments {
     address wTEL;
 }
 
+/// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering
 struct UniV2Pools {
     address eEUR_eAUD_Pool;
     address eEUR_eCAD_Pool;
@@ -91,8 +92,8 @@ struct UniV2Pools {
     address eUSD_eSGD_Pool;
     address eUSD_eTRY_Pool;
     address eUSD_eZAR_Pool;
-    address wTEL_eUSD_Pool;
     address wTEL_eEUR_Pool;
+    address wTEL_eUSD_Pool;
 }
 
 /// @dev Raw tx calldatas required to achieve desired create2 addresses for the faucet.

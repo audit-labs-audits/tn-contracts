@@ -11,7 +11,7 @@ import { WTEL } from "../../src/WTEL.sol";
 /// -vvvv --rpc-url $TN_RPC_URL --private-key $ADMIN_PK`
 contract TestnetFundDeveloper is Script {
     // config: send $wTEL and stables to the following address
-    address developer = 0x3DCc9a6f3A71F0A6C8C659c65558321c374E917a; //0x6A7aE3671672D1d7dc250f60C46F14E35d383a80;
+    address developer = 0x6A7aE3671672D1d7dc250f60C46F14E35d383a80;
     uint256 telAmount;
     uint256 wTelAmount;
     uint256 stablecoinAmount;
@@ -29,9 +29,9 @@ contract TestnetFundDeveloper is Script {
         bytes memory data = vm.parseJson(json);
         deployments = abi.decode(data, (Deployments));
 
-        telAmount = 1e18;
+        telAmount = 10_000e18;
         wTelAmount = 1_000_000e18; // wTel.decimals() == 18
-        stablecoinAmount = 1_000_000e6; // stablecoin.decimals() == 6
+        stablecoinAmount = 1_000_000_000e6; // stablecoin.decimals() == 6
 
         wTEL = WTEL(payable(deployments.wTEL));
         // populate array for iteration

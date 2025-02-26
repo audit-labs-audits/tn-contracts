@@ -74,8 +74,8 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         vm.startBroadcast();
 
         /// @dev Customize appropriately; for existing deployments:
-        // uniswapV2Factory = IUniswapV2Factory(0x764EcA68A03Ff1Eb710E7d1a02c2e7c008877f2F);
-        // uniswapV2Router02 = IUniswapV2Router02(0x76b5628C7071c9CB587F38c78943c5a55C77Ee3F);
+        // uniswapV2Factory = IUniswapV2Factory(deployments.UniswapV2Factory);
+        // uniswapV2Router02 = IUniswapV2Router02(deployments.UniswapV2Router02);
 
         /// @dev Customize appropriately; for new deployments:
         // deploy v2 core contracts
@@ -164,10 +164,20 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
                     if (!correctToken1) correctToken1 = token1 == stables[j] || token1 == deployments.eUSD;
                 }
             } else {
-                // should be wTEL<>eEUR or wTEL<>eUSD; skip matches already found
-                if (!correctToken0) correctToken0 = token0 == wTEL || token0 == deployments.eEUR;
-                if (!correctToken1) correctToken1 = token1 == wTEL || token1 == deployments.eUSD;
+                // last two pools are wTEL<>eEUR or wTEL<>eUSD
+                if (i == pairs.length - 2) {
+                    // shold be wTEL<>eEUR; skip matches already found
+                    if (!correctToken0) correctToken0 = token0 == wTEL || token0 == deployments.eEUR;
+                    if (!correctToken1) correctToken1 = token1 == wTEL || token1 == deployments.eEUR;
+                }
+
+                if (i == pairs.length - 1) {
+                    // shold be wTEL<>eUSD; skip matches already found
+                    if (!correctToken0) correctToken0 = token0 == wTEL || token0 == deployments.eUSD;
+                    if (!correctToken1) correctToken1 = token1 == wTEL || token1 == deployments.eUSD;
+                }
             }
+
             assert(correctToken0);
             assert(correctToken1);
         }
@@ -289,10 +299,10 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
             LibString.toHexString(uint256(uint160(address(pairs[42]))), 20), dest, ".uniV2Pools.eUSD_eZAR_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[43]))), 20), dest, ".uniV2Pools.wTEL_eUSD_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[43]))), 20), dest, ".uniV2Pools.wTEL_eEUR_Pool"
         );
         vm.writeJson(
-            LibString.toHexString(uint256(uint160(address(pairs[44]))), 20), dest, ".uniV2Pools.wTEL_eEUR_Pool"
+            LibString.toHexString(uint256(uint160(address(pairs[44]))), 20), dest, ".uniV2Pools.wTEL_eUSD_Pool"
         );
     }
 }

@@ -15,7 +15,7 @@ import {
     DETERMINISTIC_FAUCET_PROXY_DATA
 } from "../../../deployments/Deployments.sol";
 
-/// @dev Usage: `forge script script/deploy/TestnetDeployStablecoinManager.s.sol \
+/// @dev Usage: `forge script script/testnet/deploy/TestnetDeployStablecoinManager.s.sol \
 /// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 contract TestnetDeployStablecoinManager is Script {
     StablecoinManager stablecoinManagerImpl;
