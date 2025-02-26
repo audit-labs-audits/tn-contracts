@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity ^0.8.20;
 
-import { AxelarGMPExecutable } from
-    "@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarGMPExecutable.sol";
+import { InterchainTokenExecutable } from
+    "@axelar-network/interchain-token-service/contracts/executable/InterchainTokenExecutable.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
@@ -28,7 +28,7 @@ import { Test, console2 } from "forge-std/Test.sol"; //todo
     | governanceAddress | address                                                    | 10   |
 */
 
-contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeable, Ownable {
+contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenExecutable, UUPSUpgradeable, Ownable {
     /// @dev ConsensusRegistry system contract defined by protocol to always exist at a constant address
     address public constant consensusRegistry = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
@@ -40,7 +40,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
     /// @param name_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
     /// @param symbol_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
     constructor(
-        address axelarGateway_,
+        address interchainTokenService_,
         string memory name_,
         string memory symbol_,
         uint256 recoverableWindow_,
@@ -48,7 +48,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
         address baseERC20_,
         uint16 maxToClean
     )
-        AxelarGMPExecutable(axelarGateway_)
+        InterchainTokenExecutable(interchainTokenService_)
         RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
     { }
 
@@ -104,18 +104,32 @@ contract RWTEL is IRWTEL, RecoverableWrapper, AxelarGMPExecutable, UUPSUpgradeab
 
     /// @notice Only invoked after `commandId` is verified by Axelar gateway, ie in the context of an incoming message
     /// @notice Params `sourceChain` and `sourceAddress` are not currently used for vanilla bridging but may later on
-    function _execute(
+    function _executeWithInterchainToken(
         bytes32 commandId,
         string calldata, /* sourceChain */
-        string calldata, /* sourceAddress */
-        bytes calldata payload
+        bytes calldata, /* sourceAddress */
+        bytes calldata data,
+        bytes32 tokenId,
+        address token,
+        uint256 amount
     )
         internal
         virtual
         override
     {
-        ExtCall memory bridgeMsg = abi.decode(payload, (ExtCall));
+        // todo: revisit ExtCall payload encoding: is value still required?
+        ExtCall memory bridgeMsg = abi.decode(data, (ExtCall));
         address target = bridgeMsg.target;
+        if (amount != bridgeMsg.value) {
+            //todo: more granularity in event?
+            emit ExecutionFailed(commandId, target);
+            return;
+        }
+
+        if (token != address(0x0)) {
+            // todo: logic for supporting all ERC20s, not just native TEL
+        }
+
         (bool res,) = target.call{ value: bridgeMsg.value }(bridgeMsg.data);
         // to prevent stuck messages, emit failure event rather than revert
         if (!res) emit ExecutionFailed(commandId, target);

@@ -34,7 +34,10 @@
   },
   "homepage": "https://github.com/Telcoin-Association/tn-contracts#readme",
   "dependencies": {
+    "@axelar-network/axelar-cgp-solidity": "^6.4.0",
+    "@axelar-network/axelar-gmp-sdk-solidity": "^6.0.5",
     "@axelar-network/axelar-local-dev": "^2.3.3",
+    "@axelar-network/interchain-token-service": "^2.1.0",
     "@ethersproject/experimental": "^5.7.0",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",

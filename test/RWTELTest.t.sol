@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import { Test, console2 } from "forge-std/Test.sol";
+import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
 import { AxelarAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
 import { BaseAmplifierGateway } from
@@ -55,9 +56,11 @@ contract RWTELTest is Test {
     address telDistributor;
     address user;
     string sourceChain;
-    string sourceAddress;
+    string sourceAddress; // todo bytes
     string destChain;
     string destAddress;
+    address token; //todo
+    bytes32 tokenId; //todo
     string symbol;
     uint256 amount;
     bytes extCallData;
@@ -103,7 +106,7 @@ contract RWTELTest is Test {
 
         // rwTEL sanity tests
         assertEq(rwTEL.consensusRegistry(), deployments.ConsensusRegistry);
-        assertEq(address(rwTEL.gateway()), deployments.AxelarAmplifierGateway);
+        assertEq(address(rwTEL.interchainTokenService()), deployments.InterchainTokenService);
         assertEq(rwTEL.owner(), admin);
         assertTrue(address(rwTEL).code.length > 0);
         string memory rwName = rwTEL.name();
@@ -132,6 +135,7 @@ contract RWTELTest is Test {
         payloadHash = keccak256(payload);
     }
 
+    // todo: refactor for ITS
     function test_bridgeSimulationSepoliaToTN() public {
         /// @dev This test is skipped because it relies on signing with a local key
         /// and to save on RPC calls. Remove to unskip
@@ -153,8 +157,8 @@ contract RWTELTest is Test {
 
         // subscriber will monitor `ContractCall` events
         vm.expectEmit(true, true, true, true);
-        emit ContractCallWithToken(user, destChain, destAddress, payloadHash, payload, symbol, amount);
-        sepoliaGateway.callContractWithToken(destChain, destAddress, payload, symbol, amount);
+        emit ContractCall(user, destChain, destAddress, payloadHash, payload);
+        sepoliaGateway.callContract(destChain, destAddress, payload);
         vm.stopPrank();
 
         /**
@@ -173,7 +177,7 @@ contract RWTELTest is Test {
             bytes.concat(
                 "\x19Ethereum Signed Message:\n96",
                 tnGateway.domainSeparator(),
-                tnGateway.signerHashByEpoch(tnGateway.epoch()),
+                tnGateway.signersHashByEpoch(tnGateway.epoch()),
                 dataHash
             )
         );
@@ -183,6 +187,7 @@ contract RWTELTest is Test {
          * GMP message reaches Axelar Network Voting Verifier contract, where a "verifier" (ampd client ECDSA key)
          * signs and submits signatures ie "votes" or "proofs" via RPC. Verifiers are also known as `WeightedSigners`
          * @notice Must restrict verifiers to only signing "voting" GMP messages emitted as `ContractCallWithToken`
+         * todo: revisit above requirement for ITS
          */
 
         // TN gateway currently uses a single signer of `admin` with weight 1
@@ -211,6 +216,7 @@ contract RWTELTest is Test {
          * @dev Relayer Action: Execute GMP Message (`ContractCallWithToken`) on RWTEL Module
          * includer executes GMP messages that have been written to the TN gateway in previous step
          * this tx calls RWTEL module which mints the TEL tokens and delivers them to recipient
+         * todo: revisit above
          */
 
         //todo: RWTEL funding transaction can't be submitted to chain RN so prank it here
@@ -222,13 +228,16 @@ contract RWTELTest is Test {
         vm.expectEmit(true, true, true, true);
         emit MessageExecuted(commandId);
         vm.prank(admin);
-        tnRWTEL.execute(commandId, sourceChain, sourceAddress, payload);
+        tnRWTEL.executeWithInterchainToken(
+            commandId, sourceChain, bytes(sourceAddress), payload, tokenId, token, amount
+        );
 
         // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
         //todo: consider how to handle cross chain decimals (native TEL uses 18; ERC20 TEL uses 2)
         assertEq(user.balance, userBalBefore + amount);
     }
 
+    // todo: refactor for ITS
     function test_bridgeSimulationTNToSepolia() public {
         /// @dev This test is skipped because it relies on signing with a local key
         /// and to save on RPC calls. Remove to unskip
@@ -271,7 +280,7 @@ contract RWTELTest is Test {
         // elapse time
         vm.warp(block.timestamp + recoverableWindow_);
 
-        //todo: enforce behavior similar to `callContractWithToken` by using RWTEL as sole caller for callContract?
+        //todo: ensure tokenHandler is called as part of ITS flow
         vm.expectEmit();
         emit ContractCall(user, destChain, destAddress, keccak256(payload), payload);
         tnGateway.callContract(destChain, destAddress, payload);
@@ -280,20 +289,10 @@ contract RWTELTest is Test {
         sepoliaFork = vm.createFork(SEPOLIA_RPC_URL);
         vm.selectFork(sepoliaFork);
 
-        sepoliaGateway.execute(payload);
+        //todo: this was deprecated?
+        // sepoliaGateway.execute(payload);
     }
 }
-
-/// @notice Redeclared event from `AxelarGateway` for testing
-event ContractCallWithToken(
-    address indexed sender,
-    string destinationChain,
-    string destinationContractAddress,
-    bytes32 indexed payloadHash,
-    bytes payload,
-    string symbol,
-    uint256 amount
-);
 
 /// @notice Redeclared event from `BaseAmplifierGateway` for testing
 event MessageApproved(
@@ -316,72 +315,3 @@ event ContractCall(
 
 /// @notice Redeclared event from `BaseAmplifierGateway` for testing
 event MessageExecuted(bytes32 indexed commandId);
-
-interface IAxelarGateway {
-    function sendToken(
-        string calldata destinationChain,
-        string calldata destinationAddress,
-        string calldata symbol,
-        uint256 amount
-    )
-        external;
-    function callContract(
-        string calldata destinationChain,
-        string calldata contractAddress,
-        bytes calldata payload
-    )
-        external;
-    function callContractWithToken(
-        string calldata destinationChain,
-        string calldata contractAddress,
-        bytes calldata payload,
-        string calldata symbol,
-        uint256 amount
-    )
-        external;
-    function approveContractCall(bytes calldata params, bytes32 commandId) external;
-    function approveContractCallWithMint(bytes calldata params, bytes32 commandId) external;
-    function isContractCallApproved(
-        bytes32 commandId,
-        string calldata sourceChain,
-        string calldata sourceAddress,
-        address contractAddress,
-        bytes32 payloadHash
-    )
-        external
-        view
-        returns (bool);
-    function isContractCallAndMintApproved(
-        bytes32 commandId,
-        string calldata sourceChain,
-        string calldata sourceAddress,
-        address contractAddress,
-        bytes32 payloadHash,
-        string calldata symbol,
-        uint256 amount
-    )
-        external
-        view
-        returns (bool);
-    function validateContractCall(
-        bytes32 commandId,
-        string calldata sourceChain,
-        string calldata sourceAddress,
-        bytes32 payloadHash
-    )
-        external
-        returns (bool);
-    function validateContractCallAndMint(
-        bytes32 commandId,
-        string calldata sourceChain,
-        string calldata sourceAddress,
-        bytes32 payloadHash,
-        string calldata symbol,
-        uint256 amount
-    )
-        external
-        returns (bool);
-    function tokenAddresses(string memory symbol) external view returns (address);
-    function isCommandExecuted(bytes32 commandId) external view returns (bool);
-    function execute(bytes calldata input) external;
-}

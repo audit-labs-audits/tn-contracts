@@ -60,7 +60,7 @@ contract TestnetDeployTokens is Script {
 
         // asserts
         assert(rwTEL.consensusRegistry() == deployments.ConsensusRegistry);
-        assert(address(rwTEL.gateway()) == deployments.AxelarAmplifierGateway);
+        assert(address(rwTEL.interchainTokenService()) == deployments.InterchainTokenService);
         assert(rwTEL.baseToken() == deployments.wTEL);
         assert(rwTEL.governanceAddress() == admin);
         assert(rwTEL.recoverableWindow() == recoverableWindow_);
