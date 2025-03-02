@@ -8,21 +8,35 @@ import "./mocks/MockImplementations.sol";
 
 contract TANIssuanceHistoryTest is Test {
     MockTel tel;
-    TANIssuanceHistory public tanIssuanceHistory;
+    MockStakingModule public stakingModule;
     ISimplePlugin public mockPlugin;
+    MockAmirX public amirX;
+
+    TANIssuanceHistory public tanIssuanceHistory;
 
     // Addresses for testing
     address public owner = address(0x123);
-    address public user1 = address(0x456);
-    address public user2 = address(0x789);
+    address public user = address(0x456);
+    address public user1 = address(0x789);
+    address public user2 = address(0xabc);
+    address public defiAgg = address(0xdef);
+    address public executor = address(0xfed);
+    address public referrer = address(0xcba);
 
     function setUp() public {
-        // Deploy TEL and mock plugin
+        // Deploy TEL and mocks
         tel = new MockTel("Telcoin", "TEL");
+        stakingModule = new MockStakingModule();
         mockPlugin = ISimplePlugin(address(new MockPlugin(IERC20(address(tel)))));
+        // the mock amirX is owned by the executor address for simplicity
+        amirX = new MockAmirX(IERC20(address(tel)), executor, defiAgg);
+
+        // (unprotected) mint tokens to `defiAgg` and give unlimited approval to `amirX`
+        tel.mint(defiAgg, 1_000_000);
+        vm.prank(defiAgg);
+        tel.approve(address(amirX), 1_000_000);
 
         // Deploy the TANIssuanceHistory contract as owner
-        vm.prank(owner);
         tanIssuanceHistory = new TANIssuanceHistory(mockPlugin, owner);
     }
 
@@ -94,5 +108,69 @@ contract TANIssuanceHistoryTest is Test {
             assertEq(users[i], accounts[i]);
             assertEq(rewards[i], amounts[i]);
         }
+    }
+
+    function testIntegrationTANIssuanceHistory() public {
+        // first stake for incentive eligibility
+        uint256 userFeeVolume = 100;
+        vm.prank(user);
+        stakingModule.stake(userFeeVolume);
+        vm.prank(referrer);
+        stakingModule.stake(userFeeVolume);
+
+        // perform swap, initiating user fee transfer
+        MockAmirX.DefiSwap memory defi = MockAmirX.DefiSwap(
+            address(0x0), address(0x0), mockPlugin, IERC20(address(0x0)), referrer, userFeeVolume, "", ""
+        );
+
+        vm.prank(executor);
+        amirX.defiSwap(user, defi);
+
+        /// @dev offchain calculator analyzes resulting user fee transfer event, checks stake eligibility
+        /// and then calculates rewards for distribution (calculation simulated below for visibility)
+        uint256 issuanceAmount = 3_000_000;
+        // user's referrer is eligible for `userFeeVolume`  if staked
+        uint256 referrerEligibility = userFeeVolume;
+        uint256 totalEligibleVolume = userFeeVolume + referrerEligibility;
+
+        // derive reward caps
+        uint256 stakedByUser = stakingModule.stakedByAt(user, block.number);
+        uint256 prevUserRewards = tanIssuanceHistory.cumulativeRewardsAtBlock(user, block.number);
+        uint256 userRewardCap = stakedByUser - prevUserRewards;
+        uint256 stakedByReferrer = stakingModule.stakedByAt(referrer, block.number);
+        uint256 prevReferrerRewards = tanIssuanceHistory.cumulativeRewardsAtBlock(referrer, block.number);
+        uint256 referrerRewardCap = stakedByReferrer - prevReferrerRewards;
+
+        // calculator uses a very large scaling factor to address arithmetic decimal precision
+        uint256 scalingFactor = 1_000_000_000_000_000;
+        uint256 userReward = scalingFactor * userFeeVolume / totalEligibleVolume * issuanceAmount / scalingFactor;
+        // in this test case does nothing but shown for calculator logic visibility
+        if (userRewardCap < userReward) userReward = userRewardCap;
+        uint256 referrerReward =
+            scalingFactor * referrerEligibility / totalEligibleVolume * issuanceAmount / scalingFactor;
+        // in this test case does nothing but shown for calculator logic visibility
+        if (referrerRewardCap < referrerReward) referrerReward = referrerRewardCap;
+
+        // once calculated, construct distribution calldata
+        address[] memory rewardees = new address[](2);
+        rewardees[0] = user;
+        rewardees[1] = referrer;
+        uint256[] memory rewards = new uint256[](2);
+        rewards[0] = userReward;
+        rewards[1] = referrerReward;
+        uint256 endBlock = block.number;
+
+        // pre-settlement sanity asserts
+        assertEq(tanIssuanceHistory.lastSettlementBlock(), 0);
+        assertEq(tanIssuanceHistory.cumulativeRewards(user), 0);
+        assertEq(tanIssuanceHistory.cumulativeRewards(referrer), 0);
+
+        // settle distribution of rewards
+        vm.prank(owner);
+        tanIssuanceHistory.increaseClaimableByBatch(rewardees, rewards, endBlock);
+
+        assertEq(tanIssuanceHistory.lastSettlementBlock(), endBlock);
+        assertEq(tanIssuanceHistory.cumulativeRewards(user), userReward);
+        assertEq(tanIssuanceHistory.cumulativeRewards(referrer), referrerReward);
     }
 }

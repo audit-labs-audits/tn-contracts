@@ -40,6 +40,7 @@ contract MockAmirX is Ownable {
         defiAggIntermediary = defiAggIntermediary_;
     }
 
+    /// @param '' Unused address param included to match canonical AmirX::defiSwap selector
     function defiSwap(address, DefiSwap memory defi) external payable onlyOwner {
         /// @notice the `DefiSwap.referralFee` actually refers to a separate referral program than this one
         /// but it is used here for simplicity
