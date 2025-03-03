@@ -116,7 +116,7 @@ contract TANIssuanceHistory is Ownable {
         if (endBlock > block.number) revert InvalidBlock(endBlock);
         lastSettlementBlock = endBlock;
 
-        uint256 totalAmount;
+        uint256 totalAmount = 0;
         uint256 len = rewards.length;
         for (uint256 i; i < len; ++i) {
             uint256 amount = rewards[i].amount;
