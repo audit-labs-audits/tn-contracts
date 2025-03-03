@@ -83,6 +83,8 @@ contract MockStakingModule {
 
 /// @notice  This contract did not need to be deployed for testing as one already exists
 contract MockPlugin is ISimplePlugin {
+    error Deactivated();
+
     bool public deactivated;
     IERC20 public tel;
     uint256 public totalClaimable;
@@ -97,6 +99,8 @@ contract MockPlugin is ISimplePlugin {
     }
 
     function increaseClaimableBy(address account, uint256 amount) external override returns (bool) {
+        if (deactivated) revert Deactivated();
+        
         // simplified mock implementation
         claimable[account] += amount;
         return true;

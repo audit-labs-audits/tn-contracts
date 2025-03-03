@@ -69,7 +69,7 @@ contract TANIssuanceHistoryTest is Test {
         TANIssuanceHistory.IssuanceReward[] memory rewards = new TANIssuanceHistory.IssuanceReward[](2);
 
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(TANIssuanceHistory.Deactivated.selector));
+        vm.expectRevert(abi.encodeWithSelector(MockPlugin.Deactivated.selector));
         tanIssuanceHistory.increaseClaimableByBatch(rewards, block.number);
     }
 
