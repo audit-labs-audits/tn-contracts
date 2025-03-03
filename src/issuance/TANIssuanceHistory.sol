@@ -22,12 +22,16 @@ contract TANIssuanceHistory is Ownable {
     using Checkpoints for Checkpoints.Trace224;
     using SafeERC20 for IERC20;
 
-    error ArityMismatch();
     error Deactivated();
     error ERC6372InconsistentClock();
     error InvalidAddress(address invalidAddress);
     error InvalidBlock(uint256 endBlock);
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
+
+    struct IssuanceReward {
+        address account;
+        uint256 amount;
+    }
 
     ISimplePlugin public tanIssuancePlugin;
     IERC20 public immutable tel;
@@ -102,33 +106,31 @@ contract TANIssuanceHistory is Ownable {
 
     /// @dev Saves the settlement block, updates cumulative rewards history, and settles TEL rewards on the plugin
     function increaseClaimableByBatch(
-        address[] calldata accounts,
-        uint256[] calldata amounts,
+        IssuanceReward[] calldata rewards,
         uint256 endBlock
     )
         external
         onlyOwner
         whenNotDeactivated
     {
-        uint256 len = accounts.length;
-        if (amounts.length != len) revert ArityMismatch();
-
         if (endBlock > block.number) revert InvalidBlock(endBlock);
         lastSettlementBlock = endBlock;
 
         uint256 totalAmount;
+        uint256 len = rewards.length;
         for (uint256 i; i < len; ++i) {
-            if (amounts[i] == 0) continue;
+            uint256 amount = rewards[i].amount;
+            if (amount == 0) continue;
 
-            totalAmount += amounts[i];
-            _incrementCumulativeRewards(accounts[i], amounts[i], endBlock);
+            totalAmount += amount;
+            _incrementCumulativeRewards(rewards[i].account, amount, endBlock);
         }
 
         // set approval as `SimplePlugin::increaseClaimableBy()` pulls TEL from this address to itself
         tel.approve(address(tanIssuancePlugin), totalAmount);
         for (uint256 i; i < len; ++i) {
             // event emission on this contract is omitted since the plugin emits a `ClaimableIncreased` event
-            tanIssuancePlugin.increaseClaimableBy(accounts[i], amounts[i]);
+            tanIssuancePlugin.increaseClaimableBy(rewards[i].account, rewards[i].amount);
         }
     }
 

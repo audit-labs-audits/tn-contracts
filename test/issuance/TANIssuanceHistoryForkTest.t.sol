@@ -34,8 +34,7 @@ contract TANIssuanceHistoryForkTest is Test {
     uint256 issuanceAmount;
     uint256 scalingFactor;
     uint256 totalEligibleVolume;
-    address[] rewardees;
-    uint256[] rewards;
+    TANIssuanceHistory.IssuanceReward[] rewards;
     uint256 endBlock;
 
     function setUp() public {
@@ -108,8 +107,7 @@ contract TANIssuanceHistoryForkTest is Test {
         if (userRewardCap < userReward) userReward = userRewardCap;
 
         // once calculated, construct distribution calldata
-        rewardees.push(user);
-        rewards.push(userReward);
+        rewards.push(TANIssuanceHistory.IssuanceReward(user, userReward));
         endBlock = block.number;
 
         // distribute rewards (funds come from TAN safe)
@@ -122,7 +120,7 @@ contract TANIssuanceHistoryForkTest is Test {
 
         // owner of TANIssuanceHistory contract is configured as TAN safe
         vm.prank(tanSafe);
-        tanIssuanceHistory.increaseClaimableByBatch(rewardees, rewards, endBlock);
+        tanIssuanceHistory.increaseClaimableByBatch(rewards, endBlock);
 
         // asserts
         assertEq(tel.balanceOf(address(tanIssuanceHistory)), 0);
