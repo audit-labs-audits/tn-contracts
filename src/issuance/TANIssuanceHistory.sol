@@ -121,7 +121,7 @@ contract TANIssuanceHistory is Ownable {
             if (amounts[i] == 0) continue;
 
             totalAmount += amounts[i];
-            _incrementCumulativeRewards(accounts[i], amounts[i]);
+            _incrementCumulativeRewards(accounts[i], amounts[i], endBlock);
         }
 
         // set approval as `SimplePlugin::increaseClaimableBy()` pulls TEL from this address to itself
@@ -170,11 +170,11 @@ contract TANIssuanceHistory is Ownable {
     /**
      * Internals
      */
-    function _incrementCumulativeRewards(address account, uint256 amount) internal {
+    function _incrementCumulativeRewards(address account, uint256 amount, uint256 endBlock) internal {
         uint256 prevCumulativeReward = cumulativeRewards(account);
         uint224 newCumulativeReward = SafeCast.toUint224(prevCumulativeReward + amount);
 
-        _cumulativeRewards[account].push(uint32(block.number), newCumulativeReward);
+        _cumulativeRewards[account].push(SafeCast.toUint32(endBlock), newCumulativeReward);
     }
 
     /// @dev Validate that user-supplied block is in the past, and return it as a uint48.
