@@ -113,11 +113,12 @@ contract TANIssuanceHistory is Ownable {
             _incrementCumulativeRewards(rewards[i].account, amount, endBlock);
         }
 
-        // set approval as `SimplePlugin::increaseClaimableBy()` pulls TEL from this address to itself
-        tel.approve(address(tanIssuancePlugin), totalAmount);
+        // cache plugin in memory, set approval as `SimplePlugin::increaseClaimableBy()` pulls TEL from this address
+        ISimplePlugin plugin = tanIssuancePlugin;
+        tel.approve(address(plugin), totalAmount);
         for (uint256 i; i < len; ++i) {
             // event emission on this contract is omitted since the plugin emits a `ClaimableIncreased` event
-            tanIssuancePlugin.increaseClaimableBy(rewards[i].account, rewards[i].amount);
+            plugin.increaseClaimableBy(rewards[i].account, rewards[i].amount);
         }
     }
 

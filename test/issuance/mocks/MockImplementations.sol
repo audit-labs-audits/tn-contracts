@@ -100,7 +100,7 @@ contract MockPlugin is ISimplePlugin {
 
     function increaseClaimableBy(address account, uint256 amount) external override returns (bool) {
         if (deactivated) revert Deactivated();
-        
+
         // simplified mock implementation
         claimable[account] += amount;
         return true;
