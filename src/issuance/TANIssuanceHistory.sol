@@ -22,7 +22,6 @@ contract TANIssuanceHistory is Ownable {
     using Checkpoints for Checkpoints.Trace224;
     using SafeERC20 for IERC20;
 
-    error Deactivated();
     error ERC6372InconsistentClock();
     error InvalidAddress(address invalidAddress);
     error InvalidBlock(uint256 endBlock);
@@ -43,11 +42,6 @@ contract TANIssuanceHistory is Ownable {
     /// @notice Emitted when users' (temporarily mocked) claimable rewards are increased
     event ClaimableIncreased(address indexed account, uint256 oldClaimable, uint256 newClaimable);
 
-    modifier whenNotDeactivated() {
-        if (deactivated()) revert Deactivated();
-        _;
-    }
-
     constructor(ISimplePlugin tanIssuancePlugin_, address owner_) Ownable(owner_) {
         tanIssuancePlugin = tanIssuancePlugin_;
         tel = tanIssuancePlugin.tel();
@@ -64,7 +58,7 @@ contract TANIssuanceHistory is Ownable {
 
     /// @dev Returns the cumulative rewards for an account at the **end** of the supplied block
     function cumulativeRewardsAtBlock(address account, uint256 queryBlock) external view returns (uint256) {
-        uint32 validatedBlock = SafeCast.toUint32(_validateQueryBlock(queryBlock));
+        uint32 validatedBlock = _validateQueryBlock(queryBlock);
         return _cumulativeRewards[account].upperLookupRecent(validatedBlock);
     }
 
@@ -78,10 +72,10 @@ contract TANIssuanceHistory is Ownable {
         view
         returns (address[] memory, uint256[] memory)
     {
-        uint48 validatedBlock;
+        uint32 validatedBlock;
         if (queryBlock == 0) {
             // no need for safecast when dealing with global block number variable
-            validatedBlock = uint48(block.number);
+            validatedBlock = uint32(block.number);
         } else {
             validatedBlock = _validateQueryBlock(queryBlock);
         }
@@ -105,14 +99,7 @@ contract TANIssuanceHistory is Ownable {
      */
 
     /// @dev Saves the settlement block, updates cumulative rewards history, and settles TEL rewards on the plugin
-    function increaseClaimableByBatch(
-        IssuanceReward[] calldata rewards,
-        uint256 endBlock
-    )
-        external
-        onlyOwner
-        whenNotDeactivated
-    {
+    function increaseClaimableByBatch(IssuanceReward[] calldata rewards, uint256 endBlock) external onlyOwner {
         if (endBlock > block.number) revert InvalidBlock(endBlock);
         lastSettlementBlock = endBlock;
 
@@ -180,13 +167,13 @@ contract TANIssuanceHistory is Ownable {
     }
 
     /// @dev Validate that user-supplied block is in the past, and return it as a uint48.
-    function _validateQueryBlock(uint256 queryBlock) internal view returns (uint48) {
+    function _validateQueryBlock(uint256 queryBlock) internal view returns (uint32) {
         uint48 currentBlock = clock();
         if (queryBlock > currentBlock) revert FutureLookup(queryBlock, currentBlock);
-        return SafeCast.toUint48(queryBlock);
+        return SafeCast.toUint32(queryBlock);
     }
 
-    function _cumulativeRewardsAtBlock(address account, uint48 queryBlock) internal view returns (uint256) {
-        return _cumulativeRewards[account].upperLookupRecent(SafeCast.toUint32(queryBlock));
+    function _cumulativeRewardsAtBlock(address account, uint32 queryBlock) internal view returns (uint256) {
+        return _cumulativeRewards[account].upperLookupRecent(queryBlock);
     }
 }
