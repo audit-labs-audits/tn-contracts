@@ -106,11 +106,8 @@ contract TANIssuanceHistory is Ownable {
         uint256 totalAmount = 0;
         uint256 len = rewards.length;
         for (uint256 i; i < len; ++i) {
-            uint256 amount = rewards[i].amount;
-            if (amount == 0) continue;
-
-            totalAmount += amount;
-            _incrementCumulativeRewards(rewards[i].account, amount, endBlock);
+            totalAmount += rewards[i].amount;
+            _incrementCumulativeRewards(rewards[i].account, rewards[i].amount, endBlock);
         }
 
         // cache plugin in memory, set approval as `SimplePlugin::increaseClaimableBy()` pulls TEL from this address
