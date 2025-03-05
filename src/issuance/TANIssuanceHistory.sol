@@ -23,6 +23,7 @@ contract TANIssuanceHistory is Ownable {
     using SafeERC20 for IERC20;
 
     error ERC6372InconsistentClock();
+    error IncompatiblePlugin();
     error InvalidAddress(address invalidAddress);
     error InvalidBlock(uint256 endBlock);
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
@@ -124,8 +125,8 @@ contract TANIssuanceHistory is Ownable {
 
     /// @dev Permissioned function to set a new issuance plugin
     function setTanIssuancePlugin(ISimplePlugin newPlugin) external onlyOwner {
-        if (address(newPlugin) == address(0x0) || address(newPlugin).code.length == 0) {
-            revert InvalidAddress(address(newPlugin));
+        if (newPlugin.tel() != tel) {
+            revert IncompatiblePlugin();
         }
         tanIssuancePlugin = newPlugin;
     }
