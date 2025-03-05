@@ -26,6 +26,7 @@ contract TANIssuanceHistory is Ownable {
     error InvalidAddress(address invalidAddress);
     error InvalidBlock(uint256 endBlock);
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
+    error IncreaseClaimableByFailed(address account, uint256 amount);
 
     struct IssuanceReward {
         address account;
@@ -116,7 +117,8 @@ contract TANIssuanceHistory is Ownable {
         tel.approve(address(plugin), totalAmount);
         for (uint256 i; i < len; ++i) {
             // event emission on this contract is omitted since the plugin emits a `ClaimableIncreased` event
-            plugin.increaseClaimableBy(rewards[i].account, rewards[i].amount);
+            bool success = plugin.increaseClaimableBy(rewards[i].account, rewards[i].amount);
+            if (!success) revert IncreaseClaimableByFailed(rewards[i].account, rewards[i].amount);
         }
     }
 
