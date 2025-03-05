@@ -100,7 +100,8 @@ contract TANIssuanceHistory is Ownable {
 
     /// @dev Saves the settlement block, updates cumulative rewards history, and settles TEL rewards on the plugin
     function increaseClaimableByBatch(IssuanceReward[] calldata rewards, uint256 endBlock) external onlyOwner {
-        if (endBlock > block.number) revert InvalidBlock(endBlock);
+        // ensure temporal ordering of reward settlements
+        if (endBlock < lastSettlementBlock || endBlock > block.number) revert InvalidBlock(endBlock);
         lastSettlementBlock = endBlock;
 
         uint256 totalAmount = 0;
