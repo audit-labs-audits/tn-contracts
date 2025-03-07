@@ -22,12 +22,17 @@ contract TANIssuanceHistory is Ownable {
     using Checkpoints for Checkpoints.Trace224;
     using SafeERC20 for IERC20;
 
-    error ArityMismatch();
-    error Deactivated();
     error ERC6372InconsistentClock();
+    error IncompatiblePlugin();
     error InvalidAddress(address invalidAddress);
     error InvalidBlock(uint256 endBlock);
     error FutureLookup(uint256 queriedBlock, uint48 clockBlock);
+    error IncreaseClaimableByFailed(address account, uint256 amount);
+
+    struct IssuanceReward {
+        address account;
+        uint256 amount;
+    }
 
     ISimplePlugin public tanIssuancePlugin;
     IERC20 public immutable tel;
@@ -38,11 +43,6 @@ contract TANIssuanceHistory is Ownable {
 
     /// @notice Emitted when users' (temporarily mocked) claimable rewards are increased
     event ClaimableIncreased(address indexed account, uint256 oldClaimable, uint256 newClaimable);
-
-    modifier whenNotDeactivated() {
-        if (deactivated()) revert Deactivated();
-        _;
-    }
 
     constructor(ISimplePlugin tanIssuancePlugin_, address owner_) Ownable(owner_) {
         tanIssuancePlugin = tanIssuancePlugin_;
@@ -60,7 +60,7 @@ contract TANIssuanceHistory is Ownable {
 
     /// @dev Returns the cumulative rewards for an account at the **end** of the supplied block
     function cumulativeRewardsAtBlock(address account, uint256 queryBlock) external view returns (uint256) {
-        uint32 validatedBlock = SafeCast.toUint32(_validateQueryBlock(queryBlock));
+        uint32 validatedBlock = _validateQueryBlock(queryBlock);
         return _cumulativeRewards[account].upperLookupRecent(validatedBlock);
     }
 
@@ -74,10 +74,10 @@ contract TANIssuanceHistory is Ownable {
         view
         returns (address[] memory, uint256[] memory)
     {
-        uint48 validatedBlock;
+        uint32 validatedBlock;
         if (queryBlock == 0) {
             // no need for safecast when dealing with global block number variable
-            validatedBlock = uint48(block.number);
+            validatedBlock = uint32(block.number);
         } else {
             validatedBlock = _validateQueryBlock(queryBlock);
         }
@@ -101,41 +101,32 @@ contract TANIssuanceHistory is Ownable {
      */
 
     /// @dev Saves the settlement block, updates cumulative rewards history, and settles TEL rewards on the plugin
-    function increaseClaimableByBatch(
-        address[] calldata accounts,
-        uint256[] calldata amounts,
-        uint256 endBlock
-    )
-        external
-        onlyOwner
-        whenNotDeactivated
-    {
-        uint256 len = accounts.length;
-        if (amounts.length != len) revert ArityMismatch();
-
-        if (endBlock > block.number) revert InvalidBlock(endBlock);
+    function increaseClaimableByBatch(IssuanceReward[] calldata rewards, uint256 endBlock) external onlyOwner {
+        // ensure temporal ordering of reward settlements
+        if (endBlock < lastSettlementBlock || endBlock > block.number) revert InvalidBlock(endBlock);
         lastSettlementBlock = endBlock;
 
-        uint256 totalAmount;
+        uint256 totalAmount = 0;
+        uint256 len = rewards.length;
         for (uint256 i; i < len; ++i) {
-            if (amounts[i] == 0) continue;
-
-            totalAmount += amounts[i];
-            _incrementCumulativeRewards(accounts[i], amounts[i]);
+            totalAmount += rewards[i].amount;
+            _incrementCumulativeRewards(rewards[i].account, rewards[i].amount, endBlock);
         }
 
-        // set approval as `SimplePlugin::increaseClaimableBy()` pulls TEL from this address to itself
-        tel.approve(address(tanIssuancePlugin), totalAmount);
+        // cache plugin in memory, set approval as `SimplePlugin::increaseClaimableBy()` pulls TEL from this address
+        ISimplePlugin plugin = tanIssuancePlugin;
+        tel.approve(address(plugin), totalAmount);
         for (uint256 i; i < len; ++i) {
             // event emission on this contract is omitted since the plugin emits a `ClaimableIncreased` event
-            tanIssuancePlugin.increaseClaimableBy(accounts[i], amounts[i]);
+            bool success = plugin.increaseClaimableBy(rewards[i].account, rewards[i].amount);
+            if (!success) revert IncreaseClaimableByFailed(rewards[i].account, rewards[i].amount);
         }
     }
 
     /// @dev Permissioned function to set a new issuance plugin
     function setTanIssuancePlugin(ISimplePlugin newPlugin) external onlyOwner {
-        if (address(newPlugin) == address(0x0) || address(newPlugin).code.length == 0) {
-            revert InvalidAddress(address(newPlugin));
+        if (newPlugin.tel() != tel) {
+            revert IncompatiblePlugin();
         }
         tanIssuancePlugin = newPlugin;
     }
@@ -170,21 +161,21 @@ contract TANIssuanceHistory is Ownable {
     /**
      * Internals
      */
-    function _incrementCumulativeRewards(address account, uint256 amount) internal {
+    function _incrementCumulativeRewards(address account, uint256 amount, uint256 endBlock) internal {
         uint256 prevCumulativeReward = cumulativeRewards(account);
         uint224 newCumulativeReward = SafeCast.toUint224(prevCumulativeReward + amount);
 
-        _cumulativeRewards[account].push(uint32(block.number), newCumulativeReward);
+        _cumulativeRewards[account].push(SafeCast.toUint32(endBlock), newCumulativeReward);
     }
 
     /// @dev Validate that user-supplied block is in the past, and return it as a uint48.
-    function _validateQueryBlock(uint256 queryBlock) internal view returns (uint48) {
+    function _validateQueryBlock(uint256 queryBlock) internal view returns (uint32) {
         uint48 currentBlock = clock();
         if (queryBlock > currentBlock) revert FutureLookup(queryBlock, currentBlock);
-        return SafeCast.toUint48(queryBlock);
+        return SafeCast.toUint32(queryBlock);
     }
 
-    function _cumulativeRewardsAtBlock(address account, uint48 queryBlock) internal view returns (uint256) {
-        return _cumulativeRewards[account].upperLookupRecent(SafeCast.toUint32(queryBlock));
+    function _cumulativeRewardsAtBlock(address account, uint32 queryBlock) internal view returns (uint256) {
+        return _cumulativeRewards[account].upperLookupRecent(queryBlock);
     }
 }
