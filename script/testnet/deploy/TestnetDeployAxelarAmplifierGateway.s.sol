@@ -18,8 +18,8 @@ import { Deployments } from "../../../deployments/Deployments.sol";
 /// @dev Usage: `forge script script/testnet/deploy/TestnetDeployAxelarAmplifierGateway.s.sol \
 /// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 contract TestnetDeployAxelarAmplifierGateway is Script {
-    AxelarAmplifierGateway axelarAmplifierImpl; // (numPrevSignersToRetain, domainSeparator, minRotationDelay)
-    AxelarAmplifierGateway axelarAmplifier; // (gatewayImpl, owner, setupParams)
+    AxelarAmplifierGateway axelarAmplifierImpl;
+    AxelarAmplifierGateway axelarAmplifier;
 
     // CREATE3 SALT
     bytes32 gatewayImplSalt;
@@ -46,11 +46,12 @@ contract TestnetDeployAxelarAmplifierGateway is Script {
 
         admin = deployments.admin;
 
+        //todo: move these to Deployments.sol
         gatewayImplSalt = keccak256("axelar-amplifier-gateway");
         gatewayProxySalt = keccak256("axelar-amplifier-gateway-proxy");
 
         previousSignersRetention = 16;
-        string memory axelarIdForTelcoin = "telcoin"; // todo: use prod axelarId for tel
+        string memory axelarIdForTelcoin = "telcoin-network"; // todo: use prod axelarId for tel
         string memory routerAddress = "router"; // todo: use prod router addr
         uint256 telChainId = block.chainid;
         // derive domain separator with schema matching mainnet axelar amplifier gateway

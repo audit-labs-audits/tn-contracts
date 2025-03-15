@@ -37,7 +37,7 @@ contract TestnetDeployTokens is Script {
         deployments = abi.decode(data, (Deployments));
 
         admin = deployments.admin;
-        rwTELsalt = bytes32(bytes("rwTEL"));
+        rwTELsalt = keccak256("rwtel"); //todo: move to Deployments.sol
         gateway_ = deployments.AxelarAmplifierGateway;
         name_ = "Recoverable Wrapped Telcoin"; // used only for assertion
         symbol_ = "rwTEL"; // used only for assertion

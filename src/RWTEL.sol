@@ -118,6 +118,8 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenExecutable, UUPSUpg
         override
     {
         // todo: revisit ExtCall payload encoding: is value still required?
+        // todo: should require `messageType = INTERCHAIN_TRANSFER`?
+        // todo: should RWTEL inherit InterchainTokenStandard instead of InterchainTokenExecutable?
         ExtCall memory bridgeMsg = abi.decode(data, (ExtCall));
         address target = bridgeMsg.target;
         if (amount != bridgeMsg.value) {
