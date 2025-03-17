@@ -31,6 +31,7 @@ import { TokenHandler } from "@axelar-network/interchain-token-service/contracts
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { WTEL } from "../src/WTEL.sol";
 import { RWTEL } from "../src/RWTEL.sol";
@@ -87,14 +88,14 @@ contract InterchainTokenServiceTest is Test {
     // AxelarGasService
     address gasCollector = address(0xc011ec106);
     address gsOwner = admin;
-    bytes gsSetupParams = ''; // unused
+    bytes gsSetupParams = ""; // unused
 
     // InterchainTokenService
     address itsOwner = admin; // todo: separate owner
     address itsOperator = admin; // todo: separate operator
-    string chainName_ = axelarId; 
+    string chainName_ = axelarId;
     string[] trustedChainNames = [axelarId];
-    string[] trustedAddresses;
+    string[] trustedAddresses = [Strings.toString(uint256(uint160(admin)))];
     bytes itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
     // rwTEL config
@@ -135,52 +136,73 @@ contract InterchainTokenServiceTest is Test {
         admin = deployments.admin; // used for all CREATE3 deployments
         wTEL = new WTEL();
 
-        // deploy ITS contracts via `CREATE3` for predicability & stability
+        // note: CREATE3 contract deployed via `create2`
         deployer = new Create3Deployer{ salt: c2dSalt }();
+        // deploy ITS contracts via `CREATE3` for predictability & stability
         (gatewayImpl, gateway) = deployAxelarAmplifierGateway(deployer, gatewayImplSalt, gatewaySalt);
-        tokenManagerDeployer = TokenManagerDeployer(deployer.deploy(type(TokenManagerDeployer).creationCode, tmdSalt));
+        tokenManagerDeployer = TokenManagerDeployer(deploySingleton(deployer, type(TokenManagerDeployer).creationCode, '', tmdSalt));
         // ITS address has no code yet but must be precalculated for constructor args. bytecode & sender irrelevant
         // address create3Intermediary = deployer.deployedAddress(bytecode, sender, salt); //todo
+
+        // must precalculate to avoid TokenManager::`constructor()` revert
         precalculatedITSAddr = deployer.deployedAddress("", deployerEOA, itsSalt);
+        bytes memory tmConstructorArgs = abi.encode(precalculatedITSAddr);
         tokenManagerImpl = TokenManager(
-            deployer.deploy(bytes.concat(type(TokenManager).creationCode, abi.encode(precalculatedITSAddr)), tmImplSalt)
+            deploySingleton(deployer, type(TokenManager).creationCode, tmConstructorArgs, tmImplSalt);
         );
-        //todo: deploy a tokenManager for rwTEL -- should this call go through ITS vs tdDeployer contract? adds permissioning?
+
+        //todo: deploy a tokenManager for rwTEL -- should this call go through ITS vs tdDeployer contract? adds
+        // permissioning?
         // tokenManager = tokenManagerDeployer.deployTokenManager(tokenId, implementationType, params);
-        interchainTokenImpl = new InterchainToken(precalculatedITSAddr);
+
+        bytes memory itImplConstructorArgs = abi.encode(precalculatedITSAddr);
+        interchainTokenImpl = InterchainToken(deploySingleton(deployer, type(InterchainToken).creationCode, itImplConstructorArgs, itImplSalt));
+        bytes memory itdConstructorArgs = abi.encode(address(interchainTokenImpl));
         itDeployer = InterchainTokenDeployer(
-            deployer.deploy(
-                bytes.concat(type(InterchainTokenDeployer).creationCode, abi.encode(address(interchainTokenImpl))), itdSalt
-            )
+            deploySingleton(deployer, type(InterchainTokenDeployer).creationCode, itdConstructorArgs, itdSalt)
         );
+
         //todo: deploy interchainToken via deployer or via ITS?
 
         //todo convert to create3
         gasServiceImpl = new AxelarGasService(gasCollector); // todo: why does this emit address(0x1)?
+        // gsSetupParams =  todo
         gasService = AxelarGasService(address(new Proxy(address(gasServiceImpl), gsOwner, gsSetupParams)));
-        gatewayCaller = new GatewayCaller(address(gateway), address(gasService));
-        tokenHandler = new TokenHandler();
-        precalculatedITF = deployer.deployedAddress("", address(0x0), itfSalt); //todo: deployereoa
+
+        bytes memory gcConstructorArgs = abi.encode(address(gateway), address(gasService));
+        gatewayCaller = deploySingleton(deployer, type(GatewayCaller).creationCode, gcConstructorArgs, gcSalt);
+        tokenHandler = deploySingleton(deployer, type(TokenHandler).creationCode, '', thSalt);
+
+        // must precalculate to avoid `ITS::constructor()` revert
+        precalculatedITF = deployer.deployedAddress("", address(deployerEOA), itfImplSalt);
+
+        //todo: use create3
         itsImpl = new InterchainTokenService(
             address(tokenManagerDeployer),
             address(itDeployer),
             address(gateway),
             address(gasService),
-            address(itFactory),
+            precalculatedITF,//address(itFactory), todo
             axelarId,
             address(tokenManagerImpl),
             address(tokenHandler),
             address(gatewayCaller)
         );
-        its = InterchainTokenService(address(new InterchainProxy(address(itsImpl), itsOwner, itsSetupParams)));
+
+        // itsSetupParams = todo
+
+        its = InterchainTokenService(
+            deployer.deploy(
+                bytes.concat(type(InterchainProxy).creationCode, abi.encode(itsOwner, itsSetupParams)),
+                itsSalt
+            )
+        );
+
+        // its = InterchainTokenService(address(new InterchainProxy(address(itsImpl), itsOwner, itsSetupParams)));
 
         assertEq(precalculatedITSAddr, address(its));
 
-        // note 1: deploys InterchainTokens via its; could be used to deploy eth:TEL wrapper?
-        // note 2: use eth:InterchainTokenFactory.registerCanonicalInterchainToken(TEL);
-        itFactory = new InterchainTokenFactory(address(its));
-
-
+        // itFactoryImpl = new InterchainTokenFactory(address(its));
 
         recoverableWindow_ = 604_800; // 1 week
         governanceAddress_ = address(this); // multisig/council/DAO address in prod
@@ -193,6 +215,19 @@ contract InterchainTokenServiceTest is Test {
         );
         rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwtelSalt }(address(rwTELImpl), ""))));
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
+    }
+
+    function deploySingleton(
+        Create3Deployer create3,
+        bytes memory contractCreationCode,
+        bytes memory constructorArgs,
+        bytes32 salt
+    ) public returns (address deployment) {
+        bytes memory contractInitCode = bytes.concat(
+            contractCreationCode,
+            constructorArgs
+        );
+        return create3.deploy(contractInitCode, salt);
     }
 
     function deployAxelarAmplifierGateway(
