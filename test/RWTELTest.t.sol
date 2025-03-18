@@ -29,7 +29,7 @@ contract RWTELTest is Test {
     // rwTEL constructor params
     bytes32 rwTELsalt;
     address consensusRegistry_; // currently points to TN
-    address gateway_; // currently points to TN
+    address its_; // currently points to TN
     string name_;
     string symbol_;
     uint256 recoverableWindow_;
@@ -45,6 +45,7 @@ contract RWTELTest is Test {
     uint256 sepoliaFork;
     uint256 tnFork;
 
+    //todo: separate unit from forks
     // todo: using duplicate gateway until Axelar registers TEL to canonical gateway
     IAxelarGateway sepoliaGateway;
     IERC20 sepoliaTel;
@@ -78,8 +79,9 @@ contract RWTELTest is Test {
 
         wTEL = new WTEL();
 
+        // todo: separate unit & fork tests to new file
         // todo: currently using duplicate gateway while awaiting Axelar token registration
-        gateway_ = deployments.AxelarAmplifierGateway;
+        its_ = deployments.its.InterchainTokenService;
         name_ = "Recoverable Wrapped Telcoin";
         symbol_ = "rwTEL";
         recoverableWindow_ = 604_800; // 1 week
@@ -88,9 +90,9 @@ contract RWTELTest is Test {
         maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
         admin = deployments.admin;
 
-        // deploy impl + proxy and initialize
+        // todo: use create3: deploy impl + proxy and initialize
         rwTELImpl = new RWTEL{ salt: rwTELsalt }(
-            gateway_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
+            its_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
         );
         rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), ""))));
         rwTEL.initialize(governanceAddress_, maxToClean, admin);
@@ -106,7 +108,7 @@ contract RWTELTest is Test {
 
         // rwTEL sanity tests
         assertEq(rwTEL.consensusRegistry(), deployments.ConsensusRegistry);
-        assertEq(address(rwTEL.interchainTokenService()), deployments.InterchainTokenService);
+        assertEq(address(rwTEL.interchainTokenService()), deployments.its.InterchainTokenService);
         assertEq(rwTEL.owner(), admin);
         assertTrue(address(rwTEL).code.length > 0);
         string memory rwName = rwTEL.name();
@@ -114,7 +116,7 @@ contract RWTELTest is Test {
         string memory rwSymbol = rwTEL.symbol();
         assertEq(rwSymbol, "rwTEL");
         uint256 recoverableWindow = rwTEL.recoverableWindow();
-        assertEq(recoverableWindow, 86_400);
+        assertEq(recoverableWindow, recoverableWindow_);
         address governanceAddress = rwTEL.governanceAddress();
         assertEq(governanceAddress, address(this));
     }
@@ -123,7 +125,7 @@ contract RWTELTest is Test {
         // todo: currently replica; change to canonical Axelar sepolia gateway
         sepoliaGateway = IAxelarGateway(0xB906fC799C9E51f1231f37B867eEd1d9C5a6D472);
         sepoliaTel = IERC20(deployments.sepoliaTEL);
-        tnGateway = AxelarAmplifierGateway(deployments.AxelarAmplifierGateway);
+        tnGateway = AxelarAmplifierGateway(deployments.its.AxelarAmplifierGateway);
         tnWTEL = WTEL(payable(deployments.wTEL));
         tnRWTEL = RWTEL(payable(deployments.rwTEL));
 

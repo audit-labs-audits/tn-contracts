@@ -94,7 +94,7 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         initialValidators.push(validatorInfo3);
 
         consensusRegistryImpl = new ConsensusRegistry();
-        
+
         consensusRegistry = ConsensusRegistry(0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
         vm.etch(address(consensusRegistry), type(ERC1967Proxy).runtimeCode);
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;

@@ -45,29 +45,29 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         factorySalt = bytes32(bytes("UniswapV2Factory"));
         routerSalt = bytes32(bytes("UniswapV2Router02"));
 
-        stables.push(deployments.eAUD);
-        stables.push(deployments.eCAD);
-        stables.push(deployments.eCFA);
-        stables.push(deployments.eCHF);
-        stables.push(deployments.eCZK);
-        stables.push(deployments.eDKK);
-        stables.push(deployments.eEUR);
-        stables.push(deployments.eGBP);
-        stables.push(deployments.eHKD);
-        stables.push(deployments.eHUF);
-        stables.push(deployments.eINR);
-        stables.push(deployments.eISK);
-        stables.push(deployments.eJPY);
-        stables.push(deployments.eKES);
-        stables.push(deployments.eMXN);
-        stables.push(deployments.eNOK);
-        stables.push(deployments.eNZD);
-        stables.push(deployments.eSDR);
-        stables.push(deployments.eSEK);
-        stables.push(deployments.eSGD);
-        stables.push(deployments.eTRY);
-        stables.push(deployments.eUSD);
-        stables.push(deployments.eZAR);
+        stables.push(deployments.eXYZs.eAUD);
+        stables.push(deployments.eXYZs.eCAD);
+        stables.push(deployments.eXYZs.eCFA);
+        stables.push(deployments.eXYZs.eCHF);
+        stables.push(deployments.eXYZs.eCZK);
+        stables.push(deployments.eXYZs.eDKK);
+        stables.push(deployments.eXYZs.eEUR);
+        stables.push(deployments.eXYZs.eGBP);
+        stables.push(deployments.eXYZs.eHKD);
+        stables.push(deployments.eXYZs.eHUF);
+        stables.push(deployments.eXYZs.eINR);
+        stables.push(deployments.eXYZs.eISK);
+        stables.push(deployments.eXYZs.eJPY);
+        stables.push(deployments.eXYZs.eKES);
+        stables.push(deployments.eXYZs.eMXN);
+        stables.push(deployments.eXYZs.eNOK);
+        stables.push(deployments.eXYZs.eNZD);
+        stables.push(deployments.eXYZs.eSDR);
+        stables.push(deployments.eXYZs.eSEK);
+        stables.push(deployments.eXYZs.eSGD);
+        stables.push(deployments.eXYZs.eTRY);
+        stables.push(deployments.eXYZs.eUSD);
+        stables.push(deployments.eXYZs.eZAR);
     }
 
     function run() public {
@@ -99,25 +99,27 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
         // deploy v2 pools for eEUR and record pairs
         for (uint256 i; i < stables.length; ++i) {
             // for eEUR pools, skip eEUR (can't be paired with self) && eUSD (deployed in last loop)
-            if (stables[i] == deployments.eUSD || stables[i] == deployments.eEUR) continue;
+            if (stables[i] == deployments.eXYZs.eUSD || stables[i] == deployments.eXYZs.eEUR) continue;
 
-            IUniswapV2Pair eEURcurrentPair = IUniswapV2Pair(uniswapV2Factory.createPair(deployments.eEUR, stables[i]));
+            IUniswapV2Pair eEURcurrentPair =
+                IUniswapV2Pair(uniswapV2Factory.createPair(deployments.eXYZs.eEUR, stables[i]));
             pairs.push(eEURcurrentPair);
         }
 
         // deploy v2 pools for eUSD and record pairs
         for (uint256 i; i < stables.length; ++i) {
             // for eUSD pools, skip eUSD (can't be paired with self)
-            if (stables[i] == deployments.eUSD) continue;
+            if (stables[i] == deployments.eXYZs.eUSD) continue;
 
-            IUniswapV2Pair eUSDcurrentPair = IUniswapV2Pair(uniswapV2Factory.createPair(deployments.eUSD, stables[i]));
+            IUniswapV2Pair eUSDcurrentPair =
+                IUniswapV2Pair(uniswapV2Factory.createPair(deployments.eXYZs.eUSD, stables[i]));
             pairs.push(eUSDcurrentPair);
         }
 
         // deploy wTEL pools for both eEUR and eUSD, record pairs
-        IUniswapV2Pair wTELeEURPair = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eEUR));
+        IUniswapV2Pair wTELeEURPair = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eXYZs.eEUR));
         pairs.push(wTELeEURPair);
-        IUniswapV2Pair wTELeUSDPair = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eUSD));
+        IUniswapV2Pair wTELeUSDPair = IUniswapV2Pair(uniswapV2Factory.createPair(wTEL, deployments.eXYZs.eUSD));
         pairs.push(wTELeUSDPair);
 
         vm.stopBroadcast();
@@ -147,34 +149,34 @@ contract TestnetDeployUniswapV2 is Script, UniswapV2FactoryBytecode, UniswapV2Ro
                 // search stables array
                 for (uint256 j; j < stables.length; ++j) {
                     // skip eEUR && eUSD
-                    if (stables[j] == deployments.eEUR || stables[j] == deployments.eUSD) continue;
+                    if (stables[j] == deployments.eXYZs.eEUR || stables[j] == deployments.eXYZs.eUSD) continue;
 
                     // should be a stable paired with eEUR; skip matches already found
-                    if (!correctToken0) correctToken0 = token0 == stables[j] || token0 == deployments.eEUR;
-                    if (!correctToken1) correctToken1 = token1 == stables[j] || token1 == deployments.eEUR;
+                    if (!correctToken0) correctToken0 = token0 == stables[j] || token0 == deployments.eXYZs.eEUR;
+                    if (!correctToken1) correctToken1 = token1 == stables[j] || token1 == deployments.eXYZs.eEUR;
                 }
             } else if (i >= eEURNumPairs && i < eEURNumPairs + eUSDNumPairs) {
                 // search stables array
                 for (uint256 j; j < stables.length; ++j) {
                     // skip eUSD
-                    if (stables[j] == deployments.eUSD) continue;
+                    if (stables[j] == deployments.eXYZs.eUSD) continue;
 
                     // should be a stable paired with eUSD; skip matches already found
-                    if (!correctToken0) correctToken0 = token0 == stables[j] || token0 == deployments.eUSD;
-                    if (!correctToken1) correctToken1 = token1 == stables[j] || token1 == deployments.eUSD;
+                    if (!correctToken0) correctToken0 = token0 == stables[j] || token0 == deployments.eXYZs.eUSD;
+                    if (!correctToken1) correctToken1 = token1 == stables[j] || token1 == deployments.eXYZs.eUSD;
                 }
             } else {
                 // last two pools are wTEL<>eEUR or wTEL<>eUSD
                 if (i == pairs.length - 2) {
                     // shold be wTEL<>eEUR; skip matches already found
-                    if (!correctToken0) correctToken0 = token0 == wTEL || token0 == deployments.eEUR;
-                    if (!correctToken1) correctToken1 = token1 == wTEL || token1 == deployments.eEUR;
+                    if (!correctToken0) correctToken0 = token0 == wTEL || token0 == deployments.eXYZs.eEUR;
+                    if (!correctToken1) correctToken1 = token1 == wTEL || token1 == deployments.eXYZs.eEUR;
                 }
 
                 if (i == pairs.length - 1) {
                     // shold be wTEL<>eUSD; skip matches already found
-                    if (!correctToken0) correctToken0 = token0 == wTEL || token0 == deployments.eUSD;
-                    if (!correctToken1) correctToken1 = token1 == wTEL || token1 == deployments.eUSD;
+                    if (!correctToken0) correctToken0 = token0 == wTEL || token0 == deployments.eXYZs.eUSD;
+                    if (!correctToken1) correctToken1 = token1 == wTEL || token1 == deployments.eXYZs.eUSD;
                 }
             }
 

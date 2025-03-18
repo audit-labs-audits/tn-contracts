@@ -39,29 +39,29 @@ contract TestnetManageFaucet is Script {
             }
         } else {
             /// @dev will enable all stablecoin XYZs. Customize accordingly
-            tokensToManage.push(deployments.eAUD);
-            tokensToManage.push(deployments.eCAD);
-            tokensToManage.push(deployments.eCFA);
-            tokensToManage.push(deployments.eCHF);
-            tokensToManage.push(deployments.eCZK);
-            tokensToManage.push(deployments.eDKK);
-            tokensToManage.push(deployments.eEUR);
-            tokensToManage.push(deployments.eGBP);
-            tokensToManage.push(deployments.eHKD);
-            tokensToManage.push(deployments.eHUF);
-            tokensToManage.push(deployments.eINR);
-            tokensToManage.push(deployments.eISK);
-            tokensToManage.push(deployments.eJPY);
-            tokensToManage.push(deployments.eKES);
-            tokensToManage.push(deployments.eMXN);
-            tokensToManage.push(deployments.eNOK);
-            tokensToManage.push(deployments.eNZD);
-            tokensToManage.push(deployments.eSDR);
-            tokensToManage.push(deployments.eSEK);
-            tokensToManage.push(deployments.eSGD);
-            tokensToManage.push(deployments.eTRY);
-            tokensToManage.push(deployments.eUSD);
-            tokensToManage.push(deployments.eZAR);
+            tokensToManage.push(deployments.eXYZs.eAUD);
+            tokensToManage.push(deployments.eXYZs.eCAD);
+            tokensToManage.push(deployments.eXYZs.eCFA);
+            tokensToManage.push(deployments.eXYZs.eCHF);
+            tokensToManage.push(deployments.eXYZs.eCZK);
+            tokensToManage.push(deployments.eXYZs.eDKK);
+            tokensToManage.push(deployments.eXYZs.eEUR);
+            tokensToManage.push(deployments.eXYZs.eGBP);
+            tokensToManage.push(deployments.eXYZs.eHKD);
+            tokensToManage.push(deployments.eXYZs.eHUF);
+            tokensToManage.push(deployments.eXYZs.eINR);
+            tokensToManage.push(deployments.eXYZs.eISK);
+            tokensToManage.push(deployments.eXYZs.eJPY);
+            tokensToManage.push(deployments.eXYZs.eKES);
+            tokensToManage.push(deployments.eXYZs.eMXN);
+            tokensToManage.push(deployments.eXYZs.eNOK);
+            tokensToManage.push(deployments.eXYZs.eNZD);
+            tokensToManage.push(deployments.eXYZs.eSDR);
+            tokensToManage.push(deployments.eXYZs.eSEK);
+            tokensToManage.push(deployments.eXYZs.eSGD);
+            tokensToManage.push(deployments.eXYZs.eTRY);
+            tokensToManage.push(deployments.eXYZs.eUSD);
+            tokensToManage.push(deployments.eXYZs.eZAR);
         }
         maxLimit = type(uint256).max;
         minLimit = 1000;

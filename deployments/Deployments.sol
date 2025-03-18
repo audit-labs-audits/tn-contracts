@@ -5,27 +5,46 @@ pragma solidity ^0.8.26;
 /// therefore upper-case struct member names must come **BEFORE** lower-case ones!
 struct Deployments {
     address ArachnidDeterministicDeployFactory;
-    address AxelarAmplifierGateway;
-    address AxelarAmplifierGatewayImpl;
     address ConsensusRegistry;
     address GitAttestationRegistry;
-    address InterchainToken;
-    address InterchainTokenImpl;
-    address InterchainTokenFactory;
-    address InterchainTokenFactoryImpl;
-    address InterchainTokenService;
     address StablecoinImpl;
     address StablecoinManager;
     address StablecoinManagerImpl;
     address TANIssuanceHistory;
     address TANIssuancePlugin;
+    address admin;
+    EXYZs eXYZs;
+    InterchainTokenService its;
+    address rwTEL;
+    address rwTELImpl;
+    address sepoliaTEL;
+    UniswapV2 uniswapV2;
+    address wTEL;
+}
+
+/// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering
+struct InterchainTokenService {
+    address AxelarAmplifierGateway;
+    address AxelarAmplifierGatewayImpl;
+    address Create3Deployer;
+    address GasService;
+    address GasServiceImpl;
+    address GatewayCaller;
+    address InterchainToken;
+    address InterchainTokenDeployer;
+    address InterchainTokenImpl;
+    address InterchainTokenFactory;
+    address InterchainTokenFactoryImpl;
+    address InterchainTokenService;
+    address InterchainTokenServiceImpl;
     address TokenHandler;
     address TokenManager;
     address TokenManagerImpl;
     address TokenManagerDeployer;
-    address UniswapV2Factory;
-    address UniswapV2Router02;
-    address admin;
+}
+
+/// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering
+struct EXYZs {
     address eAUD;
     address eCAD;
     address eCFA;
@@ -49,15 +68,12 @@ struct Deployments {
     address eTRY;
     address eUSD;
     address eZAR;
-    address rwTEL;
-    address rwTELImpl;
-    address sepoliaTEL;
-    UniV2Pools uniV2Pools;
-    address wTEL;
 }
 
 /// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering
-struct UniV2Pools {
+struct UniswapV2 {
+    address UniswapV2Factory;
+    address UniswapV2Router02;
     address eEUR_eAUD_Pool;
     address eEUR_eCAD_Pool;
     address eEUR_eCFA_Pool;

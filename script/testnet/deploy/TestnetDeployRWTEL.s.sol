@@ -38,7 +38,7 @@ contract TestnetDeployTokens is Script {
 
         admin = deployments.admin;
         rwTELsalt = keccak256("rwtel"); //todo: move to Deployments.sol
-        gateway_ = deployments.AxelarAmplifierGateway;
+        gateway_ = deployments.its.AxelarAmplifierGateway;
         name_ = "Recoverable Wrapped Telcoin"; // used only for assertion
         symbol_ = "rwTEL"; // used only for assertion
         recoverableWindow_ = 604_800; // ~1 week; Telcoin Network blocktime is ~1s
@@ -60,7 +60,7 @@ contract TestnetDeployTokens is Script {
 
         // asserts
         assert(rwTEL.consensusRegistry() == deployments.ConsensusRegistry);
-        assert(address(rwTEL.interchainTokenService()) == deployments.InterchainTokenService);
+        assert(address(rwTEL.interchainTokenService()) == deployments.its.InterchainTokenService);
         assert(rwTEL.baseToken() == deployments.wTEL);
         assert(rwTEL.governanceAddress() == admin);
         assert(rwTEL.recoverableWindow() == recoverableWindow_);
