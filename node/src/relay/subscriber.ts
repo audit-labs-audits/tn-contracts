@@ -10,7 +10,7 @@ import {
   PublicClient,
 } from "viem";
 import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
-import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGateway.json" assert { type: "json" };
+import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGateway.json" with { type: "json" };
 import * as dotenv from "dotenv";
 dotenv.config();
 

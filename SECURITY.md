@@ -39,6 +39,8 @@ To bolster this contract's security posture, Telcoin Network uses the canonical 
 
 #### RWTEL Executable "AxelarGMPExecutable.sol"
 
+//todo: update this section
+
 The RWTEL executable contract communicates with the external gateway to lock and release native $TEL tokens. It is vital that this contract is secure to handle the movement of native $TEL as part of validated bridge messages.
 
 To bolster this contract's security posture, the contract enforces strict invariant conditions under which $TEL may be released:

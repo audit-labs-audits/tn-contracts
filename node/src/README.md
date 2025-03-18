@@ -1,5 +1,7 @@
 # Telcoin Network Bridging
 
+//todo: update this file
+
 Because the Telcoin token $TEL was deployed as an ERC20 token on Ethereum as part of its ICO in 2017, a native bridging mechanism needed to be devised in order to use $TEL as the native currency for Telcoin Network.
 
 At the very highest level, Telcoin Network utilizes four component categories to enable native cross-chain bridging. These are:

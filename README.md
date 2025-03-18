@@ -1,5 +1,7 @@
 # Telcoin Network Smart Contracts
 
+//todo: update this file
+
 ## ConsensusRegistry
 
 ### Role

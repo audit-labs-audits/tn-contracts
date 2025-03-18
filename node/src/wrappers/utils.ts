@@ -7,7 +7,6 @@ import { ethers, Wallet, Signer, providers, ContractFactory } from "ethers";
 import { NonceManager } from "@ethersproject/experimental";
 import { NetworkExtended } from "./NetworkExtended.js";
 
-/// @dev
 export const deployContract = async (
   signer: Wallet | NonceManager | Signer,
   contractJson: { abi: any; bytecode: string },

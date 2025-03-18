@@ -102,8 +102,8 @@ contract InterchainTokenServiceTest is Test {
     address itfOwner = admin; // todo: separate owner
 
     // rwTEL config
-    address consensusRegistry_; // currently points to TN
-    address gateway_; // currently points to TN
+    address consensusRegistry_; // TN system contract
+    address gateway_; // TN gateway
     string symbol_ = "rwTEL";
     string name_ = "Recoverable Wrapped Telcoin";
     uint256 recoverableWindow_ = 604_800; // todo: confirm 1 week
@@ -223,6 +223,7 @@ contract InterchainTokenServiceTest is Test {
         //todo: rwTEL deploy script
         //todo: fuzz tests for rwTEL, TEL bridging
         //todo: fork tests for TEL bridging
+        //todo: update readme, npm instructions
         //todo: ERC20 bridging tests
 
 
