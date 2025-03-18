@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import { Test, console2 } from "forge-std/Test.sol";
-import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
 import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
 import { AxelarAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
@@ -16,8 +15,7 @@ import {
     WeightedSigners,
     Proof
 } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
-import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
-import { Proxy } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/Proxy.sol";
+import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
 import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
 import { InterchainProxy } from "@axelar-network/interchain-token-service/contracts/proxies/InterchainProxy.sol";
 import { InterchainTokenDeployer } from
@@ -29,6 +27,8 @@ import { TokenManagerDeployer } from "@axelar-network/interchain-token-service/c
 import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
+import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
+import { AxelarGasServiceProxy } from "../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
@@ -45,7 +45,7 @@ contract InterchainTokenServiceTest is Test {
     RWTEL rwTEL;
 
     // Axelar ITS contracts
-    Create3Deployer deployer;
+    Create3Deployer create3;
     AxelarAmplifierGateway gatewayImpl;
     AxelarAmplifierGateway gateway;
     TokenManagerDeployer tokenManagerDeployer;
@@ -94,8 +94,8 @@ contract InterchainTokenServiceTest is Test {
     address itsOwner = admin; // todo: separate owner
     address itsOperator = admin; // todo: separate operator
     string chainName_ = axelarId;
-    string[] trustedChainNames = [axelarId];
-    string[] trustedAddresses = [Strings.toString(uint256(uint160(admin)))];
+    string[] trustedChainNames = [chainName_]; //todo: change to supported chains
+    string[] trustedAddresses = [Strings.toString(uint256(uint160(admin)))]; //todo: change to remote ITS hub(s)
     bytes itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
     // rwTEL config
@@ -103,27 +103,31 @@ contract InterchainTokenServiceTest is Test {
     address gateway_; // currently points to TN
     string symbol_ = "rwTEL";
     string name_ = "Recoverable Wrapped Telcoin";
-    uint256 recoverableWindow_;
-    address governanceAddress_;
-    address baseERC20_;
-    uint16 maxToClean;
-    address rwtelOwner;
+    uint256 recoverableWindow_ = 604_800; // todo: confirm 1 week
+    address governanceAddress_ = address(0xda0); // todo: multisig/council/DAO address in prod
+    address baseERC20_ = address(wTEL);
+    uint16 maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
+    address rwtelOwner = admin; //todo: separate owner, multisig?
 
     //todo: move these to Deployments.sol
-    bytes32 c2dSalt = keccak256("create3-deployer");
-    bytes32 gatewayImplSalt = keccak256("axelar-amplifier-gateway");
-    bytes32 gatewaySalt = keccak256("axelar-amplifier-gateway-proxy");
-    bytes32 tmdSalt = keccak256("token-manager-deployer");
+    bytes32 agsSalt = keccak256("axelar-gas-service");
+    bytes32 create3Salt = keccak256("create3-deployer");
+    bytes32 gatewayImplSalt = keccak256("axelar-amplifier-gateway-impl");
+    bytes32 gatewaySalt = keccak256("axelar-amplifier-gateway");
+    bytes32 gcSalt = keccak256("gateway-caller");
+    bytes32 gsImplSalt = keccak256("axelar-gas-service-impl");
+    bytes32 gsSalt = keccak256("axelar-gas-service");
+    bytes32 itImplSalt= keccak256("interchain-token-impl");
     bytes32 itdSalt = keccak256("interchain-token-deployer");
+    bytes32 itfImplSalt = keccak256("interchain-token-factory-impl");
+    bytes32 itfSalt = keccak256("interchain-token-factory");
+    bytes32 itsImplSalt = keccak256("interchain-token-service-impl");
+    bytes32 itsSalt = keccak256("interchain-token-service");
+    bytes32 thSalt = keccak256("token-handler");
     bytes32 tmImplSalt = keccak256("token-manager-impl");
     bytes32 tmSalt = keccak256("token-manager");
-    bytes32 thSalt = keccak256("token-handler");
-    bytes32 agsSalt = keccak256("axelar-gas-service");
-    bytes32 gcSalt = keccak256("gateway-caller");
-    bytes32 itsImplSalt = keccak256("interchain-token-service");
-    bytes32 itsSalt = keccak256("interchain-token-service");
-    bytes32 itfImplSalt = keccak256("interchain-token-factory");
-    bytes32 itfSalt = keccak256("interchain-token-factory");
+    bytes32 tmdSalt = keccak256("token-manager-deployer");
+    bytes32 rwtelImplSalt = keccak256("rwtel-impl");
     bytes32 rwtelSalt = keccak256("rwtel");
 
     function setUp() public {
@@ -137,88 +141,190 @@ contract InterchainTokenServiceTest is Test {
         wTEL = new WTEL();
 
         // note: CREATE3 contract deployed via `create2`
-        deployer = new Create3Deployer{ salt: c2dSalt }();
-        // deploy ITS contracts via `CREATE3` for predictability & stability
-        (gatewayImpl, gateway) = deployAxelarAmplifierGateway(deployer, gatewayImplSalt, gatewaySalt);
-        tokenManagerDeployer = TokenManagerDeployer(deploySingleton(deployer, type(TokenManagerDeployer).creationCode, '', tmdSalt));
-        // ITS address has no code yet but must be precalculated for constructor args. bytecode & sender irrelevant
-        // address create3Intermediary = deployer.deployedAddress(bytecode, sender, salt); //todo
+        create3 = new Create3Deployer{ salt: create3Salt }();
+        // deploy ITS contracts via `CREATE3` as `sender == deployerEOA` for predictability & stability
+        vm.startPrank(deployerEOA);
+        (gatewayImpl, gateway) = deployAxelarAmplifierGateway(create3, gatewayImplSalt, gatewaySalt);
 
-        // must precalculate to avoid TokenManager::`constructor()` revert
-        precalculatedITSAddr = deployer.deployedAddress("", deployerEOA, itsSalt);
+        tokenManagerDeployer = TokenManagerDeployer(deployContract(create3, type(TokenManagerDeployer).creationCode, '', tmdSalt));
+
+        // ITS address has no code yet but must be precalculated for TokenManager && InterchainToken constructors using correct sender & salt
+        precalculatedITSAddr = create3.deployedAddress("", deployerEOA, itsSalt);
+        bytes memory itImplConstructorArgs = abi.encode(precalculatedITSAddr);
+        interchainTokenImpl = InterchainToken(deployContract(create3, type(InterchainToken).creationCode, itImplConstructorArgs, itImplSalt));
+
+        bytes memory itdConstructorArgs = abi.encode(address(interchainTokenImpl));
+        itDeployer = InterchainTokenDeployer(
+            deployContract(create3, type(InterchainTokenDeployer).creationCode, itdConstructorArgs, itdSalt)
+        );
+
         bytes memory tmConstructorArgs = abi.encode(precalculatedITSAddr);
         tokenManagerImpl = TokenManager(
-            deploySingleton(deployer, type(TokenManager).creationCode, tmConstructorArgs, tmImplSalt);
+            deployContract(create3, type(TokenManager).creationCode, tmConstructorArgs, tmImplSalt)
         );
+
+        tokenHandler = TokenHandler(deployContract(create3, type(TokenHandler).creationCode, '', thSalt));
+        // todo: postTokenManagerDeploy() seems odd 
 
         //todo: deploy a tokenManager for rwTEL -- should this call go through ITS vs tdDeployer contract? adds
         // permissioning?
         // tokenManager = tokenManagerDeployer.deployTokenManager(tokenId, implementationType, params);
+        //todo: deploy interchainToken via create3 or via ITS? not necessary for teL?
 
-        bytes memory itImplConstructorArgs = abi.encode(precalculatedITSAddr);
-        interchainTokenImpl = InterchainToken(deploySingleton(deployer, type(InterchainToken).creationCode, itImplConstructorArgs, itImplSalt));
-        bytes memory itdConstructorArgs = abi.encode(address(interchainTokenImpl));
-        itDeployer = InterchainTokenDeployer(
-            deploySingleton(deployer, type(InterchainTokenDeployer).creationCode, itdConstructorArgs, itdSalt)
-        );
-
-        //todo: deploy interchainToken via deployer or via ITS?
-
-        //todo convert to create3
-        gasServiceImpl = new AxelarGasService(gasCollector); // todo: why does this emit address(0x1)?
-        // gsSetupParams =  todo
-        gasService = AxelarGasService(address(new Proxy(address(gasServiceImpl), gsOwner, gsSetupParams)));
+        bytes memory gsImplConstructorArgs = abi.encode(gasCollector);
+        gasServiceImpl = AxelarGasService(deployContract(create3, type(AxelarGasService).creationCode, gsImplConstructorArgs, gsImplSalt));
+        bytes memory gsConstructorArgs = abi.encode(address(gasServiceImpl), gsOwner, '');
+        gasService = AxelarGasService(deployContract(create3, type(AxelarGasServiceProxy).creationCode, gsConstructorArgs, gsSalt));
 
         bytes memory gcConstructorArgs = abi.encode(address(gateway), address(gasService));
-        gatewayCaller = deploySingleton(deployer, type(GatewayCaller).creationCode, gcConstructorArgs, gcSalt);
-        tokenHandler = deploySingleton(deployer, type(TokenHandler).creationCode, '', thSalt);
+        gatewayCaller = GatewayCaller(deployContract(create3, type(GatewayCaller).creationCode, gcConstructorArgs, gcSalt));
 
         // must precalculate to avoid `ITS::constructor()` revert
-        precalculatedITF = deployer.deployedAddress("", address(deployerEOA), itfImplSalt);
+        //todo itfSalt?
+        precalculatedITF = create3.deployedAddress("", address(deployerEOA), itfImplSalt);
 
-        //todo: use create3
-        itsImpl = new InterchainTokenService(
+        bytes memory itsImplConstructorArgs = abi.encode(
             address(tokenManagerDeployer),
             address(itDeployer),
             address(gateway),
             address(gasService),
-            precalculatedITF,//address(itFactory), todo
-            axelarId,
+            precalculatedITF,
+            chainName_,
             address(tokenManagerImpl),
             address(tokenHandler),
             address(gatewayCaller)
         );
+        itsImpl = InterchainTokenService(deployContract(create3, type(InterchainTokenService).creationCode, itsImplConstructorArgs, itsImplSalt));
+        // new InterchainTokenService(
+        //     address(tokenManagerDeployer),
+        //     address(itDeployer),
+        //     address(gateway),
+        //     address(gasService),
+        //     precalculatedITF,//address(itFactory), todo
+        //     chainName_,
+        //     address(tokenManagerImpl),
+        //     address(tokenHandler),
+        //     address(gatewayCaller)
+        // );
 
-        // itsSetupParams = todo
-
+        bytes memory itsConstructorArgs = abi.encode(address(itsImpl), itsOwner, itsSetupParams);
         its = InterchainTokenService(
-            deployer.deploy(
-                bytes.concat(type(InterchainProxy).creationCode, abi.encode(itsOwner, itsSetupParams)),
-                itsSalt
-            )
+            deployContract(create3, type(InterchainProxy).creationCode, itsConstructorArgs, itsSalt)
         );
 
-        // its = InterchainTokenService(address(new InterchainProxy(address(itsImpl), itsOwner, itsSetupParams)));
+        vm.stopPrank();
 
+        // sanity check create3 precalculation
         assertEq(precalculatedITSAddr, address(its));
 
+        // todo: ITF impl & proxy
         // itFactoryImpl = new InterchainTokenFactory(address(its));
-
-        recoverableWindow_ = 604_800; // 1 week
-        governanceAddress_ = address(this); // multisig/council/DAO address in prod
-        baseERC20_ = address(wTEL);
-        maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
+        // assertEq(precalculatedITF, address(itf));
 
         // deploy impl + proxy and initialize
-        rwTELImpl = new RWTEL{ salt: rwtelSalt }(
+        // rwTELImpl = new RWTEL{ salt: rwtelSalt } //todo
+        // rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwtelSalt }(address(rwTELImpl), ""))));
+
+        //todo: incorporate RWTEL contracts to TN protocol on rust side
+        bytes memory rwTELImplConstructorArgs = abi.encode(
             address(its), name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
         );
-        rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwtelSalt }(address(rwTELImpl), ""))));
+        rwTELImpl = RWTEL(payable(deployContract(create3, type(RWTEL).creationCode, rwTELImplConstructorArgs, rwtelImplSalt)));
+
+        // todo: InterchainProxy?
+        bytes memory rwTELConstructorArgs = abi.encode(address(rwTELImpl), "");
+        rwTEL = RWTEL(payable(deployContract(create3, type(ERC1967Proxy).creationCode, rwTELConstructorArgs, rwtelSalt)));
+
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
     }
 
-    function deploySingleton(
-        Create3Deployer create3,
+    function test_setUp() public view {
+        // wTEL sanity tests
+        assertTrue(address(wTEL).code.length > 0);
+        string memory wName = wTEL.name();
+        assertEq(wName, "Wrapped Telcoin");
+        string memory wSymbol = wTEL.symbol();
+        assertEq(wSymbol, "wTEL");
+
+        // gateway sanity tests
+        assertEq(gateway.owner(), gatewayOwner);
+        assertEq(gateway.implementation(), address(gatewayImpl));
+        assertEq(gateway.contractId(), gatewaySalt);
+        assertEq(gateway.operator(), gatewayOperator);
+        assertEq(gateway.previousSignersRetention(), previousSignersRetention);
+        assertEq(gateway.domainSeparator(), domainSeparator);
+        assertEq(gateway.minimumRotationDelay(), minimumRotationDelay);
+
+        // ITS sanity tests
+        assertEq(interchainTokenImpl.interchainTokenService(), address(its));
+        assertEq(itDeployer.implementationAddress(), address(interchainTokenImpl));
+        assertEq(tokenManagerImpl.interchainTokenService(), address(its));
+        assertEq(gasService.implementation(), address(gasServiceImpl));
+        assertEq(gasService.gasCollector(), gasCollector);
+        assertEq(gasService.contractId(), gsSalt);
+        assertEq(address(gatewayCaller.gateway()), address(gateway));
+        assertEq(address(gatewayCaller.gasService()), address(gasService));
+
+        // immutables set in bytecode can be checked on impl
+        assertEq(itsImpl.tokenManagerDeployer(), address(tokenManagerDeployer));
+        assertEq(itsImpl.interchainTokenDeployer(), address(itDeployer));
+        assertEq(address(itsImpl.gateway()), address(gateway));
+        assertEq(address(itsImpl.gasService()), address(gasService));
+        assertEq(itsImpl.interchainTokenFactory(), precalculatedITF); //todo: address(itf)
+        assertEq(itsImpl.chainNameHash(), keccak256(bytes(chainName_)));
+        assertEq(itsImpl.tokenManager(), address(tokenManagerImpl));
+        assertEq(itsImpl.tokenHandler(), address(tokenHandler));
+        assertEq(itsImpl.gatewayCaller(), address(gatewayCaller));
+        assertEq(itsImpl.tokenManagerImplementation(0), address(tokenManagerImpl));
+       
+        //todo: ITS asserts (requires registration, deployed rwtelTokenManager)
+        // assertEq(its.tokenManagerAddress(tokenId), address(rwtelTokenManager));
+        // assertEq(its.deployedTokenManager(tokenId), rwtelTokenManager);
+        // assertEq(its.registeredTokenAddress(tokenId), address(rwtel));
+        // assertEq(its.interchainTokenAddress(tokenId), address(rwtel));
+        // assertEq(its.interchainTokenId(deployerEOA, rwtelSalt), rwtelTokenId);
+        assertEq(its.tokenManagerImplementation(0), address(tokenManagerImpl));
+        // assertEq(its.getExpressExecutor(commandId, sourceChain, sourceAddress, payloadHash), address(expressExecutor));
+
+
+        // //todo: InterchainToken asserts; RWTEL is InterchainToken?
+        // assertEq(interchainToken.interchainTokenService(), address(its));
+        // assertTrue(interchainToken.isMinter(address(its)));
+        // assertEq(interchainToken.totalSupply(), totalSupply);
+        // assertEq(interchainToken.balanceOf(address(rwTEL)), bal);
+        // assertEq(interchainToken.nameHash(), nameHash);
+        // assertEq(interchainToken.DOMAIN_SEPARATOR(), itDomainSeparator);
+
+        // todo: update for protocol integration on rust side 
+        // rwTEL sanity tests
+        assertEq(rwTEL.consensusRegistry(), deployments.ConsensusRegistry);
+        assertEq(address(rwTEL.interchainTokenService()), address(its)); // todo: deployments.InterchainTokenService);
+        assertEq(rwTEL.owner(), rwtelOwner);
+        assertTrue(address(rwTEL).code.length > 0);
+        assertEq(rwTEL.name(), name_);
+        assertEq(rwTEL.symbol(), symbol_);
+        assertEq(rwTEL.recoverableWindow(), recoverableWindow_);
+        assertEq(rwTEL.governanceAddress(), governanceAddress_);
+
+        // //todo: RWTEL TokenManager asserts
+        // assertEq(tokenManager.isOperator(operator), true);
+        // assertEq(tokenManager.isFlowLimiter(flowLimiter), true);
+        // assertEq(tokenManager.flowLimits(), correct); // set by ITS
+        // assertEq(tokenManager.getTokenAddressFromParams(tmSetupParams), address(token));
+    }
+
+    // function test_ITS() public {
+    //     its.registerTokenMetadata(address(rwtel), gasValue);
+    //     its.registerCustomToken(rwtelSalt, address(rwtel), type, linkParams);
+    //     its.linkToken(rwtelSalt, destChain, destAddress, type, linkParams, gasValue);
+    //     its.contractCallValue(); // todo: decimals handling?
+    // }
+
+    // todo: move to separate file
+
+    /// @dev Deploys a contract using `CREATE3`
+    function deployContract(
+        Create3Deployer create3Deployer,
         bytes memory contractCreationCode,
         bytes memory constructorArgs,
         bytes32 salt
@@ -227,11 +333,11 @@ contract InterchainTokenServiceTest is Test {
             contractCreationCode,
             constructorArgs
         );
-        return create3.deploy(contractInitCode, salt);
+        return create3Deployer.deploy(contractInitCode, salt);
     }
 
     function deployAxelarAmplifierGateway(
-        Create3Deployer create3,
+        Create3Deployer create3Deployer,
         bytes32 implSalt,
         bytes32 proxySalt
     )
@@ -244,7 +350,7 @@ contract InterchainTokenServiceTest is Test {
             abi.encode(previousSignersRetention, domainSeparator, minimumRotationDelay)
         );
 
-        gatewayImpl = AxelarAmplifierGateway(create3.deploy(gatewayImplInitcode, gatewayImplSalt));
+        gatewayImpl = AxelarAmplifierGateway(create3Deployer.deploy(gatewayImplInitcode, gatewayImplSalt));
 
         // must be done in memory since structs can't be written to storage in Solidity
         WeightedSigner[] memory signerArray = new WeightedSigner[](1);
@@ -259,38 +365,12 @@ contract InterchainTokenServiceTest is Test {
             abi.encode(address(gatewayImpl), gatewayOwner, gatewaySetupParams)
         );
 
-        gateway = AxelarAmplifierGateway(create3.deploy(gatewayProxyInitcode, proxySalt));
+        gateway = AxelarAmplifierGateway(create3Deployer.deploy(gatewayProxyInitcode, proxySalt));
 
         return (gatewayImpl, gateway);
     }
 
-    function test_setUp() public view {
-        // wTEL sanity tests
-        assertTrue(address(wTEL).code.length > 0);
-        string memory wName = wTEL.name();
-        assertEq(wName, "Wrapped Telcoin");
-        string memory wSymbol = wTEL.symbol();
-        assertEq(wSymbol, "wTEL");
-
-        // ITS sanity tests
-
-        // rwTEL sanity tests
-        assertEq(rwTEL.consensusRegistry(), deployments.ConsensusRegistry);
-        assertEq(address(rwTEL.interchainTokenService()), deployments.InterchainTokenService);
-        assertEq(rwTEL.owner(), rwtelOwner);
-        assertTrue(address(rwTEL).code.length > 0);
-        string memory rwName = rwTEL.name();
-        assertEq(rwName, "Recoverable Wrapped Telcoin");
-        string memory rwSymbol = rwTEL.symbol();
-        assertEq(rwSymbol, "rwTEL");
-        uint256 recoverableWindow = rwTEL.recoverableWindow();
-        assertEq(recoverableWindow, 86_400);
-        address governanceAddress = rwTEL.governanceAddress();
-        assertEq(governanceAddress, address(this));
-    }
-
     // todo: move to separate file
-
     // for fork tests
     Deployments deployments;
 
