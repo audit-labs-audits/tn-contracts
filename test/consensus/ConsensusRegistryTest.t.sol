@@ -13,6 +13,7 @@ import {KeyTestUtils} from "./KeyTestUtils.sol";
 
 contract ConsensusRegistryTest is KeyTestUtils, Test {
     ConsensusRegistry public consensusRegistryImpl;
+    ConsensusRegistry public recordedRegistry;
     ConsensusRegistry public consensusRegistry;
     RWTEL public rwTEL;
 
@@ -94,11 +95,13 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         initialValidators.push(validatorInfo3);
 
         consensusRegistryImpl = new ConsensusRegistry();
-        consensusRegistry = ConsensusRegistry(
-            payable(
-                address(new ERC1967Proxy(address(consensusRegistryImpl), ""))
-            )
-        );
+        
+        // etch code and storage onto registry precompile address
+        consensusRegistry = ConsensusRegistry(0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
+        vm.etch(address(consensusRegistry), type(ERC1967Proxy).runtimeCode);
+        bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+        vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
+
         consensusRegistry.initialize(
             address(rwTEL),
             stakeAmount,
@@ -111,7 +114,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         vm.deal(validator4, 100_000_000 ether);
 
-        // deploy an RWTEL module and then use its bytecode to etch on a fixed address (use create2 in prod)
+        // deploy an RWTEL module and then use its bytecode to etch on a fixed address
         RWTEL tmp = new RWTEL(
             address(0xbeef),
             "test",
