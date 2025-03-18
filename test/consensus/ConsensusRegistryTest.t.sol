@@ -130,8 +130,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
     function test_setUp() public view {
         bytes32 ownerSlot = 0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300;
         bytes32 ownerWord = vm.load(address(consensusRegistry), ownerSlot);
-        // console2.logString("OwnableUpgradeable slot0");
-        // console2.logBytes32(ownerWord);
+        console2.logString("OwnableUpgradeable slot0");
+        console2.logBytes32(ownerWord);
         assertEq(address(uint160(uint256(ownerWord))), owner);
 
         /**
