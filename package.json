@@ -37,6 +37,8 @@
     "@axelar-network/axelar-local-dev": "^2.3.3",
     "@axelar-network/interchain-token-service": "^2.1.0",
     "@ethersproject/experimental": "^5.8.0",
+    "@openzeppelin/contracts": "^5.2.0",
+    "@openzeppelin/contracts-upgradeable": "^5.2.0",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
     "axios": "^1.7.7",
@@ -44,7 +46,7 @@
     "forge-std": "github:foundry-rs/forge-std",
     "recoverable-wrapper": "git@github.com:robriks/recoverable-wrapper.git",
     "solady": "^0.0.227",
-    "telcoin-contracts": "^1.0.0",
+    "telcoin-contracts": "1.0.0",
     "viem": "^2.21.43"
   },
   "devDependencies": {
