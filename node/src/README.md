@@ -98,11 +98,20 @@ async function bridgeERC20() {
   const sourceAddress = axlExtGatewayContract;
 
   // payload param must be abi-encoded representation of ExtCall solidity struct below
-  /// struct ExtCall {
-  ///      address target; // ie recipient
-  ///      uint256 value; // ie bridge amount
-  ///      bytes data; // empty, but can be used for more granularity in future
-  ///  }
+  //   struct InterchainTransfer {
+  //     uint256 messageType;
+  //     bytes32 tokenId;
+  //     bytes sourceAddress;
+  //     bytes destinationAddress;
+  //     uint256 amount;
+  //     bytes data; /// @dev abi.encode(ExtCall)
+  // }
+  //  struct ExtCall {
+  //       address target; // ie recipient
+  //       uint256 value; // ie bridge amount
+  //       bytes data; // empty, but can be used for more granularity in future
+  //   }
+  // todo
 
   // Define the ExtCall object and abi-encode as solidity struct
   const extCall = {

@@ -102,7 +102,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenExecutable, UUPSUpg
      *
      */
 
-    /// @notice Only invoked after `commandId` is verified by Axelar gateway, ie in the context of an incoming message
+    /// @notice Only invoked after incoming message is verified by InterchainTokenService and `Gateway::validateContractCall()`
     /// @notice Params `sourceChain` and `sourceAddress` are not currently used for vanilla bridging but may later on
     function _executeWithInterchainToken(
         bytes32 commandId,
@@ -117,9 +117,10 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenExecutable, UUPSUpg
         virtual
         override
     {
+        // todo: TokenHandler::giveToken() is the function called, can it be overridden for native?
         // todo: revisit ExtCall payload encoding: is value still required?
-        // todo: should require `messageType = INTERCHAIN_TRANSFER`?
-        // todo: should RWTEL inherit InterchainTokenStandard instead of InterchainTokenExecutable?
+        // todo: should require `messageType = INTERCHAIN_TRANSFER || SEND_TO_HUB || RECEIVE_FROM_HUB`
+        // todo: should RWTEL inherit InterchainTokenStandard instead of InterchainTokenExecutable? only if it can be linked to ethTEL
         ExtCall memory bridgeMsg = abi.decode(data, (ExtCall));
         address target = bridgeMsg.target;
         if (amount != bridgeMsg.value) {
@@ -130,6 +131,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenExecutable, UUPSUpg
 
         if (token != address(0x0)) {
             // todo: logic for supporting all ERC20s, not just native TEL
+            // might be handled by ITS
         }
 
         (bool res,) = target.call{ value: bridgeMsg.value }(bridgeMsg.data);

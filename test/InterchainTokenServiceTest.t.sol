@@ -98,8 +98,20 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     address itsOwner = admin; // todo: separate owner
     address itsOperator = admin; // todo: separate operator
     string chainName_ = axelarId;
-    string[] trustedChainNames = [chainName_]; //todo: change to supported chains
-    string[] trustedAddresses = [Strings.toString(uint256(uint160(admin)))]; //todo: change to remote ITS hub(s)
+    string[] trustedChainNames = [ // declares supported remote chains
+        "axelar", // todo: use `ITS_HUB_CHAIN_NAME` if possible, might require eth::TEL wrapper
+        // "core-ethereum", 
+        // "eth-sepolia", 
+        // "ethereum-sepolia", 
+        // "Ethereum"
+    ];
+    string[] trustedAddresses = [ // ITS hubs on supported chains (arbitrary execution privileges)
+        "hub", // todo: use `ITS_HUB_ROUTING_IDENTIFIER` if possible, might require eth::TEL wrapper
+        // Strings.toString(uint256(uint160(0x77883201091c08570D55000AB32645b88cB96324))) // core-ethereum
+        // Strings.toString(uint256(uint160(0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff))) // eth-sepolia
+        // Strings.toString(uint256(uint160(0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C))) // ethereum-sepolia
+        // Strings.toString(uint256(uint160(0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C))) // Ethereum
+    ];
     bytes itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
     // InterchainTokenFactory
@@ -230,9 +242,6 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
         vm.stopPrank(); // `deployerEOA`
 
-        //todo: rwTEL implementation
-        //todo: incorporate RWTEL contracts to TN protocol on rust side
-        //todo: its address or gateway?
         bytes memory rwTELImplConstructorArgs =
             abi.encode(address(its), name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean);
         rwTELImpl = RWTEL(
@@ -246,6 +255,29 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         );
 
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
+
+
+        //todo: rwTEL implementation
+
+        // todo: InterchainToken approach:
+        // can RWTEL token be written to same address as ethTEL and therefore interchain? anyway around salt?
+        //      citSalt = keccak256(abi.encode(keccak256("canonical-token-salt"), chainNameHash_, tokenAddress));
+        //      citTokenId = interchainTokenService.interchainTokenId(TOKEN_FACTORY_DEPLOYER=address(0), citSalt));
+        // 1 Register token metadata with the ITS Contract `its::registerTokenMetadata()`
+        // 2 Register token's canonical interchain tokenId && deploy TokenManager using Interchain Token Factory `itf::registerCanonicalInterchainToken`
+        // 3 link a destinationChain token to local canonical token by tokenId (computed from salt) `itf::linkToken()`
+        //  - notifies ITS Hub of registration, after which `msg.sender` can use same salt to register and link token on more chains
+        // 4 Assign minter role to RWTEL’s TokenManager `rwTEL::transferMintership(RWTELTokenManager)`
+        //  - necessary because msg.sender of the mint() call will be TokenManager when token is bridged to destination chain
+        // 5 interchainTransfer()
+
+        // bytesSrcAddr = AddressBytes.toBytes(srcAddr)
+        // bytesDestAddr = AddressBytes.toBytes(RWTEL)
+        // bytes memory nestedPayload = abi.encode(u256MessageType=TRANSFER, b32TokenId, bytesSrcAddr, bytesdestAddr, u256amount, data);
+        // bytes memory wrappedPayload = abi.encode(u256MessageType=FROM_HUB, originalSourceChain, nestedPayload);
+        
+        // GatewayCaller::approveContractCall()
+        // its::execute(commandId, sourceChain, sourceAddress, wrappedPayload, wrappedPayloadHash)
 
         // current & future asserts
         assertEq(precalculatedITS, address(its));
@@ -336,12 +368,16 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     //todo: rwTEL deploy script
     //todo: fuzz tests for rwTEL, TEL bridging
     //todo: fork tests for TEL bridging
+    //todo: incorporate RWTEL contracts to TN protocol on rust side
+
     //todo: update readme, npm instructions
     //todo: ERC20 bridging tests
 
-    // function test_ITS() public {
+
+
+    // function test_ITS_TEL() public {
     //     its.registerTokenMetadata(address(rwtel), gasValue);
-    //     its.registerCustomToken(rwtelSalt, address(rwtel), type, linkParams);
+    //     its.registercanonicalToken(rwtelSalt, address(rwtel), type, linkParams);
     //     its.linkToken(rwtelSalt, destChain, destAddress, type, linkParams, gasValue);
     //     its.contractCallValue(); // todo: decimals handling?
     // }

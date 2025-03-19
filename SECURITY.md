@@ -51,11 +51,21 @@ To bolster this contract's security posture, the contract enforces strict invari
 - $TEL minting occurs as part of the simplest low-level call available within the EVM, represented and decoded from the following Solidity struct which is designed to mirror a protocol transaction:
 
 ```solidity
-/// @dev Designed for AxelarGMPExecutable's required implementation of `_execute()`
+/// @dev Designed for InterchainTokenExecutable's required implementation of `_execute()`
 struct ExtCall {
     address target;
     uint256 value;
     bytes data;
+}
+
+//todo
+struct InterchainTransfer {
+    uint256 messageType;
+    bytes32 tokenId;
+    bytes sourceAddress;
+    bytes destinationAddress;
+    uint256 amount;
+    bytes data; /// @dev abi.encode(ExtCall)
 }
 ```
 
