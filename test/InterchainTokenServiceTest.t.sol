@@ -99,14 +99,14 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     address itsOperator = admin; // todo: separate operator
     string chainName_ = axelarId;
     string[] trustedChainNames = [ // declares supported remote chains
-        "axelar", // todo: use `ITS_HUB_CHAIN_NAME` if possible, might require eth::TEL wrapper
+        "axelar" // todo: use `ITS_HUB_CHAIN_NAME` if possible, might require eth::TEL wrapper
         // "core-ethereum", 
         // "eth-sepolia", 
         // "ethereum-sepolia", 
         // "Ethereum"
     ];
     string[] trustedAddresses = [ // ITS hubs on supported chains (arbitrary execution privileges)
-        "hub", // todo: use `ITS_HUB_ROUTING_IDENTIFIER` if possible, might require eth::TEL wrapper
+        "hub" // todo: use `ITS_HUB_ROUTING_IDENTIFIER` if possible, might require eth::TEL wrapper
         // Strings.toString(uint256(uint160(0x77883201091c08570D55000AB32645b88cB96324))) // core-ethereum
         // Strings.toString(uint256(uint160(0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff))) // eth-sepolia
         // Strings.toString(uint256(uint160(0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C))) // ethereum-sepolia
@@ -124,7 +124,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     string name_ = "Recoverable Wrapped Telcoin";
     uint256 recoverableWindow_ = 604_800; // todo: confirm 1 week
     address governanceAddress_ = address(0xda0); // todo: multisig/council/DAO address in prod
-    address baseERC20_ = address(wTEL);
+    address baseERC20_; // wTEL
     uint16 maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
     address rwtelOwner = admin; //todo: separate owner, multisig?
 
@@ -240,8 +240,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
             create3Deploy(create3, type(InterchainProxy).creationCode, itfConstructorArgs, salts.itfSalt)
         );
 
-        vm.stopPrank(); // `deployerEOA`
-
+        baseERC20_ = address(wTEL);
         bytes memory rwTELImplConstructorArgs =
             abi.encode(address(its), name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean);
         rwTELImpl = RWTEL(
@@ -256,28 +255,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
 
-
-        //todo: rwTEL implementation
-
-        // todo: InterchainToken approach:
-        // can RWTEL token be written to same address as ethTEL and therefore interchain? anyway around salt?
-        //      citSalt = keccak256(abi.encode(keccak256("canonical-token-salt"), chainNameHash_, tokenAddress));
-        //      citTokenId = interchainTokenService.interchainTokenId(TOKEN_FACTORY_DEPLOYER=address(0), citSalt));
-        // 1 Register token metadata with the ITS Contract `its::registerTokenMetadata()`
-        // 2 Register token's canonical interchain tokenId && deploy TokenManager using Interchain Token Factory `itf::registerCanonicalInterchainToken`
-        // 3 link a destinationChain token to local canonical token by tokenId (computed from salt) `itf::linkToken()`
-        //  - notifies ITS Hub of registration, after which `msg.sender` can use same salt to register and link token on more chains
-        // 4 Assign minter role to RWTEL’s TokenManager `rwTEL::transferMintership(RWTELTokenManager)`
-        //  - necessary because msg.sender of the mint() call will be TokenManager when token is bridged to destination chain
-        // 5 interchainTransfer()
-
-        // bytesSrcAddr = AddressBytes.toBytes(srcAddr)
-        // bytesDestAddr = AddressBytes.toBytes(RWTEL)
-        // bytes memory nestedPayload = abi.encode(u256MessageType=TRANSFER, b32TokenId, bytesSrcAddr, bytesdestAddr, u256amount, data);
-        // bytes memory wrappedPayload = abi.encode(u256MessageType=FROM_HUB, originalSourceChain, nestedPayload);
-        
-        // GatewayCaller::approveContractCall()
-        // its::execute(commandId, sourceChain, sourceAddress, wrappedPayload, wrappedPayloadHash)
+        vm.stopPrank(); // `deployerEOA`
 
         // current & future asserts
         assertEq(precalculatedITS, address(its));
@@ -327,16 +305,8 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(itsImpl.tokenHandler(), address(tokenHandler));
         assertEq(itsImpl.gatewayCaller(), address(gatewayCaller));
         assertEq(itsImpl.tokenManagerImplementation(0), address(tokenManagerImpl));
-
-        //todo: ITS asserts (requires registration, deployed rwtelTokenManager)
-        // assertEq(its.tokenManagerAddress(tokenId), address(rwtelTokenManager));
-        // assertEq(its.deployedTokenManager(tokenId), rwtelTokenManager);
-        // assertEq(its.registeredTokenAddress(tokenId), address(rwtel));
-        // assertEq(its.interchainTokenAddress(tokenId), address(rwtel));
-        // assertEq(its.interchainTokenId(deployerEOA, rwtelSalt), rwtelTokenId);
         assertEq(its.tokenManagerImplementation(0), address(tokenManagerImpl));
-        // assertEq(its.getExpressExecutor(commandId, sourceChain, sourceAddress, payloadHash),
-        // address(expressExecutor));
+        // assertEq(its.getExpressExecutor(commandId, sourceChain, sourceAddress, payloadHash),address(expressExecutor));
 
         // //todo: InterchainToken asserts; RWTEL is InterchainToken?
         // assertEq(interchainToken.interchainTokenService(), address(its));
@@ -356,12 +326,8 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(rwTEL.symbol(), symbol_);
         assertEq(rwTEL.recoverableWindow(), recoverableWindow_);
         assertEq(rwTEL.governanceAddress(), governanceAddress_);
-
-        // //todo: RWTEL TokenManager asserts
-        // assertEq(tokenManager.isOperator(operator), true);
-        // assertEq(tokenManager.isFlowLimiter(flowLimiter), true);
-        // assertEq(tokenManager.flowLimits(), correct); // set by ITS
-        // assertEq(tokenManager.getTokenAddressFromParams(tmSetupParams), address(token));
+        assertEq(rwTEL.baseToken(), address(wTEL));
+        assertEq(rwTEL.decimals(), wTEL.decimals());
     }
 
     //todo: ITS deploy script
@@ -373,12 +339,68 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     //todo: update readme, npm instructions
     //todo: ERC20 bridging tests
 
+        //todo: rwTEL implementation
+
+    function test_deploy_TokenManager_RWTEL() public {
+        // todo: InterchainToken approach:
+        // can RWTEL token be written to same address as ethTEL and therefore interchain? anyway around salt?
+        //      citSalt = keccak256(abi.encode(keccak256("canonical-token-salt"), chainNameHash_, tokenAddress));
+        //      citTokenId = interchainTokenService.interchainTokenId(TOKEN_FACTORY_DEPLOYER=address(0), citSalt));
+        
+        uint256 gasValue = 100; //todo
+        vm.deal(deployerEOA, gasValue);
+        // Register RWTEL metadata with the ITS Contract before instantiating its TokenManager
+        its.registerTokenMetadata{value: gasValue}(address(rwTEL), gasValue);
+        bytes32 salt = itFactory.canonicalInterchainTokenDeploySalt(address(rwTEL));
+        console2.logString("ITS canonical interchain token deploy salt for rwTEL:");
+        console2.logBytes32(salt);
+        // Register RWTEL canonical interchain tokenId && deploy TokenManager using Interchain Token Factory
+        bytes32 tokenId = itFactory.registerCanonicalInterchainToken(address(rwTEL));
+        console2.logString("ITS canonical interchain token ID for rwTEL:");
+        console2.logBytes32(tokenId);
+
+        /// @dev Relayer detects ContractCall event and forwards to GMP API for processing on Axelar Network
+
+        // link a destinationChain token to local canonical token by tokenId (computed from salt) `itf::linkToken()`
+        //  - notifies ITS Hub of registration, after which `msg.sender` can use same salt to register and link token on more chains
+        //  its.linkToken(rwtelSalt, destChain, destAddress, type, linkParams, gasValue);
+
+        // todo:interchainTransfer()
+
+        // bytes32 tokenId = its.interchainTokenId(address(0), salt);
+        
+
+        /// rwtelTokenManager = its.create3(bytes.concat(type(TokenManagerProxy).creationCode, abi.encode(address(its), LOCK_UNLOCK, tokenId, abi.encode('', rwTEL))))
+        /// todo: use same create3 salt for Create3Deployer so ITS addr is same
+
+
+        // //todo: RWTEL TokenManager asserts
+        // assertEq(tokenManager.isOperator(operator), true);
+        // assertEq(tokenManager.isFlowLimiter(flowLimiter), true);
+        // assertEq(tokenManager.flowLimits(), correct); // set by ITS
+        // assertEq(tokenManager.getTokenAddressFromParams(tmSetupParams), address(token));
+
+
+        //todo: ITS asserts (requires registration, deployed rwtelTokenManager)
+        // assertEq(its.tokenManagerAddress(tokenId), address(rwtelTokenManager));
+        // assertEq(its.deployedTokenManager(tokenId), rwtelTokenManager);
+        // assertEq(its.registeredTokenAddress(tokenId), address(rwtel));
+        // assertEq(its.interchainTokenAddress(tokenId), address(rwtel));
+        // assertEq(its.interchainTokenId(deployerEOA, rwtelSalt), rwtelTokenId);
+    }
+
+
 
 
     // function test_ITS_TEL() public {
-    //     its.registerTokenMetadata(address(rwtel), gasValue);
-    //     its.registercanonicalToken(rwtelSalt, address(rwtel), type, linkParams);
-    //     its.linkToken(rwtelSalt, destChain, destAddress, type, linkParams, gasValue);
     //     its.contractCallValue(); // todo: decimals handling?
+    
+            // bytesSrcAddr = AddressBytes.toBytes(srcAddr)
+            // bytesDestAddr = AddressBytes.toBytes(RWTEL)
+            // bytes memory nestedPayload = abi.encode(u256MessageType=TRANSFER, b32TokenId, bytesSrcAddr, bytesdestAddr, u256amount, data);
+            // bytes memory wrappedPayload = abi.encode(u256MessageType=FROM_HUB, originalSourceChain, nestedPayload);
+            
+            // GatewayCaller::approveContractCall()
+            // its::execute(commandId, sourceChain, sourceAddress, wrappedPayload, wrappedPayloadHash)
     // }
 }
