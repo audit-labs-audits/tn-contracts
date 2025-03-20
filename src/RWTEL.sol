@@ -52,6 +52,23 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenExecutable, UUPSUpg
         RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
     { }
 
+    //todo: delete
+    /// @note: incoming flow: bridgeMsg => mint(user, nativeTELAmt)
+    /// @todo: mint logic for tokenmanager caller
+    /// @notice Invoked by ITS within `TokenHandler::giveToken()`
+    // function mint(address to, uint256 amount) external {
+    // todo: must send *native* TEL, not rwTEL (burn is opposite)
+    // todo: rwTEL <> native TEL ledger *must* remain intact
+    //}
+    /// @note: exit flow: user => this.deposit(nativeTEL) => waitSettleBal(rw) => its.interchainTransfer()
+    /// @todo: burn logic for tokenmanager caller
+    /// @notice Invoked by ITS within `TokenHandler::takeToken()`
+    // function burn(address from, uint256 amount) external {
+    // todo: must restrict burns to settled balances of rwTEL only
+    // todo: rwTEL <> native TEL ledger *must* remain intact
+    //}
+
+
     /// @inheritdoc IRWTEL
     function distributeStakeReward(address validator, uint256 rewardAmount) external {
         if (msg.sender != consensusRegistry) revert OnlyConsensusRegistry();
@@ -102,6 +119,32 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenExecutable, UUPSUpg
      *
      */
 
+    //todo: override safeTransfer, transfer, transferFrom too?
+    /// @notice Overridden because RWTEL TokenManager bridging (`LOCK_UNLOCK`) uses `safeTransferFrom`
+    function safetransferfrom(address from, address to, uint256 amount) external override returns (bool) {
+        // custom override logic for Axelar interchain GMP messages
+        if (msg.sender == interchainTokenService) {
+            if (from == tokenManager && to == address(this)) {
+              // incoming bridge tx initiated by `ITS::execute()`
+              // do nothing bc execute flow will be invoked which "mints" native TEL to user
+              return true;
+            } else if (to == tokenManager) {
+              // exit bridge tx initiated by`ITS::interchainTransfer()` or `ITS::transmitInterchainTransfer()`
+              // note: execute flow will *not* be invoked because `from == user` thus rwTEL must be burned from user
+              _burnFrom(user, amount); // burn rwTEL
+
+              // todo: make sure (settledBalanceOf(user) >= amount)
+              // todo: make sure ledger of rwTEL vs TEL vs ethTEL is intact
+              // note: native TEL would already have been "burned" when user minted rwTEL via deposit() 
+              return true;
+            }
+        }
+
+        // todo: what to do about a transfer where from == anyUser && to == tokenManager?
+
+        super.safeTransferFrom(from, to, amount);
+    }
+
     /// @notice Only invoked after incoming message is verified by InterchainTokenService and `Gateway::validateContractCall()`
     /// @notice Params `sourceChain` and `sourceAddress` are not currently used for vanilla bridging but may later on
     function _executeWithInterchainToken(
@@ -117,23 +160,27 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenExecutable, UUPSUpg
         virtual
         override
     {
-        // todo: TokenHandler::giveToken() is the function called, can it be overridden for native?
-        // todo: revisit ExtCall payload encoding: is value still required?
+        // todo: revisit ExtCall payload
         // todo: should require `messageType = INTERCHAIN_TRANSFER || SEND_TO_HUB || RECEIVE_FROM_HUB`
         // todo: should RWTEL inherit InterchainTokenStandard instead of InterchainTokenExecutable? only if it can be linked to ethTEL
         ExtCall memory bridgeMsg = abi.decode(data, (ExtCall));
         address target = bridgeMsg.target;
+        if (token != address(address(this))) {
+            // ITS handles logic for supporting all other ERC20s, so reaching this branch means destination address was specified as rwTEL
+            // todo: revert InvalidToken(commandId, token);
+            revert();
+        }
+        if (target == address(this)) {
+            //todo: revert InvalidTarget(commandId, target);
+            revert();
+        } 
+        // todo: is ExtCall.value still required when amount is provided?
         if (amount != bridgeMsg.value) {
-            //todo: more granularity in event?
-            emit ExecutionFailed(commandId, target);
-            return;
+            //todo: revert InvalidAmount(commandId, amount, bridgeMsg.value);
+            revert();
         }
 
-        if (token != address(0x0)) {
-            // todo: logic for supporting all ERC20s, not just native TEL
-            // might be handled by ITS
-        }
-
+        // todo: ensure reentrancy (ie handler.giveToken) is not possible
         (bool res,) = target.call{ value: bridgeMsg.value }(bridgeMsg.data);
         // to prevent stuck messages, emit failure event rather than revert
         if (!res) emit ExecutionFailed(commandId, target);
