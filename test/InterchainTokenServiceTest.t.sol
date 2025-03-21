@@ -16,7 +16,7 @@ import {
     Proof
 } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
 import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
-import { AddressBytes } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressBytes.sol';
+import { AddressBytes } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressBytes.sol";
 import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
 import { InterchainProxy } from "@axelar-network/interchain-token-service/contracts/proxies/InterchainProxy.sol";
 import { InterchainTokenDeployer } from
@@ -68,12 +68,16 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     // shared params
     string ITS_HUB_CHAIN_NAME = "axelar";
     string ITS_HUB_ROUTING_IDENTIFIER = "hub";
-    string DEVNET_SEPOLIA = "eth-sepolia";
+    string DEVNET_SEPOLIA_CHAIN_NAME = "eth-sepolia";
+    bytes32 DEVNET_SEPOLIA_CHAINNAMEHASH = 0x24f78f6b35533491ef3d467d5e8306033cca94049b9b76db747dfc786df43f86;
+    string MAINNET_CHAIN_NAME = "Ethereum";
+    bytes32 MAINNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
 
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
     address deployerEOA = admin; //todo: separate deployer
     address tmOperator = admin;
     address mockSepoliaTEL = address(0x42);
+    address ethTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
 
     // stored assertion vars
     address precalculatedITS;
@@ -108,12 +112,11 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     string chainName_ = axelarId;
     string[] trustedChainNames = [ // declares supported remote chains
         ITS_HUB_CHAIN_NAME, // todo: use if possible, might require eth::TEL wrapper
-        DEVNET_SEPOLIA
-        
+        DEVNET_SEPOLIA_CHAIN_NAME
         // todo: move to fork test
-        // "core-ethereum", // todo: is this actually the devnet name? 
+        // "core-ethereum", // todo: is this actually the devnet name?
         // "ethereum-sepolia", // todo: testnet
-        // "Ethereum" //todo: mainnet
+        // MAINNET_CHAIN_NAME //todo: mainnet
     ];
     string[] trustedAddresses = [ // ITS hubs on supported chains (arbitrary execution privileges)
         ITS_HUB_ROUTING_IDENTIFIER, // todo: use if possible, might require eth::TEL wrapper
@@ -318,7 +321,8 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(itsImpl.gatewayCaller(), address(gatewayCaller));
         assertEq(itsImpl.tokenManagerImplementation(0), address(tokenManagerImpl));
         assertEq(its.tokenManagerImplementation(0), address(tokenManagerImpl));
-        // assertEq(its.getExpressExecutor(commandId, sourceChain, sourceAddress, payloadHash),address(expressExecutor));
+        // assertEq(its.getExpressExecutor(commandId, sourceChain, sourceAddress,
+        // payloadHash),address(expressExecutor));
 
         // //todo: InterchainToken asserts; RWTEL is InterchainToken?
         // assertEq(interchainToken.interchainTokenService(), address(its));
@@ -344,14 +348,15 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
     /// @dev Test the flow for registering a token with ITS hub + deploying its manger
     function test_deploy_TokenManager_RWTEL() public {
-        // todo: InterchainToken approach: can RWTEL token be written to same address as ethTEL and therefore interchain? anyway around salt?
+        // todo: InterchainToken approach: can RWTEL token be written to same address as ethTEL and therefore
+        // interchain? anyway around salt?
         uint256 gasValue = 100; //todo
         vm.deal(deployerEOA, gasValue);
         // Register RWTEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
-        its.registerTokenMetadata{value: gasValue}(address(rwTEL), gasValue);
-        
+        its.registerTokenMetadata{ value: gasValue }(address(rwTEL), gasValue);
+
         //todo: should this be ethTEL and linkedTokenDeploySalt for rwteL?
-        bytes32 salt = itFactory.canonicalInterchainTokenDeploySalt(address(rwTEL));
+        bytes32 salt = itFactory.canonicalInterchainTokenDeploySalt(address(ethTEL));
         // todo: move to script, write to deployments.json
         console2.logString("ITS canonical interchain token deploy salt for rwTEL:");
         console2.logBytes32(salt);
@@ -366,27 +371,28 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         /// @dev Relayer detects ContractCall event and forwards to GMP API for processing on Axelar Network
 
         // link a destinationChain token to local canonical token by tokenId (computed from canonical interchain salt)
-        bytes memory linkParams = ''; // not used for canonical tokens
+        bytes memory linkParams = ""; // not used for canonical tokens
         string memory destChain = DEVNET_SEPOLIA;
         bytes memory destTokenAddress = AddressBytes.toBytes(mockSepoliaTEL);
-        bytes32 itfTokenId = itFactory.linkToken{value: gasValue}(salt, destChain, destTokenAddress, tmType, linkParams, gasValue);
+        bytes32 itfTokenId =
+            itFactory.linkToken{ value: gasValue }(salt, destChain, destTokenAddress, tmType, linkParams, gasValue);
 
-        // @note: once registered with ITS Hub, `msg.sender` can use same salt to register and link token on more chains        
+        // @note: once registered with ITS Hub, `msg.sender` can use same salt to register and link token on more chains
 
         // todo: how to read salt?
         assertEq(tokenId, itfTokenId);
         // todo: how to read tokenId? itFactory.linkedTokenId(address(rwTEL), salt); ?
         address rwtelTokenManager = address(its.deployedTokenManager(tokenId));
-        // assertEq(rwtelTokenManager = its.create3(bytes.concat(type(TokenManagerProxy).creationCode, abi.encode(address(its), LOCK_UNLOCK, tokenId, abi.encode('', rwTEL)))));
+        // assertEq(rwtelTokenManager = its.create3(bytes.concat(type(TokenManagerProxy).creationCode,
+        // abi.encode(address(its), LOCK_UNLOCK, tokenId, abi.encode('', rwTEL)))));
         /// note: use same create3 salt for Create3Deployer so ITS addr is same
-        /// note: use itFactory::registerCanonicalInterchainToken(ethTEL) && itFactory::registerCustomToken(rwTEL) 
+        /// note: use itFactory::registerCanonicalInterchainToken(ethTEL) && itFactory::registerCustomToken(rwTEL)
 
         // //todo: RWTEL TokenManager asserts
         // assertEq(address(tokenManager).isOperator(operator), true);
         // assertEq(address(tokenManager.isFlowLimiter(flowLimiter), true);
         // assertEq(tokenManager.flowLimits(), correct); // set by ITS
         // assertEq(tokenManager.getTokenAddressFromParams(tmSetupParams), address(token));
-
 
         //todo: ITS asserts (requires registration, deployed rwtelTokenManager)
         // assertEq(its.tokenManagerAddress(tokenId), address(rwtelTokenManager));
@@ -396,29 +402,28 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         // assertEq(its.interchainTokenId(deployerEOA, rwtelSalt), rwtelTokenId);
     }
 
-
     // its.contractCallValue(); // todo: decimals handling?
 
-
     /// @dev Inbound bridge tests
-    // function test_execute() public {    
-            // todo: payload seems constructed by its
-            // bytesSrcAddr = AddressBytes.toBytes(srcAddr)
-            // bytesDestAddr = AddressBytes.toBytes(RWTEL) //todo: should be user?
-            // bytes memory nestedPayload = abi.encode(u256MessageType=TRANSFER, b32TokenId, bytesSrcAddr, bytesdestAddr, u256amount, data);
-            // bytes memory wrappedPayload = abi.encode(u256MessageType=FROM_HUB, originalSourceChain, nestedPayload);
-            
-            // GatewayCaller::approveContractCall()
-            // its::execute(commandId, sourceChain, sourceAddress, wrappedPayload, wrappedPayloadHash)
+    // function test_execute() public {
+    // todo: payload seems constructed by its
+    // bytesSrcAddr = AddressBytes.toBytes(srcAddr)
+    // bytesDestAddr = AddressBytes.toBytes(RWTEL) //todo: should be user?
+    // bytes memory nestedPayload = abi.encode(u256MessageType=TRANSFER, b32TokenId, bytesSrcAddr, bytesdestAddr,
+    // u256amount, data);
+    // bytes memory wrappedPayload = abi.encode(u256MessageType=FROM_HUB, originalSourceChain, nestedPayload);
 
-            // vm.prank(user)
-            // its.interchainTransfer();
+    // GatewayCaller::approveContractCall()
+    // its::execute(commandId, sourceChain, sourceAddress, wrappedPayload, wrappedPayloadHash)
+
+    // vm.prank(user)
+    // its.interchainTransfer();
     // }
 
     /// @dev Outbound bridge tests
     // function test_interchainTransfer_TEL() public {}
     // function test_transmitInterchainTransfer_TEL() public {
-    
+
     // function test_giveToken_TEL() public {
     //    tokenhandler.giveToken()
     // }

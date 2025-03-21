@@ -18,11 +18,20 @@ struct ExtCall {
 interface IRWTEL {
     error OnlyConsensusRegistry();
     error RewardDistributionFailure(address validator);
-
-    event ExecutionFailed(bytes32 commandId, address target);
+    error ExecutionFailed(bytes32 commandId, address target);
+    error InvalidToken(bytes32 commandId, address token);
+    error InvalidTarget(bytes32 commandId, address target);
+    error InvalidAmount(bytes32 commandId, uint256 amount, uint256 extCallAmount);
 
     /// @notice May only be called by the ConsensusRegistry as part of its `claimStakeRewards()` flow
     function distributeStakeReward(address validator, uint256 rewardAmount) external;
+
+    /// @notice Transfers RWTEL using RecoverableWrapper state updates and custom logic for Axelar ITS
+    /// @dev Overridden because RWTEL TokenManager bridging (`LOCK_UNLOCK`) uses `safeTransferFrom`
+    function safetransferfrom(address from, address to, uint256 amount) external returns (bool);
+
+    /// @notice Returns the Axelar ITS custom salt for RWTEL
+    function interchainTokenId() external pure returns (bytes32);
 
     /// @notice Replaces `constructor` for use when deployed as a proxy implementation
     /// @notice `RW::constructor()` accepts a `baseERC20_` parameter which is set as an immutable variable in bytecode
