@@ -50,7 +50,7 @@ abstract contract Create3Utils {
         thSalt: keccak256("token-handler"),
         tmSalt: keccak256("token-manager"),
         tmdSalt: keccak256("token-manager-deployer"),
-        rwtelSalt: keccak256("rwtel")
+        rwtelSalt: keccak256("recoverable-wrapped-telcoin")
     });
 
     ImplSalts public implSalts = ImplSalts({
@@ -60,7 +60,7 @@ abstract contract Create3Utils {
         itfImplSalt: keccak256("interchain-token-factory-impl"),
         itsImplSalt: keccak256("interchain-token-service-impl"),
         tmImplSalt: keccak256("token-manager-impl"),
-        rwtelImplSalt: keccak256("rwtel-impl")
+        rwtelImplSalt: keccak256("recoverable-wrapped-telcoin-impl")
     });
 
 

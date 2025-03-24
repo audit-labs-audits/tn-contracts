@@ -19,7 +19,7 @@ interface IRWTEL {
     error OnlyConsensusRegistry();
     error RewardDistributionFailure(address validator);
     error ExecutionFailed(bytes32 commandId, address target);
-    error InvalidToken(bytes32 commandId, address token);
+    error InvalidToken(bytes32 commandId, address token, bytes32 tokenId);
     error InvalidTarget(bytes32 commandId, address target);
     error InvalidAmount(bytes32 commandId, uint256 amount, uint256 extCallAmount);
 
@@ -31,7 +31,11 @@ interface IRWTEL {
     function safetransferfrom(address from, address to, uint256 amount) external returns (bool);
 
     /// @notice Returns the Axelar ITS custom salt for RWTEL
-    function interchainTokenId() external pure returns (bytes32);
+    function linkedTokenId() external view returns (bytes32);
+
+    /// @notice Returns the unique salt required for RWTEL ITS integration
+    /// @dev Equivalent to `InterchainTokenFactory::canonicalInterchainTokenDeploySalt()`
+    function linkedTokenDeploySalt() external view returns (bytes32);
 
     /// @notice Replaces `constructor` for use when deployed as a proxy implementation
     /// @notice `RW::constructor()` accepts a `baseERC20_` parameter which is set as an immutable variable in bytecode

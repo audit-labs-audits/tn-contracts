@@ -5,12 +5,15 @@ import { IInterchainTokenStandard } from
     "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenStandard.sol";
 import { ITransmitInterchainToken } from
     "@axelar-network/interchain-token-service/contracts/interfaces/ITransmitInterchainToken.sol";
+import { IInterchainTokenService } from
+    "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenService.sol";
 import { InterchainTokenExecutable } from
     "@axelar-network/interchain-token-service/contracts/executable/InterchainTokenExecutable.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
 import { Context } from "@openzeppelin/contracts/utils/Context.sol";
+import { SystemCallable } from "./consensus/SystemCallable.sol";
 import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
 
 import { Test, console2 } from "forge-std/Test.sol"; //todo
@@ -32,13 +35,23 @@ import { Test, console2 } from "forge-std/Test.sol"; //todo
     | governanceAddress | address                                                    | 10   |
 */
 
-contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, InterchainTokenExecutable, UUPSUpgradeable, Ownable {
+/// @title Recoverable Wrapped Telcoin
+/// @notice The RWTEL module serves both as an Axelar ITS linked token and as InterchainExecutable
+/// to merge functionality of TEL as an ITS-compatible ERC20 token and native gas currency for TN
+/// @dev Inbound ERC20 TEL from other networks is delivered as native TEL through custom executable logic
+/// whereas outbound TEL must first be double-wrapped from native TEL through wTEL to rwTEL.
+/// For security, only RecoverableWrapper balances settled by the recoverable window can be bridged
+contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, InterchainTokenExecutable, UUPSUpgradeable, Ownable, SystemCallable {
     /// @dev ConsensusRegistry system contract defined by protocol to always exist at a constant address
     address public constant consensusRegistry = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
     /// @dev The Axelar ITS TokenManager contract address for this contract
     /// @notice Derived deterministically via CREATE3 and so will not contain code at genesis
     address public immutable tokenManager;
+
+    /// @dev Constants for deriving this contract's canonical ITS deploy salt
+    bytes32 public constant RWTEL_SALT = keccak256('recoverable-wrapped-telcoin');
+    bytes32 private constant PREFIX_CUSTOM_TOKEN_SALT = keccak256('custom-token-salt');
 
     /// @dev Overrides for `ERC20` storage since `RecoverableWrapper` dep restricts them
     string internal constant _name_ = "Recoverable Wrapped Telcoin";
@@ -100,7 +113,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
         address sender = msg.sender;
 
         ITransmitInterchainToken(interchainTokenService).transmitInterchainTransfer{ value: msg.value }(
-            interchainTokenId(),
+            linkedTokenId(),
             sender,
             destinationChain,
             recipient,
@@ -120,7 +133,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
         _spendAllowance(sender, msg.sender, amount);
 
         ITransmitInterchainToken(interchainTokenService).transmitInterchainTransfer{ value: msg.value }(
-            interchainTokenId(),
+            linkedTokenId(),
             sender,
             destinationChain,
             recipient,
@@ -158,9 +171,17 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
     }
 
     /// @inheritdoc IRWTEL
-    function interchainTokenId() public pure override returns (bytes32) {}
+    function linkedTokenId() public view override returns (bytes32) {
+        return IInterchainTokenService(interchainTokenService).interchainTokenId(address(0x0), RWTEL_SALT);
+    }
 
-    /// @notice Only invoked after incoming message is verified by InterchainTokenService and
+    /// @inheritdoc IRWTEL
+    function linkedTokenDeploySalt() public view override returns (bytes32) {
+        bytes32 chainNameHash = IInterchainTokenService(interchainTokenService).chainNameHash();
+        return keccak256(abi.encode(PREFIX_CUSTOM_TOKEN_SALT, chainNameHash, SYSTEM_ADDRESS, RWTEL_SALT));
+    }
+
+    /// @notice Only invoked for incoming TEL, is verified by InterchainTokenService and
     /// `Gateway::validateContractCall()`
     /// @notice Params `sourceChain` and `sourceAddress` are not currently used for vanilla bridging but may later on
     function _executeWithInterchainToken(
@@ -177,7 +198,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
         override
     {
         // ITS handles all other ERC20s; reaching this branch means destination address was specified as rwTEL
-        if (token != address(this)) revert InvalidToken(commandId, token);
+        if (token != address(this) || tokenId != linkedTokenId()) revert InvalidToken(commandId, token, tokenId);
 
         // todo: should require `messageType = INTERCHAIN_TRANSFER || SEND_TO_HUB || RECEIVE_FROM_HUB`
         // todo: should RWTEL inherit InterchainTokenStandard instead of InterchainTokenExecutable? only if it can be

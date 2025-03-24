@@ -70,8 +70,14 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     string ITS_HUB_ROUTING_IDENTIFIER = "hub";
     string DEVNET_SEPOLIA_CHAIN_NAME = "eth-sepolia";
     bytes32 DEVNET_SEPOLIA_CHAINNAMEHASH = 0x24f78f6b35533491ef3d467d5e8306033cca94049b9b76db747dfc786df43f86;
+    address DEVNET_SEPOLIA_ITS = 0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff;
+    //todo move to fork test
+    string TESTNET_CHAIN_NAME = "ethereum-sepolia";
+    bytes32 TESTNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
+    address TESTNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
     string MAINNET_CHAIN_NAME = "Ethereum";
     bytes32 MAINNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
+    address MAINNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
 
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
     address deployerEOA = admin; //todo: separate deployer
@@ -114,18 +120,15 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         ITS_HUB_CHAIN_NAME, // todo: use if possible, might require eth::TEL wrapper
         DEVNET_SEPOLIA_CHAIN_NAME
         // todo: move to fork test
-        // "core-ethereum", // todo: is this actually the devnet name?
-        // "ethereum-sepolia", // todo: testnet
-        // MAINNET_CHAIN_NAME //todo: mainnet
+        // TESTNET_CHAIN_NAME,
+        // MAINNET_CHAIN_NAME
     ];
     string[] trustedAddresses = [ // ITS hubs on supported chains (arbitrary execution privileges)
         ITS_HUB_ROUTING_IDENTIFIER, // todo: use if possible, might require eth::TEL wrapper
-        Strings.toString(uint256(uint160(mockSepoliaTEL)))
+        Strings.toString(uint256(uint160(DEVNET_SEPOLIA_ITS)))
         //todo: move to fork test
-        // Strings.toString(uint256(uint160(0x77883201091c08570D55000AB32645b88cB96324))) // core-ethereum
-        // Strings.toString(uint256(uint160(0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff))) // eth-sepolia
-        // Strings.toString(uint256(uint160(0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C))) // ethereum-sepolia
-        // Strings.toString(uint256(uint160(0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C))) // Ethereum
+        // Strings.toString(uint256(uint160(TESTNET_SEPOLIA_ITS)))
+        // Strings.toString(uint256(uint160(MAINNET_ITS)))
     ];
     bytes itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
@@ -141,7 +144,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     address governanceAddress_ = address(0xda0); // todo: multisig/council/DAO address in prod
     address baseERC20_; // wTEL
     uint16 maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
-    address rwtelOwner = admin; //todo: separate owner, multisig?
+    address rwtelOwner = admin; //todo: upgradable via owner for testnet only, no owner for mainnet
 
     function setUp() public {
         wTEL = new WTEL();
@@ -200,12 +203,6 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         );
 
         tokenHandler = TokenHandler(create3Deploy(create3, type(TokenHandler).creationCode, "", salts.thSalt));
-        // todo: postTokenManagerDeploy() seems odd
-
-        //todo: deploy a tokenManager for rwTEL -- should this call go through ITS vs tdDeployer contract? adds
-        // permissioning?
-        // tokenManager = tokenManagerDeployer.deployTokenManager(tokenId, implementationType, params);
-        //todo: deploy interchainToken via create3 or via ITS? not necessary for tel?
 
         bytes memory gsImplConstructorArgs = abi.encode(gasCollector);
         gasServiceImpl = AxelarGasService(
@@ -346,25 +343,33 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(rwTEL.decimals(), wTEL.decimals());
     }
 
-    /// @dev Test the flow for registering a token with ITS hub + deploying its manger
-    function test_deploy_TokenManager_RWTEL() public {
-        // todo: InterchainToken approach: can RWTEL token be written to same address as ethTEL and therefore
-        // interchain? anyway around salt?
-        uint256 gasValue = 100; //todo
-        vm.deal(deployerEOA, gasValue);
+    /// @dev Test the flow for registering a token with ITS hub + deploying its manager
+    /// @notice In prod, these calls must be performed on Ethereum prior to genesis
+    function test_RWTEL_deployTokenManager() public {
+        uint256 gasValue = 100; //todo gas
+        vm.deal(rwtelOwner, gasValue);
+        // use system address could be used for: 
+        // - first genesis tx 
+        //   - send funds to relayer
+        // - future rwTEL upgrades
+        vm.startPrank(rwtelOwner);
+        
         // Register RWTEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
+        //todo: how is this affected by ethTEL registration
         its.registerTokenMetadata{ value: gasValue }(address(rwTEL), gasValue);
 
-        //todo: should this be ethTEL and linkedTokenDeploySalt for rwteL?
-        bytes32 salt = itFactory.canonicalInterchainTokenDeploySalt(address(ethTEL));
-        // todo: move to script, write to deployments.json
-        console2.logString("ITS canonical interchain token deploy salt for rwTEL:");
-        console2.logBytes32(salt);
+        //todo: this can be RWTEL_SALT
+        bytes32 linkedTokenSalt = itFactory.linkedTokenDeploySalt(rwTEL.SYSTEM_ADDRESS(), rwTEL.RWTEL_SALT());
+        assertEq(rwTEL.linkedTokenDeploySalt(), linkedTokenSalt);
 
         // Register RWTEL canonical interchain tokenId && deploy TokenManager using Interchain Token Factory
         ITokenManagerType.TokenManagerType tmType = ITokenManagerType.TokenManagerType.LOCK_UNLOCK;
-        bytes32 tokenId = itFactory.registerCustomToken(salt, address(rwTEL), tmType, tmOperator);
+        bytes32 tokenId = itFactory.registerCustomToken(linkedTokenSalt, address(rwTEL), tmType, tmOperator);
+        assertEq(rwTEL.linkedTokenId(), tokenId);
+        
         //todo: move to script, write to deployments.json
+        console2.logString("ITS linked token deploy salt for rwTEL:");
+        console2.logBytes32(linkedTokenSalt);
         console2.logString("ITS canonical interchain token ID for rwTEL:");
         console2.logBytes32(tokenId);
 
@@ -372,16 +377,15 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
         // link a destinationChain token to local canonical token by tokenId (computed from canonical interchain salt)
         bytes memory linkParams = ""; // not used for canonical tokens
-        string memory destChain = DEVNET_SEPOLIA;
+        string memory destChain = DEVNET_SEPOLIA_CHAIN_NAME;
         bytes memory destTokenAddress = AddressBytes.toBytes(mockSepoliaTEL);
-        bytes32 itfTokenId =
-            itFactory.linkToken{ value: gasValue }(salt, destChain, destTokenAddress, tmType, linkParams, gasValue);
+        bytes32 tokenIdAgain =
+            itFactory.linkToken{ value: gasValue }(linkedTokenSalt, destChain, destTokenAddress, tmType, linkParams, gasValue);
+        assertEq(rwTEL.linkedTokenId(), tokenIdAgain);
 
-        // @note: once registered with ITS Hub, `msg.sender` can use same salt to register and link token on more chains
+        // @note: once registered with ITS Hub, `msg.sender` can use same salt to register and `linkToken()` on more chains
+        // @note: this should be done with `destinationChain == 'Ethereum' && destinationTokenAddress == ethTEL`
 
-        // todo: how to read salt?
-        assertEq(tokenId, itfTokenId);
-        // todo: how to read tokenId? itFactory.linkedTokenId(address(rwTEL), salt); ?
         address rwtelTokenManager = address(its.deployedTokenManager(tokenId));
         // assertEq(rwtelTokenManager = its.create3(bytes.concat(type(TokenManagerProxy).creationCode,
         // abi.encode(address(its), LOCK_UNLOCK, tokenId, abi.encode('', rwTEL)))));
