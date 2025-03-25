@@ -77,4 +77,12 @@ abstract contract Create3Utils {
         );
         return create3Deployer.deploy(contractInitCode, salt);
     }
+
+    function create3Address(Create3Deployer create3Deployer, bytes memory contractCreationCode, bytes memory constructorArgs, address sender, bytes32 salt) public view returns (address expectedDeployment) {
+        bytes memory contractInitCode = bytes.concat(
+            contractCreationCode,
+            constructorArgs
+        );
+        return create3Deployer.deployedAddress(contractInitCode, sender, salt);
+    }
 }

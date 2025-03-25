@@ -9,6 +9,10 @@ import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 
+// TODO: amend stake()'s activation delay from being automatically set as epoch+2 
+// to require a separate self activation tx, using existing exit->rejoin functionality
+// TODO: remove ed25519 keys from onchain storage
+
 /**
  * @title ConsensusRegistry
  * @author Telcoin Association

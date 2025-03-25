@@ -19,6 +19,7 @@ import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contrac
 import { AddressBytes } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressBytes.sol";
 import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
 import { InterchainProxy } from "@axelar-network/interchain-token-service/contracts/proxies/InterchainProxy.sol";
+import { TokenManagerProxy } from "@axelar-network/interchain-token-service/contracts/proxies/TokenManagerProxy.sol";
 import { InterchainTokenDeployer } from
     "@axelar-network/interchain-token-service/contracts/utils/InterchainTokenDeployer.sol";
 import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
@@ -35,6 +36,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
+import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../src/WTEL.sol";
 import { RWTEL } from "../src/RWTEL.sol";
 import { ExtCall } from "../src/interfaces/IRWTEL.sol";
@@ -45,6 +47,10 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     WTEL wTEL;
     RWTEL rwTELImpl;
     RWTEL rwTEL;
+
+    // "Ethereum" contracts
+    MockTEL mockTEL; // not used except to etch bytecode onto ethTEL 
+    address ethTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
 
     // Axelar ITS contracts
     Create3Deployer create3;
@@ -81,9 +87,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
     address deployerEOA = admin; //todo: separate deployer
-    address tmOperator = admin;
-    address mockSepoliaTEL = address(0x42);
-    address ethTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
+    address tmOperator = admin; //todo: should ethTEL tm have operator / should rwTEL tm have operator?
 
     // stored assertion vars
     address precalculatedITS;
@@ -147,6 +151,9 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     address rwtelOwner = admin; //todo: upgradable via owner for testnet only, no owner for mainnet
 
     function setUp() public {
+        mockTEL = new MockTEL();
+        vm.etch(ethTEL, address(mockTEL).code);
+
         wTEL = new WTEL();
 
         // note: CREATE3 contract deployed via `create2`
@@ -321,7 +328,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         // assertEq(its.getExpressExecutor(commandId, sourceChain, sourceAddress,
         // payloadHash),address(expressExecutor));
 
-        // //todo: InterchainToken asserts; RWTEL is InterchainToken?
+        // //todo: RWTEL as InterchainToken asserts
         // assertEq(interchainToken.interchainTokenService(), address(its));
         // assertTrue(interchainToken.isMinter(address(its)));
         // assertEq(interchainToken.totalSupply(), totalSupply);
@@ -329,12 +336,15 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         // assertEq(interchainToken.nameHash(), nameHash);
         // assertEq(interchainToken.DOMAIN_SEPARATOR(), itDomainSeparator);
 
-        // todo: update for protocol integration on rust side
+        // todo: update for protocol integration, genesis on rust side
         // rwTEL sanity tests
         assertEq(rwTEL.consensusRegistry(), consensusRegistry_);
         assertEq(address(rwTEL.interchainTokenService()), address(its));
+        // assertEq(rwTEL.tokenManager(), rwtelTokenManager);
         assertEq(rwTEL.owner(), rwtelOwner);
         assertTrue(address(rwTEL).code.length > 0);
+        // assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), );
+        // assertEq(rwTEL.canonicalInterchainTokenId(), );
         assertEq(rwTEL.name(), name_);
         assertEq(rwTEL.symbol(), symbol_);
         assertEq(rwTEL.recoverableWindow(), recoverableWindow_);
@@ -344,89 +354,56 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     }
 
     /// @dev Test the flow for registering a token with ITS hub + deploying its manager
-    /// @notice In prod, these calls must be performed on Ethereum prior to genesis
-    function test_RWTEL_deployTokenManager() public {
+    function test_deploy_ethTokenManager() public {
+        /// @notice In prod, these calls must be performed on Ethereum by multisig prior to TN genesis
         uint256 gasValue = 100; //todo gas
-        vm.deal(rwtelOwner, gasValue);
-        // use system address could be used for: 
-        // - first genesis tx 
-        //   - send funds to relayer
-        // - future rwTEL upgrades
-        vm.startPrank(rwtelOwner);
+        vm.deal(deployerEOA, gasValue * 2);
+        vm.startPrank(deployerEOA); //todo: this should be done by a multisig
         
         // Register RWTEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
-        //todo: how is this affected by ethTEL registration
-        its.registerTokenMetadata{ value: gasValue }(address(rwTEL), gasValue);
+        its.registerTokenMetadata{ value: gasValue }(ethTEL, gasValue);
 
-        //todo: this can be RWTEL_SALT
-        bytes32 linkedTokenSalt = itFactory.linkedTokenDeploySalt(rwTEL.SYSTEM_ADDRESS(), rwTEL.RWTEL_SALT());
-        assertEq(rwTEL.linkedTokenDeploySalt(), linkedTokenSalt);
+        bytes32 canonicalInterchainSalt = itFactory.canonicalInterchainTokenDeploySalt(ethTEL);
+        bytes32 canonicalInterchainTokenId = itFactory.registerCanonicalInterchainToken(ethTEL);
 
-        // Register RWTEL canonical interchain tokenId && deploy TokenManager using Interchain Token Factory
-        ITokenManagerType.TokenManagerType tmType = ITokenManagerType.TokenManagerType.LOCK_UNLOCK;
-        bytes32 tokenId = itFactory.registerCustomToken(linkedTokenSalt, address(rwTEL), tmType, tmOperator);
-        assertEq(rwTEL.linkedTokenId(), tokenId);
-        
-        //todo: move to script, write to deployments.json
+        assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), canonicalInterchainSalt);
+        assertEq(rwTEL.canonicalInterchainTokenId(), canonicalInterchainTokenId);
+
         console2.logString("ITS linked token deploy salt for rwTEL:");
-        console2.logBytes32(linkedTokenSalt);
+        console2.logBytes32(canonicalInterchainSalt);
         console2.logString("ITS canonical interchain token ID for rwTEL:");
-        console2.logBytes32(tokenId);
+        console2.logBytes32(canonicalInterchainTokenId);
 
-        /// @dev Relayer detects ContractCall event and forwards to GMP API for processing on Axelar Network
+        /// @dev Ethereum relayer detects ContractCall event and forwards to GMP API for hub inclusion on Axelar Network
+        /// @dev Once registered with ITS Hub, `msg.sender` can use same salt to register and `linkToken()` on more chains
 
-        // link a destinationChain token to local canonical token by tokenId (computed from canonical interchain salt)
-        bytes memory linkParams = ""; // not used for canonical tokens
-        string memory destChain = DEVNET_SEPOLIA_CHAIN_NAME;
-        bytes memory destTokenAddress = AddressBytes.toBytes(mockSepoliaTEL);
-        bytes32 tokenIdAgain =
-            itFactory.linkToken{ value: gasValue }(linkedTokenSalt, destChain, destTokenAddress, tmType, linkParams, gasValue);
-        assertEq(rwTEL.linkedTokenId(), tokenIdAgain);
+        TokenManager ethTELTokenManager = TokenManager(address(its.deployedTokenManager(canonicalInterchainTokenId)));
 
-        // @note: once registered with ITS Hub, `msg.sender` can use same salt to register and `linkToken()` on more chains
-        // @note: this should be done with `destinationChain == 'Ethereum' && destinationTokenAddress == ethTEL`
+        vm.stopPrank();
 
-        address rwtelTokenManager = address(its.deployedTokenManager(tokenId));
-        // assertEq(rwtelTokenManager = its.create3(bytes.concat(type(TokenManagerProxy).creationCode,
-        // abi.encode(address(its), LOCK_UNLOCK, tokenId, abi.encode('', rwTEL)))));
-        /// note: use same create3 salt for Create3Deployer so ITS addr is same
-        /// note: use itFactory::registerCanonicalInterchainToken(ethTEL) && itFactory::registerCustomToken(rwTEL)
+        // ITS asserts post registration && deployed ethTELTokenManager
+        assertEq(address(its.deployedTokenManager(canonicalInterchainTokenId)), address(ethTELTokenManager));
+        assertEq(its.tokenManagerAddress(canonicalInterchainTokenId), address(ethTELTokenManager));
+        assertEq(its.registeredTokenAddress(canonicalInterchainTokenId), ethTEL);
 
-        // //todo: RWTEL TokenManager asserts
-        // assertEq(address(tokenManager).isOperator(operator), true);
-        // assertEq(address(tokenManager.isFlowLimiter(flowLimiter), true);
-        // assertEq(tokenManager.flowLimits(), correct); // set by ITS
-        // assertEq(tokenManager.getTokenAddressFromParams(tmSetupParams), address(token));
-
-        //todo: ITS asserts (requires registration, deployed rwtelTokenManager)
-        // assertEq(its.tokenManagerAddress(tokenId), address(rwtelTokenManager));
-        // assertEq(its.deployedTokenManager(tokenId), rwtelTokenManager);
-        // assertEq(its.registeredTokenAddress(tokenId), address(rwtel));
-        // assertEq(its.interchainTokenAddress(tokenId), address(rwtel));
-        // assertEq(its.interchainTokenId(deployerEOA, rwtelSalt), rwtelTokenId);
+        // ethTEL TokenManager asserts
+        ITokenManagerType.TokenManagerType tmType = ITokenManagerType.TokenManagerType.LOCK_UNLOCK;
+        bytes memory ethTMConstructorArgs = abi.encode(address(its), tmType, canonicalInterchainTokenId, abi.encode('', address(ethTEL)));
+        address ethTokenManagerExpected = create3Address(create3, type(TokenManagerProxy).creationCode, ethTMConstructorArgs, deployerEOA, canonicalInterchainSalt);
+        assertEq(address(ethTELTokenManager), ethTokenManagerExpected);
+        assertEq(ethTELTokenManager.isOperator(address(0x0)), true);
+        assertEq(ethTELTokenManager.isOperator(address(its)), true);
+        assertEq(ethTELTokenManager.isFlowLimiter(address(its)), true);
+        assertEq(ethTELTokenManager.flowLimit(), 0); // set by ITS
+        assertEq(ethTELTokenManager.flowInAmount(), 0); // set by ITS
+        assertEq(ethTELTokenManager.flowOutAmount(), 0); // set by ITS
+        bytes memory ethTMSetupParams = abi.encode(bytes(''), ethTEL);
+        assertEq(ethTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), ethTEL);
     }
 
+
+
     // its.contractCallValue(); // todo: decimals handling?
-
-    /// @dev Inbound bridge tests
-    // function test_execute() public {
-    // todo: payload seems constructed by its
-    // bytesSrcAddr = AddressBytes.toBytes(srcAddr)
-    // bytesDestAddr = AddressBytes.toBytes(RWTEL) //todo: should be user?
-    // bytes memory nestedPayload = abi.encode(u256MessageType=TRANSFER, b32TokenId, bytesSrcAddr, bytesdestAddr,
-    // u256amount, data);
-    // bytes memory wrappedPayload = abi.encode(u256MessageType=FROM_HUB, originalSourceChain, nestedPayload);
-
-    // GatewayCaller::approveContractCall()
-    // its::execute(commandId, sourceChain, sourceAddress, wrappedPayload, wrappedPayloadHash)
-
-    // vm.prank(user)
-    // its.interchainTransfer();
-    // }
-
-    /// @dev Outbound bridge tests
-    // function test_interchainTransfer_TEL() public {}
-    // function test_transmitInterchainTransfer_TEL() public {
 
     // function test_giveToken_TEL() public {
     //    tokenhandler.giveToken()
@@ -435,12 +412,27 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     //    tokenhandler.takeToken()
     // }
 
-    //todo: ITS deploy script
-    //todo: rwTEL deploy script
+    //todo: ITS genesis deploy config
+    //todo: rwTEL genesis deploy config 
     //todo: fuzz tests for rwTEL, TEL bridging
     //todo: fork tests for TEL bridging
     //todo: incorporate RWTEL contracts to TN protocol on rust side
 
     //todo: update readme, npm instructions
     //todo: ERC20 bridging tests
+}
+
+/// @dev Read by ITS for metadata registration
+contract MockTEL is ERC20 {
+    function decimals() public view virtual override returns (uint8) {
+        return 2;
+    }
+
+    function name() public view virtual override returns (string memory) {
+        return "Mock Telcoin";
+    }
+
+     function symbol() public view virtual override returns (string memory) {
+        return "mockTEL";
+     }
 }

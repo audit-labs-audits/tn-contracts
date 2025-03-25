@@ -31,11 +31,11 @@ interface IRWTEL {
     function safetransferfrom(address from, address to, uint256 amount) external returns (bool);
 
     /// @notice Returns the Axelar ITS custom salt for RWTEL
-    function linkedTokenId() external view returns (bytes32);
+    function canonicalInterchainTokenId() external view returns (bytes32);
 
     /// @notice Returns the unique salt required for RWTEL ITS integration
     /// @dev Equivalent to `InterchainTokenFactory::canonicalInterchainTokenDeploySalt()`
-    function linkedTokenDeploySalt() external view returns (bytes32);
+    function canonicalInterchainTokenDeploySalt() external view returns (bytes32);
 
     /// @notice Replaces `constructor` for use when deployed as a proxy implementation
     /// @notice `RW::constructor()` accepts a `baseERC20_` parameter which is set as an immutable variable in bytecode

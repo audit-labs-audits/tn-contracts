@@ -99,13 +99,15 @@ ethTEL is a canonical interchain token
 
 On Ethereum:
 
-1. Register ethTEL metadata with Axelar chain's ITS hub
+1. Register ethTEL metadata with Axelar chain's ITS hub using Ethereum InterchainTokenService
 
-`itFactory.registerTokenMetadata(ethTEL, gasValue)`
+`its.registerTokenMetadata(ethTEL, gasValue)`
 
-2. Register ethTEL canonical interchain tokenId and deploy its TokenManager using Interchain Token Factory
+2. Register ethTEL canonical interchain tokenId and deploy its TokenManager using Ethereum InterchainTokenFactory.
 
 `itFactory.registerCanonicalInterchainToken(ethTEL)`
+
+##### Note that the TEL canonical interchain tokenId is derived using the `InterchainTokenFactory::canonicalInterchainSalt()` for ethTEL
 
 On Telcoin-Network:
 todo: genesis
