@@ -104,6 +104,17 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
      *
      */
 
+    /// @inheritdoc IRWTEL
+    function canonicalInterchainTokenId() public view override returns (bytes32) {
+        return IInterchainTokenService(interchainTokenService).interchainTokenId(address(0x0), canonicalInterchainTokenDeploySalt());
+    }
+
+    /// @inheritdoc IRWTEL
+    function canonicalInterchainTokenDeploySalt() public view override returns (bytes32) {
+        bytes32 chainNameHash = IInterchainTokenService(interchainTokenService).chainNameHash();
+        return keccak256(abi.encode(PREFIX_CANONICAL_TOKEN_SALT, chainNameHash, ethereumTEL));
+    }
+
     /// @inheritdoc IInterchainTokenStandard
     function interchainTransfer(
         string calldata destinationChain,
@@ -171,17 +182,6 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
         return true;
     }
 
-    /// @inheritdoc IRWTEL
-    function canonicalInterchainTokenId() public view override returns (bytes32) {
-        return IInterchainTokenService(interchainTokenService).interchainTokenId(address(0x0), canonicalInterchainTokenDeploySalt());
-    }
-
-    /// @inheritdoc IRWTEL
-    function canonicalInterchainTokenDeploySalt() public view override returns (bytes32) {
-        bytes32 chainNameHash = IInterchainTokenService(interchainTokenService).chainNameHash();
-        return keccak256(abi.encode(PREFIX_CANONICAL_TOKEN_SALT, chainNameHash, ethereumTEL));
-    }
-
     /// @notice Only invoked for incoming TEL, is verified by InterchainTokenService and
     /// `Gateway::validateContractCall()`
     /// @notice Params `sourceChain` and `sourceAddress` are not currently used for vanilla bridging but may later on
@@ -216,7 +216,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
     }
 
     function _deriveTokenManager() internal pure returns (address) {
-        //todo should this also derive tokenId or store it in bytecode?
+        //todo
     }
 
     /**

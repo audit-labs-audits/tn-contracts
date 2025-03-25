@@ -17,6 +17,7 @@ import {
 } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
 import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
 import { AddressBytes } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressBytes.sol";
+import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
 import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
 import { InterchainProxy } from "@axelar-network/interchain-token-service/contracts/proxies/InterchainProxy.sol";
 import { TokenManagerProxy } from "@axelar-network/interchain-token-service/contracts/proxies/TokenManagerProxy.sol";
@@ -74,16 +75,17 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     // shared params
     string ITS_HUB_CHAIN_NAME = "axelar";
     string ITS_HUB_ROUTING_IDENTIFIER = "hub";
-    string DEVNET_SEPOLIA_CHAIN_NAME = "eth-sepolia";
-    bytes32 DEVNET_SEPOLIA_CHAINNAMEHASH = 0x24f78f6b35533491ef3d467d5e8306033cca94049b9b76db747dfc786df43f86;
-    address DEVNET_SEPOLIA_ITS = 0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff;
-    //todo move to fork test
-    string TESTNET_CHAIN_NAME = "ethereum-sepolia";
-    bytes32 TESTNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
-    address TESTNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
     string MAINNET_CHAIN_NAME = "Ethereum";
     bytes32 MAINNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
     address MAINNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
+
+    //todo move to fork test
+    string DEVNET_SEPOLIA_CHAIN_NAME = "eth-sepolia";
+    bytes32 DEVNET_SEPOLIA_CHAINNAMEHASH = 0x24f78f6b35533491ef3d467d5e8306033cca94049b9b76db747dfc786df43f86;
+    address DEVNET_SEPOLIA_ITS = 0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff;
+    string TESTNET_CHAIN_NAME = "ethereum-sepolia";
+    bytes32 TESTNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
+    address TESTNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
 
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
     address deployerEOA = admin; //todo: separate deployer
@@ -304,7 +306,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(gateway.lastRotationTimestamp(), block.number);
         assertEq(gateway.timeSinceRotation(), 0);
 
-        // ITS sanity tests
+        // ITS periphery sanity tests
         assertEq(interchainTokenImpl.interchainTokenService(), address(its));
         assertEq(itDeployer.implementationAddress(), address(interchainTokenImpl));
         assertEq(tokenManagerImpl.interchainTokenService(), address(its));
@@ -313,7 +315,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(gasService.contractId(), salts.gsSalt);
         assertEq(address(gatewayCaller.gateway()), address(gateway));
         assertEq(address(gatewayCaller.gasService()), address(gasService));
-        // immutables set in bytecode can be checked on impl
+        // ITS sanity tests for immutables can be checked on impl since they're set in bytecode
         assertEq(itsImpl.tokenManagerDeployer(), address(tokenManagerDeployer));
         assertEq(itsImpl.interchainTokenDeployer(), address(itDeployer));
         assertEq(address(itsImpl.gateway()), address(gateway));
@@ -324,39 +326,30 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(itsImpl.tokenHandler(), address(tokenHandler));
         assertEq(itsImpl.gatewayCaller(), address(gatewayCaller));
         assertEq(itsImpl.tokenManagerImplementation(0), address(tokenManagerImpl));
+        // ITS proxy sanity tests
         assertEq(its.tokenManagerImplementation(0), address(tokenManagerImpl));
-        // assertEq(its.getExpressExecutor(commandId, sourceChain, sourceAddress,
-        // payloadHash),address(expressExecutor));
+        assertEq(its.getExpressExecutor(bytes32(0x0), chainName_, Strings.toString(uint256(uint160(address(rwTEL)))), bytes32(0x0)), address(0x0));
 
-        // //todo: RWTEL as InterchainToken asserts
-        // assertEq(interchainToken.interchainTokenService(), address(its));
-        // assertTrue(interchainToken.isMinter(address(its)));
-        // assertEq(interchainToken.totalSupply(), totalSupply);
-        // assertEq(interchainToken.balanceOf(address(rwTEL)), bal);
-        // assertEq(interchainToken.nameHash(), nameHash);
-        // assertEq(interchainToken.DOMAIN_SEPARATOR(), itDomainSeparator);
-
-        // todo: update for protocol integration, genesis on rust side
         // rwTEL sanity tests
         assertEq(rwTEL.consensusRegistry(), consensusRegistry_);
         assertEq(address(rwTEL.interchainTokenService()), address(its));
-        // assertEq(rwTEL.tokenManager(), rwtelTokenManager);
         assertEq(rwTEL.owner(), rwtelOwner);
         assertTrue(address(rwTEL).code.length > 0);
-        // assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), );
-        // assertEq(rwTEL.canonicalInterchainTokenId(), );
         assertEq(rwTEL.name(), name_);
         assertEq(rwTEL.symbol(), symbol_);
         assertEq(rwTEL.recoverableWindow(), recoverableWindow_);
         assertEq(rwTEL.governanceAddress(), governanceAddress_);
         assertEq(rwTEL.baseToken(), address(wTEL));
         assertEq(rwTEL.decimals(), wTEL.decimals());
+        // note that rwTEL ITS salt and tokenId are based on ethTEL
+        assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), itFactory.canonicalInterchainTokenDeploySalt(address(ethTEL)));
+        assertEq(rwTEL.canonicalInterchainTokenId(), itFactory.canonicalInterchainTokenId(address(ethTEL)));
     }
 
     /// @dev Test the flow for registering a token with ITS hub + deploying its manager
-    function test_deploy_ethTokenManager() public {
+    function test_eth_registerCanonicalInterchainToken() public {
         /// @notice In prod, these calls must be performed on Ethereum by multisig prior to TN genesis
-        uint256 gasValue = 100; //todo gas
+        uint256 gasValue = 100; // dummy gas value
         vm.deal(deployerEOA, gasValue * 2);
         vm.startPrank(deployerEOA); //todo: this should be done by a multisig
         
@@ -368,11 +361,6 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
         assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), canonicalInterchainSalt);
         assertEq(rwTEL.canonicalInterchainTokenId(), canonicalInterchainTokenId);
-
-        console2.logString("ITS linked token deploy salt for rwTEL:");
-        console2.logBytes32(canonicalInterchainSalt);
-        console2.logString("ITS canonical interchain token ID for rwTEL:");
-        console2.logBytes32(canonicalInterchainTokenId);
 
         /// @dev Ethereum relayer detects ContractCall event and forwards to GMP API for hub inclusion on Axelar Network
         /// @dev Once registered with ITS Hub, `msg.sender` can use same salt to register and `linkToken()` on more chains
@@ -387,10 +375,6 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(its.registeredTokenAddress(canonicalInterchainTokenId), ethTEL);
 
         // ethTEL TokenManager asserts
-        ITokenManagerType.TokenManagerType tmType = ITokenManagerType.TokenManagerType.LOCK_UNLOCK;
-        bytes memory ethTMConstructorArgs = abi.encode(address(its), tmType, canonicalInterchainTokenId, abi.encode('', address(ethTEL)));
-        address ethTokenManagerExpected = create3Address(create3, type(TokenManagerProxy).creationCode, ethTMConstructorArgs, deployerEOA, canonicalInterchainSalt);
-        assertEq(address(ethTELTokenManager), ethTokenManagerExpected);
         assertEq(ethTELTokenManager.isOperator(address(0x0)), true);
         assertEq(ethTELTokenManager.isOperator(address(its)), true);
         assertEq(ethTELTokenManager.isFlowLimiter(address(its)), true);
@@ -399,13 +383,23 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(ethTELTokenManager.flowOutAmount(), 0); // set by ITS
         bytes memory ethTMSetupParams = abi.encode(bytes(''), ethTEL);
         assertEq(ethTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), ethTEL);
+        // check expected create3 address for ethTEL TokenManager using harness & restore
+        bytes memory restoreCodeITS = address(its).code;
+        vm.etch(address(its), type(HarnessCreate3FixedAddressForITS).runtimeCode);
+        HarnessCreate3FixedAddressForITS itsCreate3 = HarnessCreate3FixedAddressForITS(address(its));
+        bytes32 deploySalt = keccak256(abi.encode(keccak256('its-interchain-token-id'), address(0x0), canonicalInterchainSalt));
+        assertEq(itsCreate3.create3Address(deploySalt), address(ethTELTokenManager));
+        vm.etch(address(its), restoreCodeITS);
+        //todo: rwTEL.tokenManager() same as ethTELTokenManager? or different ITS create3 address?
     }
 
 
 
-    // its.contractCallValue(); // todo: decimals handling?
 
-    // function test_giveToken_TEL() public {
+    // function test_eth_interchainTransfer_TEL() public {}
+    // function test_eth_transmitInterchainTransfer_TEL() public {
+
+    // function test_eth_giveToken_TEL() public {
     //    tokenhandler.giveToken()
     // }
     // function test_takeToken_TEL() public {}
@@ -420,6 +414,21 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
     //todo: update readme, npm instructions
     //todo: ERC20 bridging tests
+    // function test_ERC20_interchainToken() public {
+    //     // //todo: Non-TEL ERC20 InterchainToken asserts
+    //     // assertEq(interchainToken.interchainTokenService(), address(its));
+    //     // assertTrue(interchainToken.isMinter(address(its)));
+    //     // assertEq(interchainToken.totalSupply(), totalSupply);
+    //     // assertEq(interchainToken.balanceOf(address(rwTEL)), bal);
+    //     // assertEq(interchainToken.nameHash(), nameHash);
+    //     // assertEq(interchainToken.DOMAIN_SEPARATOR(), itDomainSeparator);
+    // }
+}
+
+contract HarnessCreate3FixedAddressForITS is Create3AddressFixed {
+    function create3Address(bytes32 deploySalt) public view returns (address) {
+        return _create3Address(deploySalt);
+    }
 }
 
 /// @dev Read by ITS for metadata registration

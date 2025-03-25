@@ -168,8 +168,18 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
     //     //todo: deploy ITS contracts for fork testing
     // }
 
+    // its.contractCallValue(); // todo: decimals handling?
+
     //todo: before implementing these tests, create script functions & import
-    // function test_eth_registerCanonicalInterchainToken() public {
+    // function test_fork_eth_registerCanonicalInterchainToken() public {
+        //todo: create3 traces
+        // ITokenManagerType.TokenManagerType tmType = ITokenManagerType.TokenManagerType.LOCK_UNLOCK;
+        // bytes memory ethTMConstructorArgs = abi.encode(address(its), tmType, canonicalInterchainTokenId, abi.encode('', address(ethTEL)));
+        // bytes32 _internalITSCreate3TokenIdSalt = keccak256(abi.encode(keccak256('its-interchain-token-id'), address(0x0), canonicalInterchainSalt));
+        // address ethTokenManagerExpected = create3Address(create3, type(TokenManagerProxy).creationCode, ethTMConstructorArgs, address(its), _internalITSCreate3TokenIdSalt);
+        // assertEq(address(ethTELTokenManager), ethTokenManagerExpected);
+
+
         // //todo: write to deployments.json
         // console2.logString("ITS linked token deploy salt for rwTEL:");
         // console2.logBytes32(canonicalInterchainSalt);
@@ -177,7 +187,7 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
         // console2.logBytes32(canonicalInterchainTokenId);
     // }
 
-    // function test_eth_linkToken() public {
+    // function test_fork_eth_linkToken() public {
         // // link destinationChain token (tnRWTEL) to local canonical token (ethTEL) by ITS tokenId
         // bytes memory linkParams = ""; // not used for canonical tokens
         // string memory destChain = "telcoin-network";
@@ -202,7 +212,7 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
     // }
 
     //todo: will this be handled by linkToken?
-    // function test_TN_registerInterchainToken() public {
+    // function test_fork_TN_registerInterchainToken() public {
     // ITokenManagerType.TokenManagerType tmType = ITokenManagerType.TokenManagerType.LOCK_UNLOCK;
         // bytes memory rwtelTMConstructorArgs = abi.encode(address(its), tmType, canonicalInterchainTokenId, abi.encode('', address(rwTEL)));
         // address rwtelTokenManagerExpected = create3Address(create3, type(TokenManagerProxy).creationCode, rwtelTMConstructorArgs, deployerEOA, canonicalInterchainSalt);
@@ -211,11 +221,14 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
 
     /// @dev Inbound bridge tests
 
-    // function test_bridgeSimulationSepoliaToTN() public {
+    // function test_fork_sepolia_interchainTransfer_TEL() public {
+    //     //todo
+    // }
+    // function test_fork_sepolia_transmitInterchainTransfer_TEL() public {
     //     //todo
     // }
 
-    // function test_execute() public {
+    // function test_fork_execute() public {
         // todo: payload seems constructed by its
         // bytesSrcAddr = AddressBytes.toBytes(srcAddr)
         // bytesDestAddr = AddressBytes.toBytes(RWTEL) //todo: should be user?
@@ -231,6 +244,6 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
     // }
 
     /// @dev Outbound bridge tests
-    // function test_interchainTransfer_TEL() public {}
-    // function test_transmitInterchainTransfer_TEL() public {
+    // function test_fork_TN_interchainTransfer_TEL() public {}
+    // function test_fork_TN_transmitInterchainTransfer_TEL() public {
 }
