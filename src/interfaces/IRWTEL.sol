@@ -30,8 +30,14 @@ interface IRWTEL {
     /// @dev Overridden because RWTEL TokenManager bridging (`LOCK_UNLOCK`) uses `safeTransferFrom`
     function safetransferfrom(address from, address to, uint256 amount) external returns (bool);
 
-    /// @notice Returns the Axelar ITS custom salt for RWTEL
-    function canonicalInterchainTokenId() external view returns (bytes32);
+    /// @notice Returns the create3 salt used by ITS for TokenManager deployment
+    /// @dev This salt is used to deploy/derive TokenManagers for both Ethereum and TN
+    /// @dev ITS uses `interchainTokenId()` as the create3 salt used to deploy TokenManagers
+    function tokenManagerCreate3Salt() external view returns (bytes32);
+
+    /// @notice Returns the top-level ITS interchain token ID RWTEL
+    /// @dev The interchain token ID is shared across chains, ie both for ERC20 TEL on Ethereum && RWTEL
+    function interchainTokenId() external view returns (bytes32);
 
     /// @notice Returns the unique salt required for RWTEL ITS integration
     /// @dev Equivalent to `InterchainTokenFactory::canonicalInterchainTokenDeploySalt()`

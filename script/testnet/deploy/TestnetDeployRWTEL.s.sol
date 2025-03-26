@@ -7,27 +7,31 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { RWTEL } from "../../../src/RWTEL.sol";
 import { Deployments } from "../../../deployments/Deployments.sol";
+import { Create3Utils, Salts, ImplSalts } from "../../../deployments/Create3Utils.sol";
 
 /// @dev Usage: `forge script script/testnet/deploy/TestnetDeployRWTEL.s.sol \
 /// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 // To verify RWTEL: `forge verify-contract <address> src/RWTEL.sol:RWTEL \
 // --rpc-url $TN_RPC_URL --verifier sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
-contract TestnetDeployTokens is Script {
+contract TestnetDeployRWTEL is Script, Create3Utils {
     RWTEL rwTELImpl;
     RWTEL rwTEL;
 
     Deployments deployments;
-    address admin; // admin, support, minter, burner role
+    address admin; 
 
     // rwTEL constructor params
-    address gateway_;
+    address canonicalTEL_;
+    string canonicalChainName_;
+    address its_;
     string name_;
     string symbol_;
     uint256 recoverableWindow_;
     address governanceAddress_;
     address baseERC20_;
     uint16 maxToClean;
-    bytes32 rwTELsalt;
+    bytes32 rwtelImplSalt;
+    bytes32 rwtelSalt;
 
     function setUp() public {
         string memory root = vm.projectRoot();
@@ -36,9 +40,14 @@ contract TestnetDeployTokens is Script {
         bytes memory data = vm.parseJson(json);
         deployments = abi.decode(data, (Deployments));
 
+        /// @dev For testnet, a developer admin address serves as governanceAddress_
         admin = deployments.admin;
-        rwTELsalt = keccak256("rwtel"); //todo: move to Deployments.sol
-        gateway_ = deployments.its.AxelarAmplifierGateway;
+
+        canonicalTEL_ = deployments.sepoliaTEL;
+        canonicalChainName_ = "eth-sepolia";
+        rwtelImplSalt = salts.rwtelSalt;
+        rwtelSalt = salts.rwtelSalt;
+        its_ = deployments.its.InterchainTokenService; //todo: separate testnet its
         name_ = "Recoverable Wrapped Telcoin"; // used only for assertion
         symbol_ = "rwTEL"; // used only for assertion
         recoverableWindow_ = 604_800; // ~1 week; Telcoin Network blocktime is ~1s
@@ -50,10 +59,10 @@ contract TestnetDeployTokens is Script {
     function run() public {
         vm.startBroadcast();
 
-        rwTELImpl = new RWTEL{ salt: rwTELsalt }(
-            gateway_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
+        rwTELImpl = new RWTEL{ salt: rwtelImplSalt }(
+            address(0xbabe), "chain", its_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
         );
-        rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), ""))));
+        rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwtelSalt }(address(rwTELImpl), ""))));
         rwTEL.initialize(governanceAddress_, maxToClean, admin);
 
         vm.stopBroadcast();

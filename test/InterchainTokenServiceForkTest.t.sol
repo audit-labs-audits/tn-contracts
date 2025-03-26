@@ -47,7 +47,7 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
 //     /// @dev Telcoin Network contracts
 //     WTEL wTEL;
 //     RWTEL rwTELImpl;
-//     RWTEL rwTEL;
+//     RWTEL rwTEL; 
 //     // Axelar ITS contracts
 //     Create3Deployer create3;
 //     AxelarAmplifierGateway gatewayImpl;
@@ -166,6 +166,8 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
     //     amount = 100; // 1 tel
 
     //     //todo: deploy ITS contracts for fork testing
+            //todo: write rwTEL to ITS create3 `interchainTokenAddress`
+        // assertEq(its.interchainTokenAddress(canonicalInterchainTokenId), address(rwTEL));
     // }
 
     // its.contractCallValue(); // todo: decimals handling?

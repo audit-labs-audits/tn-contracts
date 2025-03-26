@@ -116,6 +116,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // deploy an RWTEL module and then use its bytecode to etch on a fixed address
         RWTEL tmp = new RWTEL(
+            address(0xbabe), 
+            "chain", 
             address(0xbeef),
             "test",
             "TEST",
