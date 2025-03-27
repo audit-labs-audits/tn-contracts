@@ -5,7 +5,8 @@ import { IInterchainTokenStandard } from
     "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenStandard.sol";
 import { ITransmitInterchainToken } from
     "@axelar-network/interchain-token-service/contracts/interfaces/ITransmitInterchainToken.sol";
-import { IInterchainTokenFactory } from '@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenFactory.sol';
+import { IInterchainTokenFactory } from
+    "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenFactory.sol";
 import { IInterchainTokenService } from
     "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenService.sol";
 import { InterchainTokenExecutable } from
@@ -42,11 +43,19 @@ import { Test, console2 } from "forge-std/Test.sol"; //todo
 /// @dev Inbound ERC20 TEL from other networks is delivered as native TEL through custom executable logic
 /// whereas outbound TEL must first be double-wrapped from native TEL through wTEL to rwTEL.
 /// For security, only RecoverableWrapper balances settled by the recoverable window can be bridged
-contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, InterchainTokenExecutable, UUPSUpgradeable, Ownable, SystemCallable {
+contract RWTEL is
+    IRWTEL,
+    RecoverableWrapper,
+    IInterchainTokenStandard,
+    InterchainTokenExecutable,
+    UUPSUpgradeable,
+    Ownable,
+    SystemCallable
+{
     /// @dev The canonical TEL ERC20 contract address and its source chain, Ethereum
     address public immutable canonicalTEL;
     bytes32 public immutable canonicalChainNameHash;
-    
+
     /// @dev ConsensusRegistry system contract defined by protocol to always exist at a constant address
     address public constant consensusRegistry = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
@@ -55,8 +64,8 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
     address public immutable tokenManager;
 
     /// @dev Constants for deriving this contract's canonical ITS deploy salt
-    bytes32 public constant RWTEL_SALT = keccak256('recoverable-wrapped-telcoin');
-    bytes32 private constant PREFIX_CANONICAL_TOKEN_SALT = keccak256('canonical-token-salt');
+    // bytes32 public constant RWTEL_SALT = keccak256('recoverable-wrapped-telcoin'); //todo: delete
+    bytes32 private constant PREFIX_CANONICAL_TOKEN_SALT = keccak256("canonical-token-salt");
     /// @notice Token factory flag to be create3-agnostic; see `InterchainTokenService::TOKEN_FACTORY_DEPLOYER`
     address private constant TOKEN_FACTORY_DEPLOYER = address(0x0);
 
@@ -80,7 +89,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
     )
         InterchainTokenExecutable(tnInterchainTokenService_)
         RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
-    { 
+    {
         _disableInitializers();
         canonicalTEL = canonicalTEL_;
         canonicalChainNameHash = keccak256(bytes(canonicalChainName_));
@@ -121,9 +130,11 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
 
     /// @inheritdoc IRWTEL
     function interchainTokenId() public view override returns (bytes32) {
-        return IInterchainTokenService(interchainTokenService).interchainTokenId(TOKEN_FACTORY_DEPLOYER, canonicalInterchainTokenDeploySalt());
+        return IInterchainTokenService(interchainTokenService).interchainTokenId(
+            TOKEN_FACTORY_DEPLOYER, canonicalInterchainTokenDeploySalt()
+        );
     }
-    
+
     /// @inheritdoc IRWTEL
     function canonicalInterchainTokenDeploySalt() public view override returns (bytes32) {
         // note chain namehash for Ethereum canonical TEL is used since `itFactory&&its::chainNameHash()` are for TN
@@ -136,16 +147,14 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
         bytes calldata recipient,
         uint256 amount,
         bytes calldata metadata
-    ) external payable {
+    )
+        external
+        payable
+    {
         address sender = msg.sender;
 
         ITransmitInterchainToken(interchainTokenService).transmitInterchainTransfer{ value: msg.value }(
-            interchainTokenId(),
-            sender,
-            destinationChain,
-            recipient,
-            amount,
-            metadata
+            interchainTokenId(), sender, destinationChain, recipient, amount, metadata
         );
     }
 
@@ -156,16 +165,14 @@ contract RWTEL is IRWTEL, RecoverableWrapper, IInterchainTokenStandard, Intercha
         bytes calldata recipient,
         uint256 amount,
         bytes calldata metadata
-    ) external payable {
+    )
+        external
+        payable
+    {
         _spendAllowance(sender, msg.sender, amount);
 
         ITransmitInterchainToken(interchainTokenService).transmitInterchainTransfer{ value: msg.value }(
-            interchainTokenId(),
-            sender,
-            destinationChain,
-            recipient,
-            amount,
-            metadata
+            interchainTokenId(), sender, destinationChain, recipient, amount, metadata
         );
     }
 

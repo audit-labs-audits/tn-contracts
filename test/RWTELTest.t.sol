@@ -92,7 +92,15 @@ contract RWTELTest is Test {
 
         // todo: use create3: deploy impl + proxy and initialize
         rwTELImpl = new RWTEL{ salt: rwTELsalt }(
-            address(0xbabe), "chain", its_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
+            address(0xbabe),
+            "chain",
+            its_,
+            name_,
+            symbol_,
+            recoverableWindow_,
+            governanceAddress_,
+            baseERC20_,
+            maxToClean
         );
         rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), ""))));
         rwTEL.initialize(governanceAddress_, maxToClean, admin);
@@ -120,6 +128,20 @@ contract RWTELTest is Test {
         address governanceAddress = rwTEL.governanceAddress();
         assertEq(governanceAddress, address(this));
     }
+
+    //todo:
+    // function test_mint() public {}
+    // function test_burn() public {}
+
+    //todo: move to fork file
+    // function test_tn_interchainTransfer_RWTEL() public {}
+    // function test_tn_transmitInterchainTransfer_RWTEL() public {
+    // function test_tn_giveToken_RWTEL() public {
+    //    tokenhandler.giveToken() directly
+    // }
+    // function test_tn_takeToken_RWTEL() public {}
+    //    tokenhandler.takeToken() directly
+    // }
 
     function setUpForkConfig() internal {
         // todo: currently replica; change to canonical Axelar sepolia gateway

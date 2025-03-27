@@ -18,7 +18,7 @@ contract TestnetDeployRWTEL is Script, Create3Utils {
     RWTEL rwTEL;
 
     Deployments deployments;
-    address admin; 
+    address admin;
 
     // rwTEL constructor params
     address canonicalTEL_;
@@ -60,7 +60,15 @@ contract TestnetDeployRWTEL is Script, Create3Utils {
         vm.startBroadcast();
 
         rwTELImpl = new RWTEL{ salt: rwtelImplSalt }(
-            address(0xbabe), "chain", its_, name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean
+            address(0xbabe),
+            "chain",
+            its_,
+            name_,
+            symbol_,
+            recoverableWindow_,
+            governanceAddress_,
+            baseERC20_,
+            maxToClean
         );
         rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwtelSalt }(address(rwTELImpl), ""))));
         rwTEL.initialize(governanceAddress_, maxToClean, admin);
