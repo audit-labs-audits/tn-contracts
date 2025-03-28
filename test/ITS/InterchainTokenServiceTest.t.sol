@@ -17,7 +17,6 @@ import {
 } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
 import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
 import { AddressBytes } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressBytes.sol";
-import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
 import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
 import { InterchainProxy } from "@axelar-network/interchain-token-service/contracts/proxies/InterchainProxy.sol";
 import { TokenManagerProxy } from "@axelar-network/interchain-token-service/contracts/proxies/TokenManagerProxy.sol";
@@ -44,6 +43,7 @@ import { RWTEL } from "../../src/RWTEL.sol";
 import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/Create3Utils.sol";
 import { ITSConfig } from "./utils/ITSConfig.sol";
+import { HarnessCreate3FixedAddressForITS, MockTEL } from "./ITSMocks.sol";
 
 contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
     // TN contracts
@@ -474,76 +474,5 @@ contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
         its.transmitInterchainTransfer{ value: gasValue }(
             canonicalInterchainTokenId, user, destinationChain, destinationAddress, amount, ""
         );
-    }
-
-    /// todo: record contract code & storage changes for genesis
-    /// @notice Registers canonical TEL with ITS hub & deploys its TokenManager on its source chain
-    /// @dev After execution, relayer detects & forwards ContractCall event to Axelar Network hub via GMP API 
-    /// @dev Once registered w/ ITS Hub, `msg.sender` can use same salt to register/deploy to more chains
-    /// @dev TokenManagers deployed for canonical tokens have no operator; this includes canonical TEL on Ethereum
-    function eth_registerCanonicalTELAndDeployTELTokenManager(
-        address tel,
-        InterchainTokenService service,
-        InterchainTokenFactory factory,
-        uint256 gasValue
-    )
-        public
-        returns (
-            bytes32 telInterchainSalt,
-            bytes32 telInterchainTokenId,
-            TokenManager telTokenManager
-        )
-    {
-        // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
-        service.registerTokenMetadata{ value: gasValue }(tel, gasValue);
-
-        telInterchainSalt = factory.canonicalInterchainTokenDeploySalt(canonicalTEL);
-        telInterchainTokenId = factory.registerCanonicalInterchainToken(canonicalTEL);
-
-        telTokenManager = TokenManager(its.tokenManagerAddress(telInterchainTokenId));
-    }
-
-    //todo: ITS genesis deploy config
-    //todo: rwTEL genesis deploy config
-    //todo: fuzz tests for rwTEL, TEL bridging, rwteltest.t.sol
-    //todo: fork tests for TEL bridging
-    //todo: incorporate RWTEL contracts to TN protocol on rust side
-
-    //todo: update readme, npm instructions
-
-    //todo: ERC20 bridging tests
-    // function test_ERC20_interchainToken() public {
-    //     // //todo: Non-TEL ERC20 InterchainToken asserts
-    //     // assertEq(interchainToken.interchainTokenService(), address(its));
-    //     // assertTrue(interchainToken.isMinter(address(its)));
-    //     // assertEq(interchainToken.totalSupply(), totalSupply);
-    //     // assertEq(interchainToken.balanceOf(address(rwTEL)), bal);
-    //     // assertEq(interchainToken.nameHash(), nameHash);
-    //     // assertEq(interchainToken.DOMAIN_SEPARATOR(), itDomainSeparator);
-    // }
-}
-
-contract HarnessCreate3FixedAddressForITS is Create3AddressFixed {
-    function create3Address(bytes32 deploySalt) public view returns (address) {
-        return _create3Address(deploySalt);
-    }
-}
-
-/// @dev Read by ITS for metadata registration and used for tests
-contract MockTEL is ERC20 {
-    function decimals() public view virtual override returns (uint8) {
-        return 2;
-    }
-
-    function name() public view virtual override returns (string memory) {
-        return "Mock Telcoin";
-    }
-
-    function symbol() public view virtual override returns (string memory) {
-        return "mockTEL";
-    }
-
-    function mint(address to, uint256 amount) public {
-        _mint(to, amount);
     }
 }

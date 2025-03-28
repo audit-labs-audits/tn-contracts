@@ -279,4 +279,24 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
 // todo: test transmitInterchainTransfer on its && rwtel}
 
 // function test_eth_execute() public {
+
+
+    //todo: ITS genesis deploy config
+    //todo: rwTEL genesis deploy config
+    //todo: fuzz tests for rwTEL, TEL bridging, rwteltest.t.sol
+    //todo: fork tests for TEL bridging
+    //todo: incorporate RWTEL contracts to TN protocol on rust side
+
+    //todo: update readme, npm instructions
+
+    //todo: ERC20 bridging tests
+    // function test_ERC20_interchainToken() public {
+    //     // //todo: Non-TEL ERC20 InterchainToken asserts
+    //     // assertEq(interchainToken.interchainTokenService(), address(its));
+    //     // assertTrue(interchainToken.isMinter(address(its)));
+    //     // assertEq(interchainToken.totalSupply(), totalSupply);
+    //     // assertEq(interchainToken.balanceOf(address(rwTEL)), bal);
+    //     // assertEq(interchainToken.nameHash(), nameHash);
+    //     // assertEq(interchainToken.DOMAIN_SEPARATOR(), itDomainSeparator);
+    // }
 }

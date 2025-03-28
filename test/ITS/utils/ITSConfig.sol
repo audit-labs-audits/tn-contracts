@@ -1,6 +1,10 @@
 /// SPDX-License-Identifier MIT or Apache-2.0
 pragma solidity ^0.8.26;
 
+import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
+import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
+import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
+
 abstract contract ITSConfig {
     // chain info
     string public ITS_HUB_CHAIN_NAME = "axelar";
@@ -65,4 +69,32 @@ abstract contract ITSConfig {
     address governanceAddress_;
     address baseERC20_; // wTEL
     uint16 maxToClean;
+
+
+    /// todo: record contract code & storage changes for genesis
+    /// @notice Registers canonical TEL with ITS hub & deploys its TokenManager on its source chain
+    /// @dev After execution, relayer detects & forwards ContractCall event to Axelar Network hub via GMP API 
+    /// @dev Once registered w/ ITS Hub, `msg.sender` can use same salt to register/deploy to more chains
+    /// @dev TokenManagers deployed for canonical tokens have no operator; this includes canonical TEL on Ethereum
+    function eth_registerCanonicalTELAndDeployTELTokenManager(
+        address tel,
+        InterchainTokenService service,
+        InterchainTokenFactory factory,
+        uint256 gasValue
+    )
+        public
+        returns (
+            bytes32 telInterchainSalt,
+            bytes32 telInterchainTokenId,
+            TokenManager telTokenManager
+        )
+    {
+        // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
+        service.registerTokenMetadata{ value: gasValue }(tel, gasValue);
+
+        telInterchainSalt = factory.canonicalInterchainTokenDeploySalt(canonicalTEL);
+        telInterchainTokenId = factory.registerCanonicalInterchainToken(canonicalTEL);
+
+        telTokenManager = TokenManager(service.tokenManagerAddress(telInterchainTokenId));
+    }
 }
