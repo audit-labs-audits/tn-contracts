@@ -43,8 +43,9 @@ import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
 import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/Create3Utils.sol";
+import { ITSConfig } from "./utils/ITSConfig.sol";
 
-contract InterchainTokenServiceTest is Test, Create3Utils {
+contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
     // TN contracts
     WTEL wTEL;
     RWTEL rwTELImpl;
@@ -75,93 +76,57 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     InterchainTokenFactory itFactoryImpl;
     InterchainTokenFactory itFactory; // InterchainProxy
 
-    // shared params
-    string ITS_HUB_CHAIN_NAME = "axelar";
-    string ITS_HUB_ROUTING_IDENTIFIER = "hub";
-    string TN_CHAIN_NAME = "telcoin-network";
-    bytes32 TN_CHAINNAMEHASH = keccak256(bytes(TN_CHAIN_NAME));
-    string MAINNET_CHAIN_NAME = "Ethereum";
-    bytes32 MAINNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
-    address MAINNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
-
-    //todo move to fork test
-    string DEVNET_SEPOLIA_CHAIN_NAME = "eth-sepolia";
-    bytes32 DEVNET_SEPOLIA_CHAINNAMEHASH = 0x24f78f6b35533491ef3d467d5e8306033cca94049b9b76db747dfc786df43f86;
-    address DEVNET_SEPOLIA_ITS = 0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff;
-    string TESTNET_CHAIN_NAME = "ethereum-sepolia";
-    bytes32 TESTNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
-    address TESTNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
-
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
     address deployerEOA = admin; // only used for devnet
-    address rwtelTMOperator = admin; //todo: should rwTEL TM have an operator?
-
-    // stored assertion vars
-    address precalculatedITS;
-    address precalculatedITFactory;
-    bytes abiEncodedWeightedSigners;
-
-    // AxelarAmplifierGateway
-    string axelarId = TN_CHAIN_NAME;
-    string routerAddress = "router"; //todo: devnet router
-    uint256 telChainId = 0x7e1;
-    bytes32 domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
-    uint256 previousSignersRetention = 16; // todo: 16 signers seems high; 0 means only current signers valid (security)
-    uint256 minimumRotationDelay = 86_400; // todo: default rotation delay is `1 day == 86400 seconds`
-    uint128 weight = 1; // todo: for testnet handle additional signers
-    address singleSigner = admin; // todo: for testnet increase signers
-    uint128 threshold = 1; // todo: for testnet increase threshold
-    bytes32 nonce = bytes32(0x0);
-    /// note: weightedSignersArray = [WeightedSigners([WeightedSigner(singleSigner, weight)], threshold, nonce)];
-    address gatewayOperator = admin; // todo: separate operator
-    bytes gatewaySetupParams;
-    /// note: = abi.encode(gatewayOperator, weightedSignersArray);
-    address gatewayOwner = admin; // todo: separate owner
-
-    // AxelarGasService
-    address gasCollector = address(0xc011ec106); // todo: gas sponsorship key
-    address gsOwner = admin;
-    bytes gsSetupParams = ""; // note: unused
-
-    // Ethereum InterchainTokenService
-    address itsOwner = admin; // todo: separate owner
-    address itsOperator = admin; // todo: separate operator
-    string chainName_ = MAINNET_CHAIN_NAME; //todo: TN_CHAIN_NAME;
-    string[] trustedChainNames = [ // declares supported remote chains
-        ITS_HUB_CHAIN_NAME // todo: use if possible, might require eth::TEL wrapper
-            // todo: move to fork test
-            // DEVNET_SEPOLIA_CHAIN_NAME
-            // TESTNET_CHAIN_NAME,
-            // MAINNET_CHAIN_NAME
-    ];
-    string[] trustedAddresses = [ // ITS hubs on supported chains (arbitrary execution privileges)
-        ITS_HUB_ROUTING_IDENTIFIER // todo: use if possible, might require eth::TEL wrapper
-            //todo: move to fork test
-            // Strings.toString(uint256(uint160(DEVNET_SEPOLIA_ITS)))
-            // Strings.toString(uint256(uint160(TESTNET_SEPOLIA_ITS)))
-            // Strings.toString(uint256(uint160(MAINNET_ITS)))
-    ];
-    bytes itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
-
-    // InterchainTokenFactory
-    address itfOwner = admin; // todo: separate owner
-
-    // rwTEL config
-    address canonicalTEL_ = ethereumTEL;
-    string canonicalChainName_ = MAINNET_CHAIN_NAME;
-    address consensusRegistry_ = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1; // TN system contract
-    address gateway_; // TN gateway will be deployed
-    string symbol_ = "rwTEL";
-    string name_ = "Recoverable Wrapped Telcoin";
-    uint256 recoverableWindow_ = 604_800; // todo: confirm 1 week
-    address governanceAddress_ = address(0xda0); // todo: multisig/council/DAO address in prod
-    address baseERC20_; // wTEL
-    uint16 maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
-    address rwtelOwner = admin; //todo: upgradable via owner for testnet only, no owner for mainnet
-
+    address rwtelOwner = admin; // devnet only, no owner for mainnet
+    
     function setUp() public {
+        // AxelarAmplifierGateway
+        axelarId = TN_CHAIN_NAME;
+        routerAddress = "router"; //todo: devnet router
+        telChainId = 0x7e1;
+        domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
+        previousSignersRetention = 16; // todo: 16 signers seems high; 0 means only current signers valid (security)
+        minimumRotationDelay = 86_400; // todo: default rotation delay is `1 day == 86400 seconds`
+        weight = 1; // todo: for testnet handle additional signers
+        singleSigner = admin; // todo: for testnet increase signers
+        threshold = 1; // todo: for testnet increase threshold
+        nonce = bytes32(0x0);
+        /// note: weightedSignersArray = [WeightedSigners([WeightedSigner(singleSigner, weight)], threshold, nonce)];
+        gatewayOperator = admin; // todo: separate operator
+        gatewaySetupParams;
+        /// note: = abi.encode(gatewayOperator, weightedSignersArray);
+        gatewayOwner = admin; // todo: separate owner
+
+        // AxelarGasService
+        gasCollector = address(0xc011ec106); // todo: gas sponsorship key
+        gsOwner = admin;
+        gsSetupParams = ""; // note: unused
+
+        // "Ethereum" InterchainTokenService
+        itsOwner = admin; // todo: separate owner
+        itsOperator = admin; // todo: separate operator
+        chainName_ = MAINNET_CHAIN_NAME; //todo: TN_CHAIN_NAME;
+        trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
+        trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
+        itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
+
+        // InterchainTokenFactory
+        itfOwner = admin; // todo: separate owner
+
+        // rwTEL config
+        canonicalTEL = ethereumTEL;
+        canonicalChainName_ = MAINNET_CHAIN_NAME;
+        consensusRegistry_ = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1; // TN system contract
+        symbol_ = "rwTEL";
+        name_ = "Recoverable Wrapped Telcoin";
+        recoverableWindow_ = 604_800; // todo: confirm 1 week
+        governanceAddress_ = address(0xda0); // todo: multisig/council/DAO address in prod
+        baseERC20_; // wTEL
+        maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
+
         mockTEL = new MockTEL();
-        vm.etch(canonicalTEL_, address(mockTEL).code);
+        vm.etch(canonicalTEL, address(mockTEL).code);
 
         wTEL = new WTEL();
 
@@ -269,7 +234,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
         baseERC20_ = address(wTEL);
         bytes memory rwTELImplConstructorArgs = abi.encode(
-            canonicalTEL_,
+            canonicalTEL,
             canonicalChainName_,
             address(its),
             name_,
@@ -283,7 +248,6 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
             payable(create3Deploy(create3, type(RWTEL).creationCode, rwTELImplConstructorArgs, implSalts.rwtelImplSalt))
         );
 
-        // todo: ERC1967Proxy vs InterchainProxy?
         bytes memory rwTELConstructorArgs = abi.encode(address(rwTELImpl), "");
         rwTEL = RWTEL(
             payable(create3Deploy(create3, type(ERC1967Proxy).creationCode, rwTELConstructorArgs, salts.rwtelSalt))
@@ -363,10 +327,10 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(rwTEL.decimals(), wTEL.decimals());
         // note that rwTEL ITS salt and tokenId are based on canonicalTEL
         bytes32 rwtelDeploySalt = rwTEL.canonicalInterchainTokenDeploySalt();
-        assertEq(rwtelDeploySalt, itFactory.canonicalInterchainTokenDeploySalt(address(canonicalTEL_)));
+        assertEq(rwtelDeploySalt, itFactory.canonicalInterchainTokenDeploySalt(address(canonicalTEL)));
         bytes32 rwtelTokenId = rwTEL.interchainTokenId();
         assertEq(rwtelTokenId, rwTEL.tokenManagerCreate3Salt());
-        assertEq(rwtelTokenId, itFactory.canonicalInterchainTokenId(address(canonicalTEL_)));
+        assertEq(rwtelTokenId, itFactory.canonicalInterchainTokenId(address(canonicalTEL)));
         assertEq(rwtelTokenId, its.interchainTokenId(address(0x0), rwtelDeploySalt));
     }
 
@@ -375,7 +339,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     function test_eth_registerCanonicalInterchainToken() public {
         // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (canonicalInterchainSalt, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL_, its, itFactory, gasValue);
+        (canonicalInterchainSalt, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         vm.expectRevert();
         canonicalTELTokenManager.proposeOperatorship(deployerEOA);
@@ -395,9 +359,9 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         vm.expectRevert();
         canonicalTELTokenManager.addFlowOut(dummyAmt);
         vm.expectRevert();
-        canonicalTELTokenManager.mintToken(address(canonicalTEL_), address(deployerEOA), dummyAmt);
+        canonicalTELTokenManager.mintToken(address(canonicalTEL), address(deployerEOA), dummyAmt);
         vm.expectRevert();
-        canonicalTELTokenManager.burnToken(address(canonicalTEL_), address(deployerEOA), dummyAmt);
+        canonicalTELTokenManager.burnToken(address(canonicalTEL), address(deployerEOA), dummyAmt);
 
         // `BaseProxy::setup()` doesn't revert but does nothing if invoked outside of `TokenManagerProxy` constructor
         canonicalTELTokenManager.setup(abi.encode(address(0), address(0x42)));
@@ -419,21 +383,21 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(address(canonicalTELTokenManager), canonicalTELTokenManagerExpected);
         assertTrue(canonicalTELTokenManagerExpected.code.length > 0);
         assertEq(address(its.deployedTokenManager(canonicalInterchainTokenId)), address(canonicalTELTokenManager));
-        assertEq(its.registeredTokenAddress(canonicalInterchainTokenId), canonicalTEL_);
+        assertEq(its.registeredTokenAddress(canonicalInterchainTokenId), canonicalTEL);
 
         // canonicalTEL TokenManager asserts
         assertEq(canonicalTELTokenManager.contractId(), keccak256("token-manager"));
         assertEq(canonicalTELTokenManager.interchainTokenId(), tmDeploySaltIsTELInterchainTokenId);
         assertEq(canonicalTELTokenManager.implementationType(), uint256(ITokenManagerType.TokenManagerType.LOCK_UNLOCK));
-        assertEq(canonicalTELTokenManager.tokenAddress(), address(canonicalTEL_));
+        assertEq(canonicalTELTokenManager.tokenAddress(), address(canonicalTEL));
         assertEq(canonicalTELTokenManager.isOperator(address(0x0)), true);
         assertEq(canonicalTELTokenManager.isOperator(address(its)), true);
         assertEq(canonicalTELTokenManager.isFlowLimiter(address(its)), true);
         assertEq(canonicalTELTokenManager.flowLimit(), 0); // set by ITS
         assertEq(canonicalTELTokenManager.flowInAmount(), 0); // set by ITS
         assertEq(canonicalTELTokenManager.flowOutAmount(), 0); // set by ITS
-        bytes memory ethTMSetupParams = abi.encode(bytes(""), canonicalTEL_);
-        assertEq(canonicalTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), canonicalTEL_);
+        bytes memory ethTMSetupParams = abi.encode(bytes(""), canonicalTEL);
+        assertEq(canonicalTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), canonicalTEL);
 
         // rwtel asserts
         bytes32 rwtelTokenId = rwTEL.interchainTokenId();
@@ -449,7 +413,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     function test_eth_deployRemoteCanonicalInterchainToken() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL_, its, itFactory, gasValue);
+        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
@@ -459,7 +423,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         // sends remote deploy message to ITS hub for rwTEL and its TokenManager on TN
         // note this remote canonical interchain token step is for devnet only, obviated by testnet & mainnet genesis
         bytes32 remoteCanonicalTokenId =
-            itFactory.deployRemoteCanonicalInterchainToken{ value: gasValue }(canonicalTEL_, destinationChain, gasValue);
+            itFactory.deployRemoteCanonicalInterchainToken{ value: gasValue }(canonicalTEL, destinationChain, gasValue);
 
         /// @dev for devnet, relayer will forward link msg to TN thru ITS hub & use it to deploy rwtel tokenmanager
 
@@ -469,7 +433,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     function test_eth_interchainTransfer_TEL() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL_, its, itFactory, gasValue);
+        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
@@ -477,8 +441,8 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         its.setTrustedAddress(destinationChain, ITS_HUB_ROUTING_IDENTIFIER);
 
         uint256 amount = 42;
-        MockTEL(canonicalTEL_).mint(address(this), amount);
-        MockTEL(canonicalTEL_).approve(address(its), amount);
+        MockTEL(canonicalTEL).mint(address(this), amount);
+        MockTEL(canonicalTEL).approve(address(its), amount);
 
         bytes memory destinationAddress = AddressBytes.toBytes(address(0xbeef));
         its.interchainTransfer{ value: gasValue }(
@@ -489,7 +453,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     function test_eth_transmitInterchainTransfer_TEL() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL_, its, itFactory, gasValue);
+        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
@@ -498,9 +462,9 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
         address user = address(0x42);
         uint256 amount = 42;
-        MockTEL(canonicalTEL_).mint(user, amount);
+        MockTEL(canonicalTEL).mint(user, amount);
         vm.prank(user);
-        MockTEL(canonicalTEL_).approve(address(its), amount);
+        MockTEL(canonicalTEL).approve(address(its), amount);
 
         bytes memory destinationAddress = AddressBytes.toBytes(address(0xbeef));
 
@@ -512,20 +476,13 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         );
     }
 
-    // function test_eth_giveToken_TEL() public {
-        // tokenHandler.giveToken();
-    // }
-    // function test_eth_takeToken_TEL() public {}
-    //    tokenhandler.takeToken()
-    // }
-
     /// todo: record contract code & storage changes for genesis
     /// @notice Registers canonical TEL with ITS hub & deploys its TokenManager on its source chain
     /// @dev After execution, relayer detects & forwards ContractCall event to Axelar Network hub via GMP API 
     /// @dev Once registered w/ ITS Hub, `msg.sender` can use same salt to register/deploy to more chains
     /// @dev TokenManagers deployed for canonical tokens have no operator; this includes canonical TEL on Ethereum
     function eth_registerCanonicalTELAndDeployTELTokenManager(
-        address canonicalTEL,
+        address tel,
         InterchainTokenService service,
         InterchainTokenFactory factory,
         uint256 gasValue
@@ -538,7 +495,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         )
     {
         // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
-        service.registerTokenMetadata{ value: gasValue }(canonicalTEL, gasValue);
+        service.registerTokenMetadata{ value: gasValue }(tel, gasValue);
 
         telInterchainSalt = factory.canonicalInterchainTokenDeploySalt(canonicalTEL);
         telInterchainTokenId = factory.registerCanonicalInterchainToken(canonicalTEL);
@@ -553,6 +510,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     //todo: incorporate RWTEL contracts to TN protocol on rust side
 
     //todo: update readme, npm instructions
+
     //todo: ERC20 bridging tests
     // function test_ERC20_interchainToken() public {
     //     // //todo: Non-TEL ERC20 InterchainToken asserts

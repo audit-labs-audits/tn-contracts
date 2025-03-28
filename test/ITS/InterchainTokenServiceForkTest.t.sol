@@ -40,32 +40,40 @@ import { Deployments } from "../../deployments/Deployments.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/Create3Utils.sol";
 
 contract InterchainTokenServiceForkTest is Test, Create3Utils {
-//     /// @dev Telcoin Network contracts
-//     WTEL wTEL;
-//     RWTEL rwTELImpl;
-//     RWTEL rwTEL;
-//     // Axelar ITS contracts
-//     Create3Deployer create3;
-//     AxelarAmplifierGateway gatewayImpl;
-//     AxelarAmplifierGateway gateway;
-//     TokenManagerDeployer tokenManagerDeployer;
-//     InterchainToken interchainTokenImpl;
-//     // InterchainToken interchainToken; // InterchainProxy //todo use deployer?
-//     InterchainTokenDeployer itDeployer;
-//     TokenManager tokenManagerImpl;
-//     TokenManager tokenManager;
-//     TokenHandler tokenHandler;
-//     AxelarGasService gasServiceImpl;
-//     AxelarGasService gasService;
-//     GatewayCaller gatewayCaller;
-//     InterchainTokenService itsImpl;
-//     InterchainTokenService its; // InterchainProxy
-//     InterchainTokenFactory itFactoryImpl;
-//     InterchainTokenFactory itFactory; // InterchainProxy
+    // canonical chain config (sepolia or ethereum)
+    address canonicalTEL;
+    // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
+    bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
+    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL TokenManagers
+    TokenManager canonicalTELTokenManager;
 
-//     /// @dev Sepolia contracts
-//     IAxelarGateway sepoliaGateway; // Axelar: "eth-sepolia"
-//     IERC20 sepoliaTel;
+    // Sepolia contracts
+    IERC20 sepoliaTel;
+    InterchainTokenService sepoliaITS;
+    InterchainTokenFactory sepoliaITF;
+
+    //todo: Ethereum contracts
+
+    // Telcoin Network contracts
+    WTEL wTEL;
+    RWTEL rwTELImpl;
+    RWTEL rwTEL;
+    Create3Deployer create3;
+    AxelarAmplifierGateway gatewayImpl;
+    AxelarAmplifierGateway gateway;
+    TokenManagerDeployer tokenManagerDeployer;
+    InterchainToken interchainTokenImpl;
+    InterchainTokenDeployer itDeployer;
+    TokenManager tokenManagerImpl;
+    TokenHandler tokenHandler;
+    AxelarGasService gasServiceImpl;
+    AxelarGasService gasService;
+    GatewayCaller gatewayCaller;
+    InterchainTokenService itsImpl;
+    InterchainTokenService its; // InterchainProxy
+    InterchainTokenFactory itFactoryImpl;
+    InterchainTokenFactory itFactory; // InterchainProxy
+    TokenManager canonicalRWTELTokenManager;
 
 //     address user;
 //     string sourceChain;
@@ -137,19 +145,24 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
 //     uint256 sepoliaFork;
 //     uint256 tnFork;
 
-//     function setUp() public {
-//         string memory root = vm.projectRoot();
-//         string memory path = string.concat(root, "/deployments/deployments.json");
-//         string memory json = vm.readFile(path);
-//         bytes memory data = vm.parseJson(json);
-//         deployments = abi.decode(data, (Deployments));
+    function setUp() public {
+        // string memory root = vm.projectRoot();
+        // string memory path = string.concat(root, "/deployments/deployments.json");
+        // string memory json = vm.readFile(path);
+        // bytes memory data = vm.parseJson(json);
+        // deployments = abi.decode(data, (Deployments));
 
-//         wTEL = deployments.wTEL;
-//         // deployments.rwTEL;
-//         // deployments.everything
-//     }
+        // sepoliaTel = deployments.sepoliaTEL;
+        // // sepoliaITS = deployments.its.sepolia.InterchainTokenService; //todo
+        // // sepoliaITF = deployments.its.sepolia.InterchainTokenFactory;
 
-// function setUpForkConfig() internal {
+        // // todo:deployments.ethereumTEL
+
+
+        // wTEL = deployments.wTEL;
+    }
+
+// function setUpSepoliaFork() internal {
 //     // todo: currently replica; change to canonical Axelar sepolia gateway
 //     sepoliaGateway = IAxelarGateway(0xB906fC799C9E51f1231f37B867eEd1d9C5a6D472);
 //     sepoliaTel = IERC20(deployments.sepoliaTEL);
