@@ -16,10 +16,10 @@ import {
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { LibString } from "solady/utils/LibString.sol";
-import { WTEL } from "../src/WTEL.sol";
-import { RWTEL } from "../src/RWTEL.sol";
-import { ExtCall } from "../src/interfaces/IRWTEL.sol";
-import { Deployments } from "../deployments/Deployments.sol";
+import { WTEL } from "../../src/WTEL.sol";
+import { RWTEL } from "../../src/RWTEL.sol";
+import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
+import { Deployments } from "../../deployments/Deployments.sol";
 
 contract RWTELTest is Test {
     WTEL wTEL;

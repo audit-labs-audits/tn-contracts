@@ -28,16 +28,16 @@ import { TokenManager } from "@axelar-network/interchain-token-service/contracts
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
-import { AxelarGasServiceProxy } from "../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
+import { AxelarGasServiceProxy } from "../../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
-import { WTEL } from "../src/WTEL.sol";
-import { RWTEL } from "../src/RWTEL.sol";
-import { ExtCall } from "../src/interfaces/IRWTEL.sol";
-import { Deployments } from "../deployments/Deployments.sol";
-import { Create3Utils, Salts, ImplSalts } from "../deployments/Create3Utils.sol";
+import { WTEL } from "../../src/WTEL.sol";
+import { RWTEL } from "../../src/RWTEL.sol";
+import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
+import { Deployments } from "../../deployments/Deployments.sol";
+import { Create3Utils, Salts, ImplSalts } from "../../deployments/Create3Utils.sol";
 
 contract InterchainTokenServiceForkTest is Test, Create3Utils {
 //     /// @dev Telcoin Network contracts
@@ -171,8 +171,8 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
 //todo: before implementing these tests, create script functions & import
 // function test_fork_eth_registerCanonicalInterchainToken() public {
 //todo: create3 traces
-// ITokenManagerType.TokenManagerType tmType = ITokenManagerType.TokenManagerType.LOCK_UNLOCK;
-// bytes memory ethTMConstructorArgs = abi.encode(address(its), tmType, canonicalInterchainTokenId, abi.encode('',
+// ITokenManagerType.TokenManagerType eth_tmType = ITokenManagerType.TokenManagerType.LOCK_UNLOCK;
+// bytes memory ethTMConstructorArgs = abi.encode(address(its), eth_tmType, canonicalInterchainTokenId, abi.encode('',
 // address(ethTEL)));
 // bytes32 _internalITSCreate3TokenIdSalt = keccak256(abi.encode(keccak256('its-interchain-token-id'), address(0x0),
 // canonicalInterchainSalt));
@@ -220,9 +220,8 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
 // assertEq(rwtelExpectedTokenManager, address(rwTELTokenManager)); //todo: genesis assertion
 
 //todo: is below action handled by registration with ITS hub from Ethereum?
-
 // // Register RWTEL canonical interchain tokenId && deploy TokenManager using Interchain Token Factory
-// bytes32 tokenId = itFactory.registerCustomToken(linkedTokenSalt, address(rwTEL), tmType, tmOperator);
+// bytes32 tokenId = itFactory.registerCustomToken(linkedTokenSalt, address(rwTEL), tn_tmType, tmOperator);
 // assertEq(rwTEL.linkedTokenId(), tokenId);
 // }
 
@@ -245,7 +244,7 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
 //     //todo
 // }
 
-// function test_fork_execute() public {
+// function test_tn_execute() public {
 // todo: payload seems constructed by its
 // bytesSrcAddr = AddressBytes.toBytes(srcAddr)
 // bytesDestAddr = AddressBytes.toBytes(RWTEL) //todo: should be user?
@@ -261,6 +260,10 @@ contract InterchainTokenServiceForkTest is Test, Create3Utils {
 // }
 
 /// @dev Outbound bridge tests
-// function test_fork_TN_interchainTransfer_TEL() public {}
-// function test_fork_TN_transmitInterchainTransfer_TEL() public {
+// function test_fork_TN_interchainTransfer_TEL() public {
+// todo: test interchainTransfer on its && rwtel}
+// function test_fork_TN_transmitInterchainTransfer_TEL() public {}
+// todo: test transmitInterchainTransfer on its && rwtel}
+
+// function test_eth_execute() public {
 }

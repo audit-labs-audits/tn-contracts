@@ -33,16 +33,16 @@ import { ITokenManagerType } from "@axelar-network/interchain-token-service/cont
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
-import { AxelarGasServiceProxy } from "../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
+import { AxelarGasServiceProxy } from "../../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
-import { WTEL } from "../src/WTEL.sol";
-import { RWTEL } from "../src/RWTEL.sol";
-import { ExtCall } from "../src/interfaces/IRWTEL.sol";
-import { Create3Utils, Salts, ImplSalts } from "../deployments/Create3Utils.sol";
+import { WTEL } from "../../src/WTEL.sol";
+import { RWTEL } from "../../src/RWTEL.sol";
+import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
+import { Create3Utils, Salts, ImplSalts } from "../../deployments/Create3Utils.sol";
 
 contract InterchainTokenServiceTest is Test, Create3Utils {
     // TN contracts
@@ -50,9 +50,12 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     RWTEL rwTELImpl;
     RWTEL rwTEL;
 
-    // "Ethereum" contracts (no forking done here but config stands)
+    // "Ethereum" config (no forking done here but config stands)
     MockTEL mockTEL; // not used except to etch bytecode onto canonicalTEL
-    address ethereumTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F; // deployments.ethereumTEL
+    address ethereumTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F; // todo: deployments.ethereumTEL
+    // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
+    bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
+    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL TokenManagers
     TokenManager canonicalTELTokenManager;
 
     // Axelar ITS core contracts
@@ -90,7 +93,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     address TESTNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
 
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
-    address deployerEOA = admin; //todo: separate deployer
+    address deployerEOA = admin; // only used for devnet
     address rwtelTMOperator = admin; //todo: should rwTEL TM have an operator?
 
     // stored assertion vars
@@ -162,10 +165,9 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
 
         wTEL = new WTEL();
 
-        // note: CREATE3 contract deployed via `create2`
+        // note: devnet only: CREATE3 contract deployed via `create2`
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-
-        // note: ITS contracts deployed via `CREATE3` depend on `sender` address for determinism
+        // note: ITS deterministic create3 deployments depend on `sender` for devnet only
         vm.startPrank(deployerEOA);
 
         // deploy gateway impl
@@ -369,22 +371,11 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     }
 
     /// @dev Test the flow for registering a token with ITS hub + deploying its manager
+    /// @notice In prod, these calls must be performed on Ethereum prior to TN genesis
     function test_eth_registerCanonicalInterchainToken() public {
-        /// @notice In prod, these calls must be performed on Ethereum prior to TN genesis
-
         // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        its.registerTokenMetadata{ value: gasValue }(canonicalTEL_, gasValue);
-
-        bytes32 canonicalInterchainSalt = itFactory.canonicalInterchainTokenDeploySalt(canonicalTEL_);
-        /// @dev TokenManagers deployed for canonical tokens have no operator; this includes canonical TEL on Ethereum
-        bytes32 canonicalInterchainTokenId = itFactory.registerCanonicalInterchainToken(canonicalTEL_);
-
-        /// @dev Ethereum relayer detects ContractCall event and forwards to GMP API for hub inclusion on Axelar Network
-        /// @dev Once registered with ITS Hub, `msg.sender` can use same salt to register and `linkToken()` on more
-        /// chains
-
-        canonicalTELTokenManager = TokenManager(address(its.deployedTokenManager(canonicalInterchainTokenId)));
+        (canonicalInterchainSalt, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL_, its, itFactory, gasValue);
 
         vm.expectRevert();
         canonicalTELTokenManager.proposeOperatorship(deployerEOA);
@@ -453,15 +444,12 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
         assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), canonicalInterchainSalt);
     }
 
+    /// @notice `deployRemoteCanonicalInterchainToken` will route a `MESSAGE_TYPE_LINK_TOKEN` through ITS hub
+    /// that is guaranteed to revert deployment to genesis contracts; skip this step for testnet & mainnet
     function test_eth_deployRemoteCanonicalInterchainToken() public {
-        /// @notice `deployRemoteCanonicalInterchainToken` will route a `MESSAGE_TYPE_LINK_TOKEN` through ITS hub
-        /// that is guaranteed to revert deployment to genesis contracts; skip this step for testnet & mainnet
-
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        its.registerTokenMetadata{ value: gasValue }(canonicalTEL_, gasValue);
-        itFactory.canonicalInterchainTokenDeploySalt(canonicalTEL_);
-        bytes32 canonicalInterchainTokenId = itFactory.registerCanonicalInterchainToken(canonicalTEL_);
+        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL_, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
@@ -481,32 +469,82 @@ contract InterchainTokenServiceTest is Test, Create3Utils {
     function test_eth_interchainTransfer_TEL() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        its.registerTokenMetadata{ value: gasValue }(canonicalTEL_, gasValue);
-        itFactory.canonicalInterchainTokenDeploySalt(canonicalTEL_);
-        bytes32 canonicalInterchainTokenId = itFactory.registerCanonicalInterchainToken(canonicalTEL_);
-        canonicalTELTokenManager = TokenManager(address(its.deployedTokenManager(canonicalInterchainTokenId)));
-
-        uint256 amount = 42;
-        MockTEL(canonicalTEL_).mint(address(this), amount);
-        MockTEL(canonicalTEL_).approve(address(its), amount);
+        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL_, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
         vm.prank(itsOwner);
         its.setTrustedAddress(destinationChain, ITS_HUB_ROUTING_IDENTIFIER);
 
+        uint256 amount = 42;
+        MockTEL(canonicalTEL_).mint(address(this), amount);
+        MockTEL(canonicalTEL_).approve(address(its), amount);
+
         bytes memory destinationAddress = AddressBytes.toBytes(address(0xbeef));
-        its.interchainTransfer(canonicalInterchainTokenId, destinationChain, destinationAddress, amount, "", gasValue);
+        its.interchainTransfer{ value: gasValue }(
+            canonicalInterchainTokenId, destinationChain, destinationAddress, amount, "", gasValue
+        );
     }
 
-    // function test_eth_transmitInterchainTransfer_TEL() public {
+    function test_eth_transmitInterchainTransfer_TEL() public {
+        // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
+        uint256 gasValue = 100; // dummy gas value specified for multicalls
+        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL_, its, itFactory, gasValue);
+
+        // note that TN must have been added as a trusted chain to the Ethereum ITS contract
+        string memory destinationChain = TN_CHAIN_NAME;
+        vm.prank(itsOwner);
+        its.setTrustedAddress(destinationChain, ITS_HUB_ROUTING_IDENTIFIER);
+
+        address user = address(0x42);
+        uint256 amount = 42;
+        MockTEL(canonicalTEL_).mint(user, amount);
+        vm.prank(user);
+        MockTEL(canonicalTEL_).approve(address(its), amount);
+
+        bytes memory destinationAddress = AddressBytes.toBytes(address(0xbeef));
+
+        // note: direct calls to `ITS::transmitInterchainTransfer()` can only be called by the token
+        // thus it is disabled on Ethereum since ethTEL doesn't have this function
+        vm.expectRevert();
+        its.transmitInterchainTransfer{ value: gasValue }(
+            canonicalInterchainTokenId, user, destinationChain, destinationAddress, amount, ""
+        );
+    }
 
     // function test_eth_giveToken_TEL() public {
-    //    tokenhandler.giveToken()
+        // tokenHandler.giveToken();
     // }
     // function test_eth_takeToken_TEL() public {}
     //    tokenhandler.takeToken()
     // }
+
+    /// todo: record contract code & storage changes for genesis
+    /// @notice Registers canonical TEL with ITS hub & deploys its TokenManager on its source chain
+    /// @dev After execution, relayer detects & forwards ContractCall event to Axelar Network hub via GMP API 
+    /// @dev Once registered w/ ITS Hub, `msg.sender` can use same salt to register/deploy to more chains
+    /// @dev TokenManagers deployed for canonical tokens have no operator; this includes canonical TEL on Ethereum
+    function eth_registerCanonicalTELAndDeployTELTokenManager(
+        address canonicalTEL,
+        InterchainTokenService service,
+        InterchainTokenFactory factory,
+        uint256 gasValue
+    )
+        public
+        returns (
+            bytes32 telInterchainSalt,
+            bytes32 telInterchainTokenId,
+            TokenManager telTokenManager
+        )
+    {
+        // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
+        service.registerTokenMetadata{ value: gasValue }(canonicalTEL, gasValue);
+
+        telInterchainSalt = factory.canonicalInterchainTokenDeploySalt(canonicalTEL);
+        telInterchainTokenId = factory.registerCanonicalInterchainToken(canonicalTEL);
+
+        telTokenManager = TokenManager(its.tokenManagerAddress(telInterchainTokenId));
+    }
 
     //todo: ITS genesis deploy config
     //todo: rwTEL genesis deploy config
