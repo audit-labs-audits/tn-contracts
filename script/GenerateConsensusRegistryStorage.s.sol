@@ -9,8 +9,10 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ConsensusRegistry} from "src/consensus/ConsensusRegistry.sol";
 import {IConsensusRegistry} from "src/consensus/interfaces/IConsensusRegistry.sol";
 
+//todo: rename to generateConsensuRegistryGenesisConfig
+
 /// @title ConsensusRegistry Genesis Storage Config Generator
-/// @notice Generates a .txt file comprising the storage slots and their values written by `initialize()`
+/// @notice Generates a yaml file comprising the storage slots and their values written by `initialize()`
 /// Used by Telcoin-Network protocol to instantiate the contract with required configuration at genesis
 
 /// @dev Usage: `forge script script/GenerateConsensusRegistryStorage.s.sol -vvvv`
@@ -19,7 +21,7 @@ contract GenerateConsensusRegistryStorage is Script, Test {
     ConsensusRegistry recordedRegistry;
 
     /// @dev Config: set all variables known outside of genesis time here
-    address public rwTEL = address(0x7e1);
+    address public rwTEL = address(0x7e1); //todo: this must be updated
     uint256 public stakeAmount = 1_000_000 ether;
     uint256 public minWithdrawAmount = 10_000 ether;
     IConsensusRegistry.ValidatorInfo[] initialValidators;
