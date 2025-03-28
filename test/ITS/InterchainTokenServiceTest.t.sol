@@ -41,22 +41,22 @@ import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
 import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
-import { Create3Utils, Salts, ImplSalts } from "../../deployments/Create3Utils.sol";
-import { ITSConfig } from "./utils/ITSConfig.sol";
+import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
+import { ITSUtils } from "../../deployments/utils/ITSUtils.sol";
 import { HarnessCreate3FixedAddressForITS, MockTEL } from "./ITSMocks.sol";
 
-contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
+contract InterchainTokenServiceTest is Test, ITSUtils {
     // TN contracts
     WTEL wTEL;
     RWTEL rwTELImpl;
     RWTEL rwTEL;
 
-    // "Ethereum" config (no forking done here but config stands)
+    // canonical "Ethereum" config (no forking done here but config stands)
     MockTEL mockTEL; // not used except to etch bytecode onto canonicalTEL
     address ethereumTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F; // todo: deployments.ethereumTEL
     // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
     bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
-    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL TokenManagers
+    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
     TokenManager canonicalTELTokenManager;
 
     // Axelar ITS core contracts
@@ -79,7 +79,7 @@ contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
     address deployerEOA = admin; // only used for devnet
     address rwtelOwner = admin; // devnet only, no owner for mainnet
-    
+
     function setUp() public {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
@@ -129,138 +129,48 @@ contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
         vm.etch(canonicalTEL, address(mockTEL).code);
 
         wTEL = new WTEL();
+        baseERC20_ = address(wTEL); // for RWTEL constructor
 
         // note: devnet only: CREATE3 contract deployed via `create2`
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
+
+        // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
+        precalculatedITS = create3.deployedAddress("", deployerEOA, salts.itsSalt);
+        // must precalculate ITF proxy to avoid `ITS::constructor()` revert
+        precalculatedITFactory = create3.deployedAddress("", address(deployerEOA), salts.itfSalt);
+
         // note: ITS deterministic create3 deployments depend on `sender` for devnet only
         vm.startPrank(deployerEOA);
 
-        // deploy gateway impl
-        bytes memory gatewayImplConstructorArgs =
-            abi.encode(previousSignersRetention, domainSeparator, minimumRotationDelay);
-        gatewayImpl = AxelarAmplifierGateway(
-            create3Deploy(
-                create3,
-                type(AxelarAmplifierGateway).creationCode,
-                gatewayImplConstructorArgs,
-                implSalts.gatewayImplSalt
-            )
-        );
-
-        // struct population for gateway constructor done in memory since storage structs don't work in Solidity
-        WeightedSigner[] memory signerArray = new WeightedSigner[](1);
-        signerArray[0] = WeightedSigner(singleSigner, weight);
-        WeightedSigners memory weightedSigners = WeightedSigners(signerArray, threshold, nonce);
-        WeightedSigners[] memory weightedSignersArray = new WeightedSigners[](1);
-        weightedSignersArray[0] = weightedSigners;
-        gatewaySetupParams = abi.encode(gatewayOperator, weightedSignersArray);
-        bytes memory gatewayConstructorArgs = abi.encode(address(gatewayImpl), gatewayOwner, gatewaySetupParams);
-        gateway = AxelarAmplifierGateway(
-            create3Deploy(
-                create3, type(AxelarAmplifierGatewayProxy).creationCode, gatewayConstructorArgs, salts.gatewaySalt
-            )
-        );
-
-        tokenManagerDeployer =
-            TokenManagerDeployer(create3Deploy(create3, type(TokenManagerDeployer).creationCode, "", salts.tmdSalt));
-
-        // ITS address has no code yet but must be precalculated for TokenManager && InterchainToken constructors using
-        // correct sender & salt
-        precalculatedITS = create3.deployedAddress("", deployerEOA, salts.itsSalt);
-        bytes memory itImplConstructorArgs = abi.encode(precalculatedITS);
-        interchainTokenImpl = InterchainToken(
-            create3Deploy(create3, type(InterchainToken).creationCode, itImplConstructorArgs, implSalts.itImplSalt)
-        );
-
-        bytes memory itdConstructorArgs = abi.encode(address(interchainTokenImpl));
-        itDeployer = InterchainTokenDeployer(
-            create3Deploy(create3, type(InterchainTokenDeployer).creationCode, itdConstructorArgs, salts.itdSalt)
-        );
-
-        bytes memory tmConstructorArgs = abi.encode(precalculatedITS);
-        tokenManagerImpl = TokenManager(
-            create3Deploy(create3, type(TokenManager).creationCode, tmConstructorArgs, implSalts.tmImplSalt)
-        );
-
-        tokenHandler = TokenHandler(create3Deploy(create3, type(TokenHandler).creationCode, "", salts.thSalt));
-
-        bytes memory gsImplConstructorArgs = abi.encode(gasCollector);
-        gasServiceImpl = AxelarGasService(
-            create3Deploy(create3, type(AxelarGasService).creationCode, gsImplConstructorArgs, implSalts.gsImplSalt)
-        );
-        bytes memory gsConstructorArgs = abi.encode(address(gasServiceImpl), gsOwner, "");
-        gasService = AxelarGasService(
-            create3Deploy(create3, type(AxelarGasServiceProxy).creationCode, gsConstructorArgs, salts.gsSalt)
-        );
-
-        bytes memory gcConstructorArgs = abi.encode(address(gateway), address(gasService));
-        gatewayCaller =
-            GatewayCaller(create3Deploy(create3, type(GatewayCaller).creationCode, gcConstructorArgs, salts.gcSalt));
-
-        // must precalculate ITF proxy to avoid `ITS::constructor()` revert
-        precalculatedITFactory = create3.deployedAddress("", address(deployerEOA), salts.itfSalt);
-        bytes memory itsImplConstructorArgs = abi.encode(
+        // deploy ITS core suite; use config from storage
+        (gatewayImpl, gateway) = create3DeployAxelarAmplifierGateway(create3);
+        tokenManagerDeployer = create3DeployTokenManagerDeployer(create3);
+        interchainTokenImpl = create3DeployInterchainTokenImpl(create3);
+        itDeployer = create3DeployInterchainTokenDeployer(create3, address(interchainTokenImpl));
+        tokenManagerImpl = create3DeployTokenManagerImpl(create3);
+        tokenHandler = create3DeployTokenHandler(create3);
+        (gasServiceImpl, gasService) = create3DeployAxelarGasService(create3);
+        gatewayCaller = create3DeployGatewayCaller(create3, address(gateway), address(gasService));
+        (itsImpl, its) = create3DeployITS(
+            create3,
             address(tokenManagerDeployer),
             address(itDeployer),
             address(gateway),
             address(gasService),
-            precalculatedITFactory,
-            chainName_,
             address(tokenManagerImpl),
             address(tokenHandler),
             address(gatewayCaller)
         );
-        itsImpl = InterchainTokenService(
-            create3Deploy(
-                create3, type(InterchainTokenService).creationCode, itsImplConstructorArgs, implSalts.itsImplSalt
-            )
-        );
-
-        bytes memory itsConstructorArgs = abi.encode(address(itsImpl), itsOwner, itsSetupParams);
-        its = InterchainTokenService(
-            create3Deploy(create3, type(InterchainProxy).creationCode, itsConstructorArgs, salts.itsSalt)
-        );
-
-        bytes memory itfImplConstructorArgs = abi.encode(address(its));
-        itFactoryImpl = InterchainTokenFactory(
-            create3Deploy(
-                create3, type(InterchainTokenFactory).creationCode, itfImplConstructorArgs, implSalts.itfImplSalt
-            )
-        );
-        bytes memory itfConstructorArgs = abi.encode(address(itFactoryImpl), itfOwner, "");
-        itFactory = InterchainTokenFactory(
-            create3Deploy(create3, type(InterchainProxy).creationCode, itfConstructorArgs, salts.itfSalt)
-        );
-
-        baseERC20_ = address(wTEL);
-        bytes memory rwTELImplConstructorArgs = abi.encode(
-            canonicalTEL,
-            canonicalChainName_,
-            address(its),
-            name_,
-            symbol_,
-            recoverableWindow_,
-            governanceAddress_,
-            baseERC20_,
-            maxToClean
-        );
-        rwTELImpl = RWTEL(
-            payable(create3Deploy(create3, type(RWTEL).creationCode, rwTELImplConstructorArgs, implSalts.rwtelImplSalt))
-        );
-
-        bytes memory rwTELConstructorArgs = abi.encode(address(rwTELImpl), "");
-        rwTEL = RWTEL(
-            payable(create3Deploy(create3, type(ERC1967Proxy).creationCode, rwTELConstructorArgs, salts.rwtelSalt))
-        );
+        (itFactoryImpl, itFactory) = create3DeployITF(create3, address(its));
+        (rwTELImpl, rwTEL) = create3DeployRWTEL(create3, address(its));
 
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
 
         vm.stopPrank(); // `deployerEOA`
 
-        // current & future asserts
+        // create3 asserts
         assertEq(precalculatedITS, address(its));
         assertEq(precalculatedITFactory, address(itFactory));
-        abiEncodedWeightedSigners = abi.encode(weightedSigners);
     }
 
     function test_setUp() public view {
@@ -339,7 +249,8 @@ contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
     function test_eth_registerCanonicalInterchainToken() public {
         // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (canonicalInterchainSalt, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
+        (canonicalInterchainSalt, canonicalInterchainTokenId, canonicalTELTokenManager) =
+            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         vm.expectRevert();
         canonicalTELTokenManager.proposeOperatorship(deployerEOA);
@@ -413,7 +324,8 @@ contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
     function test_eth_deployRemoteCanonicalInterchainToken() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
+        (, canonicalInterchainTokenId, canonicalTELTokenManager) =
+            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
@@ -433,7 +345,8 @@ contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
     function test_eth_interchainTransfer_TEL() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
+        (, canonicalInterchainTokenId, canonicalTELTokenManager) =
+            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
@@ -453,7 +366,8 @@ contract InterchainTokenServiceTest is Test, Create3Utils, ITSConfig {
     function test_eth_transmitInterchainTransfer_TEL() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) = eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
+        (, canonicalInterchainTokenId, canonicalTELTokenManager) =
+            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;

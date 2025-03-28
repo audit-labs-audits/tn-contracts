@@ -43,15 +43,17 @@ import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../../src/WTEL.sol";
 import { RWTEL } from "../../../src/RWTEL.sol";
 import { ExtCall } from "../../../src/interfaces/IRWTEL.sol";
-import { Create3Utils, Salts, ImplSalts } from "../../../deployments/Create3Utils.sol";
+import { Create3Utils, Salts, ImplSalts } from "../../../deployments/utils/Create3Utils.sol";
 import { Deployments } from "../../../deployments/Deployments.sol";
-import { ITSConfig } from "test/ITS/utils/ITSConfig.sol";
+import { ITSUtils } from "../../../deployments/utils/ITSUtils.sol";
+
+//todo: convert to contract bytecode & storage recording utility for genesis
 
 /// @dev Usage: `forge script script/testnet/deploy/TestnetDeployITS.s.sol \
 /// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 // To verify RWTEL: `forge verify-contract <address> src/RWTEL.sol:RWTEL \
 // --rpc-url $TN_RPC_URL --verifier sourcify --compiler-version 0.8.26 --num-of-optimizations 200`
-contract TestnetDeployITS is Script, Create3Utils, ITSConfig {
+contract TestnetDeployITS is Script, Create3Utils, ITSUtils {
     // TN contracts
     WTEL wTEL; // already deployed
     RWTEL rwTELImpl;
@@ -74,7 +76,8 @@ contract TestnetDeployITS is Script, Create3Utils, ITSConfig {
 
     // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
     bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
-    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL TokenManagers
+    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
+        // TokenManagers
     TokenManager canonicalTELTokenManager;
 
     Deployments deployments;
@@ -97,7 +100,7 @@ contract TestnetDeployITS is Script, Create3Utils, ITSConfig {
         // routerAddress; // todo: devnet router
         telChainId = 0x7e1;
         domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
-        previousSignersRetention = 16; 
+        previousSignersRetention = 16;
         minimumRotationDelay = 86_400;
         weight = 1;
         // singleSigner; // todo: use ampd signer
