@@ -75,7 +75,7 @@ contract InterchainTokenServiceForkTest is Test, ITSUtils {
     InterchainTokenFactory itFactory; // InterchainProxy
     TokenManager canonicalRWTELTokenManager;
 
-    //     Deployments deployments;
+    Deployments deployments;
 
     //     string SEPOLIA_RPC_URL = vm.envString("SEPOLIA_RPC_URL");
     //     string TN_RPC_URL = vm.envString("TN_RPC_URL");
@@ -106,7 +106,7 @@ contract InterchainTokenServiceForkTest is Test, ITSUtils {
         // // sepoliaITS = deployments.its.sepolia.InterchainTokenService; //todo
         // // sepoliaITF = deployments.its.sepolia.InterchainTokenFactory;
 
-        wTEL = deployments.wTEL;
+        wTEL = WTEL(payable(deployments.wTEL));
         // rwTEL = deployments.rwTEL;
         // tnITS = deployments.tn.InterchainTokenService;
         // tnITF = deployments.tn.InterchainTokenFactory;

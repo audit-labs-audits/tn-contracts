@@ -9,7 +9,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ConsensusRegistry} from "src/consensus/ConsensusRegistry.sol";
 import {IConsensusRegistry} from "src/consensus/interfaces/IConsensusRegistry.sol";
 
-//todo: rename to generateConsensuRegistryGenesisConfig
+//todo: rename to generateConsensuRegistryGenesisConfig, update to inherit StorageDiffRecorder
 
 /// @title ConsensusRegistry Genesis Storage Config Generator
 /// @notice Generates a yaml file comprising the storage slots and their values written by `initialize()`
