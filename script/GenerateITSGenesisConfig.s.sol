@@ -147,15 +147,13 @@ contract GenerateITSConfig is ITSUtils, StorageDiffRecorder, Script {
 
         // initialize yaml file
         string memory root = vm.projectRoot();
-        string memory dest = string.concat(
-            root,
-            "/deployments/its-config.yaml"
-        );
+        string memory dest = string.concat(root, "/deployments/its-config.yaml");
         vm.writeLine(dest, "---"); // indicate yaml format
 
         // gateway (has storage)
         vm.startStateDiffRecording();
-        (gatewayImpl, gateway) = create3DeployAxelarAmplifierGateway(create3);
+        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl(create3);
+        gateway = create3DeployAxelarAmplifierGateway(create3, deployments.its.AxelarAmplifierGatewayImpl);
         Vm.AccountAccess[] memory gatewayRecords = vm.stopAndReturnStateDiff();
         // save impl bytecode since immutable variables are set in constructor
         yamlAppendBytecode(dest, address(gatewayImpl), deployments.its.AxelarAmplifierGatewayImpl);
@@ -177,22 +175,24 @@ contract GenerateITSConfig is ITSUtils, StorageDiffRecorder, Script {
         // token handler (no storage)
         tokenHandler = create3DeployTokenHandler(create3);
         yamlAppendBytecode(dest, address(tokenHandler), deployments.its.TokenHandler);
-        
+
         // gas service (has storage)
         vm.startStateDiffRecording();
-        (gasServiceImpl, gasService) = create3DeployAxelarGasService(create3);
+        gasServiceImpl = create3DeployAxelarGasServiceImpl(create3);
+        gasService = create3DeployAxelarGasService(create3, deployments.its.GasServiceImpl);
         Vm.AccountAccess[] memory gsRecords = vm.stopAndReturnStateDiff();
         yamlAppendBytecode(dest, address(gasServiceImpl), deployments.its.GasServiceImpl);
         getWrittenSlots(address(gasService), gsRecords);
         yamlAppendBytecodeWithStorage(dest, address(gasService), deployments.its.GasService);
 
         // gateway caller (no storage)
-        gatewayCaller = create3DeployGatewayCaller(create3, deployments.its.AxelarAmplifierGateway, deployments.its.GasService);
+        gatewayCaller =
+            create3DeployGatewayCaller(create3, deployments.its.AxelarAmplifierGateway, deployments.its.GasService);
         yamlAppendBytecode(dest, address(gatewayCaller), deployments.its.GatewayCaller);
 
         // its (has storage)
         vm.startStateDiffRecording();
-        (itsImpl, its) = create3DeployITS(
+        itsImpl = create3DeployITSImpl(
             create3,
             deployments.its.TokenManagerDeployer,
             deployments.its.InterchainTokenDeployer,
@@ -202,15 +202,17 @@ contract GenerateITSConfig is ITSUtils, StorageDiffRecorder, Script {
             deployments.its.TokenHandler,
             deployments.its.GatewayCaller
         );
+        its = create3DeployITS(create3, deployments.its.InterchainTokenServiceImpl);
         Vm.AccountAccess[] memory itsRecords = vm.stopAndReturnStateDiff();
         yamlAppendBytecode(dest, address(itsImpl), deployments.its.InterchainTokenServiceImpl);
         getWrittenSlots(address(its), itsRecords);
         yamlAppendBytecodeWithStorage(dest, address(its), deployments.its.InterchainTokenService);
 
         // itf (has storage)
-        vm.etch(deployments.its.InterchainTokenService, address(itsImpl).code); // factory calls service in constructor
+        vm.etch(deployments.its.InterchainTokenService, address(itsImpl).code); // prevent constructor revert
         vm.startStateDiffRecording();
-        (itFactoryImpl, itFactory) = create3DeployITF(create3, deployments.its.InterchainTokenService);
+        itFactoryImpl = create3DeployITFImpl(create3, deployments.its.InterchainTokenService);
+        itFactory = create3DeployITF(create3, deployments.its.InterchainTokenFactoryImpl);
         Vm.AccountAccess[] memory itfRecords = vm.stopAndReturnStateDiff();
         yamlAppendBytecode(dest, address(itFactoryImpl), deployments.its.InterchainTokenFactoryImpl);
         getWrittenSlots(address(itFactory), itfRecords);
@@ -218,7 +220,8 @@ contract GenerateITSConfig is ITSUtils, StorageDiffRecorder, Script {
 
         // rwtel (has storage)
         vm.startStateDiffRecording();
-        (rwTELImpl, rwTEL) = create3DeployRWTEL(create3, deployments.its.InterchainTokenService);
+        rwTELImpl = create3DeployRWTELImpl(create3, deployments.its.InterchainTokenService);
+        rwTEL = create3DeployRWTEL(create3, deployments.rwTELImpl);
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
         Vm.AccountAccess[] memory rwtelRecords = vm.stopAndReturnStateDiff();
         yamlAppendBytecode(dest, address(rwTELImpl), deployments.rwTELImpl);

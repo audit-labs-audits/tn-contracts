@@ -114,7 +114,7 @@ contract InterchainTokenServiceForkTest is Test, ITSUtils {
 
     // function setUpSepoliaFork() internal {
     //     // todo: currently replica; change to canonical Axelar sepolia gateway
-        // sepoliaGateway = IAxelarGateway(SEPOLIA_GATEWAY);
+    // sepoliaGateway = IAxelarGateway(SEPOLIA_GATEWAY);
     //     sepoliaTel = IERC20(deployments.sepoliaTEL);
     //     tnGateway = AxelarAmplifierGateway(deployments.its.AxelarAmplifierGateway);
     //     tnWTEL = WTEL(payable(deployments.wTEL));

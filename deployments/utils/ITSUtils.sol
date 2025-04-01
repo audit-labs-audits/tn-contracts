@@ -102,9 +102,9 @@ abstract contract ITSUtils is Create3Utils {
     address baseERC20_; // wTEL
     uint16 maxToClean;
 
-    function create3DeployAxelarAmplifierGateway(Create3Deployer create3)
+    function create3DeployAxelarAmplifierGatewayImpl(Create3Deployer create3)
         public
-        returns (AxelarAmplifierGateway impl, AxelarAmplifierGateway proxy)
+        returns (AxelarAmplifierGateway impl)
     {
         bytes memory gatewayImplConstructorArgs =
             abi.encode(previousSignersRetention, domainSeparator, minimumRotationDelay);
@@ -116,7 +116,12 @@ abstract contract ITSUtils is Create3Utils {
                 implSalts.gatewayImplSalt
             )
         );
+    }
 
+    function create3DeployAxelarAmplifierGateway(Create3Deployer create3, address impl)
+        public
+        returns (AxelarAmplifierGateway proxy)
+    {
         // struct population for gateway constructor done in memory since storage structs don't work in Solidity
         WeightedSigner[] memory signerArray = new WeightedSigner[](1);
         signerArray[0] = WeightedSigner(singleSigner, weight);
@@ -124,7 +129,7 @@ abstract contract ITSUtils is Create3Utils {
         WeightedSigners[] memory weightedSignersArray = new WeightedSigners[](1);
         weightedSignersArray[0] = weightedSigners;
         gatewaySetupParams = abi.encode(gatewayOperator, weightedSignersArray);
-        bytes memory gatewayConstructorArgs = abi.encode(address(impl), gatewayOwner, gatewaySetupParams);
+        bytes memory gatewayConstructorArgs = abi.encode(impl, gatewayOwner, gatewaySetupParams);
         proxy = AxelarAmplifierGateway(
             create3Deploy(
                 create3, type(AxelarAmplifierGatewayProxy).creationCode, gatewayConstructorArgs, salts.gatewaySalt
@@ -174,15 +179,21 @@ abstract contract ITSUtils is Create3Utils {
         th = TokenHandler(create3Deploy(create3, type(TokenHandler).creationCode, "", salts.thSalt));
     }
 
-    function create3DeployAxelarGasService(Create3Deployer create3)
+    function create3DeployAxelarGasServiceImpl(Create3Deployer create3)
         public
-        returns (AxelarGasService impl, AxelarGasService proxy)
+        returns (AxelarGasService impl)
     {
         bytes memory gsImplConstructorArgs = abi.encode(gasCollector);
         impl = AxelarGasService(
             create3Deploy(create3, type(AxelarGasService).creationCode, gsImplConstructorArgs, implSalts.gsImplSalt)
         );
-        bytes memory gsConstructorArgs = abi.encode(address(impl), gsOwner, "");
+    }
+
+    function create3DeployAxelarGasService(Create3Deployer create3, address impl)
+        public
+        returns (AxelarGasService proxy)
+    {
+        bytes memory gsConstructorArgs = abi.encode(impl, gsOwner, "");
         proxy = AxelarGasService(
             create3Deploy(create3, type(AxelarGasServiceProxy).creationCode, gsConstructorArgs, salts.gsSalt)
         );
@@ -200,7 +211,7 @@ abstract contract ITSUtils is Create3Utils {
         gc = GatewayCaller(create3Deploy(create3, type(GatewayCaller).creationCode, gcConstructorArgs, salts.gcSalt));
     }
 
-    function create3DeployITS(
+    function create3DeployITSImpl(
         Create3Deployer create3,
         address tokenManagerDeployer,
         address itDeployer,
@@ -211,7 +222,7 @@ abstract contract ITSUtils is Create3Utils {
         address gatewayCaller
     )
         public
-        returns (InterchainTokenService impl, InterchainTokenService proxy)
+        returns (InterchainTokenService impl)
     {
         bytes memory itsImplConstructorArgs = abi.encode(
             tokenManagerDeployer,
@@ -229,19 +240,27 @@ abstract contract ITSUtils is Create3Utils {
                 create3, type(InterchainTokenService).creationCode, itsImplConstructorArgs, implSalts.itsImplSalt
             )
         );
+    }
 
-        bytes memory itsConstructorArgs = abi.encode(address(impl), itsOwner, itsSetupParams);
+    function create3DeployITS(
+        Create3Deployer create3,
+        address impl
+    )
+        public
+        returns (InterchainTokenService proxy)
+    {
+        bytes memory itsConstructorArgs = abi.encode(impl, itsOwner, itsSetupParams);
         proxy = InterchainTokenService(
             create3Deploy(create3, type(InterchainProxy).creationCode, itsConstructorArgs, salts.itsSalt)
         );
     }
 
-    function create3DeployITF(
+    function create3DeployITFImpl(
         Create3Deployer create3,
         address its
     )
         public
-        returns (InterchainTokenFactory impl, InterchainTokenFactory proxy)
+        returns (InterchainTokenFactory impl)
     {
         bytes memory itfImplConstructorArgs = abi.encode(its);
         impl = InterchainTokenFactory(
@@ -249,14 +268,23 @@ abstract contract ITSUtils is Create3Utils {
                 create3, type(InterchainTokenFactory).creationCode, itfImplConstructorArgs, implSalts.itfImplSalt
             )
         );
-        bytes memory itfConstructorArgs = abi.encode(address(impl), itfOwner, "");
+    }
+
+    function create3DeployITF(
+        Create3Deployer create3,
+        address impl
+    )
+        public
+        returns (InterchainTokenFactory proxy)
+    {
+        bytes memory itfConstructorArgs = abi.encode(impl, itfOwner, "");
         proxy = InterchainTokenFactory(
             create3Deploy(create3, type(InterchainProxy).creationCode, itfConstructorArgs, salts.itfSalt)
         );
     }
 
     /// TODO: convert to singleton for mainnet
-    function create3DeployRWTEL(Create3Deployer create3, address its) public returns (RWTEL impl, RWTEL proxy) {
+    function create3DeployRWTELImpl(Create3Deployer create3, address its) public returns (RWTEL impl) {
         bytes memory rwTELImplConstructorArgs = abi.encode(
             canonicalTEL,
             canonicalChainName_,
@@ -271,8 +299,11 @@ abstract contract ITSUtils is Create3Utils {
         impl = RWTEL(
             payable(create3Deploy(create3, type(RWTEL).creationCode, rwTELImplConstructorArgs, implSalts.rwtelImplSalt))
         );
+    }
 
-        bytes memory rwTELConstructorArgs = abi.encode(address(impl), "");
+    /// TODO: convert to singleton for mainnet
+    function create3DeployRWTEL(Create3Deployer create3, address impl) public returns (RWTEL proxy) {
+        bytes memory rwTELConstructorArgs = abi.encode(impl, "");
         proxy = RWTEL(
             payable(create3Deploy(create3, type(ERC1967Proxy).creationCode, rwTELConstructorArgs, salts.rwtelSalt))
         );

@@ -143,15 +143,17 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
         vm.startPrank(deployerEOA);
 
         // deploy ITS core suite; use config from storage
-        (gatewayImpl, gateway) = create3DeployAxelarAmplifierGateway(create3);
+        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl(create3);
+        gateway = create3DeployAxelarAmplifierGateway(create3, address(gatewayImpl));
         tokenManagerDeployer = create3DeployTokenManagerDeployer(create3);
         interchainTokenImpl = create3DeployInterchainTokenImpl(create3);
         itDeployer = create3DeployInterchainTokenDeployer(create3, address(interchainTokenImpl));
         tokenManagerImpl = create3DeployTokenManagerImpl(create3);
         tokenHandler = create3DeployTokenHandler(create3);
-        (gasServiceImpl, gasService) = create3DeployAxelarGasService(create3);
+        gasServiceImpl = create3DeployAxelarGasServiceImpl(create3);
+        gasService = create3DeployAxelarGasService(create3, address(gasServiceImpl));
         gatewayCaller = create3DeployGatewayCaller(create3, address(gateway), address(gasService));
-        (itsImpl, its) = create3DeployITS(
+        itsImpl = create3DeployITSImpl(
             create3,
             address(tokenManagerDeployer),
             address(itDeployer),
@@ -161,8 +163,11 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
             address(tokenHandler),
             address(gatewayCaller)
         );
-        (itFactoryImpl, itFactory) = create3DeployITF(create3, address(its));
-        (rwTELImpl, rwTEL) = create3DeployRWTEL(create3, address(its));
+        its = create3DeployITS(create3, address(itsImpl));
+        itFactoryImpl = create3DeployITFImpl(create3, address(its));
+        itFactory = create3DeployITF(create3, address(itFactoryImpl));
+        rwTELImpl = create3DeployRWTELImpl(create3, address(its));
+        rwTEL = create3DeployRWTEL(create3, address(rwTELImpl));
 
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
 

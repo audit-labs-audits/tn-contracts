@@ -17,6 +17,7 @@ struct Deployments {
     InterchainTokenService its;
     address rwTEL;
     address rwTELImpl;
+    address rwTELTokenManager;
     address sepoliaTEL;
     UniswapV2 uniswapV2;
     address wTEL;
@@ -30,7 +31,6 @@ struct InterchainTokenService {
     address GasService;
     address GasServiceImpl;
     address GatewayCaller;
-    address InterchainToken;
     address InterchainTokenDeployer;
     address InterchainTokenImpl;
     address InterchainTokenFactory;
@@ -38,7 +38,6 @@ struct InterchainTokenService {
     address InterchainTokenService;
     address InterchainTokenServiceImpl;
     address TokenHandler;
-    address TokenManager;
     address TokenManagerImpl;
     address TokenManagerDeployer;
 }
