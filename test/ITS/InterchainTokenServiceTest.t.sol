@@ -53,7 +53,7 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
 
     // canonical "Ethereum" config (no forking done here but config stands)
     MockTEL mockTEL; // not used except to etch bytecode onto canonicalTEL
-    address ethereumTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F; // todo: deployments.ethereumTEL
+    address ethereumTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
     // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
     bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
     bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
@@ -81,63 +81,25 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
     address rwtelOwner = admin; // devnet only, no owner for mainnet
 
     function setUp() public {
-        // AxelarAmplifierGateway
-        axelarId = TN_CHAIN_NAME;
-        routerAddress = "router"; //todo: devnet router
-        telChainId = 0x7e1;
-        domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
-        previousSignersRetention = 16; // todo: 16 signers seems high; 0 means only current signers valid (security)
-        minimumRotationDelay = 86_400; // todo: default rotation delay is `1 day == 86400 seconds`
-        weight = 1; // todo: for testnet handle additional signers
-        singleSigner = admin; // todo: for testnet increase signers
-        threshold = 1; // todo: for testnet increase threshold
-        nonce = bytes32(0x0);
-        /// note: weightedSignersArray = [WeightedSigners([WeightedSigner(singleSigner, weight)], threshold, nonce)];
-        gatewayOperator = admin; // todo: separate operator
-        gatewaySetupParams;
-        /// note: = abi.encode(gatewayOperator, weightedSignersArray);
-        gatewayOwner = admin; // todo: separate owner
-
-        // AxelarGasService
-        gasCollector = address(0xc011ec106); // todo: gas sponsorship key
-        gsOwner = admin;
-        gsSetupParams = ""; // note: unused
-
-        // "Ethereum" InterchainTokenService
-        itsOwner = admin; // todo: separate owner
-        itsOperator = admin; // todo: separate operator
-        chainName_ = MAINNET_CHAIN_NAME; //todo: TN_CHAIN_NAME;
-        trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
-        trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
-        itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
-
-        // InterchainTokenFactory
-        itfOwner = admin; // todo: separate owner
-
-        // rwTEL config
-        canonicalTEL = ethereumTEL;
-        canonicalChainName_ = MAINNET_CHAIN_NAME;
-        consensusRegistry_ = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1; // TN system contract
-        symbol_ = "rwTEL";
-        name_ = "Recoverable Wrapped Telcoin";
-        recoverableWindow_ = 604_800; // todo: confirm 1 week
-        governanceAddress_ = address(0xda0); // todo: multisig/council/DAO address in prod
-        baseERC20_; // wTEL
-        maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
-
         mockTEL = new MockTEL();
+        canonicalTEL = ethereumTEL;
         vm.etch(canonicalTEL, address(mockTEL).code);
 
         wTEL = new WTEL();
-        baseERC20_ = address(wTEL); // for RWTEL constructor
 
         // note: devnet only: CREATE3 contract deployed via `create2`
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-
         // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
-        precalculatedITS = create3.deployedAddress("", deployerEOA, salts.itsSalt);
+        address expectedITS = create3.deployedAddress("", deployerEOA, salts.itsSalt);
         // must precalculate ITF proxy to avoid `ITS::constructor()` revert
-        precalculatedITFactory = create3.deployedAddress("", address(deployerEOA), salts.itfSalt);
+        address expectedITF = create3.deployedAddress("", deployerEOA, salts.itfSalt);
+        _setUpDevnetConfig(admin, canonicalTEL, address(wTEL), expectedITS, expectedITF);
+
+        // note: devnet only
+        rwtelOwner = admin;
+        // note: overwrite chainName_ in setup params to test ITS somewhat chain agnostically
+        chainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
+        itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
         // note: ITS deterministic create3 deployments depend on `sender` for devnet only
         vm.startPrank(deployerEOA);
@@ -173,7 +135,7 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
 
         vm.stopPrank(); // `deployerEOA`
 
-        // create3 asserts
+        // asserts
         assertEq(precalculatedITS, address(its));
         assertEq(precalculatedITFactory, address(itFactory));
     }
@@ -230,7 +192,7 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
         );
 
         // rwTEL sanity tests
-        assertEq(rwTEL.consensusRegistry(), consensusRegistry_);
+        assertEq(rwTEL.stakeManager(), 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
         assertEq(address(rwTEL.interchainTokenService()), address(its));
         assertEq(rwTEL.owner(), rwtelOwner);
         assertTrue(address(rwTEL).code.length > 0);

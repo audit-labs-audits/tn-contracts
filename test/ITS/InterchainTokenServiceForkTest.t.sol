@@ -48,9 +48,10 @@ contract InterchainTokenServiceForkTest is Test, ITSUtils {
     TokenManager canonicalTELTokenManager;
 
     // Sepolia contracts
-    IERC20 sepoliaTel;
+    IERC20 sepoliaTEL;
     InterchainTokenService sepoliaITS;
     InterchainTokenFactory sepoliaITF;
+    IAxelarGateway sepoliaGateway;
 
     //todo: Ethereum contracts
 
@@ -76,24 +77,27 @@ contract InterchainTokenServiceForkTest is Test, ITSUtils {
     TokenManager canonicalRWTELTokenManager;
 
     Deployments deployments;
+    address admin;
+    address deployerEOA; // note: devnet only
+    address rwtelOwner; // note: devnet only
 
-    //     string SEPOLIA_RPC_URL = vm.envString("SEPOLIA_RPC_URL");
-    //     string TN_RPC_URL = vm.envString("TN_RPC_URL");
-    //     uint256 sepoliaFork;
-    //     uint256 tnFork;
+    string SEPOLIA_RPC_URL = vm.envString("SEPOLIA_RPC_URL");
+    string TN_RPC_URL = vm.envString("TN_RPC_URL");
+    uint256 sepoliaFork;
+    uint256 tnFork;
 
-    //     address user;
-    //     string sourceChain;
-    //     string sourceAddress;
-    //     string destChain;
-    //     string destAddress;
-    //     string symbol;
-    //     uint256 amount;
-    //     bytes extCallData;
-    //     bytes payload;
-    //     bytes32 payloadHash;
-    //     string messageId;
-    //     Message[] messages;
+    address user;
+    string sourceChain;
+    string sourceAddress;
+    string destChain;
+    string destAddress;
+    string symbol;
+    uint256 amount;
+    // bytes extCallData; //todo
+    bytes payload;
+    bytes32 payloadHash;
+    // string messageId; //todo
+    // Message[] messages;
 
     function setUp() public {
         string memory root = vm.projectRoot();
@@ -102,33 +106,76 @@ contract InterchainTokenServiceForkTest is Test, ITSUtils {
         bytes memory data = vm.parseJson(json);
         deployments = abi.decode(data, (Deployments));
 
-        // sepoliaTel = deployments.sepoliaTEL;
-        // // sepoliaITS = deployments.its.sepolia.InterchainTokenService; //todo
-        // // sepoliaITF = deployments.its.sepolia.InterchainTokenFactory;
+        admin = deployments.admin;
+        deployerEOA = admin;
+        user = address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180);
+        symbol = "TEL";
+        amount = 100; // 1 tel
 
+        // sepolia
+        sepoliaTEL = IERC20(deployments.sepoliaTEL);
+        sepoliaITS = InterchainTokenService(deployments.its.InterchainTokenService);
+        sepoliaITF = InterchainTokenFactory(deployments.its.InterchainTokenFactory);
+        sepoliaGateway = IAxelarGateway(DEVNET_SEPOLIA_GATEWAY);
+
+        // telcoin-network
         wTEL = WTEL(payable(deployments.wTEL));
-        // rwTEL = deployments.rwTEL;
-        // tnITS = deployments.tn.InterchainTokenService;
-        // tnITF = deployments.tn.InterchainTokenFactory;
+        //todo: pending testnet restart with genesis precompiles, for now deploys in `setUp_tnForkDevnetConfig()`
+        // its = InterchainTokenService(deployments.tn.InterchainTokenService);
+        // itFactory = InterchainTokenFactory(deployments.tn.InterchainTokenFactory);
+        // gateway = AxelarAmplifierGateway(deployments.its.AxelarAmplifierGateway);
+        // rwTEL = RWTEL(deployments.rwTEL);
+
+        sepoliaFork = vm.createFork(SEPOLIA_RPC_URL);
+        tnFork = vm.createFork(TN_RPC_URL);
     }
 
-    // function setUpSepoliaFork() internal {
-    //     // todo: currently replica; change to canonical Axelar sepolia gateway
-    // sepoliaGateway = IAxelarGateway(SEPOLIA_GATEWAY);
-    //     sepoliaTel = IERC20(deployments.sepoliaTEL);
-    //     tnGateway = AxelarAmplifierGateway(deployments.its.AxelarAmplifierGateway);
-    //     tnWTEL = WTEL(payable(deployments.wTEL));
-    //     tnRWTEL = RWTEL(payable(deployments.rwTEL));
+    /// TODO: Until testnet is restarted with genesis precompiles this function deploys ITS via create3
+    /// @notice For devnet, a developer admin address serves all permissioned roles
+    function setUp_tnForkDevnetConfig() internal {
+        vm.selectFork(tnFork);
+        // note: devnet only: CREATE3 contract deployed via `create2`
+        create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
+        // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
+        address expectedITS = create3.deployedAddress("", deployerEOA, salts.itsSalt);
+        // must precalculate ITF proxy to avoid `ITS::constructor()` revert
+        address expectedITF = create3.deployedAddress("", deployerEOA, salts.itfSalt);
+        _setUpDevnetConfig(admin, address(sepoliaTEL), address(wTEL), expectedITS, expectedITF);
 
-    //     user = address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180);
-    //     symbol = "TEL";
-    //     amount = 100; // 1 tel
+        rwtelOwner = admin;
 
-    //     //todo: deploy ITS contracts for fork testing
+        // todo: update this section after testnet restart with genesis precompiles
+        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl(create3);
+        gateway = create3DeployAxelarAmplifierGateway(create3, address(gatewayImpl));
+        tokenManagerDeployer = create3DeployTokenManagerDeployer(create3);
+        interchainTokenImpl = create3DeployInterchainTokenImpl(create3);
+        itDeployer = create3DeployInterchainTokenDeployer(create3, address(interchainTokenImpl));
+        tokenManagerImpl = create3DeployTokenManagerImpl(create3);
+        tokenHandler = create3DeployTokenHandler(create3);
+        gasServiceImpl = create3DeployAxelarGasServiceImpl(create3);
+        gasService = create3DeployAxelarGasService(create3, address(gasServiceImpl));
+        gatewayCaller = create3DeployGatewayCaller(create3, address(gateway), address(gasService));
+        itsImpl = create3DeployITSImpl(
+            create3,
+            address(tokenManagerDeployer),
+            address(itDeployer),
+            address(gateway),
+            address(gasService),
+            address(tokenManagerImpl),
+            address(tokenHandler),
+            address(gatewayCaller)
+        );
+        its = create3DeployITS(create3, address(itsImpl));
+        itFactoryImpl = create3DeployITFImpl(create3, address(its));
+        itFactory = create3DeployITF(create3, address(itFactoryImpl));
+        rwTELImpl = create3DeployRWTELImpl(create3, address(its));
+        rwTEL = create3DeployRWTEL(create3, address(rwTELImpl));
+
+        rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
+    }
+
     //todo: write rwTEL to ITS create3 `interchainTokenAddress`
     // assertEq(its.interchainTokenAddress(canonicalInterchainTokenId), address(rwTEL));
-    // }
-
     // its.contractCallValue(); // todo: decimals handling?
 
     //todo: before implementing these tests, create script functions & import
@@ -140,6 +187,9 @@ contract InterchainTokenServiceForkTest is Test, ITSUtils {
     // address(ethTEL)));
     // bytes32 _internalITSCreate3TokenIdSalt = keccak256(abi.encode(keccak256('its-interchain-token-id'), address(0x0),
     // canonicalInterchainSalt));
+    // assertEq(rwtelTokenId, itFactory.interchainTokenId(address(0x0), canonicalInterchainSalt));
+    //     assertEq(rwtelTokenId, itFactory.canonicalInterchainTokenId(address(canonicalTEL)));
+
     // address ethTokenManagerExpected = create3Address(create3, type(TokenManagerProxy).creationCode,
     // ethTMConstructorArgs,
     // address(its), _internalITSCreate3TokenIdSalt);

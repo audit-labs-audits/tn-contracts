@@ -47,12 +47,15 @@ abstract contract ITSUtils is Create3Utils {
     string public MAINNET_CHAIN_NAME = "Ethereum";
     bytes32 public MAINNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
     address public MAINNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
-    string public DEVNET_SEPOLIA_CHAIN_NAME = "eth-sepolia";
-    bytes32 public DEVNET_SEPOLIA_CHAINNAMEHASH = 0x24f78f6b35533491ef3d467d5e8306033cca94049b9b76db747dfc786df43f86;
-    address public DEVNET_SEPOLIA_ITS = 0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff;
-    string public TESTNET_CHAIN_NAME = "ethereum-sepolia";
-    bytes32 public TESTNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
-    address public TESTNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
+    address public MAINNET_GATEWAY = 0x4F4495243837681061C4743b74B3eEdf548D56A5;
+    string public DEVNET_SEPOLIA_CHAIN_NAME = "core-ethereum";
+    bytes32 public DEVNET_SEPOLIA_CHAINNAMEHASH = 0xbef3ef21418c49cdf83043f00d3ffeebe97f404dee721f6a81a99b66d96d6724;
+    address public DEVNET_SEPOLIA_ITS = 0x77883201091c08570D55000AB32645b88cB96324;
+    address public DEVNET_SEPOLIA_GATEWAY = 0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319;
+    string public TESTNET_SEPOLIA_CHAIN_NAME = "ethereum-sepolia";
+    bytes32 public TESTNET_SEPOLIA_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
+    address public TESTNET_SEPOLIA_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
+    address public TESTNET_SEPOLIA_GATEWAY = 0xe432150cce91c13a887f7D836923d5597adD8E31;
 
     // stored assertion vars
     address precalculatedITS;
@@ -93,7 +96,6 @@ abstract contract ITSUtils is Create3Utils {
     // rwTEL config
     address canonicalTEL;
     string canonicalChainName_;
-    address consensusRegistry_;
     address gateway_;
     string symbol_;
     string name_;
@@ -330,4 +332,101 @@ abstract contract ITSUtils is Create3Utils {
 
         telTokenManager = TokenManager(service.tokenManagerAddress(telInterchainTokenId));
     }
+
+    function _setUpDevnetConfig(address admin, address devnetTEL, address wTEL, address expectedITS, address expectedITF) internal {
+        // AxelarAmplifierGateway
+        axelarId = TN_CHAIN_NAME;
+        routerAddress = "router"; //todo: devnet router
+        telChainId = 0x7e1;
+        domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
+        previousSignersRetention = 16;
+        minimumRotationDelay = 86_400;
+        weight = 1; 
+        singleSigner = admin;
+        threshold = 1;
+        nonce = bytes32(0x0);
+        /// note: weightedSignersArray = [WeightedSigners([WeightedSigner(singleSigner, weight)], threshold, nonce)];
+        gatewayOperator = admin;
+        /// note: = abi.encode(gatewayOperator, weightedSignersArray);
+        gatewayOwner = admin;
+
+        // AxelarGasService
+        gasCollector = admin;
+        gsOwner = admin;
+        gsSetupParams = ""; // note: unused
+
+        // InterchainTokenService
+        itsOwner = admin;
+        itsOperator = admin;
+        chainName_ = TN_CHAIN_NAME;
+        trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
+        trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
+        itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
+
+        // InterchainTokenFactory
+        itfOwner = admin;
+
+        // rwTEL config
+        canonicalTEL = devnetTEL;
+        canonicalChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
+        symbol_ = "rwTEL";
+        name_ = "Recoverable Wrapped Telcoin";
+        recoverableWindow_ = 604_800;
+        governanceAddress_ = address(0xda0);
+        maxToClean = type(uint16).max;
+        baseERC20_ = wTEL; // for RWTEL constructor
+
+        precalculatedITS = expectedITS;
+        precalculatedITFactory = expectedITF;
+    }
+
+    function _setUpTestnetConfig(address testnetTEL, address wTEL, address expectedITS, address expectedITF) internal {
+        // // AxelarAmplifierGateway
+        // axelarId = TN_CHAIN_NAME;
+        // routerAddress = ; //todo: testnet router
+        // telChainId = 0x7e1;
+        // domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
+        // previousSignersRetention = 16; // todo: 16 signers seems high; 0 means only current signers valid (security)
+        // minimumRotationDelay = 86_400;
+        // weight = ; // todo: for testnet handle additional signers
+        // singleSigner = admin; // todo: for testnet increase signers
+        // threshold = ; // todo: for testnet increase threshold
+        // nonce = bytes32(0x0);
+        // /// note: weightedSignersArray = [WeightedSigners([WeightedSigner(singleSigner, weight)], threshold, nonce)];
+        // gatewayOperator = ; // todo: separate operator
+        // /// note: = abi.encode(gatewayOperator, weightedSignersArray);
+        // gatewayOwner = ; // todo
+
+        // // AxelarGasService
+        // gasCollector = ; // todo: gas sponsorship key
+        // gsOwner = admin;
+        // gsSetupParams = ""; // note: unused
+
+        // // "Ethereum" InterchainTokenService
+        // itsOwner = ; // todo
+        // itsOperator = ; // todo
+        // chainName_ = TN_CHAIN_NAME;
+        // trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
+        // trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
+        // itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
+
+        // // InterchainTokenFactory
+        // itfOwner = ; // todo: separate owner
+
+        // // rwTEL config
+        // canonicalTEL = deployments.sepoliaTEL;
+        // canonicalChainName_ = TESTNET_SEPOLIA_CHAIN_NAME;
+        // symbol_ = "rwTEL";
+        // name_ = "Recoverable Wrapped Telcoin";
+        // recoverableWindow_ = 604_800; // todo: confirm 1 week
+        // governanceAddress_ = ; // todo: multisig/council/DAO address in prod
+        // maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
+        // baseERC20_ = address(wTEL); // for RWTEL constructor
+
+        // // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
+        // precalculatedITS = deployments.its.InterchainTokenService;
+        // // must precalculate ITF proxy to avoid `ITS::constructor()` revert
+        // precalculatedITFactory = deployments.its.InterchainTokenFactory;
+    }
+    // function _setUpMainnetConfig() internal {}
 }

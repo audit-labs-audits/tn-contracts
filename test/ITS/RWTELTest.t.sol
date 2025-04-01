@@ -115,7 +115,7 @@ contract RWTELTest is Test {
         assertEq(wSymbol, "wTEL");
 
         // rwTEL sanity tests
-        assertEq(rwTEL.consensusRegistry(), deployments.ConsensusRegistry);
+        assertEq(rwTEL.stakeManager(), deployments.StakeManager);
         assertEq(address(rwTEL.interchainTokenService()), deployments.its.InterchainTokenService);
         assertEq(rwTEL.owner(), admin);
         assertTrue(address(rwTEL).code.length > 0);
@@ -252,9 +252,9 @@ contract RWTELTest is Test {
         vm.expectEmit(true, true, true, true);
         emit MessageExecuted(commandId);
         vm.prank(admin);
-        tnRWTEL.executeWithInterchainToken(
-            commandId, sourceChain, bytes(sourceAddress), payload, tokenId, token, amount
-        );
+        // tnRWTEL.executeWithInterchainToken(
+        //     commandId, sourceChain, bytes(sourceAddress), payload, tokenId, token, amount
+        // );
 
         // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
         //todo: consider how to handle cross chain decimals (native TEL uses 18; ERC20 TEL uses 2)

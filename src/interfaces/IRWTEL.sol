@@ -16,32 +16,32 @@ struct ExtCall {
 }
 
 interface IRWTEL {
-    error OnlyConsensusRegistry();
+    error OnlyManager(address authority);
     error RewardDistributionFailure(address validator);
-    error ExecutionFailed(bytes32 commandId, address target);
-    error InvalidToken(bytes32 commandId, address token, bytes32 tokenId);
-    error InvalidTarget(bytes32 commandId, address target);
-    error InvalidAmount(bytes32 commandId, uint256 amount, uint256 extCallAmount);
+    error MintFailed(address to, uint256 amount);
+    error BurnFailed(address from, uint256 amount);
 
-    /// @notice May only be called by the ConsensusRegistry as part of its `claimStakeRewards()` flow
+    //todo: delete
+    // error ExecutionFailed(bytes32 commandId, address target);
+    // error InvalidToken(bytes32 commandId, address token, bytes32 tokenId);
+    // error InvalidTarget(bytes32 commandId, address target);
+    // error InvalidAmount(bytes32 commandId, uint256 amount, uint256 extCallAmount);
+
+    /// @notice May only be called by the StakeManager as part of its `claimStakeRewards()` flow
     function distributeStakeReward(address validator, uint256 rewardAmount) external;
-
-    /// @notice Transfers RWTEL using RecoverableWrapper state updates and custom logic for Axelar ITS
-    /// @dev Overridden because RWTEL TokenManager bridging (`LOCK_UNLOCK`) uses `safeTransferFrom`
-    function safetransferfrom(address from, address to, uint256 amount) external returns (bool);
 
     /// @notice Returns the create3 salt used by ITS for TokenManager deployment
     /// @dev This salt is used to deploy/derive TokenManagers for both Ethereum and TN
     /// @dev ITS uses `interchainTokenId()` as the create3 salt used to deploy TokenManagers
     function tokenManagerCreate3Salt() external view returns (bytes32);
 
-    /// @notice Returns the top-level ITS interchain token ID RWTEL
-    /// @dev The interchain token ID is shared across chains, ie both for ERC20 TEL on Ethereum && RWTEL
-    function interchainTokenId() external view returns (bytes32);
-
     /// @notice Returns the unique salt required for RWTEL ITS integration
     /// @dev Equivalent to `InterchainTokenFactory::canonicalInterchainTokenDeploySalt()`
     function canonicalInterchainTokenDeploySalt() external view returns (bytes32);
+
+    /// @notice Returns the ITS TokenManager address for RWTEL, derived via create3
+    /// @dev ITS uses `interchainTokenId()` as the create3 salt used to deploy TokenManagers
+    function tokenManagerAddress() external view returns (address);
 
     /// @notice Replaces `constructor` for use when deployed as a proxy implementation
     /// @notice `RW::constructor()` accepts a `baseERC20_` parameter which is set as an immutable variable in bytecode

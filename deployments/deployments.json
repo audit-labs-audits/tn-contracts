@@ -5,6 +5,7 @@
   "StablecoinImpl": "0xd3930b15461fcecff57a4c9bd65abf6fa2a44307",
   "StablecoinManager": "0x0e26ade1f5a99bd6b5d40f870a87bfe143db68b6",
   "StablecoinManagerImpl": "0x2745C660f10C77CF6C9668b4578F1C6956b70207",
+  "StakeManager": "0x07e17e17e17e17e17e17e17e17e17e17e17e17e1",
   "TANIssuanceHistory": "0xe533911f00f1c3b58bb8d821131c9b6e2452fc27",
   "TANIssuancePlugin": "0xcaa823fd48bec0134c8285fd3c34f9d95cf3280f",
   "admin": "0xc1612C97537c2CC62a11FC4516367AB6F62d4B23",

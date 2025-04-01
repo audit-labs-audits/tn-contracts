@@ -9,10 +9,13 @@ import { IInterchainTokenFactory } from
     "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenFactory.sol";
 import { IInterchainTokenService } from
     "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenService.sol";
-import { InterchainTokenExecutable } from
-    "@axelar-network/interchain-token-service/contracts/executable/InterchainTokenExecutable.sol";
+import { IERC20MintableBurnable } from
+    "@axelar-network/interchain-token-service/contracts/interfaces/IERC20MintableBurnable.sol";
+import { InterchainTokenStandard } from
+    "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainTokenStandard.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { ERC20 } from "node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
 import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 import { SystemCallable } from "./consensus/SystemCallable.sol";
@@ -20,52 +23,36 @@ import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
 
 import { Test, console2 } from "forge-std/Test.sol"; //todo
 
-/* RecoverableWrapper Storage Layout (Provided because RW is non-ERC7201 compliant)
-     _______________________________________________________________________________________
-    | Name              | Type                                                       | Slot |
-    |-------------------|------------------------------------------------------------|------|
-    | _balances         | mapping(address => uint256)                                | 0    |
-    | _allowances       | mapping(address => mapping(address => uint256))            | 1    |
-    | _totalSupply      | uint256                                                    | 2    |
-    | _name             | string                                                     | 3    |
-    | _symbol           | string                                                     | 4    |
-    | _accountState     | mapping(address => struct RecoverableWrapper.AccountState) | 5    |
-    | frozen            | mapping(address => uint256)                                | 6    |
-    | _unsettledRecords | mapping(address => struct RecordsDeque)                    | 7    |
-    | unwrapDisabled    | mapping(address => bool)                                   | 8    |
-    | _totalSupply      | uint256                                                    | 9    |
-    | governanceAddress | address                                                    | 10   |
-*/
-
 /// @title Recoverable Wrapped Telcoin
-/// @notice The RWTEL module serves both as an Axelar ITS linked token and as InterchainExecutable
-/// to merge functionality of TEL as an ITS-compatible ERC20 token and native gas currency for TN
-/// @dev Inbound ERC20 TEL from other networks is delivered as native TEL through custom executable logic
+/// @notice The RWTEL module serves as an Axelar InterchainToken merging functionality of TEL
+/// both as ITS ERC20 token and as native gas currency for TN
+/// @dev Inbound ERC20 TEL from other networks is delivered as native TEL through custom mint logic
 /// whereas outbound TEL must first be double-wrapped from native TEL through wTEL to rwTEL.
 /// For security, only RecoverableWrapper balances settled by the recoverable window can be bridged
 contract RWTEL is
     IRWTEL,
     RecoverableWrapper,
-    IInterchainTokenStandard,
-    InterchainTokenExecutable,
+    InterchainTokenStandard,
+    IERC20MintableBurnable,
     UUPSUpgradeable,
     Ownable,
     SystemCallable
 {
-    /// @dev The canonical TEL ERC20 contract address and its source chain, Ethereum
-    address public immutable canonicalTEL;
-    bytes32 public immutable canonicalChainNameHash;
+    /// @dev StakeManager system precompile assigned by protocol to a constant address
+    address public constant stakeManager = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
-    /// @dev ConsensusRegistry system contract defined by protocol to always exist at a constant address
-    address public constant consensusRegistry = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
-
-    /// @dev The Axelar ITS TokenManager contract address for this contract
-    /// @notice Derived deterministically via CREATE3 and so will not contain code at genesis
+    /// @dev The precompiled Axelar ITS TokenManager contract address for this token
     address public immutable tokenManager;
+    /// @dev The precompiled Axelar ITS contract address for this chain
+    address private immutable _interchainTokenService;
 
-    /// @dev Constants for deriving this contract's canonical ITS deploy salt
-    // bytes32 public constant RWTEL_SALT = keccak256('recoverable-wrapped-telcoin'); //todo: delete
+    /// @dev Constants for deriving the RWTEL canonical ITS deploy salt, token id, and TokenManager address
+    address private immutable canonicalTEL;
+    bytes32 private immutable canonicalChainNameHash;
     bytes32 private constant PREFIX_CANONICAL_TOKEN_SALT = keccak256("canonical-token-salt");
+    bytes32 private constant PREFIX_INTERCHAIN_TOKEN_ID = keccak256("its-interchain-token-id");
+    bytes32 private constant CREATE_DEPLOY_BYTECODE_HASH =
+        0xdb4bab1640a2602c9f66f33765d12be4af115accf74b24515702961e82a71327;
     /// @notice Token factory flag to be create3-agnostic; see `InterchainTokenService::TOKEN_FACTORY_DEPLOYER`
     address private constant TOKEN_FACTORY_DEPLOYER = address(0x0);
 
@@ -73,13 +60,18 @@ contract RWTEL is
     string internal constant _name_ = "Recoverable Wrapped Telcoin";
     string internal constant _symbol_ = "rwTEL";
 
+    modifier onlyTokenManager() {
+        if (msg.sender != tokenManager) revert OnlyManager(tokenManager);
+        _;
+    }
+
     /// @dev Required by `RecoverableWrapper` and `AxelarGMPExecutable` deps to write immutable vars to bytecode
     /// @param name_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
     /// @param symbol_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
     constructor(
         address canonicalTEL_,
         string memory canonicalChainName_,
-        address tnInterchainTokenService_,
+        address interchainTokenService_,
         string memory name_,
         string memory symbol_,
         uint256 recoverableWindow_,
@@ -87,18 +79,18 @@ contract RWTEL is
         address baseERC20_,
         uint16 maxToClean
     )
-        InterchainTokenExecutable(tnInterchainTokenService_)
         RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
     {
         _disableInitializers();
+        _interchainTokenService = interchainTokenService_;
         canonicalTEL = canonicalTEL_;
         canonicalChainNameHash = keccak256(bytes(canonicalChainName_));
-        tokenManager = _deriveTokenManager();
+        tokenManager = tokenManagerAddress();
     }
 
     /// @inheritdoc IRWTEL
     function distributeStakeReward(address validator, uint256 rewardAmount) external {
-        if (msg.sender != consensusRegistry) revert OnlyConsensusRegistry();
+        if (msg.sender != stakeManager) revert OnlyManager(stakeManager);
 
         (bool res,) = validator.call{ value: rewardAmount }("");
         if (!res) revert RewardDistributionFailure(validator);
@@ -114,8 +106,10 @@ contract RWTEL is
         return _symbol_;
     }
 
-    /// @notice Used to burn TEL when bridging off of TN; can be reminted only through valid bridge tx
-    receive() external payable { }
+    /// @inheritdoc InterchainTokenStandard
+    function interchainTokenService() public view virtual override returns (address service) {
+        return _interchainTokenService;
+    }
 
     /**
      *
@@ -128,10 +122,11 @@ contract RWTEL is
         return interchainTokenId();
     }
 
-    /// @inheritdoc IRWTEL
+    /// @notice Returns the top-level ITS interchain token ID RWTEL
+    /// @dev The interchain token ID is shared across chains, ie both for ERC20 TEL on Ethereum && RWTEL
     function interchainTokenId() public view override returns (bytes32) {
-        return IInterchainTokenService(interchainTokenService).interchainTokenId(
-            TOKEN_FACTORY_DEPLOYER, canonicalInterchainTokenDeploySalt()
+        return keccak256(
+            abi.encode(PREFIX_INTERCHAIN_TOKEN_ID, TOKEN_FACTORY_DEPLOYER, canonicalInterchainTokenDeploySalt())
         );
     }
 
@@ -141,104 +136,48 @@ contract RWTEL is
         return keccak256(abi.encode(PREFIX_CANONICAL_TOKEN_SALT, canonicalChainNameHash, canonicalTEL));
     }
 
-    /// @inheritdoc IInterchainTokenStandard
-    function interchainTransfer(
-        string calldata destinationChain,
-        bytes calldata recipient,
-        uint256 amount,
-        bytes calldata metadata
-    )
-        external
-        payable
-    {
-        address sender = msg.sender;
-
-        ITransmitInterchainToken(interchainTokenService).transmitInterchainTransfer{ value: msg.value }(
-            interchainTokenId(), sender, destinationChain, recipient, amount, metadata
-        );
-    }
-
-    /// @inheritdoc IInterchainTokenStandard
-    function interchainTransferFrom(
-        address sender,
-        string calldata destinationChain,
-        bytes calldata recipient,
-        uint256 amount,
-        bytes calldata metadata
-    )
-        external
-        payable
-    {
-        _spendAllowance(sender, msg.sender, amount);
-
-        ITransmitInterchainToken(interchainTokenService).transmitInterchainTransfer{ value: msg.value }(
-            interchainTokenId(), sender, destinationChain, recipient, amount, metadata
-        );
-    }
-
-    //todo: override safeTransfer, transfer, transferFrom too?
     /// @inheritdoc IRWTEL
-    function safetransferfrom(address from, address to, uint256 amount) external returns (bool) {
-        // custom override logic for Axelar interchain GMP messages
-        if (msg.sender == interchainTokenService) {
-            if (from == tokenManager && to == address(this)) {
-                // incoming bridge tx initiated by `ITS::execute()`
-                // do nothing bc execute flow will be invoked which "mints" native TEL to user
-                return true;
-            } else if (to == tokenManager) {
-                // exit bridge tx initiated by`ITS::interchainTransfer()` or `ITS::transmitInterchainTransfer()`
-                // note: execute flow will *not* be invoked because `from == user` thus rwTEL must be burned from user
-                _burn(from, amount);
+    function tokenManagerAddress() public view override returns (address) {
+        address createDeploy = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(
+                            hex"ff", interchainTokenService(), tokenManagerCreate3Salt(), CREATE_DEPLOY_BYTECODE_HASH
+                        )
+                    )
+                )
+            )
+        );
 
-                // todo: make sure (settledBalanceOf(user) >= amount)
-                // todo: make sure ledger of rwTEL vs TEL vs ethTEL is intact
-                // note: native TEL would already have been "burned" when user minted rwTEL via deposit()
-                return true;
-            }
-        }
-
-        // todo: what to do about a transfer where from == anyUser && to == tokenManager?
-
-        // `RecoverableWrapper::transferFrom()` restricts transfers to settled balances
-        super.transferFrom(from, to, amount);
-        return true;
+        return address(uint160(uint256(keccak256(abi.encodePacked(hex"d694", createDeploy, hex"01")))));
     }
 
-    /// @notice Only invoked for incoming TEL, is verified by InterchainTokenService and
-    /// `Gateway::validateContractCall()`
-    /// @notice Params `sourceChain` and `sourceAddress` are not currently used for vanilla bridging but may later on
-    function _executeWithInterchainToken(
-        bytes32 commandId,
-        string calldata, /* sourceChain */
-        bytes calldata, /* sourceAddress */
-        bytes calldata data,
-        bytes32 tokenId,
-        address token,
+    /// @inheritdoc IERC20MintableBurnable
+    function mint(address to, uint256 amount) external override onlyTokenManager {
+        (bool r,) = to.call{ value: amount }("");
+        if (!r) revert MintFailed(to, amount);
+    }
+
+    /// @inheritdoc IERC20MintableBurnable
+    function burn(address from, uint256 amount) external override onlyTokenManager {
+        _burn(from, amount);
+
+        // reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
+        (bool r,) = address(baseERC20).call(abi.encodeWithSignature("withdraw(uint256)", amount));
+        if (!r) revert BurnFailed(from, amount);
+    }
+
+    function _spendAllowance(
+        address sender,
+        address spender,
         uint256 amount
     )
         internal
         virtual
-        override
+        override(ERC20, InterchainTokenStandard)
     {
-        // ITS handles all other ERC20s; reaching this branch means destination address was specified as rwTEL
-        if (token != address(this) || tokenId != interchainTokenId()) revert InvalidToken(commandId, token, tokenId);
-
-        // todo: should require `messageType = INTERCHAIN_TRANSFER || SEND_TO_HUB || RECEIVE_FROM_HUB`
-        // todo: should RWTEL inherit InterchainTokenStandard instead of InterchainTokenExecutable? only if it can be
-        // linked to ethTEL
-        ExtCall memory bridgeMsg = abi.decode(data, (ExtCall));
-        address target = bridgeMsg.target;
-        if (target == address(this)) revert InvalidTarget(commandId, target);
-        // todo: is ExtCall.value still required when amount is provided?
-        if (amount != bridgeMsg.value) revert InvalidAmount(commandId, amount, bridgeMsg.value);
-
-        // todo: ensure reentrancy (ie handler.giveToken) is not possible
-        (bool res,) = target.call{ value: bridgeMsg.value }(bridgeMsg.data);
-        if (!res) revert ExecutionFailed(commandId, target);
-    }
-
-    function _deriveTokenManager() internal pure returns (address) {
-        //todo read from ITS
+        ERC20._spendAllowance(sender, spender, amount);
     }
 
     /**

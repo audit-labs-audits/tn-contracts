@@ -10,6 +10,7 @@ struct Deployments {
     address StablecoinImpl;
     address StablecoinManager;
     address StablecoinManagerImpl;
+    address StakeManager;
     address TANIssuanceHistory;
     address TANIssuancePlugin;
     address admin;

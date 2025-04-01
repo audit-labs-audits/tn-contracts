@@ -86,60 +86,68 @@ contract GenerateITSConfig is ITSUtils, StorageDiffRecorder, Script {
 
         wTEL = WTEL(payable(deployments.wTEL));
         address admin = deployments.admin;
+        _setUpDevnetConfig(
+            admin,
+            deployments.sepoliaTEL,
+            deployments.wTEL,
+            deployments.its.InterchainTokenService,
+            deployments.its.InterchainTokenFactory
+        );
 
         // create3 contract only used for simulation; will not be instantiated at genesis
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
 
-        // AxelarAmplifierGateway
-        axelarId = TN_CHAIN_NAME;
-        routerAddress = "router"; //todo: devnet router
-        telChainId = 0x7e1;
-        domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
-        previousSignersRetention = 16; // todo: 16 signers seems high; 0 means only current signers valid (security)
-        minimumRotationDelay = 86_400; // todo: default rotation delay is `1 day == 86400 seconds`
-        weight = 1; // todo: for testnet handle additional signers
-        singleSigner = admin; // todo: for testnet increase signers
-        threshold = 1; // todo: for testnet increase threshold
-        nonce = bytes32(0x0);
-        /// note: weightedSignersArray = [WeightedSigners([WeightedSigner(singleSigner, weight)], threshold, nonce)];
-        gatewayOperator = admin; // todo: separate operator
-        gatewaySetupParams;
-        /// note: = abi.encode(gatewayOperator, weightedSignersArray);
-        gatewayOwner = admin; // todo: separate owner
+        // // AxelarAmplifierGateway
+        // axelarId = TN_CHAIN_NAME;
+        // routerAddress = "router"; //todo: devnet router
+        // telChainId = 0x7e1;
+        // domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
+        // previousSignersRetention = 16; // todo: 16 signers seems high; 0 means only current signers valid (security)
+        // minimumRotationDelay = 86_400; // todo: default rotation delay is `1 day == 86400 seconds`
+        // weight = 1; // todo: for testnet handle additional signers
+        // singleSigner = admin; // todo: for testnet increase signers
+        // threshold = 1; // todo: for testnet increase threshold
+        // nonce = bytes32(0x0);
+        // /// note: weightedSignersArray = [WeightedSigners([WeightedSigner(singleSigner, weight)], threshold, nonce)];
+        // gatewayOperator = admin; // todo: separate operator
+        // gatewaySetupParams;
+        // /// note: = abi.encode(gatewayOperator, weightedSignersArray);
+        // gatewayOwner = admin; // todo: separate owner
 
-        // AxelarGasService
-        gasCollector = address(0xc011ec106); // todo: gas sponsorship key
-        gsOwner = admin;
-        gsSetupParams = ""; // note: unused
+        // // AxelarGasService
+        // gasCollector = address(0xc011ec106); // todo: gas sponsorship key
+        // gsOwner = admin;
+        // gsSetupParams = ""; // note: unused
 
-        // "Ethereum" InterchainTokenService
-        itsOwner = admin; // todo: separate owner
-        itsOperator = admin; // todo: separate operator
-        chainName_ = MAINNET_CHAIN_NAME; //todo: TN_CHAIN_NAME;
-        trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
-        trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
-        itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
+        // // "Ethereum" InterchainTokenService
+        // itsOwner = admin; // todo: separate owner
+        // itsOperator = admin; // todo: separate operator
+        // chainName_ = MAINNET_CHAIN_NAME; //todo: TN_CHAIN_NAME;
+        // trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
+        // trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
+        // itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
-        // InterchainTokenFactory
-        itfOwner = admin; // todo: separate owner
+        // // InterchainTokenFactory
+        // itfOwner = admin; // todo: separate owner
 
-        // rwTEL config
-        rwtelOwner = admin;
-        canonicalTEL = deployments.sepoliaTEL;
-        canonicalChainName_ = MAINNET_CHAIN_NAME;
-        consensusRegistry_ = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1; // TN system contract
-        symbol_ = "rwTEL";
-        name_ = "Recoverable Wrapped Telcoin";
-        recoverableWindow_ = 604_800; // todo: confirm 1 week
-        governanceAddress_ = address(0xda0); // todo: multisig/council/DAO address in prod
-        baseERC20_; // wTEL
-        maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
-        baseERC20_ = address(wTEL); // for RWTEL constructor
+        // // rwTEL config
+        // canonicalTEL = deployments.sepoliaTEL;
+        // canonicalChainName_ = MAINNET_CHAIN_NAME;
+        // consensusRegistry_ = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1; // TN system contract
+        // symbol_ = "rwTEL";
+        // name_ = "Recoverable Wrapped Telcoin";
+        // recoverableWindow_ = 604_800; // todo: confirm 1 week
+        // governanceAddress_ = address(0xda0); // todo: multisig/council/DAO address in prod
+        // baseERC20_; // wTEL
+        // maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
+        // baseERC20_ = address(wTEL); // for RWTEL constructor
 
-        // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
-        precalculatedITS = deployments.its.InterchainTokenService;
-        // must precalculate ITF proxy to avoid `ITS::constructor()` revert
-        precalculatedITFactory = deployments.its.InterchainTokenFactory;
+        // rwtelOwner = admin; // note: devnet only
+
+        // // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
+        // precalculatedITS = deployments.its.InterchainTokenService;
+        // // must precalculate ITF proxy to avoid `ITS::constructor()` revert
+        // precalculatedITFactory = deployments.its.InterchainTokenFactory;
     }
 
     function run() public {
@@ -153,6 +161,7 @@ contract GenerateITSConfig is ITSUtils, StorageDiffRecorder, Script {
         // gateway (has storage)
         vm.startStateDiffRecording();
         gatewayImpl = create3DeployAxelarAmplifierGatewayImpl(create3);
+        vm.etch(deployments.its.AxelarAmplifierGatewayImpl, address(gatewayImpl).code); // prevent constructor revert
         gateway = create3DeployAxelarAmplifierGateway(create3, deployments.its.AxelarAmplifierGatewayImpl);
         Vm.AccountAccess[] memory gatewayRecords = vm.stopAndReturnStateDiff();
         // save impl bytecode since immutable variables are set in constructor
@@ -179,6 +188,7 @@ contract GenerateITSConfig is ITSUtils, StorageDiffRecorder, Script {
         // gas service (has storage)
         vm.startStateDiffRecording();
         gasServiceImpl = create3DeployAxelarGasServiceImpl(create3);
+        vm.etch(deployments.its.GasServiceImpl, address(gasServiceImpl).code); // prevent constructor revert
         gasService = create3DeployAxelarGasService(create3, deployments.its.GasServiceImpl);
         Vm.AccountAccess[] memory gsRecords = vm.stopAndReturnStateDiff();
         yamlAppendBytecode(dest, address(gasServiceImpl), deployments.its.GasServiceImpl);
@@ -221,6 +231,7 @@ contract GenerateITSConfig is ITSUtils, StorageDiffRecorder, Script {
         // rwtel (has storage)
         vm.startStateDiffRecording();
         rwTELImpl = create3DeployRWTELImpl(create3, deployments.its.InterchainTokenService);
+        vm.etch(deployments.rwTELImpl, address(rwTELImpl).code); // prevent constructor revert
         rwTEL = create3DeployRWTEL(create3, deployments.rwTELImpl);
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
         Vm.AccountAccess[] memory rwtelRecords = vm.stopAndReturnStateDiff();
