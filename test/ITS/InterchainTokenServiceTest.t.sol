@@ -42,10 +42,10 @@ import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
 import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
-import { ITSUtils } from "../../deployments/utils/ITSUtils.sol";
+import { ITSUtilsFork } from "../../deployments/utils/ITSUtilsFork.sol";
 import { HarnessCreate3FixedAddressForITS, MockTEL } from "./ITSMocks.sol";
 
-contract InterchainTokenServiceTest is Test, ITSUtils {
+contract InterchainTokenServiceTest is Test, ITSUtilsFork {
     // TN contracts
     WTEL wTEL;
     RWTEL rwTELImpl;
@@ -97,8 +97,9 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
 
         // note: devnet only
         rwtelOwner = admin;
-        // note: overwrite chainName_ in setup params to test ITS somewhat chain agnostically
-        chainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
+        // note: overwrite chain names in setup params to test ITS somewhat chain agnostically
+        chainName_ = MAINNET_CHAIN_NAME; //DEVNET_SEPOLIA_CHAIN_NAME;
+        canonicalChainName_ = MAINNET_CHAIN_NAME; //DEVNET_SEPOLIA_CHAIN_NAME;
         itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
         // note: ITS deterministic create3 deployments depend on `sender` for devnet only
@@ -211,8 +212,6 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
         assertEq(rwtelTokenId, its.interchainTokenId(address(0x0), rwtelDeploySalt));
     }
 
-    /// @dev Test the flow for registering a token with ITS hub + deploying its manager
-    /// @notice In prod, these calls must be performed on Ethereum prior to TN genesis
     function test_eth_registerCanonicalInterchainToken() public {
         // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         uint256 gasValue = 100; // dummy gas value specified for multicalls
@@ -276,25 +275,29 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
         assertEq(canonicalTELTokenManager.flowOutAmount(), 0); // set by ITS
         bytes memory ethTMSetupParams = abi.encode(bytes(""), canonicalTEL);
         assertEq(canonicalTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), canonicalTEL);
+        (uint256 implementationType, address tokenAddress) = TokenManagerProxy(payable(address(canonicalTELTokenManager))).getImplementationTypeAndTokenAddress();
+        assertEq(implementationType, uint256(ITokenManagerType.TokenManagerType.LOCK_UNLOCK));
+        assertEq(tokenAddress, canonicalTEL);
 
         // rwtel asserts
         bytes32 rwtelTokenId = rwTEL.interchainTokenId();
         assertEq(rwtelTokenId, its.interchainTokenId(address(0x0), canonicalInterchainSalt));
+        assertEq(rwtelTokenId, itFactory.canonicalInterchainTokenId(canonicalTEL));
         assertEq(rwtelTokenId, canonicalInterchainTokenId);
         assertEq(rwtelTokenId, tmDeploySaltIsTELInterchainTokenId);
         assertEq(rwTEL.tokenManagerCreate3Salt(), tmDeploySaltIsTELInterchainTokenId);
         assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), canonicalInterchainSalt);
+        assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), itFactory.canonicalInterchainTokenDeploySalt(canonicalTEL));
+        assertEq(rwTEL.tokenManagerAddress(), address(canonicalTELTokenManager));
     }
 
-    /// @notice `deployRemoteCanonicalInterchainToken` will route a `MESSAGE_TYPE_LINK_TOKEN` through ITS hub
-    /// that is guaranteed to revert deployment to genesis contracts; skip this step for testnet & mainnet
     function test_eth_deployRemoteCanonicalInterchainToken() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
         (, canonicalInterchainTokenId, canonicalTELTokenManager) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
-        // note that TN must have been added as a trusted chain to the Ethereum ITS contract
+        // note that TN must be added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
         vm.prank(itsOwner);
         its.setTrustedAddress(destinationChain, ITS_HUB_ROUTING_IDENTIFIER);
@@ -303,8 +306,6 @@ contract InterchainTokenServiceTest is Test, ITSUtils {
         // note this remote canonical interchain token step is for devnet only, obviated by testnet & mainnet genesis
         bytes32 remoteCanonicalTokenId =
             itFactory.deployRemoteCanonicalInterchainToken{ value: gasValue }(canonicalTEL, destinationChain, gasValue);
-
-        /// @dev for devnet, relayer will forward link msg to TN thru ITS hub & use it to deploy rwtel tokenmanager
 
         assertEq(remoteCanonicalTokenId, canonicalInterchainTokenId);
     }

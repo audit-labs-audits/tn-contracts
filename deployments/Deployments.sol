@@ -33,9 +33,9 @@ struct InterchainTokenService {
     address GasServiceImpl;
     address GatewayCaller;
     address InterchainTokenDeployer;
-    address InterchainTokenImpl;
     address InterchainTokenFactory;
     address InterchainTokenFactoryImpl;
+    address InterchainTokenImpl;
     address InterchainTokenService;
     address InterchainTokenServiceImpl;
     address TokenHandler;

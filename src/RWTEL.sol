@@ -122,8 +122,8 @@ contract RWTEL is
         return interchainTokenId();
     }
 
-    /// @notice Returns the top-level ITS interchain token ID RWTEL
-    /// @dev The interchain token ID is shared across chains, ie both for ERC20 TEL on Ethereum && RWTEL
+    /// @notice Returns the top-level ITS interchain token ID for RWTEL
+    /// @dev The interchain token ID is *canonical*, ie based on Ethereum ERC20 TEL, and shared across chains
     function interchainTokenId() public view override returns (bytes32) {
         return keccak256(
             abi.encode(PREFIX_INTERCHAIN_TOKEN_ID, TOKEN_FACTORY_DEPLOYER, canonicalInterchainTokenDeploySalt())

@@ -28,3 +28,12 @@ contract MockTEL is ERC20 {
         _mint(to, amount);
     }
 }
+
+event InterchainTokenDeploymentStarted(
+    bytes32 indexed tokenId,
+    string tokenName,
+    string tokenSymbol,
+    uint8 tokenDecimals,
+    bytes minter,
+    string destinationChain
+);

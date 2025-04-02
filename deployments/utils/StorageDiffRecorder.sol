@@ -15,7 +15,7 @@ abstract contract StorageDiffRecorder is Test {
     /// @dev Populates `writtenStorageSlots` with written storage slots in `records`
     /// @param simulatedAccount The deployed contract with storage written by simulation
     /// @param records The AccountAccesses recorded by foundry diff 
-    function getWrittenSlots(address simulatedAccount, Vm.AccountAccess[] memory records) public virtual {
+    function saveWrittenSlots(address simulatedAccount, Vm.AccountAccess[] memory records) public virtual {
         bytes32[] storage slots = writtenStorageSlots[simulatedAccount];
         require(slots.length == 0, "Must clear storage array before populating");
 

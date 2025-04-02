@@ -6,6 +6,7 @@ import { AxelarAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
 import { AxelarAmplifierGatewayProxy } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol";
+import { Message, CommandType } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/AmplifierGatewayTypes.sol";
 import {
     WeightedSigner,
     WeightedSigners,
@@ -39,30 +40,7 @@ import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "./Create3Utils.sol";
 
 abstract contract ITSUtils is Create3Utils {
-    // chain info
-    string public ITS_HUB_CHAIN_NAME = "axelar";
-    string public ITS_HUB_ROUTING_IDENTIFIER = "hub";
-    string public TN_CHAIN_NAME = "telcoin-network";
-    bytes32 public TN_CHAINNAMEHASH = keccak256(bytes(TN_CHAIN_NAME));
-    string public MAINNET_CHAIN_NAME = "Ethereum";
-    bytes32 public MAINNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
-    address public MAINNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
-    address public MAINNET_GATEWAY = 0x4F4495243837681061C4743b74B3eEdf548D56A5;
-    string public DEVNET_SEPOLIA_CHAIN_NAME = "core-ethereum";
-    bytes32 public DEVNET_SEPOLIA_CHAINNAMEHASH = 0xbef3ef21418c49cdf83043f00d3ffeebe97f404dee721f6a81a99b66d96d6724;
-    address public DEVNET_SEPOLIA_ITS = 0x77883201091c08570D55000AB32645b88cB96324;
-    address public DEVNET_SEPOLIA_GATEWAY = 0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319;
-    string public TESTNET_SEPOLIA_CHAIN_NAME = "ethereum-sepolia";
-    bytes32 public TESTNET_SEPOLIA_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
-    address public TESTNET_SEPOLIA_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
-    address public TESTNET_SEPOLIA_GATEWAY = 0xe432150cce91c13a887f7D836923d5597adD8E31;
-
-    // stored assertion vars
-    address precalculatedITS;
-    address precalculatedITFactory;
-    bytes abiEncodedWeightedSigners;
-
-    // AxelarAmplifierGateway
+    // AxelarAmplifierGateway config
     string axelarId;
     string routerAddress;
     uint256 telChainId;
@@ -70,19 +48,20 @@ abstract contract ITSUtils is Create3Utils {
     uint256 previousSignersRetention;
     uint256 minimumRotationDelay;
     uint128 weight;
-    address singleSigner;
     uint128 threshold;
     bytes32 nonce;
+    address[] ampdVerifierSigners;
+    WeightedSigner[] signerArray;
     address gatewayOperator;
     bytes gatewaySetupParams;
     address gatewayOwner;
 
-    // AxelarGasService
+    // AxelarGasService config
     address gasCollector;
     address gsOwner;
     bytes gsSetupParams;
 
-    // InterchainTokenService
+    // InterchainTokenService config
     address itsOwner;
     address itsOperator;
     string chainName_;
@@ -90,19 +69,32 @@ abstract contract ITSUtils is Create3Utils {
     string[] trustedAddresses;
     bytes itsSetupParams;
 
-    // InterchainTokenFactory
+    // InterchainTokenFactory config
     address itfOwner;
 
     // rwTEL config
     address canonicalTEL;
     string canonicalChainName_;
-    address gateway_;
     string symbol_;
     string name_;
     uint256 recoverableWindow_;
     address governanceAddress_;
     address baseERC20_; // wTEL
     uint16 maxToClean;
+
+    // stored vars for assertion
+    address precalculatedITS;
+    address precalculatedITFactory;
+    bytes abiEncodedWeightedSigners;
+
+    // expose the message type constants that serve as headers for ITS messages between chains
+    uint256 internal constant MESSAGE_TYPE_INTERCHAIN_TRANSFER = 0;
+    uint256 internal constant MESSAGE_TYPE_DEPLOY_INTERCHAIN_TOKEN = 1;
+    // uint256 internal constant MESSAGE_TYPE_DEPLOY_TOKEN_MANAGER = 2;
+    uint256 internal constant MESSAGE_TYPE_SEND_TO_HUB = 3;
+    uint256 internal constant MESSAGE_TYPE_RECEIVE_FROM_HUB = 4;
+    uint256 internal constant MESSAGE_TYPE_LINK_TOKEN = 5;
+    uint256 internal constant MESSAGE_TYPE_REGISTER_TOKEN_METADATA = 6;
 
     function create3DeployAxelarAmplifierGatewayImpl(Create3Deployer create3)
         public
@@ -123,23 +115,13 @@ abstract contract ITSUtils is Create3Utils {
     function create3DeployAxelarAmplifierGateway(Create3Deployer create3, address impl)
         public
         returns (AxelarAmplifierGateway proxy)
-    {
-        // struct population for gateway constructor done in memory since storage structs don't work in Solidity
-        WeightedSigner[] memory signerArray = new WeightedSigner[](1);
-        signerArray[0] = WeightedSigner(singleSigner, weight);
-        WeightedSigners memory weightedSigners = WeightedSigners(signerArray, threshold, nonce);
-        WeightedSigners[] memory weightedSignersArray = new WeightedSigners[](1);
-        weightedSignersArray[0] = weightedSigners;
-        gatewaySetupParams = abi.encode(gatewayOperator, weightedSignersArray);
+    {        
         bytes memory gatewayConstructorArgs = abi.encode(impl, gatewayOwner, gatewaySetupParams);
         proxy = AxelarAmplifierGateway(
             create3Deploy(
                 create3, type(AxelarAmplifierGatewayProxy).creationCode, gatewayConstructorArgs, salts.gatewaySalt
             )
         );
-
-        // stored for asserts only
-        abiEncodedWeightedSigners = abi.encode(weightedSigners);
     }
 
     function create3DeployTokenManagerDeployer(Create3Deployer create3)
@@ -333,100 +315,30 @@ abstract contract ITSUtils is Create3Utils {
         telTokenManager = TokenManager(service.tokenManagerAddress(telInterchainTokenId));
     }
 
-    function _setUpDevnetConfig(address admin, address devnetTEL, address wTEL, address expectedITS, address expectedITF) internal {
-        // AxelarAmplifierGateway
-        axelarId = TN_CHAIN_NAME;
-        routerAddress = "router"; //todo: devnet router
-        telChainId = 0x7e1;
-        domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
-        previousSignersRetention = 16;
-        minimumRotationDelay = 86_400;
-        weight = 1; 
-        singleSigner = admin;
-        threshold = 1;
-        nonce = bytes32(0x0);
-        /// note: weightedSignersArray = [WeightedSigners([WeightedSigner(singleSigner, weight)], threshold, nonce)];
-        gatewayOperator = admin;
-        /// note: = abi.encode(gatewayOperator, weightedSignersArray);
-        gatewayOwner = admin;
-
-        // AxelarGasService
-        gasCollector = admin;
-        gsOwner = admin;
-        gsSetupParams = ""; // note: unused
-
-        // InterchainTokenService
-        itsOwner = admin;
-        itsOperator = admin;
-        chainName_ = TN_CHAIN_NAME;
-        trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
-        trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
-        itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
-
-        // InterchainTokenFactory
-        itfOwner = admin;
-
-        // rwTEL config
-        canonicalTEL = devnetTEL;
-        canonicalChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
-        symbol_ = "rwTEL";
-        name_ = "Recoverable Wrapped Telcoin";
-        recoverableWindow_ = 604_800;
-        governanceAddress_ = address(0xda0);
-        maxToClean = type(uint16).max;
-        baseERC20_ = wTEL; // for RWTEL constructor
-
-        precalculatedITS = expectedITS;
-        precalculatedITFactory = expectedITF;
+    /// @dev Returns a single ITS message crafted with the given parameters
+    function _craftITSMessage(string memory msgId, string memory srcChain, string memory srcAddress, address destAddress, bytes memory msgPayload) internal returns (Message memory) {
+        bytes32 payloadHash = keccak256(msgPayload);
+        return Message(srcChain, msgId, srcAddress, destAddress, payloadHash);
     }
 
-    function _setUpTestnetConfig(address testnetTEL, address wTEL, address expectedITS, address expectedITF) internal {
-        // // AxelarAmplifierGateway
-        // axelarId = TN_CHAIN_NAME;
-        // routerAddress = ; //todo: testnet router
-        // telChainId = 0x7e1;
-        // domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
-        // previousSignersRetention = 16; // todo: 16 signers seems high; 0 means only current signers valid (security)
-        // minimumRotationDelay = 86_400;
-        // weight = ; // todo: for testnet handle additional signers
-        // singleSigner = admin; // todo: for testnet increase signers
-        // threshold = ; // todo: for testnet increase threshold
-        // nonce = bytes32(0x0);
-        // /// note: weightedSignersArray = [WeightedSigners([WeightedSigner(singleSigner, weight)], threshold, nonce)];
-        // gatewayOperator = ; // todo: separate operator
-        // /// note: = abi.encode(gatewayOperator, weightedSignersArray);
-        // gatewayOwner = ; // todo
+    /// @dev Returns the gateway's WeightedSigners and messages hash, which if signed by enough ampd verifiers
+    /// will approve them for execution. Ampd verifiers sign only if their NVV includes the messages in a finalized block 
+    /// @notice The returned hash for ampd verifier signing is `eth_sign` prefixed
+    function _getWeightedSignersAndApproveMessagesHash(Message[] memory msgs, AxelarAmplifierGateway destinationGateway) internal returns (WeightedSigners memory, bytes32) {
+        WeightedSigners memory signers = WeightedSigners(signerArray, threshold, nonce);
 
-        // // AxelarGasService
-        // gasCollector = ; // todo: gas sponsorship key
-        // gsOwner = admin;
-        // gsSetupParams = ""; // note: unused
+        // proof must be signed keccak hash of abi encoded `CommandType.ApproveMessages` & message array
+        bytes32 dataHash = keccak256(abi.encode(CommandType.ApproveMessages, msgs));
+        // `domainSeparator` and `signersHash` for the current epoch are queriable on gateway
+        bytes32 ethSignApproveMsgsHash = keccak256(
+            bytes.concat(
+                "\x19Ethereum Signed Message:\n96",
+                destinationGateway.domainSeparator(),
+                destinationGateway.signersHashByEpoch(destinationGateway.epoch()),
+                dataHash
+            )
+        );
 
-        // // "Ethereum" InterchainTokenService
-        // itsOwner = ; // todo
-        // itsOperator = ; // todo
-        // chainName_ = TN_CHAIN_NAME;
-        // trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
-        // trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
-        // itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
-
-        // // InterchainTokenFactory
-        // itfOwner = ; // todo: separate owner
-
-        // // rwTEL config
-        // canonicalTEL = deployments.sepoliaTEL;
-        // canonicalChainName_ = TESTNET_SEPOLIA_CHAIN_NAME;
-        // symbol_ = "rwTEL";
-        // name_ = "Recoverable Wrapped Telcoin";
-        // recoverableWindow_ = 604_800; // todo: confirm 1 week
-        // governanceAddress_ = ; // todo: multisig/council/DAO address in prod
-        // maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
-        // baseERC20_ = address(wTEL); // for RWTEL constructor
-
-        // // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
-        // precalculatedITS = deployments.its.InterchainTokenService;
-        // // must precalculate ITF proxy to avoid `ITS::constructor()` revert
-        // precalculatedITFactory = deployments.its.InterchainTokenFactory;
+        return (signers, ethSignApproveMsgsHash);
     }
-    // function _setUpMainnetConfig() internal {}
 }
