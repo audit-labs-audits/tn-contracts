@@ -2,15 +2,19 @@
 pragma solidity ^0.8.20;
 
 import { LibString } from "solady/utils/LibString.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     WeightedSigner,
     WeightedSigners,
     Proof
 } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
+import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
+import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
+import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
 import { ITSUtils } from "./ITSUtils.sol";
 
-abstract contract ITSUtilsFork is ITSUtils {
-    // chain info
+abstract contract ITSConfig is ITSUtils {
+    // chain constants
     string public ITS_HUB_CHAIN_NAME = "axelar";
     string public ITS_HUB_ROUTING_IDENTIFIER = "hub";
     string public TN_CHAIN_NAME = "telcoin-network";
@@ -27,6 +31,15 @@ abstract contract ITSUtilsFork is ITSUtils {
     bytes32 public TESTNET_SEPOLIA_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
     address public TESTNET_SEPOLIA_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
     address public TESTNET_SEPOLIA_GATEWAY = 0xe432150cce91c13a887f7D836923d5597adD8E31;
+
+    // mutable fork contracts
+    // Sepolia
+    IERC20 sepoliaTEL;
+    InterchainTokenService sepoliaITS;
+    InterchainTokenFactory sepoliaITF;
+    IAxelarGateway sepoliaGateway;
+
+    //todo: Ethereum
 
     function _setUpDevnetConfig(address admin, address devnetTEL, address wTEL, address expectedITS, address expectedITF) internal virtual {
         // AxelarAmplifierGateway

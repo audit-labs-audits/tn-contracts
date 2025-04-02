@@ -45,7 +45,7 @@ import { RWTEL } from "../src/RWTEL.sol";
 import { ExtCall } from "../src/interfaces/IRWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Utils.sol";
 import { Deployments } from "../deployments/Deployments.sol";
-import { ITSUtilsFork } from "../deployments/utils/ITSUtilsFork.sol";
+import { ITSConfig } from "../deployments/utils/ITSConfig.sol";
 import { StorageDiffRecorder } from "../deployments/utils/StorageDiffRecorder.sol";
 
 /// @title Interchain Token Service Genesis Config Generator
@@ -53,7 +53,7 @@ import { StorageDiffRecorder } from "../deployments/utils/StorageDiffRecorder.so
 /// Used by Telcoin-Network protocol to instantiate the contracts with required configuration at genesis
 
 /// @dev Usage: `forge script script/GenerateITSGenesisConfig.s.sol -vvvv`
-contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
+contract GenerateITSConfig is ITSConfig, StorageDiffRecorder, Script {
     // AxelarAmplifierGateway gatewayImpl; //todo rerun
     // AxelarAmplifierGateway gateway;
     // TokenManagerDeployer tokenManagerDeployer;
@@ -74,7 +74,6 @@ contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
     // RWTEL rwTELImpl;
     // RWTEL rwTEL;
     // address rwtelOwner;
-
 
     Deployments deployments;
 
@@ -148,8 +147,7 @@ contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
         yamlAppendBytecodeWithStorage(dest, address(gasService), deployments.its.GasService);
 
         // gateway caller (no storage)
-        gatewayCaller =
-            create3DeployGatewayCaller(deployments.its.AxelarAmplifierGateway, deployments.its.GasService);
+        gatewayCaller = create3DeployGatewayCaller(deployments.its.AxelarAmplifierGateway, deployments.its.GasService);
         yamlAppendBytecode(dest, address(gatewayCaller), deployments.its.GatewayCaller);
 
         // its (has storage)

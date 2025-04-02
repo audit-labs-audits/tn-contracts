@@ -32,24 +32,19 @@ import { ITokenManagerType } from "@axelar-network/interchain-token-service/cont
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
-import { AxelarGasServiceProxy } from "../../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
+import { AxelarGasServiceProxy } from "../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
-import { WTEL } from "../../src/WTEL.sol";
-import { RWTEL } from "../../src/RWTEL.sol";
-import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
-import { Deployments } from "../../deployments/Deployments.sol";
-import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
-import { ITSUtilsFork } from "../../deployments/utils/ITSUtilsFork.sol";
-import { HarnessCreate3FixedAddressForITS } from "./ITSTestHelper.sol";
+import { WTEL } from "../src/WTEL.sol";
+import { RWTEL } from "../src/RWTEL.sol";
+import { ExtCall } from "../src/interfaces/IRWTEL.sol";
+import { Deployments } from "../deployments/Deployments.sol";
+import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Utils.sol";
+import { MockTEL, ITSTestHelper } from "./ITS/ITSTestHelper.sol";
 
-contract RWTELTest is Test, ITSUtilsFork {
-    WTEL wTEL;
-    RWTEL rwTELImpl;
-    RWTEL rwTEL;
-
+contract RWTELTest is Test, ITSTestHelper {
     // canonical chain config (sepolia or ethereum)
     // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
     bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
@@ -72,238 +67,40 @@ contract RWTELTest is Test, ITSUtilsFork {
     string messageId;
     Message[] messages;
 
-//     function setUp() public {
-//         string memory root = vm.projectRoot();
-//         string memory path = string.concat(root, "/deployments/deployments.json");
-//         string memory json = vm.readFile(path);
-//         bytes memory data = vm.parseJson(json);
-//         deployments = abi.decode(data, (Deployments));
+    function setUp() public {
+        admin = address(0xbeef);
+        wTEL = new WTEL();
+        _setUp_tnFork_devnetConfig_create3(admin, canonicalTEL, address(wTEL));
 
-//         wTEL = new WTEL();
+        MockTEL mockTEL = new MockTEL();
+        vm.etch(canonicalTEL, address(mockTEL).code);
+    }
 
-//         // todo: separate unit & fork tests to new file
-//         // todo: currently using duplicate gateway while awaiting Axelar token registration
-//         its_ = deployments.its.InterchainTokenService;
-//         name_ = "Recoverable Wrapped Telcoin";
-//         symbol_ = "rwTEL";
-//         recoverableWindow_ = 604_800; // 1 week
-//         governanceAddress_ = address(this); // multisig/council/DAO address in prod
-//         baseERC20_ = address(wTEL);
-//         maxToClean = type(uint16).max; // gas is not expected to be an obstacle; clear all relevant storage
-//         admin = deployments.admin;
+    function test_setUp() public view {
+        // wTEL sanity tests
+        assertTrue(address(wTEL).code.length > 0);
+        string memory wName = wTEL.name();
+        assertEq(wName, "Wrapped Telcoin");
+        string memory wSymbol = wTEL.symbol();
+        assertEq(wSymbol, "wTEL");
 
-//         // todo: use create3: deploy impl + proxy and initialize
-//         rwTELImpl = new RWTEL{ salt: rwTELsalt }(
-//             address(0xbabe),
-//             "chain",
-//             its_,
-//             name_,
-//             symbol_,
-//             recoverableWindow_,
-//             governanceAddress_,
-//             baseERC20_,
-//             maxToClean
-//         );
-//         rwTEL = RWTEL(payable(address(new ERC1967Proxy{ salt: rwTELsalt }(address(rwTELImpl), ""))));
-//         rwTEL.initialize(governanceAddress_, maxToClean, admin);
-//     }
+        // rwTEL sanity tests
+        assertEq(rwTEL.stakeManager(), 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
+        assertEq(address(rwTEL.interchainTokenService()), address(its));
+        assertEq(rwTEL.owner(), admin);
+        assertTrue(address(rwTEL).code.length > 0);
+        string memory rwName = rwTEL.name();
+        assertEq(rwName, "Recoverable Wrapped Telcoin");
+        string memory rwSymbol = rwTEL.symbol();
+        assertEq(rwSymbol, "rwTEL");
+        uint256 recoverableWindow = rwTEL.recoverableWindow();
+        assertEq(recoverableWindow, recoverableWindow_);
+        address governanceAddress = rwTEL.governanceAddress();
+        assertEq(governanceAddress, governanceAddress_);
+    }
 
-//     function test_setUp() public view {
-//         // wTEL sanity tests
-//         assertTrue(address(wTEL).code.length > 0);
-//         string memory wName = wTEL.name();
-//         assertEq(wName, "Wrapped Telcoin");
-//         string memory wSymbol = wTEL.symbol();
-//         assertEq(wSymbol, "wTEL");
-
-//         // rwTEL sanity tests
-//         assertEq(rwTEL.stakeManager(), deployments.StakeManager);
-//         assertEq(address(rwTEL.interchainTokenService()), deployments.its.InterchainTokenService);
-//         assertEq(rwTEL.owner(), admin);
-//         assertTrue(address(rwTEL).code.length > 0);
-//         string memory rwName = rwTEL.name();
-//         assertEq(rwName, "Recoverable Wrapped Telcoin");
-//         string memory rwSymbol = rwTEL.symbol();
-//         assertEq(rwSymbol, "rwTEL");
-//         uint256 recoverableWindow = rwTEL.recoverableWindow();
-//         assertEq(recoverableWindow, recoverableWindow_);
-//         address governanceAddress = rwTEL.governanceAddress();
-//         assertEq(governanceAddress, address(this));
-//     }
-
-//     //todo:
-//     // function test_mint() public {}
-//     // function test_burn() public {}
-
-//     //todo: move to fork file
-//     // function test_tn_rwtelInterchainTransfer_RWTEL() public {}
-//     // function test_tn_rwtelTransmitInterchainTransfer_RWTEL() public {
-//     // function test_tn_itsInterchainTransfer_RWTEL() public {}
-//     // function test_tn_itsTransmitInterchainTransfer_RWTEL() public {
-//     // function test_tn_giveToken_RWTEL() public {
-//     //    tokenhandler.giveToken() directly
-//     // }
-//     // function test_tn_takeToken_RWTEL() public {}
-//     //    tokenhandler.takeToken() directly
-//     // }
-
-//     function setUpForkConfig() internal {
-//         // todo: currently replica; change to canonical Axelar sepolia gateway
-//         sepoliaGateway = IAxelarGateway(0xB906fC799C9E51f1231f37B867eEd1d9C5a6D472);
-//         sepoliaTel = IERC20(deployments.sepoliaTEL);
-//         tnGateway = AxelarAmplifierGateway(deployments.its.AxelarAmplifierGateway);
-//         tnWTEL = WTEL(payable(deployments.wTEL));
-//         tnRWTEL = RWTEL(payable(deployments.rwTEL));
-
-//         user = address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180);
-//         symbol = "TEL";
-//         amount = 100; // 1 tel
-//         // `extCallData` is empty for standard bridging
-//         payload = abi.encode(ExtCall({ target: user, value: amount, data: extCallData }));
-//         payloadHash = keccak256(payload);
-//     }
-
-    // function test_e2e_bridgeSimulation_sepoliaToTN() public {
-            //todo: token bridge test asserts, move natspec comments
-        // uint256 userBalBefore = user.balance;
-        // native TEL has been bridged and delivered to user as ERC20 sepolia TEL 
-        // assertEq(user.balance, userBalBefore + amount); //todo: token bridge test
-        // }
-
-//     function test_bridgeSimulationSepoliaToTN() public {
-//         /// @dev This test is skipped because it relies on signing with a local key
-//         /// and to save on RPC calls. Remove to unskip
-//         vm.skip(true); //todo
-
-//         setUpForkConfig();
-
-//         sepoliaFork = vm.createFork(SEPOLIA_RPC_URL);
-//         vm.selectFork(sepoliaFork);
-
-//         sourceChain = "ethereum-sepolia";
-//         sourceAddress = LibString.toHexString(uint256(uint160(address(sepoliaGateway))), 20);
-//         destChain = "telcoin-network";
-//         destAddress = LibString.toHexString(uint256(uint160(address(tnRWTEL))), 20);
-
-//         vm.startPrank(user);
-//         // user must have tokens and approve gateway
-//         sepoliaTel.approve(address(sepoliaGateway), amount);
-
-//         // subscriber will monitor `ContractCall` events
-//         vm.expectEmit(true, true, true, true);
-//         emit ContractCall(user, destChain, destAddress, payloadHash, payload);
-//         sepoliaGateway.callContract(destChain, destAddress, payload);
-//         vm.stopPrank();
-
-//         /**
-//          * @dev Relayer Action: Monitor Source Gateway for GMP Message Event Emission
-//          * subscriber picks up event + forwards to GMP API where it is processed by TN verifier
-//          */
-//         tnFork = vm.createFork(TN_RPC_URL);
-//         vm.selectFork(tnFork);
-
-//         messageId = "42";
-//         messages.push(Message(sourceChain, messageId, sourceAddress, address(tnRWTEL), payloadHash));
-//         // proof must be signed keccak hash of abi encoded `CommandType.ApproveMessages` & message array
-//         bytes32 dataHash = keccak256(abi.encode(CommandType.ApproveMessages, messages));
-//         // `domainSeparator` and `signersHash` for the current epoch are queriable on gateway
-//         bytes32 ethSignPrefixedMsgHash = keccak256(
-//             bytes.concat(
-//                 "\x19Ethereum Signed Message:\n96",
-//                 tnGateway.domainSeparator(),
-//                 tnGateway.signersHashByEpoch(tnGateway.epoch()),
-//                 dataHash
-//             )
-//         );
-
-//         // TN gateway currently uses a single signer of `admin` with weight 1
-//         WeightedSigner[] memory signers = new WeightedSigner[](1);
-//         signers[0] = WeightedSigner(admin, 1);
-//         // signer set `nonce == bytes32(0)` and for a single signer, `threshold == 1`
-//         WeightedSigners memory weightedSigners = WeightedSigners(signers, 1, bytes32(0x0));
-//         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
-//         (uint8 v, bytes32 r, bytes32 s) = vm.sign(vm.envUint("ADMIN_PK"), ethSignPrefixedMsgHash);
-//         bytes[] memory signatures = new bytes[](1);
-//         signatures[0] = abi.encodePacked(r, s, v);
-//         Proof memory proof = Proof(weightedSigners, signatures);
-
-//         bytes32 commandId = tnGateway.messageToCommandId(sourceChain, messageId);
-//         vm.expectEmit(true, true, true, true);
-//         emit MessageApproved(commandId, sourceChain, messageId, sourceAddress, address(tnRWTEL), payloadHash);
-//         vm.prank(admin);
-//         tnGateway.approveMessages(messages, proof);
-
-//         uint256 userBalBefore = user.balance;
-
-//         vm.expectEmit(true, true, true, true);
-//         emit MessageExecuted(commandId);
-//         vm.prank(admin);
-//         // tnRWTEL.executeWithInterchainToken(
-//         //     commandId, sourceChain, bytes(sourceAddress), payload, tokenId, token, amount
-//         // );
-
-//         // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
-//         assertEq(user.balance, userBalBefore + amount);
-//     }
-
-
-    // function test_e2e_bridgeSimulation_sepoliaToTN() public {
-            //todo: token bridge test asserts, move natspec comments
-        // uint256 userBalBefore = user.balance;
-        // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
-        // assertEq(user.balance, userBalBefore + amount); //todo: token bridge test
-        // }
-//     function test_bridgeSimulationTNToSepolia() public {
-//         /// @dev This test is skipped because it relies on signing with a local key
-//         /// and to save on RPC calls. Remove to unskip
-//         // vm.skip(true); //todo
-
-//         setUpForkConfig();
-
-//         tnFork = vm.createFork(TN_RPC_URL);
-//         vm.selectFork(tnFork);
-
-//         vm.deal(user, amount + 100);
-//         sourceChain = "telcoin-network";
-//         sourceAddress = LibString.toHexString(uint256(uint160(address(tnGateway))), 20);
-//         destChain = "ethereum-sepolia";
-//         // Axelar Ethereum-Sepolia gateway predates AxelarExecutable contract; it contains execution logic
-//         destAddress = LibString.toHexString(uint256(uint160(address(sepoliaGateway))), 20);
-
-//         vm.startPrank(user);
-//         // wrap amount to wTEL and then to rwTEL, which initiates `recoverableWindow`
-//         tnWTEL.deposit{ value: amount }();
-//         tnWTEL.approve(address(tnRWTEL), amount);
-//         tnRWTEL.wrap(amount);
-
-//         // construct payload
-//         messageId = "42";
-//         bytes32[] memory commandIds = new bytes32[](1);
-//         bytes32 commandId = tnGateway.messageToCommandId(sourceChain, messageId);
-//         commandIds[0] = commandId;
-//         string[] memory commands = new string[](1);
-//         commands[0] = "mintToken";
-//         bytes[] memory params = new bytes[](1);
-//         bytes memory mintTokenParams = abi.encode(symbol, user, amount);
-//         params[0] = mintTokenParams;
-//         bytes memory data = abi.encode(11_155_111, commandIds, commands, params);
-//         bytes memory proof = "";
-//         payload = abi.encode(data, proof);
-
-//         // elapse time
-//         vm.warp(block.timestamp + recoverableWindow_);
-
-//         vm.expectEmit();
-//         emit ContractCall(user, destChain, destAddress, keccak256(payload), payload);
-//         tnGateway.callContract(destChain, destAddress, payload);
-
-//         // sepolia side
-//         sepoliaFork = vm.createFork(SEPOLIA_RPC_URL);
-//         vm.selectFork(sepoliaFork);
-
-//         // sepoliaGateway.execute(payload);
-//     }
-
-//     //todo: test bridge attempts should revert until `recoverableWindow` has elapsed
-
+    //     //todo:
+    //     // function test_mint() public {}
+    //     // function test_burn() public {}
+    //     //todo: test bridge attempts should revert until `recoverableWindow` has elapsed
 }

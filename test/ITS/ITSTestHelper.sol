@@ -4,18 +4,27 @@ pragma solidity ^0.8.26;
 import { Test, console2 } from "forge-std/Test.sol";
 import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
-import { InterchainTokenService } from "../../deployments/Deployments.sol";
-import { ITSUtilsFork } from "../../deployments/utils/ITSUtilsFork.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
+import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
+import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
+import { ITSConfig } from "../../deployments/utils/ITSConfig.sol";
 
-abstract contract ITSTestHelper is Test, ITSUtilsFork {
+abstract contract ITSTestHelper is Test, ITSConfig {
+    function setUp_sepoliaFork_devnetConfig(address sepoliaTel, address sepoliaIts, address sepoliaItf) internal {
+        sepoliaTEL = IERC20(sepoliaTel);
+        sepoliaITS = InterchainTokenService(sepoliaIts);
+        sepoliaITF = InterchainTokenFactory(sepoliaItf);
+        sepoliaGateway = IAxelarGateway(DEVNET_SEPOLIA_GATEWAY);
+        canonicalTEL = address(sepoliaTEL);
+    }
+
     //todo: inherit StorageDiffRecorder, add bytecode etching, storage writing, TEL seeding
-
     /// TODO: Until testnet is restarted with genesis precompiles, this function deploys ITS via create3
     /// @notice For devnet, a developer admin address serves all permissioned roles
-    function _setUp_tnFork_devnetConfig_create3(uint256 tnFork, address admin, address canonicalTEL, address wtel) internal {
-        vm.selectFork(tnFork);
-
+    function _setUp_tnFork_devnetConfig_create3(address admin, address canonicalTEL, address wtel) internal {
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
         // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
         address expectedITS = create3.deployedAddress("", admin, salts.itsSalt);
@@ -61,10 +70,9 @@ abstract contract ITSTestHelper is Test, ITSUtilsFork {
         assertEq(address(itFactory), precalculatedITFactory);
     }
 
-    
-    function setUp_tnFork_devnetConfig_genesis(uint256 tnFork, address admin, address canonicalTEL, address wtel) internal {
+    function setUp_tnFork_devnetConfig_genesis(address admin, address canonicalTEL, address wtel) internal {
         // todo: remove this line and uncomment section below after testnet restart with genesis precompiles
-        _setUp_tnFork_devnetConfig_create3(tnFork, admin, canonicalTEL, wtel);
+        _setUp_tnFork_devnetConfig_create3(admin, canonicalTEL, wtel);
 
         // gatewayImpl = AxelarAmplifierGateway(deployments.its.AxelarAmplifierGatewayImpl);
         // gateway = AxelarAmplifierGateway(deployments.its.AxelarAmplifierGateway);
@@ -92,7 +100,7 @@ abstract contract ITSTestHelper is Test, ITSUtilsFork {
         bytes32 indexed payloadHash,
         bytes payload
     );
-    
+
     /// @notice Redeclared event from `BaseAmplifierGateway` for asserts
     event MessageApproved(
         bytes32 indexed commandId,

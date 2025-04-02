@@ -59,7 +59,7 @@
 
 // /// @dev Usage: `forge script script/testnet/deploy/DevnetCanonicalTELActions.s.sol \
 // /// --rpc-url $SEPOLIA_RPC_URL -vvvv --private-key $ADMIN_PK`
-// contract DevnetCanonicalTELActions is Script, ITSUtilsFork {
+// contract DevnetCanonicalTELActions is Script, ITSConfig {
 //     // TN contracts
 //     WTEL wTEL; // already deployed
 //     RWTEL rwTELImpl;

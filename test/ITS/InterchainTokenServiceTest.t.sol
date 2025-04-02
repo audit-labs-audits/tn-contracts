@@ -42,10 +42,10 @@ import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
 import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
-import { ITSUtilsFork } from "../../deployments/utils/ITSUtilsFork.sol";
+import { ITSConfig } from "../../deployments/utils/ITSConfig.sol";
 import { HarnessCreate3FixedAddressForITS, MockTEL } from "./ITSTestHelper.sol";
 
-contract InterchainTokenServiceTest is Test, ITSUtilsFork {
+contract InterchainTokenServiceTest is Test, ITSConfig {
     // canonical "Ethereum" config (no forking done here but config stands)
     MockTEL mockTEL; // not used except to etch bytecode onto canonicalTEL
     address ethereumTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
@@ -55,7 +55,6 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
     TokenManager canonicalTELTokenManager;
 
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
-    address deployerEOA = admin; // only used for devnet
 
     function setUp() public {
         mockTEL = new MockTEL();
@@ -67,9 +66,9 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
         // note: devnet only: CREATE3 contract deployed via `create2`
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
         // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
-        address expectedITS = create3.deployedAddress("", deployerEOA, salts.itsSalt);
+        address expectedITS = create3.deployedAddress("", admin, salts.itsSalt);
         // must precalculate ITF proxy to avoid `ITS::constructor()` revert
-        address expectedITF = create3.deployedAddress("", deployerEOA, salts.itfSalt);
+        address expectedITF = create3.deployedAddress("", admin, salts.itfSalt);
         _setUpDevnetConfig(admin, canonicalTEL, address(wTEL), expectedITS, expectedITF);
 
         // note: devnet only
@@ -80,7 +79,7 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
         itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
         // note: ITS deterministic create3 deployments depend on `sender` for devnet only
-        vm.startPrank(deployerEOA);
+        vm.startPrank(admin);
 
         // deploy ITS core suite; use config from storage
         gatewayImpl = create3DeployAxelarAmplifierGatewayImpl();
@@ -110,7 +109,7 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
 
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
 
-        vm.stopPrank(); // `deployerEOA`
+        vm.stopPrank(); // `admin`
 
         // asserts
         assertEq(precalculatedITS, address(its));
@@ -195,15 +194,15 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         vm.expectRevert();
-        canonicalTELTokenManager.proposeOperatorship(deployerEOA);
+        canonicalTELTokenManager.proposeOperatorship(admin);
         vm.expectRevert();
-        canonicalTELTokenManager.transferOperatorship(deployerEOA);
+        canonicalTELTokenManager.transferOperatorship(admin);
         vm.expectRevert();
-        canonicalTELTokenManager.acceptOperatorship(deployerEOA);
+        canonicalTELTokenManager.acceptOperatorship(admin);
         vm.expectRevert();
-        canonicalTELTokenManager.addFlowLimiter(deployerEOA);
+        canonicalTELTokenManager.addFlowLimiter(admin);
         vm.expectRevert();
-        canonicalTELTokenManager.removeFlowLimiter(deployerEOA);
+        canonicalTELTokenManager.removeFlowLimiter(admin);
         uint256 dummyAmt = 1;
         vm.expectRevert();
         canonicalTELTokenManager.setFlowLimit(dummyAmt);
@@ -212,9 +211,9 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
         vm.expectRevert();
         canonicalTELTokenManager.addFlowOut(dummyAmt);
         vm.expectRevert();
-        canonicalTELTokenManager.mintToken(address(canonicalTEL), address(deployerEOA), dummyAmt);
+        canonicalTELTokenManager.mintToken(address(canonicalTEL), address(admin), dummyAmt);
         vm.expectRevert();
-        canonicalTELTokenManager.burnToken(address(canonicalTEL), address(deployerEOA), dummyAmt);
+        canonicalTELTokenManager.burnToken(address(canonicalTEL), address(admin), dummyAmt);
 
         // `BaseProxy::setup()` doesn't revert but does nothing if invoked outside of `TokenManagerProxy` constructor
         canonicalTELTokenManager.setup(abi.encode(address(0), address(0x42)));
