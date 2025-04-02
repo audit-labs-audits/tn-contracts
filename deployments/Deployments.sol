@@ -39,8 +39,8 @@ struct InterchainTokenService {
     address InterchainTokenService;
     address InterchainTokenServiceImpl;
     address TokenHandler;
-    address TokenManagerImpl;
     address TokenManagerDeployer;
+    address TokenManagerImpl;
 }
 
 /// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering

@@ -21,12 +21,6 @@ interface IRWTEL {
     error MintFailed(address to, uint256 amount);
     error BurnFailed(address from, uint256 amount);
 
-    //todo: delete
-    // error ExecutionFailed(bytes32 commandId, address target);
-    // error InvalidToken(bytes32 commandId, address token, bytes32 tokenId);
-    // error InvalidTarget(bytes32 commandId, address target);
-    // error InvalidAmount(bytes32 commandId, uint256 amount, uint256 extCallAmount);
-
     /// @notice May only be called by the StakeManager as part of its `claimStakeRewards()` flow
     function distributeStakeReward(address validator, uint256 rewardAmount) external;
 

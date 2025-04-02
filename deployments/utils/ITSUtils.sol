@@ -40,6 +40,30 @@ import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "./Create3Utils.sol";
 
 abstract contract ITSUtils is Create3Utils {
+    // ITS core contracts
+    Create3Deployer create3; // not included in genesis
+    AxelarAmplifierGateway gatewayImpl;
+    AxelarAmplifierGateway gateway;
+    TokenManagerDeployer tokenManagerDeployer;
+    InterchainToken interchainTokenImpl;
+    InterchainTokenDeployer itDeployer;
+    TokenManager tokenManagerImpl;
+    TokenHandler tokenHandler;
+    AxelarGasService gasServiceImpl;
+    AxelarGasService gasService;
+    GatewayCaller gatewayCaller;
+    InterchainTokenService itsImpl;
+    InterchainTokenService its; // InterchainProxy
+    InterchainTokenFactory itFactoryImpl;
+    InterchainTokenFactory itFactory; // InterchainProxy
+    TokenManager canonicalRWTELTokenManager;
+
+    // Telcoin Network contracts
+    WTEL wTEL;
+    RWTEL rwTELImpl;
+    RWTEL rwTEL;
+    address rwtelOwner; // note: devnet only
+
     // AxelarAmplifierGateway config
     string axelarId;
     string routerAddress;
@@ -96,7 +120,7 @@ abstract contract ITSUtils is Create3Utils {
     uint256 internal constant MESSAGE_TYPE_LINK_TOKEN = 5;
     uint256 internal constant MESSAGE_TYPE_REGISTER_TOKEN_METADATA = 6;
 
-    function create3DeployAxelarAmplifierGatewayImpl(Create3Deployer create3)
+    function create3DeployAxelarAmplifierGatewayImpl()
         public
         returns (AxelarAmplifierGateway impl)
     {
@@ -112,7 +136,7 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployAxelarAmplifierGateway(Create3Deployer create3, address impl)
+    function create3DeployAxelarAmplifierGateway(address impl)
         public
         returns (AxelarAmplifierGateway proxy)
     {        
@@ -124,7 +148,7 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployTokenManagerDeployer(Create3Deployer create3)
+    function create3DeployTokenManagerDeployer()
         public
         returns (TokenManagerDeployer tmDeployer)
     {
@@ -132,7 +156,7 @@ abstract contract ITSUtils is Create3Utils {
             TokenManagerDeployer(create3Deploy(create3, type(TokenManagerDeployer).creationCode, "", salts.tmdSalt));
     }
 
-    function create3DeployInterchainTokenImpl(Create3Deployer create3) public returns (InterchainToken itImpl) {
+    function create3DeployInterchainTokenImpl() public returns (InterchainToken itImpl) {
         bytes memory itImplConstructorArgs = abi.encode(precalculatedITS);
         itImpl = InterchainToken(
             create3Deploy(create3, type(InterchainToken).creationCode, itImplConstructorArgs, implSalts.itImplSalt)
@@ -140,30 +164,30 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     function create3DeployInterchainTokenDeployer(
-        Create3Deployer create3,
-        address interchainTokenImpl
+        
+        address interchainTokenImpl_
     )
         public
         returns (InterchainTokenDeployer itd)
     {
-        bytes memory itdConstructorArgs = abi.encode(interchainTokenImpl);
+        bytes memory itdConstructorArgs = abi.encode(interchainTokenImpl_);
         itd = InterchainTokenDeployer(
             create3Deploy(create3, type(InterchainTokenDeployer).creationCode, itdConstructorArgs, salts.itdSalt)
         );
     }
 
-    function create3DeployTokenManagerImpl(Create3Deployer create3) public returns (TokenManager tmImpl) {
+    function create3DeployTokenManagerImpl() public returns (TokenManager tmImpl) {
         bytes memory tmConstructorArgs = abi.encode(precalculatedITS);
         tmImpl = TokenManager(
             create3Deploy(create3, type(TokenManager).creationCode, tmConstructorArgs, implSalts.tmImplSalt)
         );
     }
 
-    function create3DeployTokenHandler(Create3Deployer create3) public returns (TokenHandler th) {
+    function create3DeployTokenHandler() public returns (TokenHandler th) {
         th = TokenHandler(create3Deploy(create3, type(TokenHandler).creationCode, "", salts.thSalt));
     }
 
-    function create3DeployAxelarGasServiceImpl(Create3Deployer create3)
+    function create3DeployAxelarGasServiceImpl()
         public
         returns (AxelarGasService impl)
     {
@@ -173,7 +197,7 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployAxelarGasService(Create3Deployer create3, address impl)
+    function create3DeployAxelarGasService(address impl)
         public
         returns (AxelarGasService proxy)
     {
@@ -184,40 +208,39 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     function create3DeployGatewayCaller(
-        Create3Deployer create3,
-        address gateway,
-        address axelarGasService
+        
+        address gateway_,
+        address axelarGasService_
     )
         public
         returns (GatewayCaller gc)
     {
-        bytes memory gcConstructorArgs = abi.encode(gateway, axelarGasService);
+        bytes memory gcConstructorArgs = abi.encode(gateway_, axelarGasService_);
         gc = GatewayCaller(create3Deploy(create3, type(GatewayCaller).creationCode, gcConstructorArgs, salts.gcSalt));
     }
 
     function create3DeployITSImpl(
-        Create3Deployer create3,
-        address tokenManagerDeployer,
-        address itDeployer,
-        address gateway,
-        address gasService,
-        address tokenManagerImpl,
-        address tokenHandler,
-        address gatewayCaller
+        address tokenManagerDeployer_,
+        address itDeployer_,
+        address gateway_,
+        address gasService_,
+        address tokenManagerImpl_,
+        address tokenHandler_,
+        address gatewayCaller_
     )
         public
         returns (InterchainTokenService impl)
     {
         bytes memory itsImplConstructorArgs = abi.encode(
-            tokenManagerDeployer,
-            itDeployer,
-            gateway,
-            gasService,
+            tokenManagerDeployer_,
+            itDeployer_,
+            gateway_,
+            gasService_,
             precalculatedITFactory, // storage config
             chainName_, // storage config
-            tokenManagerImpl,
-            tokenHandler,
-            gatewayCaller
+            tokenManagerImpl_,
+            tokenHandler_,
+            gatewayCaller_
         );
         impl = InterchainTokenService(
             create3Deploy(
@@ -227,7 +250,6 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     function create3DeployITS(
-        Create3Deployer create3,
         address impl
     )
         public
@@ -240,13 +262,12 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     function create3DeployITFImpl(
-        Create3Deployer create3,
-        address its
+        address its_
     )
         public
         returns (InterchainTokenFactory impl)
     {
-        bytes memory itfImplConstructorArgs = abi.encode(its);
+        bytes memory itfImplConstructorArgs = abi.encode(its_);
         impl = InterchainTokenFactory(
             create3Deploy(
                 create3, type(InterchainTokenFactory).creationCode, itfImplConstructorArgs, implSalts.itfImplSalt
@@ -255,7 +276,6 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     function create3DeployITF(
-        Create3Deployer create3,
         address impl
     )
         public
@@ -268,11 +288,11 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     /// TODO: convert to singleton for mainnet
-    function create3DeployRWTELImpl(Create3Deployer create3, address its) public returns (RWTEL impl) {
+    function create3DeployRWTELImpl(address its_) public returns (RWTEL impl) {
         bytes memory rwTELImplConstructorArgs = abi.encode(
             canonicalTEL,
             canonicalChainName_,
-            its,
+            its_,
             name_,
             symbol_,
             recoverableWindow_,
@@ -286,7 +306,7 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     /// TODO: convert to singleton for mainnet
-    function create3DeployRWTEL(Create3Deployer create3, address impl) public returns (RWTEL proxy) {
+    function create3DeployRWTEL(address impl) public returns (RWTEL proxy) {
         bytes memory rwTELConstructorArgs = abi.encode(impl, "");
         proxy = RWTEL(
             payable(create3Deploy(create3, type(ERC1967Proxy).creationCode, rwTELConstructorArgs, salts.rwtelSalt))
@@ -316,7 +336,7 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     /// @dev Returns a single ITS message crafted with the given parameters
-    function _craftITSMessage(string memory msgId, string memory srcChain, string memory srcAddress, address destAddress, bytes memory msgPayload) internal returns (Message memory) {
+    function _craftITSMessage(string memory msgId, string memory srcChain, string memory srcAddress, address destAddress, bytes memory msgPayload) internal pure returns (Message memory) {
         bytes32 payloadHash = keccak256(msgPayload);
         return Message(srcChain, msgId, srcAddress, destAddress, payloadHash);
     }
@@ -324,7 +344,7 @@ abstract contract ITSUtils is Create3Utils {
     /// @dev Returns the gateway's WeightedSigners and messages hash, which if signed by enough ampd verifiers
     /// will approve them for execution. Ampd verifiers sign only if their NVV includes the messages in a finalized block 
     /// @notice The returned hash for ampd verifier signing is `eth_sign` prefixed
-    function _getWeightedSignersAndApproveMessagesHash(Message[] memory msgs, AxelarAmplifierGateway destinationGateway) internal returns (WeightedSigners memory, bytes32) {
+    function _getWeightedSignersAndApproveMessagesHash(Message[] memory msgs, AxelarAmplifierGateway destinationGateway) internal view returns (WeightedSigners memory, bytes32) {
         WeightedSigners memory signers = WeightedSigners(signerArray, threshold, nonce);
 
         // proof must be signed keccak hash of abi encoded `CommandType.ApproveMessages` & message array

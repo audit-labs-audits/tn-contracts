@@ -10,7 +10,8 @@
 //     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol";
 // import { BaseAmplifierGateway } from
 //     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/BaseAmplifierGateway.sol";
-// import { Message, CommandType } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/AmplifierGatewayTypes.sol";
+// import { Message, CommandType } from
+// "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/AmplifierGatewayTypes.sol";
 // import {
 //     WeightedSigner,
 //     WeightedSigners,
@@ -18,19 +19,24 @@
 // } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
 // import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
 // import { AddressBytes } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressBytes.sol";
-// import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
-// import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
+// import { Create3AddressFixed } from
+// "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
+// import { InterchainTokenService } from
+// "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
 // import { InterchainProxy } from "@axelar-network/interchain-token-service/contracts/proxies/InterchainProxy.sol";
 // import { TokenManagerProxy } from "@axelar-network/interchain-token-service/contracts/proxies/TokenManagerProxy.sol";
 // import { InterchainTokenDeployer } from
 //     "@axelar-network/interchain-token-service/contracts/utils/InterchainTokenDeployer.sol";
-// import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
+// import { InterchainTokenFactory } from
+// "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
 // import { InterchainToken } from
 //     "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainToken.sol";
-// import { TokenManagerDeployer } from "@axelar-network/interchain-token-service/contracts/utils/TokenManagerDeployer.sol";
+// import { TokenManagerDeployer } from
+// "@axelar-network/interchain-token-service/contracts/utils/TokenManagerDeployer.sol";
 // import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
 // import { ITokenManager } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManager.sol";
-// import { ITokenManagerType } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
+// import { ITokenManagerType } from
+// "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
 // import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 // import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 // import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
@@ -91,12 +97,11 @@
 //         bytes memory data = vm.parseJson(json);
 //         deployments = abi.decode(data, (Deployments));
 
-            // _devnetConfig()
+// _devnetConfig()
 //     }
 
 //     function run() public {
 //         // vm.startBroadcast();
-
 
 //         // vm.stopBroadcast();
 
@@ -108,8 +113,10 @@
 //         // // logs
 //         // string memory root = vm.projectRoot();
 //         // string memory dest = string.concat(root, "/deployments/deployments.json");
-//         // vm.writeJson(LibString.toHexString(uint256(uint160(address(canonicalTELTokenManager))), 20), dest, ".CanonicalTELTokenManager");
-//         // vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTELTokenManager))), 20), dest, ".RWTELTokenManager");
+//         // vm.writeJson(LibString.toHexString(uint256(uint160(address(canonicalTELTokenManager))), 20), dest,
+// ".CanonicalTELTokenManager");
+//         // vm.writeJson(LibString.toHexString(uint256(uint160(address(rwTELTokenManager))), 20), dest,
+// ".RWTELTokenManager");
 //         //     //todo: writeJson(deployments.everything
 //     }
 // }

@@ -54,26 +54,27 @@ import { StorageDiffRecorder } from "../deployments/utils/StorageDiffRecorder.so
 
 /// @dev Usage: `forge script script/GenerateITSGenesisConfig.s.sol -vvvv`
 contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
-    AxelarAmplifierGateway gatewayImpl;
-    AxelarAmplifierGateway gateway;
-    TokenManagerDeployer tokenManagerDeployer;
-    InterchainToken interchainTokenImpl;
-    InterchainTokenDeployer itDeployer;
-    TokenManager tokenManagerImpl;
-    TokenHandler tokenHandler;
-    AxelarGasService gasServiceImpl;
-    AxelarGasService gasService;
-    GatewayCaller gatewayCaller;
-    InterchainTokenService itsImpl;
-    InterchainTokenService its; // InterchainProxy
-    InterchainTokenFactory itFactoryImpl;
-    InterchainTokenFactory itFactory; // InterchainProxy
-    WTEL wTEL;
-    RWTEL rwTELImpl;
-    RWTEL rwTEL;
-    address rwtelOwner;
+    // AxelarAmplifierGateway gatewayImpl; //todo rerun
+    // AxelarAmplifierGateway gateway;
+    // TokenManagerDeployer tokenManagerDeployer;
+    // InterchainToken interchainTokenImpl;
+    // InterchainTokenDeployer itDeployer;
+    // TokenManager tokenManagerImpl;
+    // TokenHandler tokenHandler;
+    // AxelarGasService gasServiceImpl;
+    // AxelarGasService gasService;
+    // GatewayCaller gatewayCaller;
+    // InterchainTokenService itsImpl;
+    // InterchainTokenService its; // InterchainProxy
+    // InterchainTokenFactory itFactoryImpl;
+    // InterchainTokenFactory itFactory; // InterchainProxy
+    // Create3Deployer create3; // not included in genesis
 
-    Create3Deployer create3; // not included in genesis
+    // WTEL wTEL;
+    // RWTEL rwTELImpl;
+    // RWTEL rwTEL;
+    // address rwtelOwner;
+
 
     Deployments deployments;
 
@@ -87,7 +88,7 @@ contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
         wTEL = WTEL(payable(deployments.wTEL)); //todo: bring wTEL into genesis also
         address admin = deployments.admin;
         rwtelOwner = admin;
-        
+
         /// @dev For testnet and mainnet genesis configs, use corresponding function
         _setUpDevnetConfig(
             admin,
@@ -111,9 +112,9 @@ contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
 
         // gateway (has storage)
         vm.startStateDiffRecording();
-        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl(create3);
+        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl();
         vm.etch(deployments.its.AxelarAmplifierGatewayImpl, address(gatewayImpl).code); // prevent constructor revert
-        gateway = create3DeployAxelarAmplifierGateway(create3, deployments.its.AxelarAmplifierGatewayImpl);
+        gateway = create3DeployAxelarAmplifierGateway(deployments.its.AxelarAmplifierGatewayImpl);
         Vm.AccountAccess[] memory gatewayRecords = vm.stopAndReturnStateDiff();
         // save impl bytecode since immutable variables are set in constructor
         yamlAppendBytecode(dest, address(gatewayImpl), deployments.its.AxelarAmplifierGatewayImpl);
@@ -121,26 +122,26 @@ contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
         yamlAppendBytecodeWithStorage(dest, address(gateway), deployments.its.AxelarAmplifierGateway);
 
         // token manager deployer (no storage)
-        tokenManagerDeployer = create3DeployTokenManagerDeployer(create3);
+        tokenManagerDeployer = create3DeployTokenManagerDeployer();
         yamlAppendBytecode(dest, address(tokenManagerDeployer), deployments.its.TokenManagerDeployer);
         // it impl (no storage)
-        interchainTokenImpl = create3DeployInterchainTokenImpl(create3);
+        interchainTokenImpl = create3DeployInterchainTokenImpl();
         yamlAppendBytecode(dest, address(interchainTokenImpl), deployments.its.InterchainTokenImpl);
         // itd (no storage)
-        itDeployer = create3DeployInterchainTokenDeployer(create3, deployments.its.InterchainTokenImpl);
+        itDeployer = create3DeployInterchainTokenDeployer(deployments.its.InterchainTokenImpl);
         yamlAppendBytecode(dest, address(itDeployer), deployments.its.InterchainTokenDeployer);
         // tmImpl (no storage)
-        tokenManagerImpl = create3DeployTokenManagerImpl(create3);
+        tokenManagerImpl = create3DeployTokenManagerImpl();
         yamlAppendBytecode(dest, address(tokenManagerImpl), deployments.its.TokenManagerImpl);
         // token handler (no storage)
-        tokenHandler = create3DeployTokenHandler(create3);
+        tokenHandler = create3DeployTokenHandler();
         yamlAppendBytecode(dest, address(tokenHandler), deployments.its.TokenHandler);
 
         // gas service (has storage)
         vm.startStateDiffRecording();
-        gasServiceImpl = create3DeployAxelarGasServiceImpl(create3);
+        gasServiceImpl = create3DeployAxelarGasServiceImpl();
         vm.etch(deployments.its.GasServiceImpl, address(gasServiceImpl).code); // prevent constructor revert
-        gasService = create3DeployAxelarGasService(create3, deployments.its.GasServiceImpl);
+        gasService = create3DeployAxelarGasService(deployments.its.GasServiceImpl);
         Vm.AccountAccess[] memory gsRecords = vm.stopAndReturnStateDiff();
         yamlAppendBytecode(dest, address(gasServiceImpl), deployments.its.GasServiceImpl);
         saveWrittenSlots(address(gasService), gsRecords);
@@ -148,13 +149,12 @@ contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
 
         // gateway caller (no storage)
         gatewayCaller =
-            create3DeployGatewayCaller(create3, deployments.its.AxelarAmplifierGateway, deployments.its.GasService);
+            create3DeployGatewayCaller(deployments.its.AxelarAmplifierGateway, deployments.its.GasService);
         yamlAppendBytecode(dest, address(gatewayCaller), deployments.its.GatewayCaller);
 
         // its (has storage)
         vm.startStateDiffRecording();
         itsImpl = create3DeployITSImpl(
-            create3,
             deployments.its.TokenManagerDeployer,
             deployments.its.InterchainTokenDeployer,
             deployments.its.AxelarAmplifierGateway,
@@ -163,7 +163,7 @@ contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
             deployments.its.TokenHandler,
             deployments.its.GatewayCaller
         );
-        its = create3DeployITS(create3, deployments.its.InterchainTokenServiceImpl);
+        its = create3DeployITS(deployments.its.InterchainTokenServiceImpl);
         Vm.AccountAccess[] memory itsRecords = vm.stopAndReturnStateDiff();
         yamlAppendBytecode(dest, address(itsImpl), deployments.its.InterchainTokenServiceImpl);
         saveWrittenSlots(address(its), itsRecords);
@@ -172,8 +172,8 @@ contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
         // itf (has storage)
         vm.etch(deployments.its.InterchainTokenService, address(itsImpl).code); // prevent constructor revert
         vm.startStateDiffRecording();
-        itFactoryImpl = create3DeployITFImpl(create3, deployments.its.InterchainTokenService);
-        itFactory = create3DeployITF(create3, deployments.its.InterchainTokenFactoryImpl);
+        itFactoryImpl = create3DeployITFImpl(deployments.its.InterchainTokenService);
+        itFactory = create3DeployITF(deployments.its.InterchainTokenFactoryImpl);
         Vm.AccountAccess[] memory itfRecords = vm.stopAndReturnStateDiff();
         yamlAppendBytecode(dest, address(itFactoryImpl), deployments.its.InterchainTokenFactoryImpl);
         saveWrittenSlots(address(itFactory), itfRecords);
@@ -181,9 +181,9 @@ contract GenerateITSConfig is ITSUtilsFork, StorageDiffRecorder, Script {
 
         // rwtel (note: requires both storage and the total supply of TEL at genesis)
         vm.startStateDiffRecording();
-        rwTELImpl = create3DeployRWTELImpl(create3, deployments.its.InterchainTokenService);
+        rwTELImpl = create3DeployRWTELImpl(deployments.its.InterchainTokenService);
         vm.etch(deployments.rwTELImpl, address(rwTELImpl).code); // prevent constructor revert
-        rwTEL = create3DeployRWTEL(create3, deployments.rwTELImpl);
+        rwTEL = create3DeployRWTEL(deployments.rwTELImpl);
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
         Vm.AccountAccess[] memory rwtelRecords = vm.stopAndReturnStateDiff();
         yamlAppendBytecode(dest, address(rwTELImpl), deployments.rwTELImpl);

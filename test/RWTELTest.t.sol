@@ -1,62 +1,76 @@
-// // SPDX-License-Identifier: MIT or Apache-2.0
-// pragma solidity ^0.8.20;
+// SPDX-License-Identifier: MIT or Apache-2.0
+pragma solidity ^0.8.20;
 
-// import { Test, console2 } from "forge-std/Test.sol";
-// import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
-// import { AxelarAmplifierGateway } from
-//     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
-// import { BaseAmplifierGateway } from
-//     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/BaseAmplifierGateway.sol";
-// import { Message, CommandType } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/AmplifierGatewayTypes.sol";
-// import {
-//     WeightedSigner,
-//     WeightedSigners,
-//     Proof
-// } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
-// import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-// import { LibString } from "solady/utils/LibString.sol";
-// import { WTEL } from "../../src/WTEL.sol";
-// import { RWTEL } from "../../src/RWTEL.sol";
-// import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
-// import { Deployments } from "../../deployments/Deployments.sol";
-// import { ITSUtilsFork } from "../../deployments/utils/ITSUtilsFork.sol";
+import { Test, console2 } from "forge-std/Test.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
+import { AxelarAmplifierGateway } from
+    "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
+import { AxelarAmplifierGatewayProxy } from
+    "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol";
+import { BaseAmplifierGateway } from
+    "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/BaseAmplifierGateway.sol";
+import { Message, CommandType } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/AmplifierGatewayTypes.sol";
+import {
+    WeightedSigner,
+    WeightedSigners,
+    Proof
+} from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
+import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
+import { AddressBytes } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressBytes.sol";
+import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
+import { InterchainProxy } from "@axelar-network/interchain-token-service/contracts/proxies/InterchainProxy.sol";
+import { TokenManagerProxy } from "@axelar-network/interchain-token-service/contracts/proxies/TokenManagerProxy.sol";
+import { InterchainTokenDeployer } from
+    "@axelar-network/interchain-token-service/contracts/utils/InterchainTokenDeployer.sol";
+import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
+import { InterchainToken } from
+    "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainToken.sol";
+import { TokenManagerDeployer } from "@axelar-network/interchain-token-service/contracts/utils/TokenManagerDeployer.sol";
+import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
+import { ITokenManagerType } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
+import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
+import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
+import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
+import { AxelarGasServiceProxy } from "../../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { LibString } from "solady/utils/LibString.sol";
+import { WTEL } from "../../src/WTEL.sol";
+import { RWTEL } from "../../src/RWTEL.sol";
+import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
+import { Deployments } from "../../deployments/Deployments.sol";
+import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
+import { ITSUtilsFork } from "../../deployments/utils/ITSUtilsFork.sol";
+import { HarnessCreate3FixedAddressForITS } from "./ITSTestHelper.sol";
 
-// contract RWTELTest is Test, ITSUtilsFork {
-//     WTEL wTEL;
-//     RWTEL rwTELImpl;
-//     RWTEL rwTEL;
+contract RWTELTest is Test, ITSUtilsFork {
+    WTEL wTEL;
+    RWTEL rwTELImpl;
+    RWTEL rwTEL;
 
-//     // for fork tests
-//     Deployments deployments;
+    // canonical chain config (sepolia or ethereum)
+    // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
+    bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
+    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
+    TokenManager canonicalTELTokenManager;
 
-//     string SEPOLIA_RPC_URL = vm.envString("SEPOLIA_RPC_URL");
-//     string TN_RPC_URL = vm.envString("TN_RPC_URL");
-//     uint256 sepoliaFork;
-//     uint256 tnFork;
+    address admin;
+    address telDistributor;
+    address user;
+    string sourceChain;
+    string sourceAddress;
+    string destChain;
+    string destAddress;
 
-//     //todo: separate unit from forks
-//     IAxelarGateway sepoliaGateway;
-//     IERC20 sepoliaTel;
-//     AxelarAmplifierGateway tnGateway;
-//     WTEL tnWTEL;
-//     RWTEL tnRWTEL;
-
-//     address admin;
-//     address telDistributor;
-//     address user;
-//     string sourceChain;
-//     string sourceAddress;
-//     string destChain;
-//     string destAddress;
-
-//     string symbol;
-//     uint256 amount;
-//     bytes extCallData;
-//     bytes payload;
-//     bytes32 payloadHash;
-//     string messageId;
-//     Message[] messages;
+    string symbol;
+    uint256 amount;
+    bytes extCallData;
+    bytes payload;
+    bytes32 payloadHash;
+    string messageId;
+    Message[] messages;
 
 //     function setUp() public {
 //         string memory root = vm.projectRoot();
@@ -149,7 +163,13 @@
 //         payloadHash = keccak256(payload);
 //     }
 
-//     // todo: refactor for ITS
+    // function test_e2e_bridgeSimulation_sepoliaToTN() public {
+            //todo: token bridge test asserts, move natspec comments
+        // uint256 userBalBefore = user.balance;
+        // native TEL has been bridged and delivered to user as ERC20 sepolia TEL 
+        // assertEq(user.balance, userBalBefore + amount); //todo: token bridge test
+        // }
+
 //     function test_bridgeSimulationSepoliaToTN() public {
 //         /// @dev This test is skipped because it relies on signing with a local key
 //         /// and to save on RPC calls. Remove to unskip
@@ -226,6 +246,13 @@
 //         assertEq(user.balance, userBalBefore + amount);
 //     }
 
+
+    // function test_e2e_bridgeSimulation_sepoliaToTN() public {
+            //todo: token bridge test asserts, move natspec comments
+        // uint256 userBalBefore = user.balance;
+        // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
+        // assertEq(user.balance, userBalBefore + amount); //todo: token bridge test
+        // }
 //     function test_bridgeSimulationTNToSepolia() public {
 //         /// @dev This test is skipped because it relies on signing with a local key
 //         /// and to save on RPC calls. Remove to unskip
@@ -278,4 +305,5 @@
 //     }
 
 //     //todo: test bridge attempts should revert until `recoverableWindow` has elapsed
-// }
+
+}

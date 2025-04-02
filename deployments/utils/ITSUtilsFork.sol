@@ -28,7 +28,7 @@ abstract contract ITSUtilsFork is ITSUtils {
     address public TESTNET_SEPOLIA_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
     address public TESTNET_SEPOLIA_GATEWAY = 0xe432150cce91c13a887f7D836923d5597adD8E31;
 
-    function _setUpDevnetConfig(address admin, address devnetTEL, address wTEL, address expectedITS, address expectedITF) internal {
+    function _setUpDevnetConfig(address admin, address devnetTEL, address wTEL, address expectedITS, address expectedITF) internal virtual {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         routerAddress = "router"; //todo: devnet router
@@ -140,27 +140,4 @@ abstract contract ITSUtilsFork is ITSUtils {
     
     //todo:
     // function _setUpMainnetConfig() internal {}
-
-
-    /// @notice Redeclared event from `IAxelarGMPGateway` for asserts
-    event ContractCall(
-        address indexed sender,
-        string destinationChain,
-        string destinationContractAddress,
-        bytes32 indexed payloadHash,
-        bytes payload
-    );
-    
-    /// @notice Redeclared event from `BaseAmplifierGateway` for asserts
-    event MessageApproved(
-        bytes32 indexed commandId,
-        string sourceChain,
-        string messageId,
-        string sourceAddress,
-        address indexed contractAddress,
-        bytes32 indexed payloadHash
-    );
-
-    /// @notice Redeclared event from `BaseAmplifierGateway` for asserts
-    event MessageExecuted(bytes32 indexed commandId);
 }

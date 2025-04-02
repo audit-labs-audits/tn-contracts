@@ -43,14 +43,9 @@ import { RWTEL } from "../../src/RWTEL.sol";
 import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
 import { ITSUtilsFork } from "../../deployments/utils/ITSUtilsFork.sol";
-import { HarnessCreate3FixedAddressForITS, MockTEL } from "./ITSMocks.sol";
+import { HarnessCreate3FixedAddressForITS, MockTEL } from "./ITSTestHelper.sol";
 
 contract InterchainTokenServiceTest is Test, ITSUtilsFork {
-    // TN contracts
-    WTEL wTEL;
-    RWTEL rwTELImpl;
-    RWTEL rwTEL;
-
     // canonical "Ethereum" config (no forking done here but config stands)
     MockTEL mockTEL; // not used except to etch bytecode onto canonicalTEL
     address ethereumTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
@@ -59,26 +54,8 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
     bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
     TokenManager canonicalTELTokenManager;
 
-    // Axelar ITS core contracts
-    Create3Deployer create3;
-    AxelarAmplifierGateway gatewayImpl;
-    AxelarAmplifierGateway gateway;
-    TokenManagerDeployer tokenManagerDeployer;
-    InterchainToken interchainTokenImpl;
-    InterchainTokenDeployer itDeployer;
-    TokenManager tokenManagerImpl;
-    TokenHandler tokenHandler;
-    AxelarGasService gasServiceImpl;
-    AxelarGasService gasService;
-    GatewayCaller gatewayCaller;
-    InterchainTokenService itsImpl;
-    InterchainTokenService its; // InterchainProxy
-    InterchainTokenFactory itFactoryImpl;
-    InterchainTokenFactory itFactory; // InterchainProxy
-
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
     address deployerEOA = admin; // only used for devnet
-    address rwtelOwner = admin; // devnet only, no owner for mainnet
 
     function setUp() public {
         mockTEL = new MockTEL();
@@ -106,18 +83,17 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
         vm.startPrank(deployerEOA);
 
         // deploy ITS core suite; use config from storage
-        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl(create3);
-        gateway = create3DeployAxelarAmplifierGateway(create3, address(gatewayImpl));
-        tokenManagerDeployer = create3DeployTokenManagerDeployer(create3);
-        interchainTokenImpl = create3DeployInterchainTokenImpl(create3);
-        itDeployer = create3DeployInterchainTokenDeployer(create3, address(interchainTokenImpl));
-        tokenManagerImpl = create3DeployTokenManagerImpl(create3);
-        tokenHandler = create3DeployTokenHandler(create3);
-        gasServiceImpl = create3DeployAxelarGasServiceImpl(create3);
-        gasService = create3DeployAxelarGasService(create3, address(gasServiceImpl));
-        gatewayCaller = create3DeployGatewayCaller(create3, address(gateway), address(gasService));
+        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl();
+        gateway = create3DeployAxelarAmplifierGateway(address(gatewayImpl));
+        tokenManagerDeployer = create3DeployTokenManagerDeployer();
+        interchainTokenImpl = create3DeployInterchainTokenImpl();
+        itDeployer = create3DeployInterchainTokenDeployer(address(interchainTokenImpl));
+        tokenManagerImpl = create3DeployTokenManagerImpl();
+        tokenHandler = create3DeployTokenHandler();
+        gasServiceImpl = create3DeployAxelarGasServiceImpl();
+        gasService = create3DeployAxelarGasService(address(gasServiceImpl));
+        gatewayCaller = create3DeployGatewayCaller(address(gateway), address(gasService));
         itsImpl = create3DeployITSImpl(
-            create3,
             address(tokenManagerDeployer),
             address(itDeployer),
             address(gateway),
@@ -126,11 +102,11 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
             address(tokenHandler),
             address(gatewayCaller)
         );
-        its = create3DeployITS(create3, address(itsImpl));
-        itFactoryImpl = create3DeployITFImpl(create3, address(its));
-        itFactory = create3DeployITF(create3, address(itFactoryImpl));
-        rwTELImpl = create3DeployRWTELImpl(create3, address(its));
-        rwTEL = create3DeployRWTEL(create3, address(rwTELImpl));
+        its = create3DeployITS(address(itsImpl));
+        itFactoryImpl = create3DeployITFImpl(address(its));
+        itFactory = create3DeployITF(address(itFactoryImpl));
+        rwTELImpl = create3DeployRWTELImpl(address(its));
+        rwTEL = create3DeployRWTEL(address(rwTELImpl));
 
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
 
@@ -275,7 +251,8 @@ contract InterchainTokenServiceTest is Test, ITSUtilsFork {
         assertEq(canonicalTELTokenManager.flowOutAmount(), 0); // set by ITS
         bytes memory ethTMSetupParams = abi.encode(bytes(""), canonicalTEL);
         assertEq(canonicalTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), canonicalTEL);
-        (uint256 implementationType, address tokenAddress) = TokenManagerProxy(payable(address(canonicalTELTokenManager))).getImplementationTypeAndTokenAddress();
+        (uint256 implementationType, address tokenAddress) =
+            TokenManagerProxy(payable(address(canonicalTELTokenManager))).getImplementationTypeAndTokenAddress();
         assertEq(implementationType, uint256(ITokenManagerType.TokenManagerType.LOCK_UNLOCK));
         assertEq(tokenAddress, canonicalTEL);
 

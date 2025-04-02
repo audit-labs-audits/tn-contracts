@@ -21,8 +21,6 @@ import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 import { SystemCallable } from "./consensus/SystemCallable.sol";
 import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
 
-import { Test, console2 } from "forge-std/Test.sol"; //todo
-
 /// @title Recoverable Wrapped Telcoin
 /// @notice The RWTEL module serves as an Axelar InterchainToken merging functionality of TEL
 /// both as ITS ERC20 token and as native gas currency for TN
