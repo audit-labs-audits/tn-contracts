@@ -191,7 +191,7 @@ contract GenerateConsensusRegistryStorage is Script, Test {
         string memory root = vm.projectRoot();
         string memory dest = string.concat(
             root,
-            "/deployments/consensus-registry-storage.yaml"
+            "/deployments/genesis/consensus-registry-config.yaml"
         );
         vm.writeLine(dest, "---"); // indicate yaml format
 

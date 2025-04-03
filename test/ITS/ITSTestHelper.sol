@@ -44,11 +44,11 @@ import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
 import { Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
-import { ITSConfig } from "../../deployments/utils/ITSConfig.sol";
-import { StorageDiffRecorder } from "../../deployments/utils/StorageDiffRecorder.sol";
+import { ITSUtils } from "../../deployments/utils/ITSUtils.sol";
 import { ITS } from "../../deployments/Deployments.sol";
+import { ITSGenesis } from "../../deployments/genesis/ITSGenesis.sol";
 
-abstract contract ITSTestHelper is Test, ITSConfig, StorageDiffRecorder {
+abstract contract ITSTestHelper is Test, ITSGenesis {
     function setUp_sepoliaFork_devnetConfig(address sepoliaTel, address sepoliaIts, address sepoliaItf) internal {
         sepoliaTEL = IERC20(sepoliaTel);
         sepoliaITS = InterchainTokenService(sepoliaIts);
@@ -68,17 +68,17 @@ abstract contract ITSTestHelper is Test, ITSConfig, StorageDiffRecorder {
         _setUpDevnetConfig(admin, canonicalTEL, wtel, expectedITS, expectedITF);
 
         vm.startPrank(admin);
-        gatewayImpl = instantiateAxelarAmplifierGatewayImpl();
-        gateway = instantiateAxelarAmplifierGateway(address(gatewayImpl));
-        tokenManagerDeployer = instantiateTokenManagerDeployer();
-        interchainTokenImpl = instantiateInterchainTokenImpl();
-        itDeployer = instantiateInterchainTokenDeployer(address(interchainTokenImpl));
-        tokenManagerImpl = instantiateTokenManagerImpl();
-        tokenHandler = instantiateTokenHandler();
-        gasServiceImpl = instantiateAxelarGasServiceImpl();
-        gasService = instantiateAxelarGasService(address(gasServiceImpl));
-        gatewayCaller = instantiateGatewayCaller(address(gateway), address(gasService));
-        itsImpl = instantiateITSImpl(
+        gatewayImpl = ITSUtils.instantiateAxelarAmplifierGatewayImpl();
+        gateway = ITSUtils.instantiateAxelarAmplifierGateway(address(gatewayImpl));
+        tokenManagerDeployer = ITSUtils.instantiateTokenManagerDeployer();
+        interchainTokenImpl = ITSUtils.instantiateInterchainTokenImpl();
+        itDeployer = ITSUtils.instantiateInterchainTokenDeployer(address(interchainTokenImpl));
+        tokenManagerImpl = ITSUtils.instantiateTokenManagerImpl();
+        tokenHandler = ITSUtils.instantiateTokenHandler();
+        gasServiceImpl = ITSUtils.instantiateAxelarGasServiceImpl();
+        gasService = ITSUtils.instantiateAxelarGasService(address(gasServiceImpl));
+        gatewayCaller = ITSUtils.instantiateGatewayCaller(address(gateway), address(gasService));
+        itsImpl = ITSUtils.instantiateITSImpl(
             address(tokenManagerDeployer),
             address(itDeployer),
             address(gateway),
@@ -87,17 +87,16 @@ abstract contract ITSTestHelper is Test, ITSConfig, StorageDiffRecorder {
             address(tokenHandler),
             address(gatewayCaller)
         );
-        its = instantiateITS(address(itsImpl));
-        itFactoryImpl = instantiateITFImpl(address(its));
-        itFactory = instantiateITF(address(itFactoryImpl));
-        rwTELImpl = instantiateRWTELImpl(address(its));
-        rwTEL = instantiateRWTEL(address(rwTELImpl));
-
+        its = ITSUtils.instantiateITS(address(itsImpl));
+        itFactoryImpl = ITSUtils.instantiateITFImpl(address(its));
+        itFactory = ITSUtils.instantiateITF(address(itFactoryImpl));
+        rwTELImpl = ITSUtils.instantiateRWTELImpl(address(its));
+        rwTEL = ITSUtils.instantiateRWTEL(address(rwTELImpl));
         rwtelOwner = admin;
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
         // mock-seed rwTEL with TEL total supply as genesis precompile
-        uint256 nativeTELTotalSupply = 100_000_000_000e18;
-        vm.deal(address(rwTEL), nativeTELTotalSupply);
+        vm.deal(address(rwTEL), telTotalSupply);
+        rwTELTokenManager = ITSUtils.instantiateRWTELTokenManager(rwTEL.interchainTokenId());
 
         vm.stopPrank();
 
@@ -105,16 +104,11 @@ abstract contract ITSTestHelper is Test, ITSConfig, StorageDiffRecorder {
         assertEq(address(itFactory), precalculatedITFactory);
     }
 
-    //todo: inherit StorageDiffRecorder, add bytecode etching, storage writing, TEL seeding
-
     /// @notice Simulates genesis instantiation of ITS, RWTEL, and its TokenManager. Targets `deployments.json`
     /// @dev For devnet, a developer admin address serves all permissioned roles
-    function setUp_tnFork_devnetConfig_genesis(ITS memory genesisITSTargets, address admin, address canonicalTEL, address wtel, address rwtelImpl, address rwtel) internal {
-        // todo: remove this line and uncomment section below after testnet restart with genesis precompiles
-        // _setUp_tnFork_devnetConfig_create3(admin, canonicalTEL, wtel);
-        
+    function setUp_tnFork_devnetConfig_genesis(ITS memory genesisITSTargets, address admin, address canonicalTEL, address wtel, address rwtelImpl, address rwtel, address rwtelTokenManager) internal {
         // first set target genesis addresses in state (not yet deployed) for use with recording
-        _setGenesisTargets(genesisITSTargets, rwtelImpl, rwtel);
+        _setGenesisTargets(genesisITSTargets, rwtelImpl, rwtel, rwtelTokenManager);
 
         // set up config vars for devnet
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
@@ -124,7 +118,35 @@ abstract contract ITSTestHelper is Test, ITSConfig, StorageDiffRecorder {
         address expectedITF = create3.deployedAddress("", admin, salts.itfSalt);
         _setUpDevnetConfig(admin, canonicalTEL, wtel, expectedITS, expectedITF);
 
-        // todo: use overridden create3 deploy + record + store functions
+        instantiateAxelarAmplifierGatewayImpl();
+        instantiateAxelarAmplifierGateway(address(gatewayImpl));
+        instantiateTokenManagerDeployer();
+        instantiateInterchainTokenImpl();
+        instantiateInterchainTokenDeployer(address(interchainTokenImpl));
+        instantiateTokenManagerImpl();
+        instantiateTokenHandler();
+        instantiateAxelarGasServiceImpl();
+        instantiateAxelarGasService(address(gasServiceImpl));
+        instantiateGatewayCaller(address(gateway), address(gasService));
+        instantiateITSImpl(
+            address(tokenManagerDeployer),
+            address(itDeployer),
+            address(gateway),
+            address(gasService),
+            address(tokenManagerImpl),
+            address(tokenHandler),
+            address(gatewayCaller)
+        );
+        instantiateITS(address(itsImpl));
+        instantiateITFImpl(address(its));
+        instantiateITF(address(itFactoryImpl));
+        instantiateRWTELImpl(address(its));
+        instantiateRWTEL(address(rwTELImpl));
+        instantiateRWTELTokenManager(rwTEL.interchainTokenId());
+
+        rwtelOwner = admin;
+        // mock-seed rwTEL with TEL total supply as genesis precompile
+        vm.deal(address(rwTEL), telTotalSupply);
     }
 
     /// @notice Redeclared event from `IAxelarGMPGateway` for asserts

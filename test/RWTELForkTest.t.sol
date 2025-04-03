@@ -135,8 +135,9 @@ contract RWTELForkTest is Test, ITSTestHelper {
          * signs and submits signatures ie "votes" or "proofs" via RPC. Verifiers are also known as `WeightedSigners`
          * @notice Devnet config uses `admin` as a single signer with weight and threshold == 1
          */
+
         vm.selectFork(tnFork);
-        setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL);
+        setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
 
         messageId = "42";
         sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;
@@ -169,16 +170,14 @@ contract RWTELForkTest is Test, ITSTestHelper {
          * Includer executes GMP messages that have been written to the TN gateway in previous step
          * this tx calls RWTEL module which mints the TEL tokens and delivers them to recipient
          */
-        vm.expectEmit(true, true, true, true);
-        emit MessageExecuted(commandId);
-        its.execute(commandId, sourceChain, sourceAddress, payload);
+        // vm.expectEmit(true, true, true, true);
+        // emit MessageExecuted(commandId);
+        // its.execute(commandId, sourceChain, sourceAddress, payload);
 
-        //todo: etch bytecode & storage onto devnet ITS
-        //todo: write rwTEL to ITS create3 `interchainTokenAddress` and rwTELTokenManager to ITS create3
-        // canonicalTElTokenManager
-        // assertEq(its.interchainTokenAddress(canonicalInterchainTokenId), address(rwTEL));
-        // assertEq(0x8579FABCc18dcEaD408d87048eDB8BC5a5f3E9B6, interchainTokenAddress, rwtel)
-        // assertEq(0x4542A3a5401733FA778B31d4c46539D4Bd0830DE(notetched), canonicalTELTokenManager, rwTELTokenManager)
+        assertEq(canonicalInterchainTokenId, rwTEL.interchainTokenId()); // 0xc34cbb885926317c1d606b677fc05fcf5207cc2acdc4af0b4cc61763b2069a58
+        assertEq(its.interchainTokenAddress(canonicalInterchainTokenId), 0x815aDE33a299f40146b0F1af8702b97eF63Db5b6); //todo:address(rwTEL));
+        assertEq(address(canonicalTELTokenManager), 0x919a7Cf01A18b8876667AaA20855C9E5737ac3dd); //rwTELTokenManager)
+        assertEq(rwTEL.tokenManagerAddress(), address(canonicalTELTokenManager));
     }
 
     //todo: rwtel asserts

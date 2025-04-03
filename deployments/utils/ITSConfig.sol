@@ -9,8 +9,10 @@ import {
     Proof
 } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
 import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
+import { ITokenManagerType } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
 import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
 import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
+import { AddressBytes } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressBytes.sol";
 import { ITSUtils } from "./ITSUtils.sol";
 
 abstract contract ITSConfig is ITSUtils {
@@ -40,6 +42,7 @@ abstract contract ITSConfig is ITSUtils {
     IAxelarGateway sepoliaGateway;
 
     //todo: Ethereum
+    uint256 public constant telTotalSupply = 100_000_000_000e18;
 
     function _setUpDevnetConfig(address admin, address devnetTEL, address wTEL, address expectedITS, address expectedITF) internal virtual {
         // AxelarAmplifierGateway
@@ -86,9 +89,15 @@ abstract contract ITSConfig is ITSUtils {
         symbol_ = "rwTEL";
         name_ = "Recoverable Wrapped Telcoin";
         recoverableWindow_ = 604_800;
-        governanceAddress_ = address(0xda0);
+        governanceAddress_ = address(0xda0); //todo: select multisig for recoverable governance
         maxToClean = type(uint16).max;
         baseERC20_ = wTEL; // for RWTEL constructor
+
+        // rwTELTokenManager config
+        rwtelTMType = ITokenManagerType.TokenManagerType.NATIVE_INTERCHAIN_TOKEN;
+        operator = AddressBytes.toBytes(address(0xda0)); //todo: select operator who can set flowlimits
+        tokenAddress = address(rwTEL);
+        params = abi.encode(operator, tokenAddress);
 
         // vars stored for asserts
         abiEncodedWeightedSigners = abi.encode(weightedSigners);

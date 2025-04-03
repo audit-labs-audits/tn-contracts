@@ -36,7 +36,6 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
-import { ITS } from "../Deployments.sol";
 import { Create3Utils, Salts, ImplSalts } from "./Create3Utils.sol";
 
 abstract contract ITSUtils is Create3Utils {
@@ -56,7 +55,7 @@ abstract contract ITSUtils is Create3Utils {
     InterchainTokenService its; // InterchainProxy
     InterchainTokenFactory itFactoryImpl;
     InterchainTokenFactory itFactory; // InterchainProxy
-    TokenManager canonicalRWTELTokenManager;
+    TokenManager rwTELTokenManager;
 
     // Telcoin Network contracts
     WTEL wTEL;
@@ -105,6 +104,12 @@ abstract contract ITSUtils is Create3Utils {
     address governanceAddress_;
     address baseERC20_; // wTEL
     uint16 maxToClean;
+
+    // rwTELTokenManager config
+    ITokenManagerType.TokenManagerType rwtelTMType;
+    address tokenAddress;
+    bytes operator;
+    bytes params;
 
     // stored vars for assertion
     address precalculatedITS;
@@ -317,31 +322,17 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    /// @dev Sets this contract's state using ITS fetched from a `deployments.json` file
-    function _setGenesisTargets(ITS memory genesisITSTargets, address rwtelImpl, address rwtel) internal {
-        gatewayImpl = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGatewayImpl);
-        gateway = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGateway);
-        tokenManagerDeployer = TokenManagerDeployer(genesisITSTargets.TokenManagerDeployer);
-        interchainTokenImpl = InterchainToken(genesisITSTargets.InterchainTokenImpl);
-        itDeployer = InterchainTokenDeployer(genesisITSTargets.InterchainTokenDeployer);
-        tokenManagerImpl = TokenManager(genesisITSTargets.TokenManagerImpl);
-        tokenHandler = TokenHandler(genesisITSTargets.TokenHandler);
-        gasServiceImpl = AxelarGasService(genesisITSTargets.GasServiceImpl);
-        gasService = AxelarGasService(genesisITSTargets.GasService);
-        gatewayCaller = GatewayCaller(genesisITSTargets.GatewayCaller);
-        itsImpl = InterchainTokenService(genesisITSTargets.InterchainTokenServiceImpl);
-        its = InterchainTokenService(genesisITSTargets.InterchainTokenService);
-        itFactoryImpl = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactoryImpl);
-        itFactory = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactory);
-        rwTELImpl = RWTEL(rwtelImpl);
-        rwTEL = RWTEL(rwtel);
-        //todo: add canonicalTELTokenManager (which will be same as RWTELTokenManager)
+    /// @notice Unlike other ITS instantiations, this utilizes the `TokenManagerDeployer::deployTokenManager()`
+    /// function which actually produces a TokenManagerProxy
+    function instantiateRWTELTokenManager(bytes32 canonicalInterchainTokenId) public virtual returns (TokenManager rwtelTM) {
+        rwtelTM = TokenManager(tokenManagerDeployer.deployTokenManager(canonicalInterchainTokenId, uint256(rwtelTMType), params));
     }
 
     /// @notice Registers canonical TEL with ITS hub & deploys its TokenManager on its source chain
     /// @dev After execution, relayer detects & forwards ContractCall event to Axelar Network hub via GMP API
     /// @dev Once registered w/ ITS Hub, `msg.sender` can use same salt to register/deploy to more chains
-    /// @dev TokenManagers deployed for canonical tokens have no operator; this includes canonical TEL on Ethereum
+    /// @dev TokenManagers deployed for canonical tokens like TEL on Ethereum have no operator; however
+    /// TN's RWTEL TokenManager is of `NATIVE_INTERCHAIN_TOKEN` type and
     function eth_registerCanonicalTELAndDeployTELTokenManager(
         address tel,
         InterchainTokenService service,
