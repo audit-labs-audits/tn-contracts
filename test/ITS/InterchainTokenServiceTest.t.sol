@@ -82,17 +82,17 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         vm.startPrank(admin);
 
         // deploy ITS core suite; use config from storage
-        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl();
-        gateway = create3DeployAxelarAmplifierGateway(address(gatewayImpl));
-        tokenManagerDeployer = create3DeployTokenManagerDeployer();
-        interchainTokenImpl = create3DeployInterchainTokenImpl();
-        itDeployer = create3DeployInterchainTokenDeployer(address(interchainTokenImpl));
-        tokenManagerImpl = create3DeployTokenManagerImpl();
-        tokenHandler = create3DeployTokenHandler();
-        gasServiceImpl = create3DeployAxelarGasServiceImpl();
-        gasService = create3DeployAxelarGasService(address(gasServiceImpl));
-        gatewayCaller = create3DeployGatewayCaller(address(gateway), address(gasService));
-        itsImpl = create3DeployITSImpl(
+        gatewayImpl = instantiateAxelarAmplifierGatewayImpl();
+        gateway = instantiateAxelarAmplifierGateway(address(gatewayImpl));
+        tokenManagerDeployer = instantiateTokenManagerDeployer();
+        interchainTokenImpl = instantiateInterchainTokenImpl();
+        itDeployer = instantiateInterchainTokenDeployer(address(interchainTokenImpl));
+        tokenManagerImpl = instantiateTokenManagerImpl();
+        tokenHandler = instantiateTokenHandler();
+        gasServiceImpl = instantiateAxelarGasServiceImpl();
+        gasService = instantiateAxelarGasService(address(gasServiceImpl));
+        gatewayCaller = instantiateGatewayCaller(address(gateway), address(gasService));
+        itsImpl = instantiateITSImpl(
             address(tokenManagerDeployer),
             address(itDeployer),
             address(gateway),
@@ -101,11 +101,11 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
             address(tokenHandler),
             address(gatewayCaller)
         );
-        its = create3DeployITS(address(itsImpl));
-        itFactoryImpl = create3DeployITFImpl(address(its));
-        itFactory = create3DeployITF(address(itFactoryImpl));
-        rwTELImpl = create3DeployRWTELImpl(address(its));
-        rwTEL = create3DeployRWTEL(address(rwTELImpl));
+        its = instantiateITS(address(itsImpl));
+        itFactoryImpl = instantiateITFImpl(address(its));
+        itFactory = instantiateITF(address(itFactoryImpl));
+        rwTELImpl = instantiateRWTELImpl(address(its));
+        rwTEL = instantiateRWTEL(address(rwTELImpl));
 
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
 

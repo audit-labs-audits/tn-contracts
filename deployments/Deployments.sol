@@ -15,7 +15,7 @@ struct Deployments {
     address TANIssuancePlugin;
     address admin;
     EXYZs eXYZs;
-    InterchainTokenService its;
+    ITS its;
     address rwTEL;
     address rwTELImpl;
     address rwTELTokenManager;
@@ -25,7 +25,7 @@ struct Deployments {
 }
 
 /// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering
-struct InterchainTokenService {
+struct ITS {
     address AxelarAmplifierGateway;
     address AxelarAmplifierGatewayImpl;
     address Create3Deployer;

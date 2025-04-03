@@ -2,17 +2,53 @@
 pragma solidity ^0.8.26;
 
 import { Test, console2 } from "forge-std/Test.sol";
-import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
-import { ERC20 } from "solady/tokens/ERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
-import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
-import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
-import { ITSConfig } from "../../deployments/utils/ITSConfig.sol";
 
-abstract contract ITSTestHelper is Test, ITSConfig {
+/// SPDX-License-Identifier MIT or Apache-2.0
+pragma solidity ^0.8.26;
+
+import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
+import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
+import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
+import { AxelarAmplifierGateway } from
+    "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
+import { AxelarAmplifierGatewayProxy } from
+    "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol";
+import { Message, CommandType } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/AmplifierGatewayTypes.sol";
+import {
+    WeightedSigner,
+    WeightedSigners,
+    Proof
+} from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
+import { AddressBytes } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressBytes.sol";
+import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
+import { InterchainProxy } from "@axelar-network/interchain-token-service/contracts/proxies/InterchainProxy.sol";
+import { TokenManagerProxy } from "@axelar-network/interchain-token-service/contracts/proxies/TokenManagerProxy.sol";
+import { InterchainTokenDeployer } from
+    "@axelar-network/interchain-token-service/contracts/utils/InterchainTokenDeployer.sol";
+import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
+import { InterchainToken } from
+    "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainToken.sol";
+import { TokenManagerDeployer } from "@axelar-network/interchain-token-service/contracts/utils/TokenManagerDeployer.sol";
+import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
+import { ITokenManager } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManager.sol";
+import { ITokenManagerType } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
+import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
+import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
+import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
+import { AxelarGasServiceProxy } from "../../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { LibString } from "solady/utils/LibString.sol";
+import { ERC20 } from "solady/tokens/ERC20.sol";
+import { WTEL } from "../../src/WTEL.sol";
+import { RWTEL } from "../../src/RWTEL.sol";
+import { Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
+import { ITSConfig } from "../../deployments/utils/ITSConfig.sol";
+import { StorageDiffRecorder } from "../../deployments/utils/StorageDiffRecorder.sol";
+import { ITS } from "../../deployments/Deployments.sol";
+
+abstract contract ITSTestHelper is Test, ITSConfig, StorageDiffRecorder {
     function setUp_sepoliaFork_devnetConfig(address sepoliaTel, address sepoliaIts, address sepoliaItf) internal {
         sepoliaTEL = IERC20(sepoliaTel);
         sepoliaITS = InterchainTokenService(sepoliaIts);
@@ -21,9 +57,8 @@ abstract contract ITSTestHelper is Test, ITSConfig {
         canonicalTEL = address(sepoliaTEL);
     }
 
-    //todo: inherit StorageDiffRecorder, add bytecode etching, storage writing, TEL seeding
-    /// TODO: Until testnet is restarted with genesis precompiles, this function deploys ITS via create3
-    /// @notice For devnet, a developer admin address serves all permissioned roles
+    /// @notice Test utility for deploying ITS architecture, including RWTEL and its TokenManager, via create3
+    /// @dev Used for tests only since live deployment is obviated by genesis precompiles
     function _setUp_tnFork_devnetConfig_create3(address admin, address canonicalTEL, address wtel) internal {
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
         // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
@@ -33,17 +68,17 @@ abstract contract ITSTestHelper is Test, ITSConfig {
         _setUpDevnetConfig(admin, canonicalTEL, wtel, expectedITS, expectedITF);
 
         vm.startPrank(admin);
-        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl();
-        gateway = create3DeployAxelarAmplifierGateway(address(gatewayImpl));
-        tokenManagerDeployer = create3DeployTokenManagerDeployer();
-        interchainTokenImpl = create3DeployInterchainTokenImpl();
-        itDeployer = create3DeployInterchainTokenDeployer(address(interchainTokenImpl));
-        tokenManagerImpl = create3DeployTokenManagerImpl();
-        tokenHandler = create3DeployTokenHandler();
-        gasServiceImpl = create3DeployAxelarGasServiceImpl();
-        gasService = create3DeployAxelarGasService(address(gasServiceImpl));
-        gatewayCaller = create3DeployGatewayCaller(address(gateway), address(gasService));
-        itsImpl = create3DeployITSImpl(
+        gatewayImpl = instantiateAxelarAmplifierGatewayImpl();
+        gateway = instantiateAxelarAmplifierGateway(address(gatewayImpl));
+        tokenManagerDeployer = instantiateTokenManagerDeployer();
+        interchainTokenImpl = instantiateInterchainTokenImpl();
+        itDeployer = instantiateInterchainTokenDeployer(address(interchainTokenImpl));
+        tokenManagerImpl = instantiateTokenManagerImpl();
+        tokenHandler = instantiateTokenHandler();
+        gasServiceImpl = instantiateAxelarGasServiceImpl();
+        gasService = instantiateAxelarGasService(address(gasServiceImpl));
+        gatewayCaller = instantiateGatewayCaller(address(gateway), address(gasService));
+        itsImpl = instantiateITSImpl(
             address(tokenManagerDeployer),
             address(itDeployer),
             address(gateway),
@@ -52,11 +87,11 @@ abstract contract ITSTestHelper is Test, ITSConfig {
             address(tokenHandler),
             address(gatewayCaller)
         );
-        its = create3DeployITS(address(itsImpl));
-        itFactoryImpl = create3DeployITFImpl(address(its));
-        itFactory = create3DeployITF(address(itFactoryImpl));
-        rwTELImpl = create3DeployRWTELImpl(address(its));
-        rwTEL = create3DeployRWTEL(address(rwTELImpl));
+        its = instantiateITS(address(itsImpl));
+        itFactoryImpl = instantiateITFImpl(address(its));
+        itFactory = instantiateITF(address(itFactoryImpl));
+        rwTELImpl = instantiateRWTELImpl(address(its));
+        rwTEL = instantiateRWTEL(address(rwTELImpl));
 
         rwtelOwner = admin;
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
@@ -70,26 +105,26 @@ abstract contract ITSTestHelper is Test, ITSConfig {
         assertEq(address(itFactory), precalculatedITFactory);
     }
 
-    function setUp_tnFork_devnetConfig_genesis(address admin, address canonicalTEL, address wtel) internal {
-        // todo: remove this line and uncomment section below after testnet restart with genesis precompiles
-        _setUp_tnFork_devnetConfig_create3(admin, canonicalTEL, wtel);
+    //todo: inherit StorageDiffRecorder, add bytecode etching, storage writing, TEL seeding
 
-        // gatewayImpl = AxelarAmplifierGateway(deployments.its.AxelarAmplifierGatewayImpl);
-        // gateway = AxelarAmplifierGateway(deployments.its.AxelarAmplifierGateway);
-        // tokenManagerDeployer = TokenManagerDeployer(deployments.its.TokenManagerDeployer);
-        // interchainTokenImpl = InterchainToken(deployments.its.InterchainTokenImpl);
-        // itDeployer = InterchainTokenDeployer(deployments.its.InterchainTokenDeployer);
-        // tokenManagerImpl = TokenManager(deployments.its.TokenManagerImpl);
-        // tokenHandler = TokenHandler(deployments.its.TokenHandler);
-        // gasServiceImpl = AxelarGasService(deployments.its.GasServiceImpl);
-        // gasService = AxelarGasService(deployments.its.GasService);
-        // gatewayCaller = GatewayCaller(deployments.its.GatewayCaller);
-        // itsImpl = InterchainTokenService(deployments.its.InterchainTokenServiceImpl);
-        // its = InterchainTokenService(deployments.its.InterchainTokenService);
-        // itFactoryImpl = InterchainTokenFactory(deployments.its.InterchainTokenFactoryImpl);
-        // itFactory = InterchainTokenFactory(deployments.its.InterchainTokenFactory);
-        // rwTELImpl = RWTEL(deployments.rwTELImpl);
-        // rwTEL = RWTEL(deployments.rwTEL);
+    /// @notice Simulates genesis instantiation of ITS, RWTEL, and its TokenManager. Targets `deployments.json`
+    /// @dev For devnet, a developer admin address serves all permissioned roles
+    function setUp_tnFork_devnetConfig_genesis(ITS memory genesisITSTargets, address admin, address canonicalTEL, address wtel, address rwtelImpl, address rwtel) internal {
+        // todo: remove this line and uncomment section below after testnet restart with genesis precompiles
+        // _setUp_tnFork_devnetConfig_create3(admin, canonicalTEL, wtel);
+        
+        // first set target genesis addresses in state (not yet deployed) for use with recording
+        _setGenesisTargets(genesisITSTargets, rwtelImpl, rwtel);
+
+        // set up config vars for devnet
+        create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
+        // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
+        address expectedITS = create3.deployedAddress("", admin, salts.itsSalt);
+        // must precalculate ITF proxy to avoid `ITS::constructor()` revert
+        address expectedITF = create3.deployedAddress("", admin, salts.itfSalt);
+        _setUpDevnetConfig(admin, canonicalTEL, wtel, expectedITS, expectedITF);
+
+        // todo: use overridden create3 deploy + record + store functions
     }
 
     /// @notice Redeclared event from `IAxelarGMPGateway` for asserts

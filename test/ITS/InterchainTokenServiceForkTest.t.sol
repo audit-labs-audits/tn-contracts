@@ -246,7 +246,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
     // todo: ensure payload doesn't need to be hub-wrapped for approve, execute
     function test_tnFork_approveMessages() public {
         vm.selectFork(tnFork);
-        setUp_tnFork_devnetConfig_genesis(deployments.admin, deployments.sepoliaTEL, deployments.wTEL);
+        setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL);
 
         messageId = "42";
         sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;
@@ -287,7 +287,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
     // todo: ensure payload doesn't need to be hub-wrapped for approve, execute
     function test_tnFork_execute() public {
         vm.selectFork(tnFork);
-        setUp_tnFork_devnetConfig_genesis(deployments.admin, deployments.sepoliaTEL, deployments.wTEL);
+        setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL);
         //todo: etch bytecode & storage onto devnet ITS
 
         messageId = "42";
@@ -343,6 +343,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
     //todo: fuzz tests for rwTEL, TEL bridging, rwteltest.t.sol
     //todo: fork tests for TEL bridging
     //todo: incorporate RWTEL contracts to TN protocol on rust side
+    //todo: remove ExtCall
     //todo: update readme, npm instructions
 
     //todo: non-TEL ERC20 bridging tests

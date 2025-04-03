@@ -36,7 +36,7 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
-import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
+import { ITS } from "../Deployments.sol";
 import { Create3Utils, Salts, ImplSalts } from "./Create3Utils.sol";
 
 abstract contract ITSUtils is Create3Utils {
@@ -120,8 +120,12 @@ abstract contract ITSUtils is Create3Utils {
     uint256 internal constant MESSAGE_TYPE_LINK_TOKEN = 5;
     uint256 internal constant MESSAGE_TYPE_REGISTER_TOKEN_METADATA = 6;
 
-    function create3DeployAxelarAmplifierGatewayImpl()
-        public
+    /// @notice Instantiation functions
+    /// @notice All ITSUtils default implementations use CREATE3 a la ITS
+    /// @dev Overrides such as the genesis impls in GenerateITSGenesisConfig may differ (eg cheat codes)
+
+    function instantiateAxelarAmplifierGatewayImpl()
+        public virtual
         returns (AxelarAmplifierGateway impl)
     {
         bytes memory gatewayImplConstructorArgs =
@@ -136,8 +140,8 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployAxelarAmplifierGateway(address impl)
-        public
+    function instantiateAxelarAmplifierGateway(address impl)
+        public virtual
         returns (AxelarAmplifierGateway proxy)
     {        
         bytes memory gatewayConstructorArgs = abi.encode(impl, gatewayOwner, gatewaySetupParams);
@@ -148,26 +152,26 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployTokenManagerDeployer()
-        public
+    function instantiateTokenManagerDeployer()
+        public virtual
         returns (TokenManagerDeployer tmDeployer)
     {
         tmDeployer =
             TokenManagerDeployer(create3Deploy(create3, type(TokenManagerDeployer).creationCode, "", salts.tmdSalt));
     }
 
-    function create3DeployInterchainTokenImpl() public returns (InterchainToken itImpl) {
+    function instantiateInterchainTokenImpl() public virtual returns (InterchainToken itImpl) {
         bytes memory itImplConstructorArgs = abi.encode(precalculatedITS);
         itImpl = InterchainToken(
             create3Deploy(create3, type(InterchainToken).creationCode, itImplConstructorArgs, implSalts.itImplSalt)
         );
     }
 
-    function create3DeployInterchainTokenDeployer(
+    function instantiateInterchainTokenDeployer(
         
         address interchainTokenImpl_
     )
-        public
+        public virtual
         returns (InterchainTokenDeployer itd)
     {
         bytes memory itdConstructorArgs = abi.encode(interchainTokenImpl_);
@@ -176,19 +180,19 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployTokenManagerImpl() public returns (TokenManager tmImpl) {
+    function instantiateTokenManagerImpl() public virtual returns (TokenManager tmImpl) {
         bytes memory tmConstructorArgs = abi.encode(precalculatedITS);
         tmImpl = TokenManager(
             create3Deploy(create3, type(TokenManager).creationCode, tmConstructorArgs, implSalts.tmImplSalt)
         );
     }
 
-    function create3DeployTokenHandler() public returns (TokenHandler th) {
+    function instantiateTokenHandler() public virtual returns (TokenHandler th) {
         th = TokenHandler(create3Deploy(create3, type(TokenHandler).creationCode, "", salts.thSalt));
     }
 
-    function create3DeployAxelarGasServiceImpl()
-        public
+    function instantiateAxelarGasServiceImpl()
+        public virtual
         returns (AxelarGasService impl)
     {
         bytes memory gsImplConstructorArgs = abi.encode(gasCollector);
@@ -197,8 +201,8 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployAxelarGasService(address impl)
-        public
+    function instantiateAxelarGasService(address impl)
+        public virtual
         returns (AxelarGasService proxy)
     {
         bytes memory gsConstructorArgs = abi.encode(impl, gsOwner, "");
@@ -207,19 +211,19 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployGatewayCaller(
+    function instantiateGatewayCaller(
         
         address gateway_,
         address axelarGasService_
     )
-        public
+        public virtual
         returns (GatewayCaller gc)
     {
         bytes memory gcConstructorArgs = abi.encode(gateway_, axelarGasService_);
         gc = GatewayCaller(create3Deploy(create3, type(GatewayCaller).creationCode, gcConstructorArgs, salts.gcSalt));
     }
 
-    function create3DeployITSImpl(
+    function instantiateITSImpl(
         address tokenManagerDeployer_,
         address itDeployer_,
         address gateway_,
@@ -228,7 +232,7 @@ abstract contract ITSUtils is Create3Utils {
         address tokenHandler_,
         address gatewayCaller_
     )
-        public
+        public virtual
         returns (InterchainTokenService impl)
     {
         bytes memory itsImplConstructorArgs = abi.encode(
@@ -249,10 +253,10 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployITS(
+    function instantiateITS(
         address impl
     )
-        public
+        public virtual
         returns (InterchainTokenService proxy)
     {
         bytes memory itsConstructorArgs = abi.encode(impl, itsOwner, itsSetupParams);
@@ -261,10 +265,10 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployITFImpl(
+    function instantiateITFImpl(
         address its_
     )
-        public
+        public virtual
         returns (InterchainTokenFactory impl)
     {
         bytes memory itfImplConstructorArgs = abi.encode(its_);
@@ -275,10 +279,10 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function create3DeployITF(
+    function instantiateITF(
         address impl
     )
-        public
+        public virtual
         returns (InterchainTokenFactory proxy)
     {
         bytes memory itfConstructorArgs = abi.encode(impl, itfOwner, "");
@@ -288,7 +292,7 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     /// TODO: convert to singleton for mainnet
-    function create3DeployRWTELImpl(address its_) public returns (RWTEL impl) {
+    function instantiateRWTELImpl(address its_) public virtual returns (RWTEL impl) {
         bytes memory rwTELImplConstructorArgs = abi.encode(
             canonicalTEL,
             canonicalChainName_,
@@ -306,11 +310,32 @@ abstract contract ITSUtils is Create3Utils {
     }
 
     /// TODO: convert to singleton for mainnet
-    function create3DeployRWTEL(address impl) public returns (RWTEL proxy) {
+    function instantiateRWTEL(address impl) public virtual returns (RWTEL proxy) {
         bytes memory rwTELConstructorArgs = abi.encode(impl, "");
         proxy = RWTEL(
             payable(create3Deploy(create3, type(ERC1967Proxy).creationCode, rwTELConstructorArgs, salts.rwtelSalt))
         );
+    }
+
+    /// @dev Sets this contract's state using ITS fetched from a `deployments.json` file
+    function _setGenesisTargets(ITS memory genesisITSTargets, address rwtelImpl, address rwtel) internal {
+        gatewayImpl = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGatewayImpl);
+        gateway = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGateway);
+        tokenManagerDeployer = TokenManagerDeployer(genesisITSTargets.TokenManagerDeployer);
+        interchainTokenImpl = InterchainToken(genesisITSTargets.InterchainTokenImpl);
+        itDeployer = InterchainTokenDeployer(genesisITSTargets.InterchainTokenDeployer);
+        tokenManagerImpl = TokenManager(genesisITSTargets.TokenManagerImpl);
+        tokenHandler = TokenHandler(genesisITSTargets.TokenHandler);
+        gasServiceImpl = AxelarGasService(genesisITSTargets.GasServiceImpl);
+        gasService = AxelarGasService(genesisITSTargets.GasService);
+        gatewayCaller = GatewayCaller(genesisITSTargets.GatewayCaller);
+        itsImpl = InterchainTokenService(genesisITSTargets.InterchainTokenServiceImpl);
+        its = InterchainTokenService(genesisITSTargets.InterchainTokenService);
+        itFactoryImpl = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactoryImpl);
+        itFactory = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactory);
+        rwTELImpl = RWTEL(rwtelImpl);
+        rwTEL = RWTEL(rwtel);
+        //todo: add canonicalTELTokenManager (which will be same as RWTELTokenManager)
     }
 
     /// @notice Registers canonical TEL with ITS hub & deploys its TokenManager on its source chain

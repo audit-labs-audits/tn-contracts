@@ -42,6 +42,7 @@ import { RWTEL } from "../src/RWTEL.sol";
 import { ExtCall } from "../src/interfaces/IRWTEL.sol";
 import { Deployments } from "../deployments/Deployments.sol";
 import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Utils.sol";
+import { ITS } from "../deployments/Deployments.sol";
 import { HarnessCreate3FixedAddressForITS, ITSTestHelper } from "./ITS/ITSTestHelper.sol";
 
 contract RWTELForkTest is Test, ITSTestHelper {
@@ -97,7 +98,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
     /// @notice `deployRemoteCanonicalInterchainToken` will route a `MESSAGE_TYPE_LINK_TOKEN` through ITS hub
     /// that is guaranteed to revert trying to deploy on preexisting genesis precompiles, thus it should be skipped
     /// @notice Ensures precompiles for RWTEL + its TokenManager match those expected (& otherwise produced) by ITS
-    function test_e2eDevnet_deployRemoteCanonicalInterchainToken() public {
+    function test_e2eDevnet_deployRemoteCanonicalInterchainToken_RWTEL() public {
         vm.selectFork(sepoliaFork);
         setUp_sepoliaFork_devnetConfig(
             deployments.sepoliaTEL, deployments.its.InterchainTokenService, deployments.its.InterchainTokenFactory
@@ -135,7 +136,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
          * @notice Devnet config uses `admin` as a single signer with weight and threshold == 1
          */
         vm.selectFork(tnFork);
-        setUp_tnFork_devnetConfig_genesis(deployments.admin, deployments.sepoliaTEL, deployments.wTEL);
+        setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL);
 
         messageId = "42";
         sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;

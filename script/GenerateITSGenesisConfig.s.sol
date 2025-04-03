@@ -53,32 +53,15 @@ import { StorageDiffRecorder } from "../deployments/utils/StorageDiffRecorder.so
 /// Used by Telcoin-Network protocol to instantiate the contracts with required configuration at genesis
 
 /// @dev Usage: `forge script script/GenerateITSGenesisConfig.s.sol -vvvv`
-contract GenerateITSConfig is ITSConfig, StorageDiffRecorder, Script {
-    // AxelarAmplifierGateway gatewayImpl; //todo rerun
-    // AxelarAmplifierGateway gateway;
-    // TokenManagerDeployer tokenManagerDeployer;
-    // InterchainToken interchainTokenImpl;
-    // InterchainTokenDeployer itDeployer;
-    // TokenManager tokenManagerImpl;
-    // TokenHandler tokenHandler;
-    // AxelarGasService gasServiceImpl;
-    // AxelarGasService gasService;
-    // GatewayCaller gatewayCaller;
-    // InterchainTokenService itsImpl;
-    // InterchainTokenService its; // InterchainProxy
-    // InterchainTokenFactory itFactoryImpl;
-    // InterchainTokenFactory itFactory; // InterchainProxy
-    // Create3Deployer create3; // not included in genesis
-
-    // WTEL wTEL;
-    // RWTEL rwTELImpl;
-    // RWTEL rwTEL;
-    // address rwtelOwner;
+contract GenerateITSGenesisConfig is ITSConfig, StorageDiffRecorder, Script {
 
     Deployments deployments;
+    string root;
+    string dest;
 
     function setUp() public {
-        string memory root = vm.projectRoot();
+        root = vm.projectRoot();
+        dest = string.concat(root, "/deployments/its-genesis-config.yaml");
         string memory path = string.concat(root, "/deployments/deployments.json");
         string memory json = vm.readFile(path);
         bytes memory data = vm.parseJson(json);
@@ -97,6 +80,8 @@ contract GenerateITSConfig is ITSConfig, StorageDiffRecorder, Script {
             deployments.its.InterchainTokenFactory
         );
 
+        _setGenesisTargets(deployments.its, deployments.rwTELImpl, deployments.rwTEL);
+
         // create3 contract only used for simulation; will not be instantiated at genesis
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
     }
@@ -105,54 +90,45 @@ contract GenerateITSConfig is ITSConfig, StorageDiffRecorder, Script {
         vm.startBroadcast();
 
         // initialize yaml file
-        string memory root = vm.projectRoot();
-        string memory dest = string.concat(root, "/deployments/its-config.yaml");
+        dest = string.concat(root, "/deployments/its-genesis-config.yaml");
         vm.writeLine(dest, "---"); // indicate yaml format
 
+        // saving impl bytecodes since immutable variables are set in constructor
+        // gateway impl (no storage)
+        address simulatedGatewayImpl = address(instantiateAxelarAmplifierGatewayImpl());
+        yamlAppendBytecode(dest, simulatedGatewayImpl, deployments.its.AxelarAmplifierGatewayImpl);
         // gateway (has storage)
-        vm.startStateDiffRecording();
-        gatewayImpl = create3DeployAxelarAmplifierGatewayImpl();
-        vm.etch(deployments.its.AxelarAmplifierGatewayImpl, address(gatewayImpl).code); // prevent constructor revert
-        gateway = create3DeployAxelarAmplifierGateway(deployments.its.AxelarAmplifierGatewayImpl);
-        Vm.AccountAccess[] memory gatewayRecords = vm.stopAndReturnStateDiff();
-        // save impl bytecode since immutable variables are set in constructor
-        yamlAppendBytecode(dest, address(gatewayImpl), deployments.its.AxelarAmplifierGatewayImpl);
-        saveWrittenSlots(address(gateway), gatewayRecords);
-        yamlAppendBytecodeWithStorage(dest, address(gateway), deployments.its.AxelarAmplifierGateway);
-
+        address simulatedGateway = address(instantiateAxelarAmplifierGateway(deployments.its.AxelarAmplifierGatewayImpl));
+        yamlAppendBytecodeWithStorage(dest, simulatedGateway, deployments.its.AxelarAmplifierGateway);
         // token manager deployer (no storage)
-        tokenManagerDeployer = create3DeployTokenManagerDeployer();
-        yamlAppendBytecode(dest, address(tokenManagerDeployer), deployments.its.TokenManagerDeployer);
+        address simulatedTMD = address(instantiateTokenManagerDeployer());
+        yamlAppendBytecode(dest, simulatedTMD, deployments.its.TokenManagerDeployer);
         // it impl (no storage)
-        interchainTokenImpl = create3DeployInterchainTokenImpl();
-        yamlAppendBytecode(dest, address(interchainTokenImpl), deployments.its.InterchainTokenImpl);
+        address simulatedITImpl = address(instantiateInterchainTokenImpl());
+        yamlAppendBytecode(dest, simulatedITImpl, deployments.its.InterchainTokenImpl);
         // itd (no storage)
-        itDeployer = create3DeployInterchainTokenDeployer(deployments.its.InterchainTokenImpl);
-        yamlAppendBytecode(dest, address(itDeployer), deployments.its.InterchainTokenDeployer);
+        address simulatedITD = address(instantiateInterchainTokenDeployer(deployments.its.InterchainTokenImpl));
+        yamlAppendBytecode(dest, simulatedITD, deployments.its.InterchainTokenDeployer);
         // tmImpl (no storage)
-        tokenManagerImpl = create3DeployTokenManagerImpl();
-        yamlAppendBytecode(dest, address(tokenManagerImpl), deployments.its.TokenManagerImpl);
+        address simulatedTMImpl = address(instantiateTokenManagerImpl());
+        yamlAppendBytecode(dest, simulatedTMImpl, deployments.its.TokenManagerImpl);
         // token handler (no storage)
-        tokenHandler = create3DeployTokenHandler();
-        yamlAppendBytecode(dest, address(tokenHandler), deployments.its.TokenHandler);
+        address simulatedTH = address(instantiateTokenHandler());
+        yamlAppendBytecode(dest, simulatedTH, deployments.its.TokenHandler);
 
         // gas service (has storage)
         vm.startStateDiffRecording();
-        gasServiceImpl = create3DeployAxelarGasServiceImpl();
-        vm.etch(deployments.its.GasServiceImpl, address(gasServiceImpl).code); // prevent constructor revert
-        gasService = create3DeployAxelarGasService(deployments.its.GasServiceImpl);
-        Vm.AccountAccess[] memory gsRecords = vm.stopAndReturnStateDiff();
-        yamlAppendBytecode(dest, address(gasServiceImpl), deployments.its.GasServiceImpl);
-        saveWrittenSlots(address(gasService), gsRecords);
-        yamlAppendBytecodeWithStorage(dest, address(gasService), deployments.its.GasService);
+        address simulatedGSImpl = address(instantiateAxelarGasServiceImpl());
+        yamlAppendBytecode(dest, simulatedGSImpl, deployments.its.GasServiceImpl);
+        address simulatedGS = address(instantiateAxelarGasService(deployments.its.GasServiceImpl));
+        yamlAppendBytecodeWithStorage(dest, simulatedGS, deployments.its.GasService);
 
         // gateway caller (no storage)
-        gatewayCaller = create3DeployGatewayCaller(deployments.its.AxelarAmplifierGateway, deployments.its.GasService);
-        yamlAppendBytecode(dest, address(gatewayCaller), deployments.its.GatewayCaller);
+        address simulatedGC = address(instantiateGatewayCaller(deployments.its.AxelarAmplifierGateway, deployments.its.GasService));
+        yamlAppendBytecode(dest, simulatedGC, deployments.its.GatewayCaller);
 
         // its (has storage)
-        vm.startStateDiffRecording();
-        itsImpl = create3DeployITSImpl(
+        address simulatedITSImpl = address(instantiateITSImpl(
             deployments.its.TokenManagerDeployer,
             deployments.its.InterchainTokenDeployer,
             deployments.its.AxelarAmplifierGateway,
@@ -160,34 +136,205 @@ contract GenerateITSConfig is ITSConfig, StorageDiffRecorder, Script {
             deployments.its.TokenManagerImpl,
             deployments.its.TokenHandler,
             deployments.its.GatewayCaller
-        );
-        its = create3DeployITS(deployments.its.InterchainTokenServiceImpl);
-        Vm.AccountAccess[] memory itsRecords = vm.stopAndReturnStateDiff();
-        yamlAppendBytecode(dest, address(itsImpl), deployments.its.InterchainTokenServiceImpl);
-        saveWrittenSlots(address(its), itsRecords);
-        yamlAppendBytecodeWithStorage(dest, address(its), deployments.its.InterchainTokenService);
+        ));
+        yamlAppendBytecode(dest, simulatedITSImpl, deployments.its.InterchainTokenServiceImpl);
+        address simulatedITS = address(instantiateITS(deployments.its.InterchainTokenServiceImpl));
+        yamlAppendBytecodeWithStorage(dest, simulatedITS, deployments.its.InterchainTokenService);
 
         // itf (has storage)
-        vm.etch(deployments.its.InterchainTokenService, address(itsImpl).code); // prevent constructor revert
-        vm.startStateDiffRecording();
-        itFactoryImpl = create3DeployITFImpl(deployments.its.InterchainTokenService);
-        itFactory = create3DeployITF(deployments.its.InterchainTokenFactoryImpl);
-        Vm.AccountAccess[] memory itfRecords = vm.stopAndReturnStateDiff();
-        yamlAppendBytecode(dest, address(itFactoryImpl), deployments.its.InterchainTokenFactoryImpl);
-        saveWrittenSlots(address(itFactory), itfRecords);
-        yamlAppendBytecodeWithStorage(dest, address(itFactory), deployments.its.InterchainTokenFactory);
+        address simulatedITFImpl = address(instantiateITFImpl(deployments.its.InterchainTokenService));
+        yamlAppendBytecode(dest, simulatedITFImpl, deployments.its.InterchainTokenFactoryImpl);
+        address simulatedITF = address(instantiateITF(deployments.its.InterchainTokenFactoryImpl));
+        yamlAppendBytecodeWithStorage(dest, simulatedITF, deployments.its.InterchainTokenFactory);
 
         // rwtel (note: requires both storage and the total supply of TEL at genesis)
-        vm.startStateDiffRecording();
-        rwTELImpl = create3DeployRWTELImpl(deployments.its.InterchainTokenService);
-        vm.etch(deployments.rwTELImpl, address(rwTELImpl).code); // prevent constructor revert
-        rwTEL = create3DeployRWTEL(deployments.rwTELImpl);
-        rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
-        Vm.AccountAccess[] memory rwtelRecords = vm.stopAndReturnStateDiff();
-        yamlAppendBytecode(dest, address(rwTELImpl), deployments.rwTELImpl);
-        saveWrittenSlots(address(rwTEL), rwtelRecords);
-        yamlAppendBytecodeWithStorage(dest, address(rwTEL), deployments.rwTEL);
+        address simulatedRWTELImpl = address(instantiateRWTELImpl(deployments.its.InterchainTokenService));
+        yamlAppendBytecode(dest, simulatedRWTELImpl, deployments.rwTELImpl);
+        address simulatedRWTEL = address(instantiateRWTEL(deployments.rwTELImpl));
+        yamlAppendBytecodeWithStorage(dest, simulatedRWTEL, deployments.rwTEL);
 
         vm.stopBroadcast();
+    }
+
+    /// @notice Genesis instantiation overrides of ITSUtils default implementations
+    /// @dev Genesis target addresses for ITS suite & RWTEL must already be stored via `_setGenesisITS()`
+    /// @dev All below genesis functions return the **simulated deployment**, copying state changes to storage targets
+
+    function instantiateAxelarAmplifierGatewayImpl()
+        public virtual override
+        returns (AxelarAmplifierGateway simulatedDeployment)
+    {
+        simulatedDeployment = super.instantiateAxelarAmplifierGatewayImpl();
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(gatewayImpl), new bytes32[](0));
+    }
+
+    function instantiateAxelarAmplifierGateway(address impl)
+        public virtual override
+        returns (AxelarAmplifierGateway simulatedDeployment)
+    {        
+        vm.startStateDiffRecording();
+        simulatedDeployment = super.instantiateAxelarAmplifierGateway(impl);
+        Vm.AccountAccess[] memory gatewayRecords = vm.stopAndReturnStateDiff();
+
+        // copy simulated state changes to target address in storage
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), gatewayRecords);
+        copyContractState(address(simulatedDeployment), address(gateway), slots);
+    }
+
+    function instantiateTokenManagerDeployer()
+        public virtual override
+        returns (TokenManagerDeployer simulatedDeployment)
+    {
+        simulatedDeployment = super.instantiateTokenManagerDeployer();
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(tokenManagerDeployer), new bytes32[](0));
+    }
+
+    function instantiateInterchainTokenImpl() public virtual override returns (InterchainToken simulatedDeployment) {
+        simulatedDeployment = super.instantiateInterchainTokenImpl();
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(interchainTokenImpl), new bytes32[](0));
+    }
+
+    function instantiateInterchainTokenDeployer(
+        address interchainTokenImpl_
+    )
+        public virtual override
+        returns (InterchainTokenDeployer simulatedDeployment)
+    {
+        simulatedDeployment = super.instantiateInterchainTokenDeployer(interchainTokenImpl_);
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(itDeployer), new bytes32[](0));
+    }
+
+    function instantiateTokenManagerImpl() public virtual override returns (TokenManager simulatedDeployment) {
+        simulatedDeployment = super.instantiateTokenManagerImpl();
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(tokenManagerImpl), new bytes32[](0));
+    }
+
+    function instantiateTokenHandler() public virtual override returns (TokenHandler simulatedDeployment) {
+        simulatedDeployment = super.instantiateTokenHandler();
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(tokenHandler), new bytes32[](0));
+    }
+
+    function instantiateAxelarGasServiceImpl()
+        public virtual override
+        returns (AxelarGasService simulatedDeployment)
+    {
+        simulatedDeployment = super.instantiateAxelarGasServiceImpl();
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(gasServiceImpl), new bytes32[](0));
+    }
+
+    function instantiateAxelarGasService(address impl)
+        public virtual override
+        returns (AxelarGasService simulatedDeployment)
+    {
+        vm.startStateDiffRecording();
+        simulatedDeployment = super.instantiateAxelarGasService(impl);
+        Vm.AccountAccess[] memory gsRecords = vm.stopAndReturnStateDiff();
+
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), gsRecords);
+        copyContractState(address(simulatedDeployment), address(gasService), slots);
+    }
+
+    function instantiateGatewayCaller( 
+        address gateway_,
+        address axelarGasService_
+    )
+        public virtual override
+        returns (GatewayCaller simulatedDeployment)
+    {
+        simulatedDeployment = super.instantiateGatewayCaller(gateway_, axelarGasService_);
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(gatewayCaller), new bytes32[](0));
+    }
+
+    function instantiateITSImpl(
+        address tokenManagerDeployer_,
+        address itDeployer_,
+        address gateway_,
+        address gasService_,
+        address tokenManagerImpl_,
+        address tokenHandler_,
+        address gatewayCaller_
+    )
+        public virtual override
+        returns (InterchainTokenService simulatedDeployment)
+    {
+        simulatedDeployment = super.instantiateITSImpl(
+            tokenManagerDeployer_,
+            itDeployer_,
+            gateway_,
+            gasService_,
+            tokenManagerImpl_,
+            tokenHandler_,
+            gatewayCaller_
+        );
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(itsImpl), new bytes32[](0));
+    }
+
+    function instantiateITS(
+        address impl
+    )
+        public virtual override
+        returns (InterchainTokenService simulatedDeployment)
+    {
+        vm.startStateDiffRecording();
+        simulatedDeployment = super.instantiateITS(impl);
+        Vm.AccountAccess[] memory itsRecords = vm.stopAndReturnStateDiff();
+
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), itsRecords);
+        copyContractState(address(simulatedDeployment), address(its), slots);
+    }
+
+    function instantiateITFImpl(
+        address its_
+    )
+        public virtual override
+        returns (InterchainTokenFactory simulatedDeployment)
+    {
+        simulatedDeployment = super.instantiateITFImpl(its_);
+        // copy simulated state changes to target address in storage
+        copyContractState(address(simulatedDeployment), address(itFactoryImpl), new bytes32[](0));
+    }
+
+    function instantiateITF(
+        address impl
+    )
+        public virtual override
+        returns (InterchainTokenFactory simulatedDeployment)
+    {
+        vm.startStateDiffRecording();
+        simulatedDeployment = super.instantiateITF(impl);
+        Vm.AccountAccess[] memory itfRecords = vm.stopAndReturnStateDiff();
+
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), itfRecords);
+        copyContractState(address(simulatedDeployment), address(itFactory), slots);
+    }
+
+    /// TODO: convert to singleton for mainnet
+    function instantiateRWTELImpl(address its_) public virtual override returns (RWTEL simulatedDeployment) {
+        vm.startStateDiffRecording();
+        simulatedDeployment = super.instantiateRWTELImpl(its_);
+        Vm.AccountAccess[] memory rwtelImplRecords = vm.stopAndReturnStateDiff();
+
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), rwtelImplRecords);
+        copyContractState(address(simulatedDeployment), address(rwTELImpl), slots);
+    }
+
+    /// TODO: convert to singleton for mainnet
+    function instantiateRWTEL(address impl) public virtual override returns (RWTEL simulatedDeployment) {
+        vm.startStateDiffRecording();
+        simulatedDeployment = super.instantiateRWTEL(impl);
+        simulatedDeployment.initialize(governanceAddress_, maxToClean, rwtelOwner);
+        Vm.AccountAccess[] memory rwtelRecords = vm.stopAndReturnStateDiff();
+
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), rwtelRecords);
+        copyContractState(address(simulatedDeployment), address(rwTEL), slots);
     }
 }
