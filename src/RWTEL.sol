@@ -166,6 +166,15 @@ contract RWTEL is
         if (!r) revert BurnFailed(from, amount);
     }
 
+    // / @inheritdoc IRWTEL //todo
+    function transferMintership(address fromMinter) external {}
+    // / @inheritdoc IRWTEL //todo
+    function isMinter(address addr) external view returns (bool) {
+        if (addr == tokenManagerAddress()) return true;
+
+        return false;
+    }
+
     function _spendAllowance(
         address sender,
         address spender,
@@ -189,6 +198,7 @@ contract RWTEL is
         _initializeOwner(owner_);
         _setGovernanceAddress(governanceAddress_);
         _setMaxToClean(maxToClean_);
+        //todo: set minter in storage
     }
 
     /// @inheritdoc IRWTEL

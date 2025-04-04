@@ -2,6 +2,15 @@
 
 //todo: update this file
 
+## things to write about:
+
+- ITS config (testnet, mainnet)
+  - verifiers: how many, how often to rotate
+  - rwtel recoverable time, governance address (safe)
+  - ITS proxy owners/operators (gatewayOwner, gatewayOperator, gas collector, gas owner, itsOwner, itsOperator, itfOwner, , )
+  - flowlimits: how much tel flow to limit per 6 hours, which address to set this (rwtelTMOperator)
+  - rwtel pausability?
+
 ## ConsensusRegistry
 
 ### Role

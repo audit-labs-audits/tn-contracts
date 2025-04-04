@@ -17,22 +17,32 @@ import { ITSUtils } from "./ITSUtils.sol";
 
 abstract contract ITSConfig is ITSUtils {
     // chain constants
-    string public ITS_HUB_CHAIN_NAME = "axelar";
-    string public ITS_HUB_ROUTING_IDENTIFIER = "hub";
-    string public TN_CHAIN_NAME = "telcoin-network";
-    bytes32 public TN_CHAINNAMEHASH = keccak256(bytes(TN_CHAIN_NAME));
-    string public MAINNET_CHAIN_NAME = "Ethereum";
-    bytes32 public MAINNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
-    address public MAINNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
-    address public MAINNET_GATEWAY = 0x4F4495243837681061C4743b74B3eEdf548D56A5;
-    string public DEVNET_SEPOLIA_CHAIN_NAME = "core-ethereum";
-    bytes32 public DEVNET_SEPOLIA_CHAINNAMEHASH = 0xbef3ef21418c49cdf83043f00d3ffeebe97f404dee721f6a81a99b66d96d6724;
-    address public DEVNET_SEPOLIA_ITS = 0x77883201091c08570D55000AB32645b88cB96324;
-    address public DEVNET_SEPOLIA_GATEWAY = 0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319;
-    string public TESTNET_SEPOLIA_CHAIN_NAME = "ethereum-sepolia";
-    bytes32 public TESTNET_SEPOLIA_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
-    address public TESTNET_SEPOLIA_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
-    address public TESTNET_SEPOLIA_GATEWAY = 0xe432150cce91c13a887f7D836923d5597adD8E31;
+    string constant ITS_HUB_CHAIN_NAME = "axelar";
+    string constant ITS_HUB_ROUTING_IDENTIFIER = "hub";
+    string constant TN_CHAIN_NAME = "telcoin-network";
+    bytes32 constant TN_CHAINNAMEHASH = keccak256(bytes(TN_CHAIN_NAME));
+    string constant MAINNET_CHAIN_NAME = "Ethereum";
+    bytes32 constant MAINNET_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
+    address constant MAINNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
+    address constant MAINNET_GATEWAY = 0x4F4495243837681061C4743b74B3eEdf548D56A5;
+    address constant MAINNET_TEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
+    string constant DEVNET_SEPOLIA_CHAIN_NAME = "core-ethereum";
+    bytes32 constant DEVNET_SEPOLIA_CHAINNAMEHASH = 0xbef3ef21418c49cdf83043f00d3ffeebe97f404dee721f6a81a99b66d96d6724;
+    address constant DEVNET_SEPOLIA_ITS = 0x77883201091c08570D55000AB32645b88cB96324;
+    address constant DEVNET_SEPOLIA_GATEWAY = 0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319;
+    string constant TESTNET_SEPOLIA_CHAIN_NAME = "ethereum-sepolia";
+    bytes32 constant TESTNET_SEPOLIA_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
+    address constant TESTNET_SEPOLIA_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
+    address constant TESTNET_SEPOLIA_GATEWAY = 0xe432150cce91c13a887f7D836923d5597adD8E31;
+
+    // message type constants; these serve as headers for ITS messages between chains
+    uint256 constant MESSAGE_TYPE_INTERCHAIN_TRANSFER = 0;
+    uint256 constant MESSAGE_TYPE_DEPLOY_INTERCHAIN_TOKEN = 1;
+    // uint256 constant MESSAGE_TYPE_DEPLOY_TOKEN_MANAGER = 2;
+    uint256 constant MESSAGE_TYPE_SEND_TO_HUB = 3;
+    uint256 constant MESSAGE_TYPE_RECEIVE_FROM_HUB = 4;
+    uint256 constant MESSAGE_TYPE_LINK_TOKEN = 5;
+    uint256 constant MESSAGE_TYPE_REGISTER_TOKEN_METADATA = 6;
 
     // mutable fork contracts
     // Sepolia
@@ -44,7 +54,7 @@ abstract contract ITSConfig is ITSUtils {
     //todo: Ethereum
     uint256 public constant telTotalSupply = 100_000_000_000e18;
 
-    function _setUpDevnetConfig(address admin, address devnetTEL, address wTEL, address expectedITS, address expectedITF) internal virtual {
+    function _setUpDevnetConfig(address admin, address devnetTEL, address wTEL) internal virtual {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         routerAddress = "router"; //todo: devnet router
@@ -99,15 +109,12 @@ abstract contract ITSConfig is ITSUtils {
         tokenAddress = address(rwTEL);
         params = abi.encode(operator, tokenAddress);
 
-        // vars stored for asserts
+        // stored for asserts
         abiEncodedWeightedSigners = abi.encode(weightedSigners);
-        precalculatedITS = expectedITS;
-        precalculatedITFactory = expectedITF;
     }
 
     /// @notice Transition to testnet handled by updating deployments.json, deploying fresh `testnetTEL` clone of canonical TEL
-    /// @notice `expectedITS == deployments.its.InterchainTokenService && expectedITF == deployments.its.InterchainTokenFactory`
-    function _setUpTestnetConfig(address testnetTEL, address wTEL, address expectedITS, address expectedITF) internal {
+    function _setUpTestnetConfig(address testnetTEL, address wTEL) internal {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         // routerAddress = ; //todo: testnet router
@@ -154,10 +161,8 @@ abstract contract ITSConfig is ITSUtils {
         // maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
         baseERC20_ = address(wTEL); // for RWTEL constructor
 
-        // vars stored for asserts
+        // stored for asserts
         abiEncodedWeightedSigners = abi.encode(weightedSigners);
-        precalculatedITS = expectedITS;
-        precalculatedITFactory = expectedITF;
     }
     
     //todo:

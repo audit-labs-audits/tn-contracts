@@ -75,9 +75,7 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         _setUpDevnetConfig(
             admin,
             deployments.sepoliaTEL,
-            deployments.wTEL,
-            deployments.its.InterchainTokenService,
-            deployments.its.InterchainTokenFactory
+            deployments.wTEL
         );
 
         _setGenesisTargets(deployments.its, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
@@ -103,13 +101,13 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         address simulatedTMD = address(instantiateTokenManagerDeployer());
         yamlAppendBytecode(dest, simulatedTMD, deployments.its.TokenManagerDeployer);
         // it impl (no storage)
-        address simulatedITImpl = address(instantiateInterchainTokenImpl());
+        address simulatedITImpl = address(instantiateInterchainTokenImpl(deployments.its.InterchainTokenService));
         yamlAppendBytecode(dest, simulatedITImpl, deployments.its.InterchainTokenImpl);
         // itd (no storage)
         address simulatedITD = address(instantiateInterchainTokenDeployer(deployments.its.InterchainTokenImpl));
         yamlAppendBytecode(dest, simulatedITD, deployments.its.InterchainTokenDeployer);
         // tmImpl (no storage)
-        address simulatedTMImpl = address(instantiateTokenManagerImpl());
+        address simulatedTMImpl = address(instantiateTokenManagerImpl(deployments.its.InterchainTokenService));
         yamlAppendBytecode(dest, simulatedTMImpl, deployments.its.TokenManagerImpl);
         // token handler (no storage)
         address simulatedTH = address(instantiateTokenHandler());
@@ -132,6 +130,7 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
             deployments.its.InterchainTokenDeployer,
             deployments.its.AxelarAmplifierGateway,
             deployments.its.GasService,
+            deployments.its.InterchainTokenFactory,
             deployments.its.TokenManagerImpl,
             deployments.its.TokenHandler,
             deployments.its.GatewayCaller

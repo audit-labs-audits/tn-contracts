@@ -18,7 +18,7 @@ import { GatewayCaller } from "@axelar-network/interchain-token-service/contract
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
-import { Deployments, ITS } from "../Deployments.sol";
+import { ITS } from "../Deployments.sol";
 import { ITSConfig } from "../utils/ITSConfig.sol";
 import { StorageDiffRecorder } from "./StorageDiffRecorder.sol";
 
@@ -78,8 +78,8 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(tokenManagerDeployer), new bytes32[](0));
     }
 
-    function instantiateInterchainTokenImpl() public virtual override returns (InterchainToken simulatedDeployment) {
-        simulatedDeployment = super.instantiateInterchainTokenImpl();
+    function instantiateInterchainTokenImpl(address its_) public virtual override returns (InterchainToken simulatedDeployment) {
+        simulatedDeployment = super.instantiateInterchainTokenImpl(its_);
         // copy simulated state changes to target address in storage
         copyContractState(address(simulatedDeployment), address(interchainTokenImpl), new bytes32[](0));
     }
@@ -95,8 +95,8 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(itDeployer), new bytes32[](0));
     }
 
-    function instantiateTokenManagerImpl() public virtual override returns (TokenManager simulatedDeployment) {
-        simulatedDeployment = super.instantiateTokenManagerImpl();
+    function instantiateTokenManagerImpl(address its_) public virtual override returns (TokenManager simulatedDeployment) {
+        simulatedDeployment = super.instantiateTokenManagerImpl(its_);
         // copy simulated state changes to target address in storage
         copyContractState(address(simulatedDeployment), address(tokenManagerImpl), new bytes32[](0));
     }
@@ -145,6 +145,7 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         address itDeployer_,
         address gateway_,
         address gasService_,
+        address itFactory_,
         address tokenManagerImpl_,
         address tokenHandler_,
         address gatewayCaller_
@@ -157,6 +158,7 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
             itDeployer_,
             gateway_,
             gasService_,
+            itFactory_,
             tokenManagerImpl_,
             tokenHandler_,
             gatewayCaller_
@@ -225,13 +227,9 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(rwTEL), slots);
     }
 
-    function instantiateRWTELTokenManager(bytes32 canonicalInterchainTokenId) public virtual override returns (TokenManager simulatedDeployment) {
-        bytes memory params = abi.encode(operator, tokenAddress);
+    function instantiateRWTELTokenManager(address its_, bytes32 canonicalInterchainTokenId) public virtual override returns (TokenManager simulatedDeployment) {
         vm.startStateDiffRecording();
-        simulatedDeployment = super.instantiateRWTELTokenManager(canonicalInterchainTokenId);
-        // initialize via TokenHandler
-        tokenHandler.postTokenManagerDeploy(uint256(rwtelTMType), ITokenManager(address(rwTELTokenManager)));
-        //todo caller must have minter role?
+        simulatedDeployment = super.instantiateRWTELTokenManager(its_, canonicalInterchainTokenId);
         Vm.AccountAccess[] memory rwtelTMRecords = vm.stopAndReturnStateDiff();
 
         bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), rwtelTMRecords);

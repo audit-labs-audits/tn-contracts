@@ -39,6 +39,13 @@ import { RWTEL } from "../../src/RWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "./Create3Utils.sol";
 
 abstract contract ITSUtils is Create3Utils {
+    // canonical chain config (sepolia for devnet/testnet, ethereum for mainnet)
+    // note that rwTEL interchainTokenSalt and interchainTokenId are the same as (derived from) canonicalTEL
+    // they are used to deploy interchain TEL contracts to new chains other than TN (obviated by genesis)
+    bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
+    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
+    TokenManager canonicalTELTokenManager;
+
     // ITS core contracts
     Create3Deployer create3; // not included in genesis
     AxelarAmplifierGateway gatewayImpl;
@@ -111,19 +118,8 @@ abstract contract ITSUtils is Create3Utils {
     bytes operator;
     bytes params;
 
-    // stored vars for assertion
-    address precalculatedITS;
-    address precalculatedITFactory;
+    // stored for assertion
     bytes abiEncodedWeightedSigners;
-
-    // expose the message type constants that serve as headers for ITS messages between chains
-    uint256 internal constant MESSAGE_TYPE_INTERCHAIN_TRANSFER = 0;
-    uint256 internal constant MESSAGE_TYPE_DEPLOY_INTERCHAIN_TOKEN = 1;
-    // uint256 internal constant MESSAGE_TYPE_DEPLOY_TOKEN_MANAGER = 2;
-    uint256 internal constant MESSAGE_TYPE_SEND_TO_HUB = 3;
-    uint256 internal constant MESSAGE_TYPE_RECEIVE_FROM_HUB = 4;
-    uint256 internal constant MESSAGE_TYPE_LINK_TOKEN = 5;
-    uint256 internal constant MESSAGE_TYPE_REGISTER_TOKEN_METADATA = 6;
 
     /// @notice Instantiation functions
     /// @notice All ITSUtils default implementations use CREATE3 a la ITS
@@ -165,8 +161,8 @@ abstract contract ITSUtils is Create3Utils {
             TokenManagerDeployer(create3Deploy(create3, type(TokenManagerDeployer).creationCode, "", salts.tmdSalt));
     }
 
-    function instantiateInterchainTokenImpl() public virtual returns (InterchainToken itImpl) {
-        bytes memory itImplConstructorArgs = abi.encode(precalculatedITS);
+    function instantiateInterchainTokenImpl(address its_) public virtual returns (InterchainToken itImpl) {
+        bytes memory itImplConstructorArgs = abi.encode(its_);
         itImpl = InterchainToken(
             create3Deploy(create3, type(InterchainToken).creationCode, itImplConstructorArgs, implSalts.itImplSalt)
         );
@@ -185,8 +181,8 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function instantiateTokenManagerImpl() public virtual returns (TokenManager tmImpl) {
-        bytes memory tmConstructorArgs = abi.encode(precalculatedITS);
+    function instantiateTokenManagerImpl(address its_) public virtual returns (TokenManager tmImpl) {
+        bytes memory tmConstructorArgs = abi.encode(its_);
         tmImpl = TokenManager(
             create3Deploy(create3, type(TokenManager).creationCode, tmConstructorArgs, implSalts.tmImplSalt)
         );
@@ -233,6 +229,7 @@ abstract contract ITSUtils is Create3Utils {
         address itDeployer_,
         address gateway_,
         address gasService_,
+        address itFactory_,
         address tokenManagerImpl_,
         address tokenHandler_,
         address gatewayCaller_
@@ -245,7 +242,7 @@ abstract contract ITSUtils is Create3Utils {
             itDeployer_,
             gateway_,
             gasService_,
-            precalculatedITFactory, // storage config
+            itFactory_,
             chainName_, // storage config
             tokenManagerImpl_,
             tokenHandler_,
@@ -324,8 +321,11 @@ abstract contract ITSUtils is Create3Utils {
 
     /// @notice Unlike other ITS instantiations, this utilizes the `TokenManagerDeployer::deployTokenManager()`
     /// function which actually produces a TokenManagerProxy
-    function instantiateRWTELTokenManager(bytes32 canonicalInterchainTokenId) public virtual returns (TokenManager rwtelTM) {
-        rwtelTM = TokenManager(tokenManagerDeployer.deployTokenManager(canonicalInterchainTokenId, uint256(rwtelTMType), params));
+    function instantiateRWTELTokenManager(address its_, bytes32 canonicalInterchainTokenId_) public virtual returns (TokenManager rwtelTM) {        
+        bytes memory rwtelTMConstructorArgs = abi.encode(its_, uint256(rwtelTMType), canonicalInterchainTokenId_, params);
+        rwtelTM = TokenManager(
+            create3Deploy(create3, type(TokenManagerProxy).creationCode, rwtelTMConstructorArgs, salts.rwtelTMSalt)
+        );
     }
 
     /// @notice Registers canonical TEL with ITS hub & deploys its TokenManager on its source chain

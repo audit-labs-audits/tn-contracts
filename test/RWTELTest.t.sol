@@ -45,12 +45,6 @@ import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Util
 import { MockTEL, ITSTestHelper } from "./ITS/ITSTestHelper.sol";
 
 contract RWTELTest is Test, ITSTestHelper {
-    // canonical chain config (sepolia or ethereum)
-    // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
-    bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
-    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
-    TokenManager canonicalTELTokenManager;
-
     address admin;
     address telDistributor;
     address user;
@@ -101,6 +95,7 @@ contract RWTELTest is Test, ITSTestHelper {
 
     //     //todo:
     //     // function test_mint() public {}
-    //     // function test_burn() public {}
+    //     // function test_revert_mint() public {}
+    //     // function test_revert_burn() public {}
     //     //todo: test bridge attempts should revert until `recoverableWindow` has elapsed
 }

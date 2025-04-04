@@ -61,19 +61,15 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
     /// @dev Used for tests only since live deployment is obviated by genesis precompiles
     function _setUp_tnFork_devnetConfig_create3(address admin, address canonicalTEL, address wtel) internal {
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
-        address expectedITS = create3.deployedAddress("", admin, salts.itsSalt);
-        // must precalculate ITF proxy to avoid `ITS::constructor()` revert
-        address expectedITF = create3.deployedAddress("", admin, salts.itfSalt);
-        _setUpDevnetConfig(admin, canonicalTEL, wtel, expectedITS, expectedITF);
+        _setUpDevnetConfig(admin, canonicalTEL, wtel);
 
         vm.startPrank(admin);
         gatewayImpl = ITSUtils.instantiateAxelarAmplifierGatewayImpl();
         gateway = ITSUtils.instantiateAxelarAmplifierGateway(address(gatewayImpl));
         tokenManagerDeployer = ITSUtils.instantiateTokenManagerDeployer();
-        interchainTokenImpl = ITSUtils.instantiateInterchainTokenImpl();
+        interchainTokenImpl = ITSUtils.instantiateInterchainTokenImpl(create3.deployedAddress('', admin, salts.itsSalt));
         itDeployer = ITSUtils.instantiateInterchainTokenDeployer(address(interchainTokenImpl));
-        tokenManagerImpl = ITSUtils.instantiateTokenManagerImpl();
+        tokenManagerImpl = ITSUtils.instantiateTokenManagerImpl(create3.deployedAddress('', admin, salts.itsSalt));
         tokenHandler = ITSUtils.instantiateTokenHandler();
         gasServiceImpl = ITSUtils.instantiateAxelarGasServiceImpl();
         gasService = ITSUtils.instantiateAxelarGasService(address(gasServiceImpl));
@@ -83,6 +79,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
             address(itDeployer),
             address(gateway),
             address(gasService),
+            create3.deployedAddress('', admin, salts.itfSalt),
             address(tokenManagerImpl),
             address(tokenHandler),
             address(gatewayCaller)
@@ -96,12 +93,12 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
         // mock-seed rwTEL with TEL total supply as genesis precompile
         vm.deal(address(rwTEL), telTotalSupply);
-        rwTELTokenManager = ITSUtils.instantiateRWTELTokenManager(rwTEL.interchainTokenId());
+        rwTELTokenManager = ITSUtils.instantiateRWTELTokenManager(address(its), rwTEL.interchainTokenId());
 
         vm.stopPrank();
 
-        assertEq(address(its), precalculatedITS);
-        assertEq(address(itFactory), precalculatedITFactory);
+        assertEq(address(its), create3.deployedAddress("", admin, salts.itsSalt));
+        assertEq(address(itFactory), create3.deployedAddress("", admin, salts.itfSalt));
     }
 
     /// @notice Simulates genesis instantiation of ITS, RWTEL, and its TokenManager. Targets `deployments.json`
@@ -110,20 +107,16 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         // first set target genesis addresses in state (not yet deployed) for use with recording
         _setGenesisTargets(genesisITSTargets, rwtelImpl, rwtel, rwtelTokenManager);
 
-        // set up config vars for devnet
+        // instantiate deployer for state diff recording and set up config vars for devnet
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
-        address expectedITS = create3.deployedAddress("", admin, salts.itsSalt);
-        // must precalculate ITF proxy to avoid `ITS::constructor()` revert
-        address expectedITF = create3.deployedAddress("", admin, salts.itfSalt);
-        _setUpDevnetConfig(admin, canonicalTEL, wtel, expectedITS, expectedITF);
+        _setUpDevnetConfig(admin, canonicalTEL, wtel);
 
         instantiateAxelarAmplifierGatewayImpl();
         instantiateAxelarAmplifierGateway(address(gatewayImpl));
         instantiateTokenManagerDeployer();
-        instantiateInterchainTokenImpl();
+        instantiateInterchainTokenImpl(address(its));
         instantiateInterchainTokenDeployer(address(interchainTokenImpl));
-        instantiateTokenManagerImpl();
+        instantiateTokenManagerImpl(address(its));
         instantiateTokenHandler();
         instantiateAxelarGasServiceImpl();
         instantiateAxelarGasService(address(gasServiceImpl));
@@ -133,6 +126,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
             address(itDeployer),
             address(gateway),
             address(gasService),
+            address(itFactory),
             address(tokenManagerImpl),
             address(tokenHandler),
             address(gatewayCaller)
@@ -142,7 +136,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         instantiateITF(address(itFactoryImpl));
         instantiateRWTELImpl(address(its));
         instantiateRWTEL(address(rwTELImpl));
-        instantiateRWTELTokenManager(rwTEL.interchainTokenId());
+        instantiateRWTELTokenManager(address(its), rwTEL.interchainTokenId());
 
         rwtelOwner = admin;
         // mock-seed rwTEL with TEL total supply as genesis precompile

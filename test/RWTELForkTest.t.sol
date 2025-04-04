@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import { Test, console2 } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
+import { IDeploy } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IDeploy.sol";
 import { AxelarAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
 import { AxelarAmplifierGatewayProxy } from
@@ -29,6 +30,7 @@ import { InterchainToken } from
 import { TokenManagerDeployer } from "@axelar-network/interchain-token-service/contracts/utils/TokenManagerDeployer.sol";
 import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
 import { ITokenManagerType } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
+import { IInterchainTokenService } from "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenService.sol";
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
@@ -46,13 +48,6 @@ import { ITS } from "../deployments/Deployments.sol";
 import { HarnessCreate3FixedAddressForITS, ITSTestHelper } from "./ITS/ITSTestHelper.sol";
 
 contract RWTELForkTest is Test, ITSTestHelper {
-    // canonical chain config (sepolia or ethereum)
-    // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
-    bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
-    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
-    TokenManager canonicalTELTokenManager;
-
-    // for fork tests
     Deployments deployments;
     address admin;
 
@@ -95,8 +90,8 @@ contract RWTELForkTest is Test, ITSTestHelper {
         tnFork = vm.createFork(TN_RPC_URL);
     }
 
-    /// @notice `deployRemoteCanonicalInterchainToken` will route a `MESSAGE_TYPE_LINK_TOKEN` through ITS hub
-    /// that is guaranteed to revert trying to deploy on preexisting genesis precompiles, thus it should be skipped
+    /// @notice Test to ensure TN genesis rwTEL and rwTELTokenManager precompiles match Ethereum ITS's canonical addresses
+    /// using a simulated call to `deployRemoteCanonicalInterchainToken` (obviated in production by Telcoin-Network genesis)
     /// @notice Ensures precompiles for RWTEL + its TokenManager match those expected (& otherwise produced) by ITS
     function test_e2eDevnet_deployRemoteCanonicalInterchainToken_RWTEL() public {
         vm.selectFork(sepoliaFork);
@@ -106,7 +101,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
 
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) =
+        (canonicalInterchainSalt, canonicalInterchainTokenId, canonicalTELTokenManager) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF, gasValue);
 
         // note that TN must be added as a trusted chain to the Ethereum ITS contract
@@ -123,7 +118,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
         emit ContractCall(
             address(sepoliaITS), ITS_HUB_CHAIN_NAME, axelarHubAddress, keccak256(wrappedPayload), wrappedPayload
         );
-        /// @notice This `deployRemoteCanonicalInterchainToken()` step is obviated by genesis precompiles and must
+        /// @notice This deployment and all following steps are obviated by genesis precompiles and must
         /// be skipped, because ITS + RWTEL are created at TN genesis, and it results in `RWTEL::decimals == 2`
         bytes32 remoteCanonicalTokenId =
             sepoliaITF.deployRemoteCanonicalInterchainToken{ value: gasValue }(canonicalTEL, destinationChain, gasValue);
@@ -138,6 +133,13 @@ contract RWTELForkTest is Test, ITSTestHelper {
 
         vm.selectFork(tnFork);
         setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
+
+        // assert genesis instantiations match ITS expectations
+        assertEq(address(canonicalTELTokenManager), rwTEL.tokenManagerAddress());
+        assertEq(canonicalInterchainSalt, rwTEL.canonicalInterchainTokenDeploySalt());
+        assertEq(canonicalInterchainTokenId, rwTEL.interchainTokenId());
+        assertEq(its.interchainTokenAddress(canonicalInterchainTokenId), deployments.rwTEL);
+        assertEq(address(canonicalTELTokenManager), deployments.rwTELTokenManager);
 
         messageId = "42";
         sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;
@@ -170,18 +172,19 @@ contract RWTELForkTest is Test, ITSTestHelper {
          * Includer executes GMP messages that have been written to the TN gateway in previous step
          * this tx calls RWTEL module which mints the TEL tokens and delivers them to recipient
          */
-        // vm.expectEmit(true, true, true, true);
-        // emit MessageExecuted(commandId);
-        // its.execute(commandId, sourceChain, sourceAddress, payload);
 
-        assertEq(canonicalInterchainTokenId, rwTEL.interchainTokenId()); // 0xc34cbb885926317c1d606b677fc05fcf5207cc2acdc4af0b4cc61763b2069a58
-        assertEq(its.interchainTokenAddress(canonicalInterchainTokenId), 0x815aDE33a299f40146b0F1af8702b97eF63Db5b6); //todo:address(rwTEL));
-        assertEq(address(canonicalTELTokenManager), 0x919a7Cf01A18b8876667AaA20855C9E5737ac3dd); //rwTELTokenManager)
-        assertEq(rwTEL.tokenManagerAddress(), address(canonicalTELTokenManager));
+        bytes memory alreadyDeployed = abi.encodePacked(IDeploy.AlreadyDeployed.selector);
+        bytes memory rwtelCollision = abi.encodeWithSelector(IInterchainTokenService.InterchainTokenDeploymentFailed.selector, alreadyDeployed);
+        vm.expectRevert(rwtelCollision);
+        its.execute(commandId, sourceChain, sourceAddress, payload);
+
+        // wipe genesis deployment to prevent revert on token deployment and reach revert on token manager deploy 
+        vm.etch(address(rwTEL), '');
+        bytes memory tokenManagerCollision = abi.encodeWithSelector(IInterchainTokenService.TokenManagerDeploymentFailed.selector, alreadyDeployed);
+        vm.expectRevert(tokenManagerCollision);
+        its.execute(commandId, sourceChain, sourceAddress, payload);
     }
 
-    //todo: rwtel asserts
-    // assert incoming rwtel & token manager that would be deployed match deployments.rwTEL/manager
     // rwtel asserts
     // bytes32 rwtelTokenId = rwTEL.interchainTokenId();
     // assertEq(rwtelTokenId, sepoliaITS.interchainTokenId(address(0x0), canonicalInterchainSalt));

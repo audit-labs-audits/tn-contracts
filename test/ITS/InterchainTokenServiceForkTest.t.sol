@@ -46,12 +46,6 @@ import { ITSConfig } from "../../deployments/utils/ITSConfig.sol";
 import { HarnessCreate3FixedAddressForITS, ITSTestHelper } from "./ITSTestHelper.sol";
 
 contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
-    // canonical chain config (sepolia or ethereum)
-    // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
-    bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
-    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
-    TokenManager canonicalTELTokenManager;
-
     Deployments deployments;
     address admin; // note: possesses all permissions on devnet only
 
@@ -256,7 +250,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         address recipient = user;
         payload = abi.encode(
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
-            canonicalInterchainTokenId,
+            rwTEL.interchainTokenId(),
             sourceAddress,
             AddressBytes.toBytes(recipient),
             amount,
@@ -284,11 +278,9 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         );
     }
 
-    // todo: ensure payload doesn't need to be hub-wrapped for approve, execute
     function test_tnFork_execute() public {
         vm.selectFork(tnFork);
         setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
-        //todo: etch bytecode & storage onto devnet ITS
 
         messageId = "42";
         sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;
@@ -298,7 +290,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         address recipient = user;
         payload = abi.encode(
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
-            canonicalInterchainTokenId,
+            rwTEL.interchainTokenId(),
             sourceAddress,
             AddressBytes.toBytes(recipient),
             amount,

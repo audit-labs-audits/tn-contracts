@@ -46,30 +46,21 @@ import { ITSConfig } from "../../deployments/utils/ITSConfig.sol";
 import { HarnessCreate3FixedAddressForITS, MockTEL } from "./ITSTestHelper.sol";
 
 contract InterchainTokenServiceTest is Test, ITSConfig {
-    // canonical "Ethereum" config (no forking done here but config stands)
     MockTEL mockTEL; // not used except to etch bytecode onto canonicalTEL
-    address ethereumTEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
-    // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
-    bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
-    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
-    TokenManager canonicalTELTokenManager;
 
     address admin = 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23;
 
     function setUp() public {
         mockTEL = new MockTEL();
-        canonicalTEL = ethereumTEL;
+        canonicalTEL = MAINNET_TEL;
         vm.etch(canonicalTEL, address(mockTEL).code);
 
         wTEL = new WTEL();
 
-        // note: devnet only: CREATE3 contract deployed via `create2`
+        // note: CREATE3 contract deployed via `create2`
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        // ITS address must be derived w/ sender + salt pre-deploy, for TokenManager && InterchainToken constructors
-        address expectedITS = create3.deployedAddress("", admin, salts.itsSalt);
-        // must precalculate ITF proxy to avoid `ITS::constructor()` revert
-        address expectedITF = create3.deployedAddress("", admin, salts.itfSalt);
-        _setUpDevnetConfig(admin, canonicalTEL, address(wTEL), expectedITS, expectedITF);
+
+        _setUpDevnetConfig(admin, canonicalTEL, address(wTEL));
 
         // note: devnet only
         rwtelOwner = admin;
@@ -85,9 +76,9 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         gatewayImpl = instantiateAxelarAmplifierGatewayImpl();
         gateway = instantiateAxelarAmplifierGateway(address(gatewayImpl));
         tokenManagerDeployer = instantiateTokenManagerDeployer();
-        interchainTokenImpl = instantiateInterchainTokenImpl();
+        interchainTokenImpl = instantiateInterchainTokenImpl(create3.deployedAddress('', admin, salts.itsSalt));
         itDeployer = instantiateInterchainTokenDeployer(address(interchainTokenImpl));
-        tokenManagerImpl = instantiateTokenManagerImpl();
+        tokenManagerImpl = instantiateTokenManagerImpl(create3.deployedAddress('', admin, salts.itsSalt));
         tokenHandler = instantiateTokenHandler();
         gasServiceImpl = instantiateAxelarGasServiceImpl();
         gasService = instantiateAxelarGasService(address(gasServiceImpl));
@@ -97,6 +88,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
             address(itDeployer),
             address(gateway),
             address(gasService),
+            create3.deployedAddress('', admin, salts.itfSalt),
             address(tokenManagerImpl),
             address(tokenHandler),
             address(gatewayCaller)
@@ -112,8 +104,8 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         vm.stopPrank(); // `admin`
 
         // asserts
-        assertEq(precalculatedITS, address(its));
-        assertEq(precalculatedITFactory, address(itFactory));
+        assertEq(address(its), create3.deployedAddress("", admin, salts.itsSalt));
+        assertEq(address(itFactory), create3.deployedAddress("", admin, salts.itfSalt));
     }
 
     function test_setUp() public view {
