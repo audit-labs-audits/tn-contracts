@@ -151,9 +151,17 @@ contract RWTEL is
         return address(uint160(uint256(keccak256(abi.encodePacked(hex"d694", createDeploy, hex"01")))));
     }
 
+    /// @inheritdoc IRWTEL
+    function isMinter(address addr) external view returns (bool) {
+        if (addr == tokenManagerAddress()) return true;
+
+        return false;
+    }
+
     /// @inheritdoc IERC20MintableBurnable
     function mint(address to, uint256 amount) external override onlyTokenManager {
-        (bool r,) = to.call{ value: amount }("");
+        uint256 nativeAmount = convertInterchainTELDecimals(amount);
+        (bool r,) = to.call{ value: nativeAmount }("");
         if (!r) revert MintFailed(to, amount);
     }
 
@@ -164,15 +172,6 @@ contract RWTEL is
         // reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
         (bool r,) = address(baseERC20).call(abi.encodeWithSignature("withdraw(uint256)", amount));
         if (!r) revert BurnFailed(from, amount);
-    }
-
-    // / @inheritdoc IRWTEL //todo
-    function transferMintership(address fromMinter) external {}
-    // / @inheritdoc IRWTEL //todo
-    function isMinter(address addr) external view returns (bool) {
-        if (addr == tokenManagerAddress()) return true;
-
-        return false;
     }
 
     function _spendAllowance(
@@ -187,6 +186,14 @@ contract RWTEL is
         ERC20._spendAllowance(sender, spender, amount);
     }
 
+    function convertInterchainTELDecimals(uint256 erc20TELAmount) public pure returns (uint256 nativeTELAmount) {
+        nativeTELAmount = erc20TELAmount * 10e16;
+    }
+    //todo precisionhandling
+    function convertNativeTELDecimals(uint256 nativeTELAmount) public pure returns (uint256 erc20TELAmount) {
+        erc20TELAmount = nativeTELAmount / 10e16;
+    }
+
     /**
      *
      *   upgradeability
@@ -198,7 +205,6 @@ contract RWTEL is
         _initializeOwner(owner_);
         _setGovernanceAddress(governanceAddress_);
         _setMaxToClean(maxToClean_);
-        //todo: set minter in storage
     }
 
     /// @inheritdoc IRWTEL

@@ -49,4 +49,8 @@ interface IRWTEL {
     /// Provided because `MAX_TO_CLEAN` may require alteration in the future, as opposed to `baseERC20`,
     /// @dev `MAX_TO_CLEAN` is stored in slot 11
     function setMaxToClean(uint16 newMaxToClean) external;
+
+    /// @notice Required by Axelar ITS to complete interchain transfers during payload processing
+    /// of `MESSAGE_TYPE_INTERCHAIN_TRANSFER` headers, which delegatecalls `TokenHandler::giveToken()`
+    function isMinter(address addr) external view returns (bool);
 }

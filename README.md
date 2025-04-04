@@ -5,11 +5,30 @@
 ## things to write about:
 
 - ITS config (testnet, mainnet)
+
+  - canonicalTEL is on ethereum => (create3Salt, interchainTokenId, LOCK_UNLOCK token manager)
+    - (create3Salt, interchainTokenId) => allChains(interchainTEL, NATIVE_INTERCHAIN token manager)
+      - (interchainTEL, MINT_BURN token manager) on TN is at same address as allChains but with RWTEL logic on address(interchainTEL)
   - verifiers: how many, how often to rotate
   - rwtel recoverable time, governance address (safe)
   - ITS proxy owners/operators (gatewayOwner, gatewayOperator, gas collector, gas owner, itsOwner, itsOperator, itfOwner, , )
   - flowlimits: how much tel flow to limit per 6 hours, which address to set this (rwtelTMOperator)
   - rwtel pausability?
+  - user flow
+
+    - ethereumITS::interchainTransfer(amt=100) // issue interchain gmp msg for 1 ERC20 tel of decimals==2
+    - await Axelar Network validation (subscriber relayer forwards msg, verifiers vote)
+    - interchain transfer msg delivered to TN gateway by relayer, then includer executes
+    - `ITS::execute()` calls mint() on TN "interchainToken" (rwTEL)
+    - rwTEL::mint() sends native TEL of amt\*10e16 (10e18 == 1 TEL)
+
+    - tnITS::interchainTransfer(amt=10e18) // issue interchain gmp msg for 1 native TEL of decimals==18
+    - within `tnITS::interchainTransfer()`, a call to `rwTEL::burn(amt)` is made, which:
+      1. calls `wTEL::unwrap(amt)` to reclaim underlying TEL using native decimals, and then
+      2.
+
+  - decimals conversion handled at TN TokenHandler, because `amount` is set in payloads constructed and submitted on the source chain. Thus the conversion must happen at the interchain transfer's mint/burn execution point, both of which are carried out by delegatecall to interchain TokenHandler.
+  - "upgrade" of ethereum TEL from canonical to interchain token becomes possible using a tweak to the ITF. In essence this makes native TEL the canonical TEL token and rwTEL the canonical interchain ERC20 TEL. Using the tweaked ITF, we would be able to deploy a new TEL version to the interchainTEL ERC20 address (which is already the case for all other chains and rwTEL). It could match rwTEL's 18 decimals, supply inflation, etc- only limitation is that ethereum TEL has to be bridged to TN first and then back to ethereum in order to arrive at the new interchain ethereum contract.
 
 ## ConsensusRegistry
 
