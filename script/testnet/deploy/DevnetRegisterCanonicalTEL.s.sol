@@ -71,7 +71,7 @@
 //     InterchainToken interchainTokenImpl;
 //     InterchainTokenDeployer itDeployer;
 //     TokenManager tokenManagerImpl;
-//     TokenHandler tokenHandler;
+//     TokenHandler tnTokenHandler;
 //     AxelarGasService gasServiceImpl;
 //     AxelarGasService gasService;
 //     GatewayCaller gatewayCaller;
@@ -81,7 +81,7 @@
 //     InterchainTokenFactory itFactory; // InterchainProxy
 
 //     // note that rwTEL interchainTokenSalt and interchainTokenId are the same as & derived from canonicalTEL
-//     bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
+//     bytes32 returnedInterchainTokenSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
 //     bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
 //         // TokenManagers
 //     TokenManager canonicalTELTokenManager;
@@ -106,7 +106,7 @@
 //         // vm.stopBroadcast();
 
 //         // // asserts
-//         // // assert canonicalInterchainSalt == itf.canonicalInterchainTokenDeploySalt();
+//         // // assert returnedInterchainTokenSalt == itf.canonicalInterchainTokenDeploySalt();
 //         // // assert canonicalInterchainTokenId == itf.canonicalInterchainTokenId();
 //         // // assert rwtelTokenManager == ethTELTokenManager
 

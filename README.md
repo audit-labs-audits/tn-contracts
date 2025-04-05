@@ -5,6 +5,10 @@
 ## things to write about:
 
 - ITS config (testnet, mainnet)
+  // note that rwTEL interchainTokenSalt and interchainTokenId are the same as (derived from) canonicalTEL
+  // they are used to deploy interchain TEL contracts to new chains other than TN (obviated by genesis)
+  // tokenId derived from canonicalTEL is used for new interchain TEL
+  // salt derived from canonicalTEL is used for new interchain TEL tokens
 
   - canonicalTEL is on ethereum => (create3Salt, interchainTokenId, LOCK_UNLOCK token manager)
     - (create3Salt, interchainTokenId) => allChains(interchainTEL, NATIVE_INTERCHAIN token manager)
@@ -28,7 +32,8 @@
       2.
 
   - decimals conversion handled at TN TokenHandler, because `amount` is set in payloads constructed and submitted on the source chain. Thus the conversion must happen at the interchain transfer's mint/burn execution point, both of which are carried out by delegatecall to interchain TokenHandler.
-  - "upgrade" of ethereum TEL from canonical to interchain token becomes possible using a tweak to the ITF. In essence this makes native TEL the canonical TEL token and rwTEL the canonical interchain ERC20 TEL. Using the tweaked ITF, we would be able to deploy a new TEL version to the interchainTEL ERC20 address (which is already the case for all other chains and rwTEL). It could match rwTEL's 18 decimals, supply inflation, etc- only limitation is that ethereum TEL has to be bridged to TN first and then back to ethereum in order to arrive at the new interchain ethereum contract.
+
+  - "upgrade" of ethereum TEL from canonical to interchain token becomes possible with some caveats: an upgrade to `ITF::deployInterchainToken()` and a requirement that TEL be migrated to telcoin-network before exiting in upgraded form. In essence native TEL can be upgraded to interchain TEL after passing through the rwTEL (TN's impl for interchain ERC20 TEL). Using the ITF fn, we would be able to deploy interchain TEL (to ITS::create3 address- ie interchainTEL&rwTEL) on all chains incl Ethereum. It could match native&rwTEL's 18 decimals, add supply inflation, etc- the only limitation is that ethereum TEL has to be bridged to TN first and then back to remote chains like ethereum in order to arrive at the new interchain ethereum contract. A side effect arising from ITS being immutable on all other chains is that we will not be able to perform such an upgrade if we pre-bridge existingTEL to its interchain create3 version before launching TN. The "canonical shift" from ethereum to TN must happen first.
 
 ## ConsensusRegistry
 
@@ -135,7 +140,7 @@ On Ethereum:
 
 `itFactory.registerCanonicalInterchainToken(ethTEL)`
 
-##### Note that the TEL canonical interchain tokenId is derived using the `InterchainTokenFactory::canonicalInterchainSalt()` for ethTEL
+##### Note that the TEL canonical interchain tokenId is derived using the `InterchainTokenFactory::returnedInterchainTokenSalt()` for ethTEL
 
 On Telcoin-Network:
 todo: genesis

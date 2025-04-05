@@ -64,13 +64,19 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         _setUpDevnetConfig(admin, canonicalTEL, wtel);
 
         vm.startPrank(admin);
+
+        // start with RWTEL to fetch devnet tokenID for TNTokenHandler::constructor
+        address precalculatedITS = create3.deployedAddress('', admin, salts.itsSalt);
+        rwTELImpl = ITSUtils.instantiateRWTELImpl(precalculatedITS);
+        canonicalInterchainTokenId = rwTELImpl.interchainTokenId();
+
         gatewayImpl = ITSUtils.instantiateAxelarAmplifierGatewayImpl();
         gateway = ITSUtils.instantiateAxelarAmplifierGateway(address(gatewayImpl));
         tokenManagerDeployer = ITSUtils.instantiateTokenManagerDeployer();
         interchainTokenImpl = ITSUtils.instantiateInterchainTokenImpl(create3.deployedAddress('', admin, salts.itsSalt));
         itDeployer = ITSUtils.instantiateInterchainTokenDeployer(address(interchainTokenImpl));
         tokenManagerImpl = ITSUtils.instantiateTokenManagerImpl(create3.deployedAddress('', admin, salts.itsSalt));
-        tokenHandler = ITSUtils.instantiateTokenHandler();
+        tnTokenHandler = ITSUtils.instantiateTokenHandler(canonicalInterchainTokenId);
         gasServiceImpl = ITSUtils.instantiateAxelarGasServiceImpl();
         gasService = ITSUtils.instantiateAxelarGasService(address(gasServiceImpl));
         gatewayCaller = ITSUtils.instantiateGatewayCaller(address(gateway), address(gasService));
@@ -81,19 +87,25 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
             address(gasService),
             create3.deployedAddress('', admin, salts.itfSalt),
             address(tokenManagerImpl),
-            address(tokenHandler),
+            address(tnTokenHandler),
             address(gatewayCaller)
         );
         its = ITSUtils.instantiateITS(address(itsImpl));
         itFactoryImpl = ITSUtils.instantiateITFImpl(address(its));
         itFactory = ITSUtils.instantiateITF(address(itFactoryImpl));
-        rwTELImpl = ITSUtils.instantiateRWTELImpl(address(its));
-        rwTEL = ITSUtils.instantiateRWTEL(address(rwTELImpl));
+
+
         rwtelOwner = admin;
+        rwTEL = ITSUtils.instantiateRWTEL(address(rwTELImpl));
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
         // mock-seed rwTEL with TEL total supply as genesis precompile
         vm.deal(address(rwTEL), telTotalSupply);
-        rwTELTokenManager = ITSUtils.instantiateRWTELTokenManager(address(its), rwTEL.interchainTokenId());
+
+        rwTELTokenManager = ITSUtils.instantiateRWTELTokenManager(address(its), canonicalInterchainTokenId);
+
+        canonicalInterchainTokenSalt = rwTEL.canonicalInterchainTokenDeploySalt();
+        canonicalTELTokenManager = TokenManager(rwTEL.tokenManagerAddress());
+        assertEq(canonicalInterchainTokenId, rwTEL.interchainTokenId());
 
         vm.stopPrank();
 
@@ -117,7 +129,6 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         instantiateInterchainTokenImpl(address(its));
         instantiateInterchainTokenDeployer(address(interchainTokenImpl));
         instantiateTokenManagerImpl(address(its));
-        instantiateTokenHandler();
         instantiateAxelarGasServiceImpl();
         instantiateAxelarGasService(address(gasServiceImpl));
         instantiateGatewayCaller(address(gateway), address(gasService));
@@ -128,19 +139,24 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
             address(gasService),
             address(itFactory),
             address(tokenManagerImpl),
-            address(tokenHandler),
+            address(tnTokenHandler),
             address(gatewayCaller)
         );
         instantiateITS(address(itsImpl));
         instantiateITFImpl(address(its));
         instantiateITF(address(itFactoryImpl));
-        instantiateRWTELImpl(address(its));
-        instantiateRWTEL(address(rwTELImpl));
-        instantiateRWTELTokenManager(address(its), rwTEL.interchainTokenId());
 
+        instantiateRWTELImpl(address(its));
         rwtelOwner = admin;
+        instantiateRWTEL(address(rwTELImpl));
         // mock-seed rwTEL with TEL total supply as genesis precompile
         vm.deal(address(rwTEL), telTotalSupply);
+
+        canonicalInterchainTokenSalt = rwTEL.canonicalInterchainTokenDeploySalt();
+        canonicalTELTokenManager = TokenManager(rwTEL.tokenManagerAddress());
+        canonicalInterchainTokenId = rwTEL.interchainTokenId();
+        instantiateTokenHandler(canonicalInterchainTokenId);
+        instantiateRWTELTokenManager(address(its), canonicalInterchainTokenId);
     }
 
     /// @notice Redeclared event from `IAxelarGMPGateway` for asserts

@@ -90,7 +90,11 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         // initialize yaml file
         vm.writeLine(dest, "---"); // indicate yaml format
 
-        // saving impl bytecodes since immutable variables are set in constructor
+        // start with rwTEL impl to fetch token id for TokenHandler::constructor
+        address simulatedRWTELImpl = address(instantiateRWTELImpl(deployments.its.InterchainTokenService));
+        yamlAppendBytecode(dest, simulatedRWTELImpl, deployments.rwTELImpl);
+        canonicalInterchainTokenId = rwTELImpl.interchainTokenId();
+
         // gateway impl (no storage)
         address simulatedGatewayImpl = address(instantiateAxelarAmplifierGatewayImpl());
         yamlAppendBytecode(dest, simulatedGatewayImpl, deployments.its.AxelarAmplifierGatewayImpl);
@@ -110,7 +114,7 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         address simulatedTMImpl = address(instantiateTokenManagerImpl(deployments.its.InterchainTokenService));
         yamlAppendBytecode(dest, simulatedTMImpl, deployments.its.TokenManagerImpl);
         // token handler (no storage)
-        address simulatedTH = address(instantiateTokenHandler());
+        address simulatedTH = address(instantiateTokenHandler(canonicalInterchainTokenId));
         yamlAppendBytecode(dest, simulatedTH, deployments.its.TokenHandler);
 
         // gas service (has storage)
@@ -146,8 +150,6 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         yamlAppendBytecodeWithStorage(dest, simulatedITF, deployments.its.InterchainTokenFactory);
 
         // rwtel (note: requires both storage and the total supply of TEL at genesis)
-        address simulatedRWTELImpl = address(instantiateRWTELImpl(deployments.its.InterchainTokenService));
-        yamlAppendBytecode(dest, simulatedRWTELImpl, deployments.rwTELImpl);
         address simulatedRWTEL = address(instantiateRWTEL(deployments.rwTELImpl));
         yamlAppendBytecodeWithStorage(dest, simulatedRWTEL, deployments.rwTEL);
 

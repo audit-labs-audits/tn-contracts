@@ -36,14 +36,14 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
+import { TNTokenManager } from "../../src/interchain-token-service/TNTokenManager.sol";
+import { TNTokenHandler } from "../../src/interchain-token-service/TNTokenHandler.sol";
 import { Create3Utils, Salts, ImplSalts } from "./Create3Utils.sol";
 
 abstract contract ITSUtils is Create3Utils {
-    // canonical chain config (sepolia for devnet/testnet, ethereum for mainnet)
-    // note that rwTEL interchainTokenSalt and interchainTokenId are the same as (derived from) canonicalTEL
-    // they are used to deploy interchain TEL contracts to new chains other than TN (obviated by genesis)
-    bytes32 canonicalInterchainSalt; // salt derived from canonicalTEL is used for new interchain TEL tokens
-    bytes32 canonicalInterchainTokenId; // tokenId derived from canonicalTEL is used for new interchain TEL
+    // canonical chain config for constructors, asserts (sepolia for devnet/testnet, ethereum for mainnet)
+    bytes32 canonicalInterchainTokenSalt;
+    bytes32 canonicalInterchainTokenId;
     TokenManager canonicalTELTokenManager;
 
     // ITS core contracts
@@ -53,8 +53,6 @@ abstract contract ITSUtils is Create3Utils {
     TokenManagerDeployer tokenManagerDeployer;
     InterchainToken interchainTokenImpl;
     InterchainTokenDeployer itDeployer;
-    TokenManager tokenManagerImpl;
-    TokenHandler tokenHandler;
     AxelarGasService gasServiceImpl;
     AxelarGasService gasService;
     GatewayCaller gatewayCaller;
@@ -62,6 +60,8 @@ abstract contract ITSUtils is Create3Utils {
     InterchainTokenService its; // InterchainProxy
     InterchainTokenFactory itFactoryImpl;
     InterchainTokenFactory itFactory; // InterchainProxy
+    TNTokenHandler tnTokenHandler;
+    TNTokenManager tokenManagerImpl;
     TokenManager rwTELTokenManager;
 
     // Telcoin Network contracts
@@ -181,15 +181,16 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function instantiateTokenManagerImpl(address its_) public virtual returns (TokenManager tmImpl) {
+    function instantiateTokenManagerImpl(address its_) public virtual returns (TNTokenManager tmImpl) {
         bytes memory tmConstructorArgs = abi.encode(its_);
-        tmImpl = TokenManager(
-            create3Deploy(create3, type(TokenManager).creationCode, tmConstructorArgs, implSalts.tmImplSalt)
+        tmImpl = TNTokenManager(
+            create3Deploy(create3, type(TNTokenManager).creationCode, tmConstructorArgs, implSalts.tmImplSalt)
         );
     }
 
-    function instantiateTokenHandler() public virtual returns (TokenHandler th) {
-        th = TokenHandler(create3Deploy(create3, type(TokenHandler).creationCode, "", salts.thSalt));
+    function instantiateTokenHandler(bytes32 telInterchainTokenId_) public virtual returns (TNTokenHandler th) {
+        bytes memory thConstructorArgs = abi.encode(telInterchainTokenId_);
+        th = TNTokenHandler(create3Deploy(create3, type(TNTokenHandler).creationCode, thConstructorArgs, salts.thSalt));
     }
 
     function instantiateAxelarGasServiceImpl()
@@ -319,11 +320,9 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    /// @notice Unlike other ITS instantiations, this utilizes the `TokenManagerDeployer::deployTokenManager()`
-    /// function which actually produces a TokenManagerProxy
-    function instantiateRWTELTokenManager(address its_, bytes32 canonicalInterchainTokenId_) public virtual returns (TokenManager rwtelTM) {        
+    function instantiateRWTELTokenManager(address its_, bytes32 canonicalInterchainTokenId_) public virtual returns (TNTokenManager rwtelTM) {        
         bytes memory rwtelTMConstructorArgs = abi.encode(its_, uint256(rwtelTMType), canonicalInterchainTokenId_, params);
-        rwtelTM = TokenManager(
+        rwtelTM = TNTokenManager(
             create3Deploy(create3, type(TokenManagerProxy).creationCode, rwtelTMConstructorArgs, salts.rwtelTMSalt)
         );
     }

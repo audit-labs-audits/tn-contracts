@@ -9,8 +9,6 @@ import { IInterchainTokenFactory } from
     "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenFactory.sol";
 import { IInterchainTokenService } from
     "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenService.sol";
-import { IERC20MintableBurnable } from
-    "@axelar-network/interchain-token-service/contracts/interfaces/IERC20MintableBurnable.sol";
 import { InterchainTokenStandard } from
     "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainTokenStandard.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
@@ -25,13 +23,12 @@ import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
 /// @notice The RWTEL module serves as an Axelar InterchainToken merging functionality of TEL
 /// both as ITS ERC20 token and as native gas currency for TN
 /// @dev Inbound ERC20 TEL from other networks is delivered as native TEL through custom mint logic
-/// whereas outbound TEL must first be double-wrapped from native TEL through wTEL to rwTEL.
-/// For security, only RecoverableWrapper balances settled by the recoverable window can be bridged
+/// whereas outbound native TEL must first be double-wrapped, with `wTEL::deposit()` and then `rwTEL::wrap()`
+/// For security, only RWTEL balances settled by elapsing the recoverable window can be bridged
 contract RWTEL is
     IRWTEL,
     RecoverableWrapper,
     InterchainTokenStandard,
-    IERC20MintableBurnable,
     UUPSUpgradeable,
     Ownable,
     SystemCallable
@@ -53,10 +50,12 @@ contract RWTEL is
         0xdb4bab1640a2602c9f66f33765d12be4af115accf74b24515702961e82a71327;
     /// @notice Token factory flag to be create3-agnostic; see `InterchainTokenService::TOKEN_FACTORY_DEPLOYER`
     address private constant TOKEN_FACTORY_DEPLOYER = address(0x0);
-
+    
     /// @dev Overrides for `ERC20` storage since `RecoverableWrapper` dep restricts them
     string internal constant _name_ = "Recoverable Wrapped Telcoin";
     string internal constant _symbol_ = "rwTEL";
+
+    uint256 public constant DECIMALS_CONVERTER = 10e16;
 
     modifier onlyTokenManager() {
         if (msg.sender != tokenManager) revert OnlyManager(tokenManager);
@@ -87,7 +86,7 @@ contract RWTEL is
     }
 
     /// @inheritdoc IRWTEL
-    function distributeStakeReward(address validator, uint256 rewardAmount) external {
+    function distributeStakeReward(address validator, uint256 rewardAmount) external virtual {
         if (msg.sender != stakeManager) revert OnlyManager(stakeManager);
 
         (bool res,) = validator.call{ value: rewardAmount }("");
@@ -114,6 +113,43 @@ contract RWTEL is
      *   Axelar Interchain Token Service
      *
      */
+
+    /// @inheritdoc IRWTEL
+    function mint(address to, uint256 canonicalAmount) external virtual override onlyTokenManager returns (uint256 nativeAmount) {
+        nativeAmount = convertInterchainTELDecimals(canonicalAmount);
+        
+        (bool r,) = to.call{ value: nativeAmount }("");
+        if (!r) revert MintFailed(to, nativeAmount);
+    }
+
+    /// @inheritdoc IRWTEL
+    function burn(address from, uint256 nativeAmount) external virtual override onlyTokenManager returns (uint256 canonicalAmount) {
+        // burn and reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
+        _burn(from, nativeAmount);
+        (bool r,) = address(baseERC20).call(abi.encodeWithSignature("withdraw(uint256)", nativeAmount));
+        if (!r) revert BurnFailed(from, nativeAmount);
+
+        canonicalAmount = convertNativeTELDecimals(nativeAmount);
+    }
+
+    /// @inheritdoc IRWTEL
+    function isMinter(address addr) external virtual view returns (bool) {
+        if (addr == tokenManagerAddress()) return true;
+
+        return false;
+    }
+
+    /// @inheritdoc IRWTEL
+    function convertInterchainTELDecimals(uint256 erc20TELAmount) public pure returns (uint256 nativeTELAmount) {
+        nativeTELAmount = erc20TELAmount * DECIMALS_CONVERTER;
+    }
+    //todo precisionhandling
+
+    /// @inheritdoc IRWTEL
+    function convertNativeTELDecimals(uint256 nativeTELAmount) public pure returns (uint256 erc20TELAmount) {
+        erc20TELAmount = nativeTELAmount / DECIMALS_CONVERTER;
+        //todo: send truncated remainder back to user for future gas amounts
+    }
 
     /// @inheritdoc IRWTEL
     function tokenManagerCreate3Salt() public view override returns (bytes32) {
@@ -151,29 +187,6 @@ contract RWTEL is
         return address(uint160(uint256(keccak256(abi.encodePacked(hex"d694", createDeploy, hex"01")))));
     }
 
-    /// @inheritdoc IRWTEL
-    function isMinter(address addr) external view returns (bool) {
-        if (addr == tokenManagerAddress()) return true;
-
-        return false;
-    }
-
-    /// @inheritdoc IERC20MintableBurnable
-    function mint(address to, uint256 amount) external override onlyTokenManager {
-        uint256 nativeAmount = convertInterchainTELDecimals(amount);
-        (bool r,) = to.call{ value: nativeAmount }("");
-        if (!r) revert MintFailed(to, amount);
-    }
-
-    /// @inheritdoc IERC20MintableBurnable
-    function burn(address from, uint256 amount) external override onlyTokenManager {
-        _burn(from, amount);
-
-        // reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
-        (bool r,) = address(baseERC20).call(abi.encodeWithSignature("withdraw(uint256)", amount));
-        if (!r) revert BurnFailed(from, amount);
-    }
-
     function _spendAllowance(
         address sender,
         address spender,
@@ -184,14 +197,6 @@ contract RWTEL is
         override(ERC20, InterchainTokenStandard)
     {
         ERC20._spendAllowance(sender, spender, amount);
-    }
-
-    function convertInterchainTELDecimals(uint256 erc20TELAmount) public pure returns (uint256 nativeTELAmount) {
-        nativeTELAmount = erc20TELAmount * 10e16;
-    }
-    //todo precisionhandling
-    function convertNativeTELDecimals(uint256 nativeTELAmount) public pure returns (uint256 erc20TELAmount) {
-        erc20TELAmount = nativeTELAmount / 10e16;
     }
 
     /**

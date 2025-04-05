@@ -53,4 +53,21 @@ interface IRWTEL {
     /// @notice Required by Axelar ITS to complete interchain transfers during payload processing
     /// of `MESSAGE_TYPE_INTERCHAIN_TRANSFER` headers, which delegatecalls `TokenHandler::giveToken()`
     function isMinter(address addr) external view returns (bool);
+
+    /// @notice TN equivalent of `IERC20MintableBurnable::burn()` handling cross chain `ERC20::decimals` and native TEL
+    /// @dev Burns and reclaims native amount from settled (recoverable) balance, returns canonical amount to TNTokenManager
+    /// @return nativeAmount The native TEL amount converted to 18 decimals from the 2 of ERC20 TEL on remote chains
+    function mint(address to, uint256 canonicalAmount) external returns (uint256 nativeAmount);
+
+    /// @notice TN equivalent of `IERC20MintableBurnable::burn()` handling cross chain `ERC20::decimals` and native TEL
+    /// @dev Burns and reclaims native amount from settled (recoverable) balance, returns canonical amount to TNTokenManager
+    /// @return canonicalAmount The canonical TEL ERC20 amount converted to 2 decimals from the 18 of native & wTEL
+    function burn(address from, uint256 nativeAmount) external returns (uint256 canonicalAmount);
+
+    /// @notice Handles decimal conversion of remote ERC20 TEL to native TEL
+    function convertInterchainTELDecimals(uint256 erc20TELAmount) external pure returns (uint256 nativeTELAmount);
+
+    /// @notice Handles decimal conversion of native TEL to remote ERC20 TEL
+    /// @notice Excess native TEL remainder from truncating 16 decimals is refunded to the user for future gas usage
+    function convertNativeTELDecimals(uint256 nativeTELAmount) external pure returns (uint256 erc20TELAmount);
 }

@@ -9,16 +9,16 @@ import { IERC20MintableBurnable } from '@axelar-network/interchain-token-service
 
 contract TNTokenManager is TokenManager {
     constructor(address interchainTokenService_) TokenManager(interchainTokenService_) {}
-    
-    function mintTokenWithReturn(address tokenAddress_, address to, uint256 amount) external returns (uint256 mintedAmount) {
-        (bool success, bytes memory minted) = tokenAddress_.call(abi.encodeWithSelector(IERC20MintableBurnable.mint.selector, to, amount));
+
+    function mintTokenWithReturn(address tokenAddress_, address to, uint256 canonicalAmount) external returns (uint256 mintedAmount) {
+        (bool success, bytes memory minted) = tokenAddress_.call(abi.encodeWithSelector(IERC20MintableBurnable.mint.selector, to, canonicalAmount));
         require(success, "TEL mint failed");
 
         mintedAmount = abi.decode(minted, (uint256));
     }
 
-    function burnTokenWithReturn(address tokenAddress_, address from, uint256 amount) external returns (uint256 burnedAmount) {
-        (bool success, bytes memory burned) = tokenAddress_.call(abi.encodeWithSelector(IERC20MintableBurnable.burn.selector, from, amount));
+    function burnTokenWithReturn(address tokenAddress_, address from, uint256 nativeAmount) external returns (uint256 burnedAmount) {
+        (bool success, bytes memory burned) = tokenAddress_.call(abi.encodeWithSelector(IERC20MintableBurnable.burn.selector, from, nativeAmount));
         require(success, "TEL mint failed");
 
         burnedAmount = abi.decode(burned, (uint256));

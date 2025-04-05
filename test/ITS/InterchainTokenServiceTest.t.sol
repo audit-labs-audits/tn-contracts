@@ -65,12 +65,20 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         // note: devnet only
         rwtelOwner = admin;
         // note: overwrite chain names in setup params to test ITS somewhat chain agnostically
-        chainName_ = MAINNET_CHAIN_NAME; //DEVNET_SEPOLIA_CHAIN_NAME;
-        canonicalChainName_ = MAINNET_CHAIN_NAME; //DEVNET_SEPOLIA_CHAIN_NAME;
+        chainName_ = MAINNET_CHAIN_NAME;
+        canonicalChainName_ = MAINNET_CHAIN_NAME;
         itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
         // note: ITS deterministic create3 deployments depend on `sender` for devnet only
         vm.startPrank(admin);
+
+        // start with rwtel impl for salt constructor arg
+        address precalculatedITS = create3.deployedAddress('', admin, salts.itsSalt);
+        rwTELImpl = instantiateRWTELImpl(precalculatedITS);
+
+        canonicalInterchainTokenSalt = rwTELImpl.canonicalInterchainTokenDeploySalt();
+        canonicalInterchainTokenId = rwTELImpl.interchainTokenId();
+        canonicalTELTokenManager = TokenManager(rwTELImpl.tokenManagerAddress()); // TNTokenManager in forks
 
         // deploy ITS core suite; use config from storage
         gatewayImpl = instantiateAxelarAmplifierGatewayImpl();
@@ -79,7 +87,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         interchainTokenImpl = instantiateInterchainTokenImpl(create3.deployedAddress('', admin, salts.itsSalt));
         itDeployer = instantiateInterchainTokenDeployer(address(interchainTokenImpl));
         tokenManagerImpl = instantiateTokenManagerImpl(create3.deployedAddress('', admin, salts.itsSalt));
-        tokenHandler = instantiateTokenHandler();
+        tnTokenHandler = instantiateTokenHandler(canonicalInterchainTokenId);
         gasServiceImpl = instantiateAxelarGasServiceImpl();
         gasService = instantiateAxelarGasService(address(gasServiceImpl));
         gatewayCaller = instantiateGatewayCaller(address(gateway), address(gasService));
@@ -90,15 +98,14 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
             address(gasService),
             create3.deployedAddress('', admin, salts.itfSalt),
             address(tokenManagerImpl),
-            address(tokenHandler),
+            address(tnTokenHandler),
             address(gatewayCaller)
         );
         its = instantiateITS(address(itsImpl));
         itFactoryImpl = instantiateITFImpl(address(its));
         itFactory = instantiateITF(address(itFactoryImpl));
-        rwTELImpl = instantiateRWTELImpl(address(its));
-        rwTEL = instantiateRWTEL(address(rwTELImpl));
 
+        rwTEL = instantiateRWTEL(address(rwTELImpl));
         rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
 
         vm.stopPrank(); // `admin`
@@ -106,6 +113,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         // asserts
         assertEq(address(its), create3.deployedAddress("", admin, salts.itsSalt));
         assertEq(address(itFactory), create3.deployedAddress("", admin, salts.itfSalt));
+        assertEq(canonicalInterchainTokenId, rwTEL.interchainTokenId());
     }
 
     function test_setUp() public view {
@@ -147,7 +155,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         assertEq(itsImpl.interchainTokenFactory(), address(itFactory));
         assertEq(itsImpl.chainNameHash(), keccak256(bytes(chainName_)));
         assertEq(itsImpl.tokenManager(), address(tokenManagerImpl));
-        assertEq(itsImpl.tokenHandler(), address(tokenHandler));
+        assertEq(itsImpl.tokenHandler(), address(tnTokenHandler));
         assertEq(itsImpl.gatewayCaller(), address(gatewayCaller));
         assertEq(itsImpl.tokenManagerImplementation(0), address(tokenManagerImpl));
         // ITS proxy sanity tests
@@ -173,43 +181,47 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         // note that rwTEL ITS salt and tokenId are based on canonicalTEL
         bytes32 rwtelDeploySalt = rwTEL.canonicalInterchainTokenDeploySalt();
         assertEq(rwtelDeploySalt, itFactory.canonicalInterchainTokenDeploySalt(address(canonicalTEL)));
-        bytes32 rwtelTokenId = rwTEL.interchainTokenId();
-        assertEq(rwtelTokenId, rwTEL.tokenManagerCreate3Salt());
-        assertEq(rwtelTokenId, itFactory.canonicalInterchainTokenId(address(canonicalTEL)));
-        assertEq(rwtelTokenId, its.interchainTokenId(address(0x0), rwtelDeploySalt));
+        assertEq(canonicalInterchainTokenId, rwTEL.tokenManagerCreate3Salt());
+        assertEq(canonicalInterchainTokenId, itFactory.canonicalInterchainTokenId(address(canonicalTEL)));
+        assertEq(canonicalInterchainTokenId, its.interchainTokenId(address(0x0), rwtelDeploySalt));
     }
 
     function test_eth_registerCanonicalInterchainToken() public {
         // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (canonicalInterchainSalt, canonicalInterchainTokenId, canonicalTELTokenManager) =
+        (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
+        assertEq(returnedInterchainTokenSalt, canonicalInterchainTokenSalt);
+        assertEq(returnedInterchainTokenId, canonicalInterchainTokenId);
+        assertEq(returnedInterchainTokenId, its.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
+        assertEq(address(returnedTELTokenManager), address(canonicalTELTokenManager));
+
         vm.expectRevert();
-        canonicalTELTokenManager.proposeOperatorship(admin);
+        returnedTELTokenManager.proposeOperatorship(admin);
         vm.expectRevert();
-        canonicalTELTokenManager.transferOperatorship(admin);
+        returnedTELTokenManager.transferOperatorship(admin);
         vm.expectRevert();
-        canonicalTELTokenManager.acceptOperatorship(admin);
+        returnedTELTokenManager.acceptOperatorship(admin);
         vm.expectRevert();
-        canonicalTELTokenManager.addFlowLimiter(admin);
+        returnedTELTokenManager.addFlowLimiter(admin);
         vm.expectRevert();
-        canonicalTELTokenManager.removeFlowLimiter(admin);
+        returnedTELTokenManager.removeFlowLimiter(admin);
         uint256 dummyAmt = 1;
         vm.expectRevert();
-        canonicalTELTokenManager.setFlowLimit(dummyAmt);
+        returnedTELTokenManager.setFlowLimit(dummyAmt);
         vm.expectRevert();
-        canonicalTELTokenManager.addFlowIn(dummyAmt);
+        returnedTELTokenManager.addFlowIn(dummyAmt);
         vm.expectRevert();
-        canonicalTELTokenManager.addFlowOut(dummyAmt);
+        returnedTELTokenManager.addFlowOut(dummyAmt);
         vm.expectRevert();
-        canonicalTELTokenManager.mintToken(address(canonicalTEL), address(admin), dummyAmt);
+        returnedTELTokenManager.mintToken(address(canonicalTEL), address(admin), dummyAmt);
         vm.expectRevert();
-        canonicalTELTokenManager.burnToken(address(canonicalTEL), address(admin), dummyAmt);
+        returnedTELTokenManager.burnToken(address(canonicalTEL), address(admin), dummyAmt);
 
         // `BaseProxy::setup()` doesn't revert but does nothing if invoked outside of `TokenManagerProxy` constructor
-        canonicalTELTokenManager.setup(abi.encode(address(0), address(0x42)));
-        assertFalse(canonicalTELTokenManager.isOperator(address(0x42)));
+        returnedTELTokenManager.setup(abi.encode(address(0), address(0x42)));
+        assertFalse(returnedTELTokenManager.isOperator(address(0x42)));
 
         // check expected create3 address for canonicalTEL TokenManager using harness & restore
         bytes memory restoreCodeITS = address(its).code;
@@ -218,51 +230,47 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         // note to deploy TokenManagers ITS uses a different create3 salt schema that 'wraps' the token's canonical
         // deploy salt
         bytes32 tmDeploySaltIsTELInterchainTokenId =
-            keccak256(abi.encode(keccak256("its-interchain-token-id"), address(0x0), canonicalInterchainSalt));
-        assertEq(itsCreate3.create3Address(tmDeploySaltIsTELInterchainTokenId), address(canonicalTELTokenManager));
+            keccak256(abi.encode(keccak256("its-interchain-token-id"), address(0x0), returnedInterchainTokenSalt));
+        assertEq(itsCreate3.create3Address(tmDeploySaltIsTELInterchainTokenId), address(returnedTELTokenManager));
         vm.etch(address(its), restoreCodeITS);
 
-        // ITS asserts post registration && deployed canonicalTELTokenManager
-        address canonicalTELTokenManagerExpected = its.tokenManagerAddress(canonicalInterchainTokenId);
-        assertEq(address(canonicalTELTokenManager), canonicalTELTokenManagerExpected);
-        assertTrue(canonicalTELTokenManagerExpected.code.length > 0);
-        assertEq(address(its.deployedTokenManager(canonicalInterchainTokenId)), address(canonicalTELTokenManager));
-        assertEq(its.registeredTokenAddress(canonicalInterchainTokenId), canonicalTEL);
+        // ITS asserts post registration && deployed returnedTELTokenManager
+        address returnedTELTokenManagerExpected = its.tokenManagerAddress(returnedInterchainTokenId);
+        assertEq(address(returnedTELTokenManager), returnedTELTokenManagerExpected);
+        assertTrue(returnedTELTokenManagerExpected.code.length > 0);
+        assertEq(address(its.deployedTokenManager(returnedInterchainTokenId)), address(returnedTELTokenManager));
+        assertEq(its.registeredTokenAddress(returnedInterchainTokenId), canonicalTEL);
 
         // canonicalTEL TokenManager asserts
-        assertEq(canonicalTELTokenManager.contractId(), keccak256("token-manager"));
-        assertEq(canonicalTELTokenManager.interchainTokenId(), tmDeploySaltIsTELInterchainTokenId);
-        assertEq(canonicalTELTokenManager.implementationType(), uint256(ITokenManagerType.TokenManagerType.LOCK_UNLOCK));
-        assertEq(canonicalTELTokenManager.tokenAddress(), address(canonicalTEL));
-        assertEq(canonicalTELTokenManager.isOperator(address(0x0)), true);
-        assertEq(canonicalTELTokenManager.isOperator(address(its)), true);
-        assertEq(canonicalTELTokenManager.isFlowLimiter(address(its)), true);
-        assertEq(canonicalTELTokenManager.flowLimit(), 0); // set by ITS
-        assertEq(canonicalTELTokenManager.flowInAmount(), 0); // set by ITS
-        assertEq(canonicalTELTokenManager.flowOutAmount(), 0); // set by ITS
+        assertEq(returnedTELTokenManager.contractId(), keccak256("token-manager"));
+        assertEq(returnedTELTokenManager.interchainTokenId(), tmDeploySaltIsTELInterchainTokenId);
+        assertEq(returnedTELTokenManager.implementationType(), uint256(ITokenManagerType.TokenManagerType.LOCK_UNLOCK));
+        assertEq(returnedTELTokenManager.tokenAddress(), address(canonicalTEL));
+        assertEq(returnedTELTokenManager.isOperator(address(0x0)), true);
+        assertEq(returnedTELTokenManager.isOperator(address(its)), true);
+        assertEq(returnedTELTokenManager.isFlowLimiter(address(its)), true);
+        assertEq(returnedTELTokenManager.flowLimit(), 0); // set by ITS
+        assertEq(returnedTELTokenManager.flowInAmount(), 0); // set by ITS
+        assertEq(returnedTELTokenManager.flowOutAmount(), 0); // set by ITS
         bytes memory ethTMSetupParams = abi.encode(bytes(""), canonicalTEL);
-        assertEq(canonicalTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), canonicalTEL);
+        assertEq(returnedTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), canonicalTEL);
         (uint256 implementationType, address tokenAddress) =
-            TokenManagerProxy(payable(address(canonicalTELTokenManager))).getImplementationTypeAndTokenAddress();
+            TokenManagerProxy(payable(address(returnedTELTokenManager))).getImplementationTypeAndTokenAddress();
         assertEq(implementationType, uint256(ITokenManagerType.TokenManagerType.LOCK_UNLOCK));
         assertEq(tokenAddress, canonicalTEL);
 
         // rwtel asserts
-        bytes32 rwtelTokenId = rwTEL.interchainTokenId();
-        assertEq(rwtelTokenId, its.interchainTokenId(address(0x0), canonicalInterchainSalt));
-        assertEq(rwtelTokenId, itFactory.canonicalInterchainTokenId(canonicalTEL));
-        assertEq(rwtelTokenId, canonicalInterchainTokenId);
-        assertEq(rwtelTokenId, tmDeploySaltIsTELInterchainTokenId);
+        assertEq(canonicalInterchainTokenId, itFactory.canonicalInterchainTokenId(canonicalTEL));
+        assertEq(canonicalInterchainTokenId, tmDeploySaltIsTELInterchainTokenId);
         assertEq(rwTEL.tokenManagerCreate3Salt(), tmDeploySaltIsTELInterchainTokenId);
-        assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), canonicalInterchainSalt);
         assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), itFactory.canonicalInterchainTokenDeploySalt(canonicalTEL));
-        assertEq(rwTEL.tokenManagerAddress(), address(canonicalTELTokenManager));
+        assertEq(rwTEL.tokenManagerAddress(), address(returnedTELTokenManager));
     }
 
     function test_eth_deployRemoteCanonicalInterchainToken() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) =
+        (,bytes32 returnedInterchainTokenId,TokenManager returnedTELTokenManager) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must be added as a trusted chain to the Ethereum ITS contract
@@ -275,13 +283,13 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         bytes32 remoteCanonicalTokenId =
             itFactory.deployRemoteCanonicalInterchainToken{ value: gasValue }(canonicalTEL, destinationChain, gasValue);
 
-        assertEq(remoteCanonicalTokenId, canonicalInterchainTokenId);
+        assertEq(remoteCanonicalTokenId, returnedInterchainTokenId);
     }
 
     function test_eth_interchainTransfer_TEL() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) =
+        (,bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
@@ -295,14 +303,14 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
 
         bytes memory destinationAddress = AddressBytes.toBytes(address(0xbeef));
         its.interchainTransfer{ value: gasValue }(
-            canonicalInterchainTokenId, destinationChain, destinationAddress, amount, "", gasValue
+            returnedInterchainTokenId, destinationChain, destinationAddress, amount, "", gasValue
         );
     }
 
     function test_eth_transmitInterchainTransfer_TEL() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) =
+        (,bytes32 returnedInterchainTokenId,TokenManager returnedTELTokenManager) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
@@ -322,7 +330,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         // thus it is disabled on Ethereum since ethTEL doesn't have this function
         vm.expectRevert();
         its.transmitInterchainTransfer{ value: gasValue }(
-            canonicalInterchainTokenId, user, destinationChain, destinationAddress, amount, ""
+           returnedInterchainTokenId, user, destinationChain, destinationAddress, amount, ""
         );
     }
 }

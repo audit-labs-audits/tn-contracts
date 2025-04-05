@@ -101,7 +101,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
 
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (canonicalInterchainSalt, canonicalInterchainTokenId, canonicalTELTokenManager) =
+        (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF, gasValue);
 
         // note that TN must be added as a trusted chain to the Ethereum ITS contract
@@ -111,7 +111,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
 
         // sends remote deploy message to ITS hub for rwTEL and its TokenManager on TN
         payload =
-            abi.encode(MESSAGE_TYPE_DEPLOY_INTERCHAIN_TOKEN, canonicalInterchainTokenId, name, symbol, decimals, "");
+            abi.encode(MESSAGE_TYPE_DEPLOY_INTERCHAIN_TOKEN, returnedInterchainTokenId, name, symbol, decimals, "");
         wrappedPayload = abi.encode(MESSAGE_TYPE_SEND_TO_HUB, destinationChain, payload);
         axelarHubAddress = sepoliaITS.trustedAddress(ITS_HUB_CHAIN_NAME);
         vm.expectEmit(true, true, true, true);
@@ -122,7 +122,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
         /// be skipped, because ITS + RWTEL are created at TN genesis, and it results in `RWTEL::decimals == 2`
         bytes32 remoteCanonicalTokenId =
             sepoliaITF.deployRemoteCanonicalInterchainToken{ value: gasValue }(canonicalTEL, destinationChain, gasValue);
-        assertEq(remoteCanonicalTokenId, canonicalInterchainTokenId);
+        assertEq(remoteCanonicalTokenId, returnedInterchainTokenId);
 
         /**
          * @dev Verifier Action: Vote on GMP Message Event Validity via Ampd
@@ -135,11 +135,12 @@ contract RWTELForkTest is Test, ITSTestHelper {
         setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
 
         // assert genesis instantiations match ITS expectations
-        assertEq(address(canonicalTELTokenManager), rwTEL.tokenManagerAddress());
-        assertEq(canonicalInterchainSalt, rwTEL.canonicalInterchainTokenDeploySalt());
-        assertEq(canonicalInterchainTokenId, rwTEL.interchainTokenId());
-        assertEq(its.interchainTokenAddress(canonicalInterchainTokenId), deployments.rwTEL);
-        assertEq(address(canonicalTELTokenManager), deployments.rwTELTokenManager);
+        assertEq(address(returnedTELTokenManager), rwTEL.tokenManagerAddress());
+        assertEq(its.interchainTokenAddress(returnedInterchainTokenId), deployments.rwTEL);
+        assertEq(address(returnedTELTokenManager), deployments.rwTELTokenManager);
+        assertEq(returnedInterchainTokenSalt, canonicalInterchainTokenSalt);
+        assertEq(returnedInterchainTokenId, canonicalInterchainTokenId);
+        assertEq(address(returnedTELTokenManager), address(canonicalTELTokenManager));
 
         messageId = "42";
         sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;
@@ -187,22 +188,22 @@ contract RWTELForkTest is Test, ITSTestHelper {
 
     // rwtel asserts
     // bytes32 rwtelTokenId = rwTEL.interchainTokenId();
-    // assertEq(rwtelTokenId, sepoliaITS.interchainTokenId(address(0x0), canonicalInterchainSalt));
-    // assertEq(rwtelTokenId, sepoliaITF.canonicalInterchainTokenId(canonicalTEL));
-    // assertEq(rwtelTokenId, canonicalInterchainTokenId);
+    // assertEq(rwtelTokenId, sepoliaITS.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
+    // assertEq(rwtelTokenId, sepoliaITF.returnedInterchainTokenId(canonicalTEL));
+    // assertEq(rwtelTokenId, returnedInterchainTokenId);
     // assertEq(rwtelTokenId, tmDeploySaltIsTELInterchainTokenId);
     // assertEq(rwTEL.tokenManagerCreate3Salt(), tmDeploySaltIsTELInterchainTokenId);
-    // assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), canonicalInterchainSalt);
+    // assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), returnedInterchainTokenSalt);
     // assertEq(rwTEL.canonicalInterchainTokenDeploySalt(),
     // sepoliaITF.canonicalInterchainTokenDeploySalt(canonicalTEL));
-    // assertEq(rwTEL.tokenManagerAddress(), address(canonicalTELTokenManager));
-    // assertEq(rwtelTokenId, ITFactory.interchainTokenId(address(0x0), canonicalInterchainSalt));
-    //     assertEq(rwtelTokenId, ITFactory.canonicalInterchainTokenId(address(canonicalTEL)));
+    // assertEq(rwTEL.tokenManagerAddress(), address(returnedTELTokenManager));
+    // assertEq(rwtelTokenId, ITFactory.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
+    //     assertEq(rwtelTokenId, ITFactory.returnedInterchainTokenId(address(canonicalTEL)));
 
     //todo: asserts for devnet fork test & script
     // assertEq(remoteRwtelInterchainToken, expectedInterchainToken);
-    // ITokenManager canonicalTELTokenManager = its.deployedTokenManager(canonicalInterchainTokenId);
-    // assertEq(remoteRwtelTokenManager, address(canonicalTELTokenManager));
+    // ITokenManager returnedTELTokenManager = its.deployedTokenManager(returnedInterchainTokenId);
+    // assertEq(remoteRwtelTokenManager, address(returnedTELTokenManager));
     // assertEq(remoteRwtelTokenManager, telTokenManagerAddress);
     // assertEq(rwtelExpectedInterchainToken, address(rwTEL)); //todo: genesis assertion
     // assertEq(rwtelExpectedTokenManager, address(rwTELTokenManager)); //todo: genesis assertion

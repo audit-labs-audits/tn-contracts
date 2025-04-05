@@ -11,13 +11,13 @@ import { InterchainTokenFactory } from "@axelar-network/interchain-token-service
 import { InterchainToken } from
     "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainToken.sol";
 import { TokenManagerDeployer } from "@axelar-network/interchain-token-service/contracts/utils/TokenManagerDeployer.sol";
-import { ITokenManager } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManager.sol";
-import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
+import { TNTokenManager } from "../../src/interchain-token-service/TNTokenManager.sol";
+import { TNTokenHandler } from "../../src/interchain-token-service/TNTokenHandler.sol";
 import { ITS } from "../Deployments.sol";
 import { ITSConfig } from "../utils/ITSConfig.sol";
 import { StorageDiffRecorder } from "./StorageDiffRecorder.sol";
@@ -33,8 +33,8 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         tokenManagerDeployer = TokenManagerDeployer(genesisITSTargets.TokenManagerDeployer);
         interchainTokenImpl = InterchainToken(genesisITSTargets.InterchainTokenImpl);
         itDeployer = InterchainTokenDeployer(genesisITSTargets.InterchainTokenDeployer);
-        tokenManagerImpl = TokenManager(genesisITSTargets.TokenManagerImpl);
-        tokenHandler = TokenHandler(genesisITSTargets.TokenHandler);
+        tokenManagerImpl = TNTokenManager(genesisITSTargets.TokenManagerImpl);
+        tnTokenHandler = TNTokenHandler(genesisITSTargets.TokenHandler);
         gasServiceImpl = AxelarGasService(genesisITSTargets.GasServiceImpl);
         gasService = AxelarGasService(genesisITSTargets.GasService);
         gatewayCaller = GatewayCaller(genesisITSTargets.GatewayCaller);
@@ -44,7 +44,7 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         itFactory = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactory);
         rwTELImpl = RWTEL(rwtelImpl);
         rwTEL = RWTEL(rwtel);
-        rwTELTokenManager = TokenManager(rwtelTokenManager);
+        rwTELTokenManager = TNTokenManager(rwtelTokenManager);
     }
 
     function instantiateAxelarAmplifierGatewayImpl()
@@ -95,16 +95,16 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(itDeployer), new bytes32[](0));
     }
 
-    function instantiateTokenManagerImpl(address its_) public virtual override returns (TokenManager simulatedDeployment) {
+    function instantiateTokenManagerImpl(address its_) public virtual override returns (TNTokenManager simulatedDeployment) {
         simulatedDeployment = super.instantiateTokenManagerImpl(its_);
         // copy simulated state changes to target address in storage
         copyContractState(address(simulatedDeployment), address(tokenManagerImpl), new bytes32[](0));
     }
 
-    function instantiateTokenHandler() public virtual override returns (TokenHandler simulatedDeployment) {
-        simulatedDeployment = super.instantiateTokenHandler();
+    function instantiateTokenHandler(bytes32 telInterchainTokenId_) public virtual override returns (TNTokenHandler simulatedDeployment) {
+        simulatedDeployment = super.instantiateTokenHandler(telInterchainTokenId_);
         // copy simulated state changes to target address in storage
-        copyContractState(address(simulatedDeployment), address(tokenHandler), new bytes32[](0));
+        copyContractState(address(simulatedDeployment), address(tnTokenHandler), new bytes32[](0));
     }
 
     function instantiateAxelarGasServiceImpl()
@@ -227,7 +227,7 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(rwTEL), slots);
     }
 
-    function instantiateRWTELTokenManager(address its_, bytes32 canonicalInterchainTokenId) public virtual override returns (TokenManager simulatedDeployment) {
+    function instantiateRWTELTokenManager(address its_, bytes32 canonicalInterchainTokenId) public virtual override returns (TNTokenManager simulatedDeployment) {
         vm.startStateDiffRecording();
         simulatedDeployment = super.instantiateRWTELTokenManager(its_, canonicalInterchainTokenId);
         Vm.AccountAccess[] memory rwtelTMRecords = vm.stopAndReturnStateDiff();
