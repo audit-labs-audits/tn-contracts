@@ -54,7 +54,7 @@ abstract contract ITSConfig is ITSUtils {
     //todo: Ethereum
     uint256 public constant telTotalSupply = 100_000_000_000e18;
 
-    function _setUpDevnetConfig(address admin, address devnetTEL, address wTEL) internal virtual {
+    function _setUpDevnetConfig(address admin, address devnetTEL) internal virtual {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         routerAddress = "router"; //todo: devnet router
@@ -77,6 +77,7 @@ abstract contract ITSConfig is ITSUtils {
 
         // AxelarGasService
         gasCollector = admin;
+        gasValue = 30_000_000;
         gsOwner = admin;
         gsSetupParams = ""; // note: unused
 
@@ -101,7 +102,7 @@ abstract contract ITSConfig is ITSUtils {
         recoverableWindow_ = 604_800;
         governanceAddress_ = address(0xda0); //todo: select multisig for recoverable governance
         maxToClean = type(uint16).max;
-        baseERC20_ = wTEL; // for RWTEL constructor
+        baseERC20_ = address(wTEL); 
 
         // rwTELTokenManager config
         rwtelTMType = ITokenManagerType.TokenManagerType.NATIVE_INTERCHAIN_TOKEN;
@@ -114,7 +115,7 @@ abstract contract ITSConfig is ITSUtils {
     }
 
     /// @notice Transition to testnet handled by updating deployments.json, deploying fresh `testnetTEL` clone of canonical TEL
-    function _setUpTestnetConfig(address testnetTEL, address wTEL) internal {
+    function _setUpTestnetConfig(address testnetTEL) internal {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         // routerAddress = ; //todo: testnet router
@@ -137,6 +138,7 @@ abstract contract ITSConfig is ITSUtils {
 
         // AxelarGasService
         // gasCollector = ; // todo: gas sponsorship key
+        // gasValue == ; // todo: measure expected gas
         // gsOwner = ; //todo
         gsSetupParams = ""; // note: unused
 
@@ -159,7 +161,7 @@ abstract contract ITSConfig is ITSUtils {
         // recoverableWindow_ = 604_800; // todo: confirm 1 week
         // governanceAddress_ = ; // todo: multisig/council/DAO address in prod
         // maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
-        baseERC20_ = address(wTEL); // for RWTEL constructor
+        baseERC20_ = address(wTEL);
 
         // stored for asserts
         abiEncodedWeightedSigners = abi.encode(weightedSigners);

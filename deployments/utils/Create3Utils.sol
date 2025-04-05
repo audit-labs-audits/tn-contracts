@@ -21,6 +21,7 @@ struct Salts {
     bytes32 thSalt;
     bytes32 tmSalt;
     bytes32 tmdSalt;
+    bytes32 wtelSalt;
     bytes32 rwtelSalt;
     bytes32 rwtelTMSalt;
 }
@@ -51,6 +52,7 @@ abstract contract Create3Utils {
         thSalt: keccak256("token-handler"),
         tmSalt: keccak256("token-manager"),
         tmdSalt: keccak256("token-manager-deployer"),
+        wtelSalt: keccak256("wrapped-telcoin"),
         rwtelSalt: keccak256("recoverable-wrapped-telcoin"),
         rwtelTMSalt: keccak256("rwtel-token-manager")
     });

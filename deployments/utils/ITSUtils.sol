@@ -294,6 +294,10 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
+    function instantiateWTEL() public virtual returns (WTEL wtel) {
+        wtel = WTEL(payable(create3Deploy(create3, type(WTEL).creationCode, '', salts.wtelSalt)));
+    }
+
     /// TODO: convert to singleton for mainnet
     function instantiateRWTELImpl(address its_) public virtual returns (RWTEL impl) {
         bytes memory rwTELImplConstructorArgs = abi.encode(

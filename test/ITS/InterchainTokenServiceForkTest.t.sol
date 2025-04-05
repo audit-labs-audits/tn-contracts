@@ -99,7 +99,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         uint256 gasValue = 100; // dummy gas value just specified for multicalls
         (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF, gasValue);
-    
+
         vm.expectRevert();
         returnedTELTokenManager.proposeOperatorship(admin);
         vm.expectRevert();
@@ -141,9 +141,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         address returnedTELTokenManagerExpected = sepoliaITS.tokenManagerAddress(returnedInterchainTokenId);
         assertEq(address(returnedTELTokenManager), returnedTELTokenManagerExpected);
         assertTrue(returnedTELTokenManagerExpected.code.length > 0);
-        assertEq(
-            address(sepoliaITS.deployedTokenManager(returnedInterchainTokenId)), address(returnedTELTokenManager)
-        );
+        assertEq(address(sepoliaITS.deployedTokenManager(returnedInterchainTokenId)), address(returnedTELTokenManager));
         assertEq(sepoliaITS.registeredTokenAddress(returnedInterchainTokenId), canonicalTEL);
 
         // canonicalTEL TokenManager asserts
@@ -240,7 +238,14 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
     // todo: ensure payload doesn't need to be hub-wrapped for approve, execute
     function test_tnFork_approveMessages() public {
         vm.selectFork(tnFork);
-        setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
+        setUp_tnFork_devnetConfig_genesis(
+            deployments.its,
+            deployments.admin,
+            deployments.sepoliaTEL,
+            deployments.rwTELImpl,
+            deployments.rwTEL,
+            deployments.rwTELTokenManager
+        );
 
         messageId = "42";
         sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;
@@ -280,7 +285,14 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
 
     function test_tnFork_execute() public {
         vm.selectFork(tnFork);
-        setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
+        setUp_tnFork_devnetConfig_genesis(
+            deployments.its,
+            deployments.admin,
+            deployments.sepoliaTEL,
+            deployments.rwTELImpl,
+            deployments.rwTEL,
+            deployments.rwTELTokenManager
+        );
 
         messageId = "42";
         sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;

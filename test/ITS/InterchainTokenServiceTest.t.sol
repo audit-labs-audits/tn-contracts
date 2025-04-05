@@ -55,16 +55,13 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         canonicalTEL = MAINNET_TEL;
         vm.etch(canonicalTEL, address(mockTEL).code);
 
-        wTEL = new WTEL();
+        _setUpDevnetConfig(admin, canonicalTEL);
 
-        // note: CREATE3 contract deployed via `create2`
+        // must happen outside of devnetconfig in test context
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-
-        _setUpDevnetConfig(admin, canonicalTEL, address(wTEL));
-
-        // note: devnet only
+        wTEL = instantiateWTEL();
+        baseERC20_ = address(wTEL);
         rwtelOwner = admin;
-        // note: overwrite chain names in setup params to test ITS somewhat chain agnostically
         chainName_ = MAINNET_CHAIN_NAME;
         canonicalChainName_ = MAINNET_CHAIN_NAME;
         itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
@@ -73,7 +70,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         vm.startPrank(admin);
 
         // start with rwtel impl for salt constructor arg
-        address precalculatedITS = create3.deployedAddress('', admin, salts.itsSalt);
+        address precalculatedITS = create3.deployedAddress("", admin, salts.itsSalt);
         rwTELImpl = instantiateRWTELImpl(precalculatedITS);
 
         canonicalInterchainTokenSalt = rwTELImpl.canonicalInterchainTokenDeploySalt();
@@ -84,9 +81,9 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         gatewayImpl = instantiateAxelarAmplifierGatewayImpl();
         gateway = instantiateAxelarAmplifierGateway(address(gatewayImpl));
         tokenManagerDeployer = instantiateTokenManagerDeployer();
-        interchainTokenImpl = instantiateInterchainTokenImpl(create3.deployedAddress('', admin, salts.itsSalt));
+        interchainTokenImpl = instantiateInterchainTokenImpl(create3.deployedAddress("", admin, salts.itsSalt));
         itDeployer = instantiateInterchainTokenDeployer(address(interchainTokenImpl));
-        tokenManagerImpl = instantiateTokenManagerImpl(create3.deployedAddress('', admin, salts.itsSalt));
+        tokenManagerImpl = instantiateTokenManagerImpl(create3.deployedAddress("", admin, salts.itsSalt));
         tnTokenHandler = instantiateTokenHandler(canonicalInterchainTokenId);
         gasServiceImpl = instantiateAxelarGasServiceImpl();
         gasService = instantiateAxelarGasService(address(gasServiceImpl));
@@ -96,7 +93,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
             address(itDeployer),
             address(gateway),
             address(gasService),
-            create3.deployedAddress('', admin, salts.itfSalt),
+            create3.deployedAddress("", admin, salts.itfSalt),
             address(tokenManagerImpl),
             address(tnTokenHandler),
             address(gatewayCaller)
@@ -270,7 +267,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
     function test_eth_deployRemoteCanonicalInterchainToken() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (,bytes32 returnedInterchainTokenId,TokenManager returnedTELTokenManager) =
+        (, bytes32 returnedInterchainTokenId,) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must be added as a trusted chain to the Ethereum ITS contract
@@ -289,7 +286,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
     function test_eth_interchainTransfer_TEL() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (,bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
+        (, bytes32 returnedInterchainTokenId,) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
@@ -310,7 +307,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
     function test_eth_transmitInterchainTransfer_TEL() public {
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
         uint256 gasValue = 100; // dummy gas value specified for multicalls
-        (,bytes32 returnedInterchainTokenId,TokenManager returnedTELTokenManager) =
+        (, bytes32 returnedInterchainTokenId,) =
             eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, its, itFactory, gasValue);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
@@ -330,7 +327,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         // thus it is disabled on Ethereum since ethTEL doesn't have this function
         vm.expectRevert();
         its.transmitInterchainTransfer{ value: gasValue }(
-           returnedInterchainTokenId, user, destinationChain, destinationAddress, amount, ""
+            returnedInterchainTokenId, user, destinationChain, destinationAddress, amount, ""
         );
     }
 }

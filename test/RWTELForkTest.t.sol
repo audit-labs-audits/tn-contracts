@@ -30,7 +30,8 @@ import { InterchainToken } from
 import { TokenManagerDeployer } from "@axelar-network/interchain-token-service/contracts/utils/TokenManagerDeployer.sol";
 import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
 import { ITokenManagerType } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
-import { IInterchainTokenService } from "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenService.sol";
+import { IInterchainTokenService } from
+    "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenService.sol";
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
@@ -90,8 +91,8 @@ contract RWTELForkTest is Test, ITSTestHelper {
         tnFork = vm.createFork(TN_RPC_URL);
     }
 
-    /// @notice Test to ensure TN genesis rwTEL and rwTELTokenManager precompiles match Ethereum ITS's canonical addresses
-    /// using a simulated call to `deployRemoteCanonicalInterchainToken` (obviated in production by Telcoin-Network genesis)
+    /// @notice Test TN genesis precompiles rwTEL and rwTELTokenManager match Ethereum ITS's canonical addresses
+    /// by simulating `deployRemoteCanonicalInterchainToken` (obviated by Telcoin-Network genesis)
     /// @notice Ensures precompiles for RWTEL + its TokenManager match those expected (& otherwise produced) by ITS
     function test_e2eDevnet_deployRemoteCanonicalInterchainToken_RWTEL() public {
         vm.selectFork(sepoliaFork);
@@ -130,9 +131,15 @@ contract RWTELForkTest is Test, ITSTestHelper {
          * signs and submits signatures ie "votes" or "proofs" via RPC. Verifiers are also known as `WeightedSigners`
          * @notice Devnet config uses `admin` as a single signer with weight and threshold == 1
          */
-
         vm.selectFork(tnFork);
-        setUp_tnFork_devnetConfig_genesis(deployments.its, deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
+        setUp_tnFork_devnetConfig_genesis(
+            deployments.its,
+            deployments.admin,
+            deployments.sepoliaTEL,
+            deployments.rwTELImpl,
+            deployments.rwTEL,
+            deployments.rwTELTokenManager
+        );
 
         // assert genesis instantiations match ITS expectations
         assertEq(address(returnedTELTokenManager), rwTEL.tokenManagerAddress());
@@ -173,15 +180,16 @@ contract RWTELForkTest is Test, ITSTestHelper {
          * Includer executes GMP messages that have been written to the TN gateway in previous step
          * this tx calls RWTEL module which mints the TEL tokens and delivers them to recipient
          */
-
         bytes memory alreadyDeployed = abi.encodePacked(IDeploy.AlreadyDeployed.selector);
-        bytes memory rwtelCollision = abi.encodeWithSelector(IInterchainTokenService.InterchainTokenDeploymentFailed.selector, alreadyDeployed);
+        bytes memory rwtelCollision =
+            abi.encodeWithSelector(IInterchainTokenService.InterchainTokenDeploymentFailed.selector, alreadyDeployed);
         vm.expectRevert(rwtelCollision);
         its.execute(commandId, sourceChain, sourceAddress, payload);
 
-        // wipe genesis deployment to prevent revert on token deployment and reach revert on token manager deploy 
-        vm.etch(address(rwTEL), '');
-        bytes memory tokenManagerCollision = abi.encodeWithSelector(IInterchainTokenService.TokenManagerDeploymentFailed.selector, alreadyDeployed);
+        // wipe genesis deployment to prevent revert on token deployment and reach revert on token manager deploy
+        vm.etch(address(rwTEL), "");
+        bytes memory tokenManagerCollision =
+            abi.encodeWithSelector(IInterchainTokenService.TokenManagerDeploymentFailed.selector, alreadyDeployed);
         vm.expectRevert(tokenManagerCollision);
         its.execute(commandId, sourceChain, sourceAddress, payload);
     }

@@ -54,7 +54,6 @@ import { ITSGenesis } from "../deployments/genesis/ITSGenesis.sol";
 
 /// @dev Usage: `forge script script/GenerateITSGenesisConfig.s.sol -vvvv`
 contract GenerateITSGenesisConfig is ITSGenesis, Script {
-
     Deployments deployments;
     string root;
     string dest;
@@ -67,16 +66,11 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         bytes memory data = vm.parseJson(json);
         deployments = abi.decode(data, (Deployments));
 
-        wTEL = WTEL(payable(deployments.wTEL)); //todo: bring wTEL into genesis also
         address admin = deployments.admin;
         rwtelOwner = admin;
 
         /// @dev For testnet and mainnet genesis configs, use corresponding function
-        _setUpDevnetConfig(
-            admin,
-            deployments.sepoliaTEL,
-            deployments.wTEL
-        );
+        _setUpDevnetConfig(admin, deployments.sepoliaTEL);
 
         _setGenesisTargets(deployments.its, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
 
@@ -90,7 +84,11 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         // initialize yaml file
         vm.writeLine(dest, "---"); // indicate yaml format
 
-        // start with rwTEL impl to fetch token id for TokenHandler::constructor
+        // wTEL
+        address simulatedWTEL = address(payable(instantiateWTEL()));
+        yamlAppendBytecode(dest, simulatedWTEL, deployments.wTEL);
+
+        // rwTEL impl before ITS to fetch token id for TokenHandler::constructor
         address simulatedRWTELImpl = address(instantiateRWTELImpl(deployments.its.InterchainTokenService));
         yamlAppendBytecode(dest, simulatedRWTELImpl, deployments.rwTELImpl);
         canonicalInterchainTokenId = rwTELImpl.interchainTokenId();
@@ -99,7 +97,8 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         address simulatedGatewayImpl = address(instantiateAxelarAmplifierGatewayImpl());
         yamlAppendBytecode(dest, simulatedGatewayImpl, deployments.its.AxelarAmplifierGatewayImpl);
         // gateway (has storage)
-        address simulatedGateway = address(instantiateAxelarAmplifierGateway(deployments.its.AxelarAmplifierGatewayImpl));
+        address simulatedGateway =
+            address(instantiateAxelarAmplifierGateway(deployments.its.AxelarAmplifierGatewayImpl));
         yamlAppendBytecodeWithStorage(dest, simulatedGateway, deployments.its.AxelarAmplifierGateway);
         // token manager deployer (no storage)
         address simulatedTMD = address(instantiateTokenManagerDeployer());
@@ -125,20 +124,23 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         yamlAppendBytecodeWithStorage(dest, simulatedGS, deployments.its.GasService);
 
         // gateway caller (no storage)
-        address simulatedGC = address(instantiateGatewayCaller(deployments.its.AxelarAmplifierGateway, deployments.its.GasService));
+        address simulatedGC =
+            address(instantiateGatewayCaller(deployments.its.AxelarAmplifierGateway, deployments.its.GasService));
         yamlAppendBytecode(dest, simulatedGC, deployments.its.GatewayCaller);
 
         // its (has storage)
-        address simulatedITSImpl = address(instantiateITSImpl(
-            deployments.its.TokenManagerDeployer,
-            deployments.its.InterchainTokenDeployer,
-            deployments.its.AxelarAmplifierGateway,
-            deployments.its.GasService,
-            deployments.its.InterchainTokenFactory,
-            deployments.its.TokenManagerImpl,
-            deployments.its.TokenHandler,
-            deployments.its.GatewayCaller
-        ));
+        address simulatedITSImpl = address(
+            instantiateITSImpl(
+                deployments.its.TokenManagerDeployer,
+                deployments.its.InterchainTokenDeployer,
+                deployments.its.AxelarAmplifierGateway,
+                deployments.its.GasService,
+                deployments.its.InterchainTokenFactory,
+                deployments.its.TokenManagerImpl,
+                deployments.its.TokenHandler,
+                deployments.its.GatewayCaller
+            )
+        );
         yamlAppendBytecode(dest, simulatedITSImpl, deployments.its.InterchainTokenServiceImpl);
         address simulatedITS = address(instantiateITS(deployments.its.InterchainTokenServiceImpl));
         yamlAppendBytecodeWithStorage(dest, simulatedITS, deployments.its.InterchainTokenService);

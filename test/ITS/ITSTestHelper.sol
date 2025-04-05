@@ -59,23 +59,25 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
 
     /// @notice Test utility for deploying ITS architecture, including RWTEL and its TokenManager, via create3
     /// @dev Used for tests only since live deployment is obviated by genesis precompiles
-    function _setUp_tnFork_devnetConfig_create3(address admin, address canonicalTEL, address wtel) internal {
-        create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        _setUpDevnetConfig(admin, canonicalTEL, wtel);
+    function _setUp_tnFork_devnetConfig_create3(address admin, address canonicalTEL) internal {
+        _setUpDevnetConfig(admin, canonicalTEL);
 
         vm.startPrank(admin);
 
+        create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
+        wTEL = ITSUtils.instantiateWTEL();
+
         // start with RWTEL to fetch devnet tokenID for TNTokenHandler::constructor
-        address precalculatedITS = create3.deployedAddress('', admin, salts.itsSalt);
+        address precalculatedITS = create3.deployedAddress("", admin, salts.itsSalt);
         rwTELImpl = ITSUtils.instantiateRWTELImpl(precalculatedITS);
         canonicalInterchainTokenId = rwTELImpl.interchainTokenId();
 
         gatewayImpl = ITSUtils.instantiateAxelarAmplifierGatewayImpl();
         gateway = ITSUtils.instantiateAxelarAmplifierGateway(address(gatewayImpl));
         tokenManagerDeployer = ITSUtils.instantiateTokenManagerDeployer();
-        interchainTokenImpl = ITSUtils.instantiateInterchainTokenImpl(create3.deployedAddress('', admin, salts.itsSalt));
+        interchainTokenImpl = ITSUtils.instantiateInterchainTokenImpl(create3.deployedAddress("", admin, salts.itsSalt));
         itDeployer = ITSUtils.instantiateInterchainTokenDeployer(address(interchainTokenImpl));
-        tokenManagerImpl = ITSUtils.instantiateTokenManagerImpl(create3.deployedAddress('', admin, salts.itsSalt));
+        tokenManagerImpl = ITSUtils.instantiateTokenManagerImpl(create3.deployedAddress("", admin, salts.itsSalt));
         tnTokenHandler = ITSUtils.instantiateTokenHandler(canonicalInterchainTokenId);
         gasServiceImpl = ITSUtils.instantiateAxelarGasServiceImpl();
         gasService = ITSUtils.instantiateAxelarGasService(address(gasServiceImpl));
@@ -85,7 +87,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
             address(itDeployer),
             address(gateway),
             address(gasService),
-            create3.deployedAddress('', admin, salts.itfSalt),
+            create3.deployedAddress("", admin, salts.itfSalt),
             address(tokenManagerImpl),
             address(tnTokenHandler),
             address(gatewayCaller)
@@ -93,7 +95,6 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         its = ITSUtils.instantiateITS(address(itsImpl));
         itFactoryImpl = ITSUtils.instantiateITFImpl(address(its));
         itFactory = ITSUtils.instantiateITF(address(itFactoryImpl));
-
 
         rwtelOwner = admin;
         rwTEL = ITSUtils.instantiateRWTEL(address(rwTELImpl));
@@ -115,13 +116,22 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
 
     /// @notice Simulates genesis instantiation of ITS, RWTEL, and its TokenManager. Targets `deployments.json`
     /// @dev For devnet, a developer admin address serves all permissioned roles
-    function setUp_tnFork_devnetConfig_genesis(ITS memory genesisITSTargets, address admin, address canonicalTEL, address wtel, address rwtelImpl, address rwtel, address rwtelTokenManager) internal {
+    function setUp_tnFork_devnetConfig_genesis(
+        ITS memory genesisITSTargets,
+        address admin,
+        address canonicalTEL,
+        address rwtelImpl,
+        address rwtel,
+        address rwtelTokenManager
+    )
+        internal
+    {
         // first set target genesis addresses in state (not yet deployed) for use with recording
         _setGenesisTargets(genesisITSTargets, rwtelImpl, rwtel, rwtelTokenManager);
 
         // instantiate deployer for state diff recording and set up config vars for devnet
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        _setUpDevnetConfig(admin, canonicalTEL, wtel);
+        _setUpDevnetConfig(admin, canonicalTEL);
 
         instantiateAxelarAmplifierGatewayImpl();
         instantiateAxelarAmplifierGateway(address(gatewayImpl));

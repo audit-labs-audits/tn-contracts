@@ -63,8 +63,7 @@ contract RWTELTest is Test, ITSTestHelper {
 
     function setUp() public {
         admin = address(0xbeef);
-        wTEL = new WTEL();
-        _setUp_tnFork_devnetConfig_create3(admin, canonicalTEL, address(wTEL));
+        _setUp_tnFork_devnetConfig_create3(admin, canonicalTEL);
 
         MockTEL mockTEL = new MockTEL();
         vm.etch(canonicalTEL, address(mockTEL).code);
@@ -98,6 +97,6 @@ contract RWTELTest is Test, ITSTestHelper {
     //     // function test_revert_mint() public {}
     //     // function test_revert_burn() public {}
     //     //todo: test bridge attempts should revert until `recoverableWindow` has elapsed
-            // test unwrapTo(self)
-            // test what happens when wTEL is sent plainly to rwTEL withou callin wrap- stuck?
+    // test unwrapTo(self)
+    // test what happens when wTEL is sent plainly to rwTEL withou callin wrap- stuck?
 }

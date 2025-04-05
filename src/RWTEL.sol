@@ -25,14 +25,7 @@ import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
 /// @dev Inbound ERC20 TEL from other networks is delivered as native TEL through custom mint logic
 /// whereas outbound native TEL must first be double-wrapped, with `wTEL::deposit()` and then `rwTEL::wrap()`
 /// For security, only RWTEL balances settled by elapsing the recoverable window can be bridged
-contract RWTEL is
-    IRWTEL,
-    RecoverableWrapper,
-    InterchainTokenStandard,
-    UUPSUpgradeable,
-    Ownable,
-    SystemCallable
-{
+contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgradeable, Ownable, SystemCallable {
     /// @dev StakeManager system precompile assigned by protocol to a constant address
     address public constant stakeManager = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
@@ -50,7 +43,7 @@ contract RWTEL is
         0xdb4bab1640a2602c9f66f33765d12be4af115accf74b24515702961e82a71327;
     /// @notice Token factory flag to be create3-agnostic; see `InterchainTokenService::TOKEN_FACTORY_DEPLOYER`
     address private constant TOKEN_FACTORY_DEPLOYER = address(0x0);
-    
+
     /// @dev Overrides for `ERC20` storage since `RecoverableWrapper` dep restricts them
     string internal constant _name_ = "Recoverable Wrapped Telcoin";
     string internal constant _symbol_ = "rwTEL";
@@ -115,15 +108,33 @@ contract RWTEL is
      */
 
     /// @inheritdoc IRWTEL
-    function mint(address to, uint256 canonicalAmount) external virtual override onlyTokenManager returns (uint256 nativeAmount) {
+    function mint(
+        address to,
+        uint256 canonicalAmount
+    )
+        external
+        virtual
+        override
+        onlyTokenManager
+        returns (uint256 nativeAmount)
+    {
         nativeAmount = convertInterchainTELDecimals(canonicalAmount);
-        
+
         (bool r,) = to.call{ value: nativeAmount }("");
         if (!r) revert MintFailed(to, nativeAmount);
     }
 
     /// @inheritdoc IRWTEL
-    function burn(address from, uint256 nativeAmount) external virtual override onlyTokenManager returns (uint256 canonicalAmount) {
+    function burn(
+        address from,
+        uint256 nativeAmount
+    )
+        external
+        virtual
+        override
+        onlyTokenManager
+        returns (uint256 canonicalAmount)
+    {
         // burn and reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
         _burn(from, nativeAmount);
         (bool r,) = address(baseERC20).call(abi.encodeWithSignature("withdraw(uint256)", nativeAmount));
@@ -133,7 +144,7 @@ contract RWTEL is
     }
 
     /// @inheritdoc IRWTEL
-    function isMinter(address addr) external virtual view returns (bool) {
+    function isMinter(address addr) external view virtual returns (bool) {
         if (addr == tokenManagerAddress()) return true;
 
         return false;
