@@ -88,6 +88,7 @@ abstract contract ITSUtils is Create3Utils {
 
     // AxelarGasService config
     address gasCollector;
+    uint256 gasValue;
     address gsOwner;
     bytes gsSetupParams;
 
@@ -339,8 +340,7 @@ abstract contract ITSUtils is Create3Utils {
     function eth_registerCanonicalTELAndDeployTELTokenManager(
         address tel,
         InterchainTokenService service,
-        InterchainTokenFactory factory,
-        uint256 gasValue
+        InterchainTokenFactory factory
     )
         public
         returns (bytes32 telInterchainSalt, bytes32 telInterchainTokenId, TokenManager telTokenManager)

@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import { LibString } from "solady/utils/LibString.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
 import {
     WeightedSigner,
     WeightedSigners,
@@ -54,7 +55,15 @@ abstract contract ITSConfig is ITSUtils {
     //todo: Ethereum
     uint256 public constant telTotalSupply = 100_000_000_000e18;
 
-    function _setUpDevnetConfig(address admin, address devnetTEL) internal virtual {
+    /// @dev Create3 deployment of ITS requires some deterministic addresses before deployment
+    /// @dev Prefetch target addrs for constructor args is also helpful for the config setups
+    function _precalculateCreate3ConstructorArgs(Create3Deployer create3Deploy, address sender) internal view returns (address precalculatedITS, address precalculatedWTEL, address precalculatedRWTEL) {
+        precalculatedITS = create3Deploy.deployedAddress("", sender, salts.itsSalt);
+        precalculatedWTEL = create3Deploy.deployedAddress("", sender, salts.wtelSalt);
+        precalculatedRWTEL = create3Deploy.deployedAddress("", sender, salts.rwtelSalt);
+    }
+
+    function _setUpDevnetConfig(address admin, address devnetTEL, address wtel, address rwtel) internal virtual {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         routerAddress = "router"; //todo: devnet router
@@ -102,12 +111,12 @@ abstract contract ITSConfig is ITSUtils {
         recoverableWindow_ = 604_800;
         governanceAddress_ = address(0xda0); //todo: select multisig for recoverable governance
         maxToClean = type(uint16).max;
-        baseERC20_ = address(wTEL); 
+        baseERC20_ = wtel; 
 
         // rwTELTokenManager config
         rwtelTMType = ITokenManagerType.TokenManagerType.NATIVE_INTERCHAIN_TOKEN;
         operator = AddressBytes.toBytes(address(0xda0)); //todo: select operator who can set flowlimits
-        tokenAddress = address(rwTEL);
+        tokenAddress = rwtel;
         params = abi.encode(operator, tokenAddress);
 
         // stored for asserts

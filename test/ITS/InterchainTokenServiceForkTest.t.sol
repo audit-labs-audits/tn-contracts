@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity ^0.8.20;
 
-import { Test, console2 } from "forge-std/Test.sol";
+import { Test, console2, Vm } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
 import { AxelarAmplifierGateway } from
@@ -54,6 +54,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
     uint256 sepoliaFork;
     uint256 tnFork;
 
+    Vm.Wallet mockVerifier = vm.createWallet("mock-verifier");
     address user;
     string sourceChain;
     string sourceAddress;
@@ -96,9 +97,8 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         );
 
         // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
-        uint256 gasValue = 100; // dummy gas value just specified for multicalls
         (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF, gasValue);
+            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
 
         vm.expectRevert();
         returnedTELTokenManager.proposeOperatorship(admin);
@@ -172,9 +172,8 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         );
 
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
-        uint256 gasValue = 100; // dummy gas value specified for multicalls
         (, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF, gasValue);
+            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
@@ -188,7 +187,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
 
         bytes memory destAddressBytes = AddressBytes.toBytes(user);
         uint256 srcBalBefore = IERC20(canonicalTEL).balanceOf(user);
-        uint256 destBalBefore = IERC20(canonicalTEL).balanceOf(address(sepoliaITS));
+        uint256 destBalBefore = IERC20(canonicalTEL).balanceOf(address(returnedTELTokenManager));
         vm.prank(user);
         sepoliaITS.interchainTransfer{ value: gasValue }(
             returnedInterchainTokenId, destinationChain, destAddressBytes, amount, "", gasValue
@@ -205,9 +204,8 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         );
 
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
-        uint256 gasValue = 100; // dummy gas value specified for multicalls
         (, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF, gasValue);
+            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
@@ -221,7 +219,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
 
         bytes memory destAddressBytes = AddressBytes.toBytes(user);
         uint256 srcBalBefore = IERC20(canonicalTEL).balanceOf(user);
-        uint256 destBalBefore = IERC20(canonicalTEL).balanceOf(address(sepoliaITS));
+        uint256 destBalBefore = IERC20(canonicalTEL).balanceOf(address(returnedTELTokenManager));
 
         // note: direct calls to `ITS::transmitInterchainTransfer()` can only be called by the token
         // thus it is disabled on Ethereum since ethTEL doesn't have this function
@@ -235,13 +233,13 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         assertEq(IERC20(canonicalTEL).balanceOf(address(returnedTELTokenManager)), destBalBefore);
     }
 
-    // todo: ensure payload doesn't need to be hub-wrapped for approve, execute
     function test_tnFork_approveMessages() public {
         vm.selectFork(tnFork);
         setUp_tnFork_devnetConfig_genesis(
             deployments.its,
             deployments.admin,
             deployments.sepoliaTEL,
+            deployments.wTEL,
             deployments.rwTELImpl,
             deployments.rwTEL,
             deployments.rwTELTokenManager
@@ -267,8 +265,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         (WeightedSigners memory weightedSigners, bytes32 approveMessagesHash) =
             _getWeightedSignersAndApproveMessagesHash(messages, gateway);
         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
-        uint256 ampdVerifierPK = vm.envUint("ADMIN_PK"); //todo: use ampd
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ampdVerifierPK, approveMessagesHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = abi.encodePacked(r, s, v);
         Proof memory proof = Proof(weightedSigners, signatures);
@@ -289,6 +286,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.its,
             deployments.admin,
             deployments.sepoliaTEL,
+            deployments.wTEL,
             deployments.rwTELImpl,
             deployments.rwTEL,
             deployments.rwTELTokenManager
@@ -314,8 +312,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         (WeightedSigners memory weightedSigners, bytes32 approveMessagesHash) =
             _getWeightedSignersAndApproveMessagesHash(messages, gateway);
         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
-        uint256 ampdVerifierPK = vm.envUint("ADMIN_PK"); //todo: use ampd
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ampdVerifierPK, approveMessagesHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = abi.encodePacked(r, s, v);
         Proof memory proof = Proof(weightedSigners, signatures);
@@ -331,7 +328,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         emit MessageExecuted(commandId);
         its.execute(commandId, sourceChain, sourceAddress, payload);
 
-        uint256 decimalConvertedAmt = rwTEL.convertInterchainTELDecimals(amount);
+        uint256 decimalConvertedAmt = rwTEL.toEighteenDecimals(amount);
         assertEq(user.balance, userBalBefore + decimalConvertedAmt);
     }
 

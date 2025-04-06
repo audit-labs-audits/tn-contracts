@@ -50,6 +50,7 @@ import { ITSGenesis } from "../../deployments/genesis/ITSGenesis.sol";
 
 abstract contract ITSTestHelper is Test, ITSGenesis {
     function setUp_sepoliaFork_devnetConfig(address sepoliaTel, address sepoliaIts, address sepoliaItf) internal {
+        gasValue = 30_000_000;
         sepoliaTEL = IERC20(sepoliaTel);
         sepoliaITS = InterchainTokenService(sepoliaIts);
         sepoliaITF = InterchainTokenFactory(sepoliaItf);
@@ -59,16 +60,16 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
 
     /// @notice Test utility for deploying ITS architecture, including RWTEL and its TokenManager, via create3
     /// @dev Used for tests only since live deployment is obviated by genesis precompiles
-    function _setUp_tnFork_devnetConfig_create3(address admin, address canonicalTEL) internal {
-        _setUpDevnetConfig(admin, canonicalTEL);
+    function setUp_tnFork_devnetConfig_create3(address admin, address canonicalTEL) internal {
+        create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
+        (address precalculatedITS, address precalculatedWTEL, address precalculatedRWTEL) = _precalculateCreate3ConstructorArgs(create3, admin);
+
+        _setUpDevnetConfig(admin, canonicalTEL, precalculatedWTEL, precalculatedRWTEL);
 
         vm.startPrank(admin);
 
-        create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
+        // RWTEL impl's bytecode is used to fetch devnet tokenID for TNTokenHandler::constructor
         wTEL = ITSUtils.instantiateWTEL();
-
-        // start with RWTEL to fetch devnet tokenID for TNTokenHandler::constructor
-        address precalculatedITS = create3.deployedAddress("", admin, salts.itsSalt);
         rwTELImpl = ITSUtils.instantiateRWTELImpl(precalculatedITS);
         canonicalInterchainTokenId = rwTELImpl.interchainTokenId();
 
@@ -120,6 +121,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         ITS memory genesisITSTargets,
         address admin,
         address canonicalTEL,
+        address wtel,
         address rwtelImpl,
         address rwtel,
         address rwtelTokenManager
@@ -127,11 +129,11 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         internal
     {
         // first set target genesis addresses in state (not yet deployed) for use with recording
-        _setGenesisTargets(genesisITSTargets, rwtelImpl, rwtel, rwtelTokenManager);
+        _setGenesisTargets(genesisITSTargets, payable(wtel), payable(rwtelImpl), payable(rwtel), rwtelTokenManager);
 
         // instantiate deployer for state diff recording and set up config vars for devnet
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        _setUpDevnetConfig(admin, canonicalTEL);
+        _setUpDevnetConfig(admin, canonicalTEL, wtel, rwtel);
 
         instantiateAxelarAmplifierGatewayImpl();
         instantiateAxelarAmplifierGateway(address(gatewayImpl));
@@ -156,6 +158,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         instantiateITFImpl(address(its));
         instantiateITF(address(itFactoryImpl));
 
+        instantiateWTEL();
         instantiateRWTELImpl(address(its));
         rwtelOwner = admin;
         instantiateRWTEL(address(rwTELImpl));
@@ -167,6 +170,29 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         canonicalInterchainTokenId = rwTEL.interchainTokenId();
         instantiateTokenHandler(canonicalInterchainTokenId);
         instantiateRWTELTokenManager(address(its), canonicalInterchainTokenId);
+    }
+
+    /// @dev Assert correctness of canonical ITS return values against TN contracts
+    function _devnetAsserts_rwTEL_rwTELTokenManager(bytes32 expectedTELTokenId, bytes32 returnedTELSalt, bytes32 returnedTELTokenId, address returnedTELTokenManager) internal view {
+        // config asserts
+        assertEq(expectedTELTokenId, canonicalInterchainTokenId);
+        assertEq(returnedTELSalt, canonicalInterchainTokenSalt);
+        assertEq(returnedTELTokenId, canonicalInterchainTokenId);
+        assertEq(returnedTELTokenManager, address(canonicalTELTokenManager));
+
+        // rwtel asserts, sanity first
+        assertEq(canonicalInterchainTokenSalt, rwTEL.canonicalInterchainTokenDeploySalt());
+        assertEq(canonicalInterchainTokenId, rwTEL.interchainTokenId());
+        assertEq(address(canonicalTELTokenManager), rwTEL.tokenManagerAddress());
+        assertEq(returnedTELSalt, rwTEL.canonicalInterchainTokenDeploySalt());
+        assertEq(returnedTELTokenId, rwTEL.tokenManagerCreate3Salt());
+        assertEq(returnedTELTokenManager, rwTEL.tokenManagerAddress());
+
+        // its asserts
+        assertEq(address(rwTEL), its.interchainTokenAddress(returnedTELTokenId));
+        assertEq(canonicalInterchainTokenId, its.interchainTokenId(address(0x0), returnedTELSalt));
+        // ITF::canonicalInterchainTokenIds are chain-specific so TN itFactory should return differently
+        assertFalse(canonicalInterchainTokenId == itFactory.canonicalInterchainTokenId(canonicalTEL));
     }
 
     /// @notice Redeclared event from `IAxelarGMPGateway` for asserts

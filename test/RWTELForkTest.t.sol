@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity ^0.8.20;
 
-import { Test, console2 } from "forge-std/Test.sol";
+import { Test, console2, Vm } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
 import { IDeploy } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IDeploy.sol";
@@ -35,6 +35,7 @@ import { IInterchainTokenService } from
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
+import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { AxelarGasServiceProxy } from "../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -57,6 +58,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
     uint256 sepoliaFork;
     uint256 tnFork;
 
+    Vm.Wallet mockVerifier = vm.createWallet("mock-verifier");
     address telDistributor;
     address user;
     string sourceChain;
@@ -101,9 +103,14 @@ contract RWTELForkTest is Test, ITSTestHelper {
         );
 
         // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
-        uint256 gasValue = 100; // dummy gas value specified for multicalls
         (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF, gasValue);
+            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
+
+        // sanity asserts for post canonical registration
+        assertEq(sepoliaITS.interchainTokenAddress(returnedInterchainTokenId), deployments.rwTEL);
+        assertEq(address(returnedTELTokenManager), deployments.rwTELTokenManager);
+        bytes32 expectedTELTokenId = sepoliaITF.canonicalInterchainTokenId(canonicalTEL);
+        assertEq(expectedTELTokenId, sepoliaITS.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
 
         // note that TN must be added as a trusted chain to the Ethereum ITS contract
         string memory destinationChain = TN_CHAIN_NAME;
@@ -136,18 +143,14 @@ contract RWTELForkTest is Test, ITSTestHelper {
             deployments.its,
             deployments.admin,
             deployments.sepoliaTEL,
+            deployments.wTEL,
             deployments.rwTELImpl,
             deployments.rwTEL,
             deployments.rwTELTokenManager
         );
 
-        // assert genesis instantiations match ITS expectations
-        assertEq(address(returnedTELTokenManager), rwTEL.tokenManagerAddress());
-        assertEq(its.interchainTokenAddress(returnedInterchainTokenId), deployments.rwTEL);
-        assertEq(address(returnedTELTokenManager), deployments.rwTELTokenManager);
-        assertEq(returnedInterchainTokenSalt, canonicalInterchainTokenSalt);
-        assertEq(returnedInterchainTokenId, canonicalInterchainTokenId);
-        assertEq(address(returnedTELTokenManager), address(canonicalTELTokenManager));
+        // assert returned ITS values match genesis expectations
+        _devnetAsserts_rwTEL_rwTELTokenManager(expectedTELTokenId, returnedInterchainTokenSalt, returnedInterchainTokenId, address(returnedTELTokenManager));
 
         messageId = "42";
         sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;
@@ -159,8 +162,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
         (WeightedSigners memory weightedSigners, bytes32 approveMessagesHash) =
             _getWeightedSignersAndApproveMessagesHash(messages, gateway);
         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
-        uint256 ampdVerifierPK = vm.envUint("ADMIN_PK"); //todo: use ampd
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ampdVerifierPK, approveMessagesHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = abi.encodePacked(r, s, v);
         Proof memory proof = Proof(weightedSigners, signatures);
@@ -194,29 +196,60 @@ contract RWTELForkTest is Test, ITSTestHelper {
         its.execute(commandId, sourceChain, sourceAddress, payload);
     }
 
-    // rwtel asserts
-    // bytes32 rwtelTokenId = rwTEL.interchainTokenId();
-    // assertEq(rwtelTokenId, sepoliaITS.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
-    // assertEq(rwtelTokenId, sepoliaITF.returnedInterchainTokenId(canonicalTEL));
-    // assertEq(rwtelTokenId, returnedInterchainTokenId);
-    // assertEq(rwtelTokenId, tmDeploySaltIsTELInterchainTokenId);
-    // assertEq(rwTEL.tokenManagerCreate3Salt(), tmDeploySaltIsTELInterchainTokenId);
-    // assertEq(rwTEL.canonicalInterchainTokenDeploySalt(), returnedInterchainTokenSalt);
-    // assertEq(rwTEL.canonicalInterchainTokenDeploySalt(),
-    // sepoliaITF.canonicalInterchainTokenDeploySalt(canonicalTEL));
-    // assertEq(rwTEL.tokenManagerAddress(), address(returnedTELTokenManager));
-    // assertEq(rwtelTokenId, ITFactory.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
-    //     assertEq(rwtelTokenId, ITFactory.returnedInterchainTokenId(address(canonicalTEL)));
+    function test_tn_rwtelInterchainTransfer_RWTEL() public {
+        vm.selectFork(tnFork);
+        setUp_tnFork_devnetConfig_genesis(
+            deployments.its,
+            deployments.admin,
+            deployments.sepoliaTEL,
+            deployments.wTEL,
+            deployments.rwTELImpl,
+            deployments.rwTEL,
+            deployments.rwTELTokenManager
+        );
 
-    //todo: asserts for devnet fork test & script
-    // assertEq(remoteRwtelInterchainToken, expectedInterchainToken);
-    // ITokenManager returnedTELTokenManager = its.deployedTokenManager(returnedInterchainTokenId);
-    // assertEq(remoteRwtelTokenManager, address(returnedTELTokenManager));
-    // assertEq(remoteRwtelTokenManager, telTokenManagerAddress);
-    // assertEq(rwtelExpectedInterchainToken, address(rwTEL)); //todo: genesis assertion
-    // assertEq(rwtelExpectedTokenManager, address(rwTELTokenManager)); //todo: genesis assertion
+        // give funds to user
+        amount = 10e18; // 1 nativeTEL
+        vm.deal(user, amount + gasValue);
+        // user double wraps native TEL and pre-approves ITS to spend rwTEL
+        vm.prank(user);
+        rwTEL.doubleWrap{value: amount }();
+        // IERC20(address(rwTEL)).approve(address(its), amount); //todo
 
-    //     // function test_tn_rwtelInterchainTransfer_RWTEL() public {}
+        string memory destinationChain = DEVNET_SEPOLIA_CHAIN_NAME;
+        bytes memory destAddressBytes = AddressBytes.toBytes(user);
+        uint256 unsettledBal = IERC20(address(rwTEL)).balanceOf(user);
+        uint256 srcBalBeforeTEL = user.balance;
+        uint256 rwtelBalBefore = address(rwTEL).balance;
+        assertEq(unsettledBal, 0);
+        assertEq(srcBalBeforeTEL, gasValue);
+        assertEq(rwtelBalBefore, telTotalSupply);
+
+        // attempt outbound transfer without elapsing recoverable window
+        vm.startPrank(user);
+        bytes memory nestedErr = abi.encodeWithSignature("Error(string)", "TEL mint failed");
+        vm.expectRevert(abi.encodeWithSelector(IInterchainTokenService.TakeTokenFailed.selector, nestedErr));
+        its.interchainTransfer{ value: gasValue }(
+            canonicalInterchainTokenId, destinationChain, destAddressBytes, amount, "", gasValue
+        );
+
+        // outbound interchain bridge transfers *MUST* await recoverable window to settle RWTEL balance
+        uint256 recoverableEndBlock = block.timestamp + rwTEL.recoverableWindow() + 1;
+        vm.warp(recoverableEndBlock);
+        uint256 settledBalBefore = IERC20(address(rwTEL)).balanceOf(user);
+        assertEq(settledBalBefore, amount);
+        assertEq(IERC20(address(rwTEL)).totalSupply(), amount);
+        its.interchainTransfer{ value: gasValue }(
+            canonicalInterchainTokenId, destinationChain, destAddressBytes, amount, "", gasValue
+        );
+
+        uint256 expectedUserBalTEL = settledBalBefore - amount;
+        uint256 expectedRWTELBal = rwtelBalBefore + amount;
+        assertEq(IERC20(address(rwTEL)).balanceOf(user), expectedUserBalTEL);
+        assertEq(IERC20(address(rwTEL)).totalSupply(), 0);
+        assertEq(address(rwTEL).balance, expectedRWTELBal);
+    }
+
     //     // function test_tn_rwtelTransmitInterchainTransfer_RWTEL() public {
     //     // function test_tn_itsInterchainTransfer_RWTEL() public {}
     //     // function test_tn_itsTransmitInterchainTransfer_RWTEL() public {
@@ -227,6 +260,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
     //     //    tokenhandler.takeToken() directly
     //     // }
 
+    // todo: move comments here
     // function test_e2e_bridgeSimulation_sepoliaToTN() public {
     //         /// @dev This test is skipped because it relies on signing with a local key
     //         /// and to save on RPC calls. Remove to unskip
@@ -353,7 +387,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
 
     //         // sepoliaGateway.execute(payload);
 
-    //todo: token bridge test asserts, move natspec comments
+    //todo: token bridge test asserts
     // uint256 userBalBefore = user.balance;
     // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
     // assertEq(user.balance, userBalBefore + amount); //todo: token bridge test

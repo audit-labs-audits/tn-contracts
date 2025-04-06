@@ -27,7 +27,7 @@ import { StorageDiffRecorder } from "./StorageDiffRecorder.sol";
 /// @dev All genesis fns return simulated deployments, copying state changes to genesis targets in storage
 abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
     /// @dev Sets this contract's state using ITS fetched from a `deployments.json` file
-    function _setGenesisTargets(ITS memory genesisITSTargets, address rwtelImpl, address rwtel, address rwtelTokenManager) internal {
+    function _setGenesisTargets(ITS memory genesisITSTargets, address payable wtel, address payable rwtelImpl, address payable rwtel, address rwtelTokenManager) internal {
         gatewayImpl = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGatewayImpl);
         gateway = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGateway);
         tokenManagerDeployer = TokenManagerDeployer(genesisITSTargets.TokenManagerDeployer);
@@ -42,6 +42,7 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         its = InterchainTokenService(genesisITSTargets.InterchainTokenService);
         itFactoryImpl = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactoryImpl);
         itFactory = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactory);
+        wTEL = WTEL(wtel);
         rwTELImpl = RWTEL(rwtelImpl);
         rwTEL = RWTEL(rwtel);
         rwTELTokenManager = TNTokenManager(rwtelTokenManager);

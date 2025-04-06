@@ -70,9 +70,9 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         rwtelOwner = admin;
 
         /// @dev For testnet and mainnet genesis configs, use corresponding function
-        _setUpDevnetConfig(admin, deployments.sepoliaTEL);
+        _setUpDevnetConfig(admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTEL);
 
-        _setGenesisTargets(deployments.its, deployments.rwTELImpl, deployments.rwTEL, deployments.rwTELTokenManager);
+        _setGenesisTargets(deployments.its, payable(deployments.wTEL), payable(deployments.rwTELImpl), payable(deployments.rwTEL), deployments.rwTELTokenManager);
 
         // create3 contract only used for simulation; will not be instantiated at genesis
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();

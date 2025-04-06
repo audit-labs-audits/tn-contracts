@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import { AxelarGMPExecutable } from
     "@axelar-cgp-solidity/node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarGMPExecutable.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
+import { Record } from "recoverable-wrapper/contracts/util/RecordUtil.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
 import { Context } from "@openzeppelin/contracts/utils/Context.sol";
@@ -13,16 +14,38 @@ struct ExtCall {
     address target;
     uint256 value;
     bytes data;
-}
+}//todo:delete 
 
 interface IRWTEL {
     error OnlyManager(address authority);
+    error OnlyBaseToken(address authority);
     error RewardDistributionFailure(address validator);
+    error PermitWrapFailed(address to, uint256 amount);
     error MintFailed(address to, uint256 amount);
     error BurnFailed(address from, uint256 amount);
+    error InvalidAmount(uint256 nativeAmount);
 
     /// @notice May only be called by the StakeManager as part of its `claimStakeRewards()` flow
     function distributeStakeReward(address validator, uint256 rewardAmount) external;
+
+    /// @notice Convenience function for users to wrap native TEL directly to rwTEL in one tx
+    /// @dev RWTEL performs WETH9 deposit on behalf of caller so they need not hold wTEL or make approval
+    function doubleWrap() external payable;
+
+    /// @notice Convenience function for users to wrap wTEL to rwTEL in one tx without approval
+    /// @dev Explicitly allows malleable signatures for optionality. Malleability is handled
+    /// by abstracting signature reusability away via stateful nonce within the EIP-712 structhash
+    function permitWrap(
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable;
+
+    /// @notice Fetches the account's outstanding unsettled records
+    /// @dev Intended as a convenience function only, eg for frontends. Does not prevent
+    /// reverts arising from unbounded storage access
+    function unsettledRecords(address account) external view returns (Record[] memory);
 
     /// @notice Returns the create3 salt used by ITS for TokenManager deployment
     /// @dev This salt is used to deploy/derive TokenManagers for both Ethereum and TN
@@ -55,21 +78,19 @@ interface IRWTEL {
     function isMinter(address addr) external view returns (bool);
 
     /// @notice TN equivalent of `IERC20MintableBurnable::burn()` handling cross chain `ERC20::decimals` and native TEL
-    /// @dev Burns and reclaims native amount from settled (recoverable) balance, returns canonical amount to
-    /// TNTokenManager
-    /// @return nativeAmount The native TEL amount converted to 18 decimals from the 2 of ERC20 TEL on remote chains
-    function mint(address to, uint256 canonicalAmount) external returns (uint256 nativeAmount);
+    /// @dev Mints native TEL to , returning the converted native decimal amount
+    /// @return _ The native TEL amount converted to 18 decimals from the 2 of ERC20 TEL on remote chains
+    function mint(address to, uint256 canonicalAmount) external returns (uint256);
 
     /// @notice TN equivalent of `IERC20MintableBurnable::burn()` handling cross chain `ERC20::decimals` and native TEL
-    /// @dev Burns and reclaims native amount from settled (recoverable) balance, returns canonical amount to
-    /// TNTokenManager
-    /// @return canonicalAmount The canonical TEL ERC20 amount converted to 2 decimals from the 18 of native & wTEL
-    function burn(address from, uint256 nativeAmount) external returns (uint256 canonicalAmount);
+    /// @dev Burns & reclaims native TEL from settled (recoverable) balance, returning canonical decimal amount
+    /// @return _ The canonical TEL ERC20 amount converted to 2 decimals from the 18 of native & wTEL
+    function burn(address from, uint256 nativeAmount) external returns (uint256);
 
     /// @notice Handles decimal conversion of remote ERC20 TEL to native TEL
-    function convertInterchainTELDecimals(uint256 erc20TELAmount) external pure returns (uint256 nativeTELAmount);
+    function toEighteenDecimals(uint256 erc20TELAmount) external pure returns (uint256);
 
     /// @notice Handles decimal conversion of native TEL to remote ERC20 TEL
     /// @notice Excess native TEL remainder from truncating 16 decimals is refunded to the user for future gas usage
-    function convertNativeTELDecimals(uint256 nativeTELAmount) external pure returns (uint256 erc20TELAmount);
+    function toTwoDecimals(uint256 nativeTELAmount) external pure returns (uint256, uint256);
 }

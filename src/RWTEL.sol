@@ -12,12 +12,15 @@ import { IInterchainTokenService } from
 import { InterchainTokenStandard } from
     "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainTokenStandard.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
+import { RecordsDeque, RecordsDequeLib, Record } from "recoverable-wrapper/contracts/util/RecordUtil.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { ERC20 } from "node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { WETH } from "solady/tokens/WETH.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
-import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 import { SystemCallable } from "./consensus/SystemCallable.sol";
-import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
+import { IRWTEL } from "./interfaces/IRWTEL.sol";
+
+// import { Test, console2, Vm } from "forge-std/Test.sol"; //todo
 
 /// @title Recoverable Wrapped Telcoin
 /// @notice The RWTEL module serves as an Axelar InterchainToken merging functionality of TEL
@@ -26,6 +29,8 @@ import { IRWTEL, ExtCall } from "./interfaces/IRWTEL.sol";
 /// whereas outbound native TEL must first be double-wrapped, with `wTEL::deposit()` and then `rwTEL::wrap()`
 /// For security, only RWTEL balances settled by elapsing the recoverable window can be bridged
 contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgradeable, Ownable, SystemCallable {
+    using RecordsDequeLib for RecordsDeque;
+    
     /// @dev StakeManager system precompile assigned by protocol to a constant address
     address public constant stakeManager = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
@@ -55,6 +60,11 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
         _;
     }
 
+    modifier onlyStakeManager() {
+        if (msg.sender != stakeManager) revert OnlyManager(stakeManager);
+        _;
+    }
+
     /// @dev Required by `RecoverableWrapper` and `AxelarGMPExecutable` deps to write immutable vars to bytecode
     /// @param name_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
     /// @param symbol_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
@@ -78,12 +88,100 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
         tokenManager = tokenManagerAddress();
     }
 
-    /// @inheritdoc IRWTEL
-    function distributeStakeReward(address validator, uint256 rewardAmount) external virtual {
-        if (msg.sender != stakeManager) revert OnlyManager(stakeManager);
+    /**
+     *
+     *   RWTEL Core
+     *
+     */
 
+    /// @inheritdoc IRWTEL
+    function distributeStakeReward(address validator, uint256 rewardAmount) external virtual onlyStakeManager {
         (bool res,) = validator.call{ value: rewardAmount }("");
         if (!res) revert RewardDistributionFailure(validator);
+    }
+
+    /// @inheritdoc IRWTEL
+    function doubleWrap() external virtual payable {
+        address caller = msg.sender;
+        uint256 amount = msg.value;
+        if (amount == 0) revert MintFailed(caller, amount);
+
+        WETH wTEL = WETH(payable(address(baseERC20)));
+        wTEL.deposit{ value: amount }();
+
+        _mint(caller, amount);
+        emit Wrap(caller, amount);
+    }
+
+    /// @inheritdoc IRWTEL
+    function permitWrap(
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external virtual payable {
+        address caller = msg.sender;
+        uint256 amount = msg.value;
+        if (amount == 0) revert MintFailed(caller, amount);
+
+        WETH wTEL = WETH(payable(address(baseERC20)));
+        wTEL.permit(
+            caller,
+            address(this),
+            amount,
+            deadline,
+            v,
+            r,
+            s
+        );
+
+        bool success = wTEL.transferFrom(caller, address(this), amount);
+        if (!success) revert PermitWrapFailed(caller, amount);
+
+        _mint(caller, amount);
+        emit Wrap(caller, amount);
+    }
+
+    /// @notice Named by inheritance: has no relationship to `mint()`
+    function _mint(address account, uint256 amount) internal virtual override {
+        if (account == address(0)) revert ZeroAddressNotAllowed();
+        _clean(account);
+
+        // 10e12 TEL supply can never overflow w/out inflating 27 orders of magnitude
+        uint128 bytes16Amount = uint128(amount);
+        _unsettledRecords[account].enqueue(bytes16Amount, block.timestamp + recoverableWindow);
+
+        _totalSupply += amount;
+        _accountState[account].nonce++;
+        _accountState[account].balance += bytes16Amount;
+    }
+
+    /// @inheritdoc IRWTEL
+    function unsettledRecords(address account) public view returns (Record[] memory) {
+        RecordsDeque storage rd = _unsettledRecords[account];
+        if (rd.isEmpty()) return new Record[](0);
+
+        Record[] memory temp = new Record[](rd.tail - rd.head + 1);
+        uint256 count = 0;
+
+        uint256 currentIndex = rd.tail;
+        while (currentIndex != 0) {
+            Record storage currentRecord = rd.queue[currentIndex];
+
+            if (currentRecord.settlementTime > block.timestamp) {
+                temp[count] = currentRecord;
+                count++;
+            }
+
+            currentIndex = currentRecord.prev;
+        }
+
+        Record[] memory unsettled = new Record[](count);
+        for (uint256 i = 0; i < count; ++i) {
+            unsettled[i] = temp[i];
+        }
+
+        return unsettled;
     }
 
     /// @notice Overrides `RecoverableWrapper::ERC20::name()` which accesses a private var
@@ -96,11 +194,6 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
         return _symbol_;
     }
 
-    /// @inheritdoc InterchainTokenStandard
-    function interchainTokenService() public view virtual override returns (address service) {
-        return _interchainTokenService;
-    }
-
     /**
      *
      *   Axelar Interchain Token Service
@@ -110,18 +203,20 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     /// @inheritdoc IRWTEL
     function mint(
         address to,
-        uint256 canonicalAmount
+        uint256 interchainAmount
     )
         external
         virtual
         override
         onlyTokenManager
-        returns (uint256 nativeAmount)
+        returns (uint256)
     {
-        nativeAmount = convertInterchainTELDecimals(canonicalAmount);
+        uint256 nativeAmount = toEighteenDecimals(interchainAmount);
 
         (bool r,) = to.call{ value: nativeAmount }("");
         if (!r) revert MintFailed(to, nativeAmount);
+
+        return nativeAmount;
     }
 
     /// @inheritdoc IRWTEL
@@ -133,14 +228,20 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
         virtual
         override
         onlyTokenManager
-        returns (uint256 canonicalAmount)
+        returns (uint256)
     {
-        // burn and reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
-        _burn(from, nativeAmount);
-        (bool r,) = address(baseERC20).call(abi.encodeWithSignature("withdraw(uint256)", nativeAmount));
-        if (!r) revert BurnFailed(from, nativeAmount);
+        (uint256 interchainAmount, uint256 remainder) = toTwoDecimals(nativeAmount);
+        uint256 burnAmount = nativeAmount - remainder;
 
-        canonicalAmount = convertNativeTELDecimals(nativeAmount);
+        // burn from settled balance only 
+        _burn(from, burnAmount);
+        // reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
+        WETH(payable(address(baseERC20))).withdraw(burnAmount);
+        
+        // do not revert bridging if forwarding truncated unbridgeable amount fails
+        (bool r,) = governanceAddress.call{ value: remainder}("");r;
+
+        return interchainAmount;
     }
 
     /// @inheritdoc IRWTEL
@@ -151,15 +252,18 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     }
 
     /// @inheritdoc IRWTEL
-    function convertInterchainTELDecimals(uint256 erc20TELAmount) public pure returns (uint256 nativeTELAmount) {
-        nativeTELAmount = erc20TELAmount * DECIMALS_CONVERTER;
+    function toEighteenDecimals(uint256 interchainAmount) public pure returns (uint256) {
+        uint256 nativeAmount = interchainAmount * DECIMALS_CONVERTER;
+        return nativeAmount;
     }
-    //todo precisionhandling
 
     /// @inheritdoc IRWTEL
-    function convertNativeTELDecimals(uint256 nativeTELAmount) public pure returns (uint256 erc20TELAmount) {
-        erc20TELAmount = nativeTELAmount / DECIMALS_CONVERTER;
-        //todo: send truncated remainder back to user for future gas amounts
+    function toTwoDecimals(uint256 nativeAmount) public pure returns (uint256, uint256) {
+        if (nativeAmount < DECIMALS_CONVERTER) revert InvalidAmount(nativeAmount);
+        uint256 interchainAmount = nativeAmount / DECIMALS_CONVERTER;
+        uint256 remainder = nativeAmount % DECIMALS_CONVERTER;
+
+        return (interchainAmount, remainder);
     }
 
     /// @inheritdoc IRWTEL
@@ -196,6 +300,11 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
         );
 
         return address(uint160(uint256(keccak256(abi.encodePacked(hex"d694", createDeploy, hex"01")))));
+    }
+
+    /// @inheritdoc InterchainTokenStandard
+    function interchainTokenService() public view virtual override returns (address) {
+        return _interchainTokenService;
     }
 
     function _spendAllowance(
@@ -244,4 +353,9 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
+
+    receive() external payable {
+        address wTEL = address(baseERC20);
+        if (msg.sender != wTEL) revert OnlyBaseToken(wTEL);
+    }
 }
