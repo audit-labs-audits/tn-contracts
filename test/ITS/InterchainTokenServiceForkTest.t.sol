@@ -253,7 +253,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         // note: for interchain transfers, Message's `destinationAddress = its` and payload's `recipient = user`
         destinationAddress = address(its);
         address recipient = user;
-        payload = abi.encode(
+        payload = abi.encode( // ITS payload wrapping for Axelar hub skipped for brevity
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
             rwTEL.interchainTokenId(),
             sourceAddress,
@@ -265,10 +265,11 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         messages.push(message);
 
         // use gatewayOperator to overwrite devnet config verifier for tests
-        vm.prank(admin);
-        WeightedSigners memory weightedSigners = _overwriteWeightedSigners(mockVerifier.addr);
-        bytes32 approveMessagesHash = _getEIP191Hash(gateway, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
- 
+        vm.startPrank(admin);
+        (WeightedSigners memory weightedSigners, bytes32 signersHash) = _overwriteWeightedSigners(mockVerifier.addr);
+        bytes32 approveMessagesHash = gateway.messageHashToSign(signersHash, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+        vm.stopPrank();
+
         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);
@@ -303,7 +304,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         // note: for interchain transfers, Message's `destinationAddress = its` and payload's `recipient = user`
         destinationAddress = address(its);
         address recipient = user;
-        payload = abi.encode(
+        payload = abi.encode( // ITS payload wrapping for Axelar hub skipped for brevity
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
             rwTEL.interchainTokenId(),
             sourceAddress,
@@ -315,10 +316,11 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         messages.push(message);
 
         // use gatewayOperator to overwrite devnet config verifier for tests
-        vm.prank(admin);
-        WeightedSigners memory weightedSigners = _overwriteWeightedSigners(mockVerifier.addr);
-        bytes32 approveMessagesHash = _getEIP191Hash(gateway, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
- 
+        vm.startPrank(admin);
+        (WeightedSigners memory weightedSigners, bytes32 signersHash) = _overwriteWeightedSigners(mockVerifier.addr);
+        bytes32 approveMessagesHash = gateway.messageHashToSign(signersHash, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+        vm.stopPrank();
+
         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);
@@ -416,7 +418,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         // note: for interchain transfers, Message's `destinationAddress = its` and payload's `recipient = user`
         destinationAddress = address(its);
         address recipient = user;
-        payload = abi.encode(
+        payload = abi.encode( // ITS payload wrapping for Axelar hub skipped for brevity
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
             rwTEL.interchainTokenId(),
             sourceAddress,
@@ -428,10 +430,11 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         messages.push(message);
 
         // use gatewayOperator to overwrite devnet config verifier for tests
-        vm.prank(admin);
-        WeightedSigners memory weightedSigners = _overwriteWeightedSigners(mockVerifier.addr);
-        bytes32 approveMessagesHash = _getEIP191Hash(gateway, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
- 
+        vm.startPrank(admin);
+        (WeightedSigners memory weightedSigners, bytes32 signersHash) = _overwriteWeightedSigners(mockVerifier.addr);
+        bytes32 approveMessagesHash = gateway.messageHashToSign(signersHash, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+        vm.stopPrank();
+
         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);
@@ -466,7 +469,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         // note: for interchain transfers, Message's `destinationAddress = its` and payload's `recipient = user`
         destinationAddress = address(its);
         address recipient = user;
-        payload = abi.encode(
+        payload = abi.encode( // ITS payload wrapping for Axelar hub skipped for brevity
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
             rwTEL.interchainTokenId(),
             sourceAddress,
@@ -478,10 +481,11 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         messages.push(message);
 
         // use gatewayOperator to overwrite devnet config verifier for tests
-        vm.prank(admin);
-        WeightedSigners memory weightedSigners = _overwriteWeightedSigners(mockVerifier.addr);
-        bytes32 approveMessagesHash = _getEIP191Hash(gateway, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
- 
+        vm.startPrank(admin);
+        (WeightedSigners memory weightedSigners, bytes32 signersHash) = _overwriteWeightedSigners(mockVerifier.addr);
+        bytes32 approveMessagesHash = gateway.messageHashToSign(signersHash, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+        vm.stopPrank();
+         
         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);

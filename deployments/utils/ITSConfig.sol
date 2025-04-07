@@ -20,6 +20,7 @@ abstract contract ITSConfig is ITSUtils {
     // chain constants
     string constant ITS_HUB_CHAIN_NAME = "axelar";
     string constant ITS_HUB_ROUTING_IDENTIFIER = "hub";
+    string constant ITS_HUB_ROUTER_ADDR = "axelar157hl7gpuknjmhtac2qnphuazv2yerfagva7lsu9vuj2pgn32z22qa26dk4";
     string constant TN_CHAIN_NAME = "telcoin-network";
     bytes32 constant TN_CHAINNAMEHASH = keccak256(bytes(TN_CHAIN_NAME));
     string constant MAINNET_CHAIN_NAME = "Ethereum";
@@ -66,7 +67,7 @@ abstract contract ITSConfig is ITSUtils {
     function _setUpDevnetConfig(address admin, address devnetTEL, address wtel, address rwtel) internal virtual {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
-        routerAddress = "router"; //todo: devnet router
+        routerAddress = ITS_HUB_ROUTER_ADDR;
         telChainId = 0x7e1;
         domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
         previousSignersRetention = 16;

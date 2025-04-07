@@ -192,22 +192,23 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
     }
 
     /// @dev Overwrites devnet config with given `newSigner` for tests
-    function _overwriteWeightedSigners(address newSigner) internal returns (WeightedSigners memory) {
+    function _overwriteWeightedSigners(address newSigner) internal returns (WeightedSigners memory, bytes32) {
         WeightedSigners memory oldSigners = WeightedSigners(signerArray, threshold, nonce);
 
         ampdVerifierSigners[0] = newSigner;
         signerArray[0] = WeightedSigner(newSigner, weight);
         WeightedSigners memory newSigners = WeightedSigners(signerArray, threshold, nonce);
  
-        // preobtained signature of `_getEIP191Hash(destinationGateway, keccak256(abi.encode(CommandType.RotateSigners, newSigners)))`
+        // preobtained signature of gateway.messageHashToSign(signersHash, dataHash)
         bytes[] memory adminSig = new bytes[](1);
-        adminSig[0] = hex"64ca5bcdf1f8bb9429538f116fd3766ff24b23c9053697cbce1065e62daf444f2c48c57596bb79eb6f39a2089a9456fafc59e70c1be707aaf615c162f9f1d76b1c";
+        adminSig[0] = hex"1a2949337b09a56bb7f741930c222c42666b25db1caa04aa3abb0abfaeaf415904c4a13f37fb6162966a23be2473475354bd32d149cd810bf7fea733c4bdb9331c";
         Proof memory newProof = Proof(oldSigners, adminSig);
 
         vm.warp(block.timestamp + minimumRotationDelay);
         gateway.rotateSigners(newSigners, newProof);
 
-        return newSigners;
+        bytes32 newSignersHash = keccak256(abi.encode(newSigners));
+        return (newSigners, newSignersHash);
     }
 
     /// @notice Redeclared event from `IAxelarGMPGateway` for asserts

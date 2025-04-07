@@ -359,15 +359,4 @@ abstract contract ITSUtils is Create3Utils {
         bytes32 payloadHash = keccak256(msgPayload);
         return Message(srcChain, msgId, srcAddress, destAddress, payloadHash);
     }
-
-    function _getEIP191Hash(AxelarAmplifierGateway destinationGateway, bytes32 dataHash) internal view returns (bytes32) {
-        return keccak256(
-            bytes.concat(
-                "\x19Ethereum Signed Message:\n96",
-                destinationGateway.domainSeparator(),
-                destinationGateway.signersHashByEpoch(destinationGateway.epoch()),
-                dataHash
-            )
-        );
-    }
 }
