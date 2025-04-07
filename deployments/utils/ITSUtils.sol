@@ -360,16 +360,8 @@ abstract contract ITSUtils is Create3Utils {
         return Message(srcChain, msgId, srcAddress, destAddress, payloadHash);
     }
 
-    /// @dev Returns the gateway's WeightedSigners and messages hash, which if signed by enough ampd verifiers
-    /// will approve them for execution. Ampd verifiers sign only if their NVV includes the messages in a finalized block 
-    /// @notice The returned hash for ampd verifier signing is `eth_sign` prefixed
-    function _getWeightedSignersAndApproveMessagesHash(Message[] memory msgs, AxelarAmplifierGateway destinationGateway) internal view returns (WeightedSigners memory, bytes32) {
-        WeightedSigners memory signers = WeightedSigners(signerArray, threshold, nonce);
-
-        // proof must be signed keccak hash of abi encoded `CommandType.ApproveMessages` & message array
-        bytes32 dataHash = keccak256(abi.encode(CommandType.ApproveMessages, msgs));
-        // `domainSeparator` and `signersHash` for the current epoch are queriable on gateway
-        bytes32 ethSignApproveMsgsHash = keccak256(
+    function _getEIP191Hash(AxelarAmplifierGateway destinationGateway, bytes32 dataHash) internal view returns (bytes32) {
+        return keccak256(
             bytes.concat(
                 "\x19Ethereum Signed Message:\n96",
                 destinationGateway.domainSeparator(),
@@ -377,7 +369,5 @@ abstract contract ITSUtils is Create3Utils {
                 dataHash
             )
         );
-
-        return (signers, ethSignApproveMsgsHash);
     }
 }

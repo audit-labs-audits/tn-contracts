@@ -2,10 +2,6 @@
 pragma solidity ^0.8.26;
 
 import { Test, console2 } from "forge-std/Test.sol";
-
-/// SPDX-License-Identifier MIT or Apache-2.0
-pragma solidity ^0.8.26;
-
 import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
 import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
 import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
@@ -193,6 +189,25 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         assertEq(canonicalInterchainTokenId, its.interchainTokenId(address(0x0), returnedTELSalt));
         // ITF::canonicalInterchainTokenIds are chain-specific so TN itFactory should return differently
         assertFalse(canonicalInterchainTokenId == itFactory.canonicalInterchainTokenId(canonicalTEL));
+    }
+
+    /// @dev Overwrites devnet config with given `newSigner` for tests
+    function _overwriteWeightedSigners(address newSigner) internal returns (WeightedSigners memory) {
+        WeightedSigners memory oldSigners = WeightedSigners(signerArray, threshold, nonce);
+
+        ampdVerifierSigners[0] = newSigner;
+        signerArray[0] = WeightedSigner(newSigner, weight);
+        WeightedSigners memory newSigners = WeightedSigners(signerArray, threshold, nonce);
+ 
+        // preobtained signature of `_getEIP191Hash(destinationGateway, keccak256(abi.encode(CommandType.RotateSigners, newSigners)))`
+        bytes[] memory adminSig = new bytes[](1);
+        adminSig[0] = hex"64ca5bcdf1f8bb9429538f116fd3766ff24b23c9053697cbce1065e62daf444f2c48c57596bb79eb6f39a2089a9456fafc59e70c1be707aaf615c162f9f1d76b1c";
+        Proof memory newProof = Proof(oldSigners, adminSig);
+
+        vm.warp(block.timestamp + minimumRotationDelay);
+        gateway.rotateSigners(newSigners, newProof);
+
+        return newSigners;
     }
 
     /// @notice Redeclared event from `IAxelarGMPGateway` for asserts

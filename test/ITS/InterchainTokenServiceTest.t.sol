@@ -60,8 +60,7 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
 
         _setUpDevnetConfig(admin, canonicalTEL, precalculatedWTEL, precalculatedRWTEL);
 
-        // must happen outside of devnetconfig in test context
-        baseERC20_ = address(wTEL);
+        // add or overwrite configs outside of devnet setup in test context
         rwtelOwner = admin;
         chainName_ = MAINNET_CHAIN_NAME;
         canonicalChainName_ = MAINNET_CHAIN_NAME;

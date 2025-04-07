@@ -29,6 +29,8 @@ import { InterchainToken } from
 import { TokenManagerDeployer } from "@axelar-network/interchain-token-service/contracts/utils/TokenManagerDeployer.sol";
 import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
 import { ITokenManagerType } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
+import { IInterchainTokenService } from
+    "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenService.sol";
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
@@ -262,8 +264,11 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         Message memory message = _craftITSMessage(messageId, sourceChain, sourceAddress, destinationAddress, payload);
         messages.push(message);
 
-        (WeightedSigners memory weightedSigners, bytes32 approveMessagesHash) =
-            _getWeightedSignersAndApproveMessagesHash(messages, gateway);
+        // use gatewayOperator to overwrite devnet config verifier for tests
+        vm.prank(admin);
+        WeightedSigners memory weightedSigners = _overwriteWeightedSigners(mockVerifier.addr);
+        bytes32 approveMessagesHash = _getEIP191Hash(gateway, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+ 
         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);
@@ -309,8 +314,11 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         Message memory message = _craftITSMessage(messageId, sourceChain, sourceAddress, destinationAddress, payload);
         messages.push(message);
 
-        (WeightedSigners memory weightedSigners, bytes32 approveMessagesHash) =
-            _getWeightedSignersAndApproveMessagesHash(messages, gateway);
+        // use gatewayOperator to overwrite devnet config verifier for tests
+        vm.prank(admin);
+        WeightedSigners memory weightedSigners = _overwriteWeightedSigners(mockVerifier.addr);
+        bytes32 approveMessagesHash = _getEIP191Hash(gateway, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+ 
         // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);
@@ -328,22 +336,178 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         emit MessageExecuted(commandId);
         its.execute(commandId, sourceChain, sourceAddress, payload);
 
+        assertTrue(
+            gateway.isMessageExecuted(sourceChain, messageId)
+        );
         uint256 decimalConvertedAmt = rwTEL.toEighteenDecimals(amount);
         assertEq(user.balance, userBalBefore + decimalConvertedAmt);
     }
 
     /// @dev TN-outbound ITS bridge tests
 
-    // function test_tnFork_itsInterchainTransfer_RWTEL() public {}
-    // function test_tnFork_itsTransmitInterchainTransfer_RWTEL() public {
+    function test_tnFork_itsInterchainTransfer_RWTEL() public {
+        vm.selectFork(tnFork);
+        setUp_tnFork_devnetConfig_genesis(
+            deployments.its,
+            deployments.admin,
+            deployments.sepoliaTEL,
+            deployments.wTEL,
+            deployments.rwTELImpl,
+            deployments.rwTEL,
+            deployments.rwTELTokenManager
+        );
 
-    // function test_sepoliaFork_approveMessages() public {
+        // give funds to user
+        amount = 10e18; // 1 nativeTEL
+        vm.deal(user, amount + gasValue);
+        // user double wraps native TEL
+        vm.prank(user);
+        rwTEL.doubleWrap{value: amount }();
 
-    // function test_sepoliaFork_execute() public {
+        string memory destinationChain = DEVNET_SEPOLIA_CHAIN_NAME;
+        bytes memory destAddressBytes = AddressBytes.toBytes(user);
+        uint256 unsettledBal = IERC20(address(rwTEL)).balanceOf(user);
+        uint256 srcBalBeforeTEL = user.balance;
+        uint256 rwtelBalBefore = address(rwTEL).balance;
+        assertEq(unsettledBal, 0);
+        assertEq(srcBalBeforeTEL, gasValue);
+        assertEq(rwtelBalBefore, telTotalSupply);
+
+        // attempt outbound transfer without elapsing recoverable window
+        vm.startPrank(user);
+        bytes memory nestedErr = abi.encodeWithSignature("Error(string)", "TEL mint failed");
+        vm.expectRevert(abi.encodeWithSelector(IInterchainTokenService.TakeTokenFailed.selector, nestedErr));
+        rwTEL.interchainTransfer{ value: gasValue }(
+            destinationChain, destAddressBytes, amount, ""
+        );
+
+        // outbound interchain bridge transfers *MUST* await recoverable window to settle RWTEL balance
+        uint256 recoverableEndBlock = block.timestamp + rwTEL.recoverableWindow() + 1;
+        vm.warp(recoverableEndBlock);
+        uint256 settledBalBefore = IERC20(address(rwTEL)).balanceOf(user);
+        assertEq(settledBalBefore, amount);
+        assertEq(IERC20(address(rwTEL)).totalSupply(), amount);
+        its.interchainTransfer{ value: gasValue }(
+            canonicalInterchainTokenId, destinationChain, destAddressBytes, amount, "", gasValue
+        );
+
+        uint256 expectedUserBalTEL = settledBalBefore - amount;
+        uint256 expectedRWTELBal = rwtelBalBefore + amount;
+        assertEq(IERC20(address(rwTEL)).balanceOf(user), expectedUserBalTEL);
+        assertEq(IERC20(address(rwTEL)).totalSupply(), 0);
+        assertEq(address(rwTEL).balance, expectedRWTELBal);
+    }
+
+    function test_sepoliaFork_approveMessages() public {
+        vm.selectFork(tnFork);
+        setUp_tnFork_devnetConfig_genesis(
+            deployments.its,
+            deployments.admin,
+            deployments.sepoliaTEL,
+            deployments.wTEL,
+            deployments.rwTELImpl,
+            deployments.rwTEL,
+            deployments.rwTELTokenManager
+        );
+
+        messageId = "42";
+        sourceChain = TN_CHAIN_NAME;
+        sourceAddress = LibString.toHexString(deployments.its.InterchainTokenService);
+        // note: for interchain transfers, Message's `destinationAddress = its` and payload's `recipient = user`
+        destinationAddress = address(its);
+        address recipient = user;
+        payload = abi.encode(
+            MESSAGE_TYPE_INTERCHAIN_TRANSFER,
+            rwTEL.interchainTokenId(),
+            sourceAddress,
+            AddressBytes.toBytes(recipient),
+            amount,
+            ""
+        );
+        Message memory message = _craftITSMessage(messageId, sourceChain, sourceAddress, destinationAddress, payload);
+        messages.push(message);
+
+        // use gatewayOperator to overwrite devnet config verifier for tests
+        vm.prank(admin);
+        WeightedSigners memory weightedSigners = _overwriteWeightedSigners(mockVerifier.addr);
+        bytes32 approveMessagesHash = _getEIP191Hash(gateway, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+ 
+        // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = abi.encodePacked(r, s, v);
+        Proof memory proof = Proof(weightedSigners, signatures);
+
+        bytes32 commandId = gateway.messageToCommandId(sourceChain, messageId);
+        vm.expectEmit(true, true, true, true);
+        emit MessageApproved(commandId, sourceChain, messageId, sourceAddress, destinationAddress, keccak256(payload));
+        gateway.approveMessages(messages, proof);
+
+        assertTrue(
+            gateway.isMessageApproved(sourceChain, messageId, sourceAddress, destinationAddress, keccak256(payload))
+        );
+    }
+
+    function test_sepoliaFork_execute() public {
+        vm.selectFork(tnFork);
+        setUp_tnFork_devnetConfig_genesis(
+            deployments.its,
+            deployments.admin,
+            deployments.sepoliaTEL,
+            deployments.wTEL,
+            deployments.rwTELImpl,
+            deployments.rwTEL,
+            deployments.rwTELTokenManager
+        );
+
+        messageId = "42";
+        sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;
+        sourceAddress = LibString.toHexString(deployments.its.InterchainTokenService);
+        // note: for interchain transfers, Message's `destinationAddress = its` and payload's `recipient = user`
+        destinationAddress = address(its);
+        address recipient = user;
+        payload = abi.encode(
+            MESSAGE_TYPE_INTERCHAIN_TRANSFER,
+            rwTEL.interchainTokenId(),
+            sourceAddress,
+            AddressBytes.toBytes(recipient),
+            amount,
+            ""
+        );
+        Message memory message = _craftITSMessage(messageId, sourceChain, sourceAddress, destinationAddress, payload);
+        messages.push(message);
+
+        // use gatewayOperator to overwrite devnet config verifier for tests
+        vm.prank(admin);
+        WeightedSigners memory weightedSigners = _overwriteWeightedSigners(mockVerifier.addr);
+        bytes32 approveMessagesHash = _getEIP191Hash(gateway, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+ 
+        // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = abi.encodePacked(r, s, v);
+        Proof memory proof = Proof(weightedSigners, signatures);
+
+        bytes32 commandId = gateway.messageToCommandId(sourceChain, messageId);
+        vm.expectEmit(true, true, true, true);
+        emit MessageApproved(commandId, sourceChain, messageId, sourceAddress, destinationAddress, keccak256(payload));
+        gateway.approveMessages(messages, proof);
+
+        uint256 userBalBefore = user.balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit MessageExecuted(commandId);
+        its.execute(commandId, sourceChain, sourceAddress, payload);
+
+        assertTrue(
+            gateway.isMessageExecuted(sourceChain, messageId)
+        );
+        uint256 decimalConvertedAmt = rwTEL.toEighteenDecimals(amount);
+        assertEq(user.balance, userBalBefore + decimalConvertedAmt);
+    }
 
     // its.contractCallValue(); // todo: decimals handling?
     //todo: fuzz tests for rwTEL, TEL bridging, rwteltest.t.sol
-    //todo: fork tests for TEL bridging
     //todo: incorporate RWTEL contracts to TN protocol on rust side
     //todo: remove ExtCall
     //todo: update readme, npm instructions

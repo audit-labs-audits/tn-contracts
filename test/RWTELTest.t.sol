@@ -96,7 +96,6 @@ contract RWTELTest is Test, ITSTestHelper {
     //     // function test_mint() public {}
     //     // function test_revert_mint() public {}
     //     // function test_revert_burn() public {}
-    //     //todo: test bridge attempts should revert until `recoverableWindow` has elapsed
     // test unwrapTo(self)
     // test what happens when wTEL is sent plainly to rwTEL withou callin wrap- stuck?
 }
