@@ -354,9 +354,9 @@ abstract contract ITSUtils is Create3Utils {
         telTokenManager = TokenManager(service.tokenManagerAddress(telInterchainTokenId));
     }
 
-    /// @dev Returns a single ITS message crafted with the given parameters
-    function _craftITSMessage(string memory msgId, string memory srcChain, string memory srcAddress, address destAddress, bytes memory msgPayload) internal pure returns (Message memory) {
-        bytes32 payloadHash = keccak256(msgPayload);
+    /// @dev Returns a single RECEIVE_FROM_HUB message for approval & execution
+    function _craftITSMessage(string memory msgId, string memory srcChain, string memory srcAddress, address destAddress, bytes memory wrappedPayload) internal pure returns (Message memory) {
+        bytes32 payloadHash = keccak256(wrappedPayload);
         return Message(srcChain, msgId, srcAddress, destAddress, payloadHash);
     }
 }

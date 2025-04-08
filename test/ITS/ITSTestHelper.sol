@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { Test, console2 } from "forge-std/Test.sol";
 import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
 import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
-import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
+import { IAxelarGateway } from "@axelar-network/axelar-cgp-solidity/contracts/interfaces/IAxelarGateway.sol";
 import { AxelarAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
 import { AxelarAmplifierGatewayProxy } from
@@ -45,20 +45,39 @@ import { ITS } from "../../deployments/Deployments.sol";
 import { ITSGenesis } from "../../deployments/genesis/ITSGenesis.sol";
 
 abstract contract ITSTestHelper is Test, ITSGenesis {
-    function setUp_sepoliaFork_devnetConfig(address sepoliaTel, address sepoliaIts, address sepoliaItf) internal {
+    function setUp_sepoliaFork_devnetConfig(
+        address sepoliaTel,
+        address sepoliaIts,
+        address sepoliaItf,
+        address rwtelImpl
+    )
+        internal
+    {
         gasValue = 30_000_000;
         sepoliaTEL = IERC20(sepoliaTel);
         sepoliaITS = InterchainTokenService(sepoliaIts);
         sepoliaITF = InterchainTokenFactory(sepoliaItf);
         sepoliaGateway = IAxelarGateway(DEVNET_SEPOLIA_GATEWAY);
+        // etch RWTEL impl bytecode for fetching canonical tokenId
         canonicalTEL = address(sepoliaTEL);
+        canonicalChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
+        symbol_ = "";
+        name_ = "";
+        recoverableWindow_ = 0;
+        governanceAddress_ = address(0x0);
+        maxToClean = 0;
+        baseERC20_ = address(0x0);
+        create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
+        RWTEL temp = ITSUtils.instantiateRWTELImpl(sepoliaIts);
+        vm.etch(rwtelImpl, address(temp).code);
     }
 
     /// @notice Test utility for deploying ITS architecture, including RWTEL and its TokenManager, via create3
     /// @dev Used for tests only since live deployment is obviated by genesis precompiles
     function setUp_tnFork_devnetConfig_create3(address admin, address canonicalTEL) internal {
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        (address precalculatedITS, address precalculatedWTEL, address precalculatedRWTEL) = _precalculateCreate3ConstructorArgs(create3, admin);
+        (address precalculatedITS, address precalculatedWTEL, address precalculatedRWTEL) =
+            _precalculateCreate3ConstructorArgs(create3, admin);
 
         _setUpDevnetConfig(admin, canonicalTEL, precalculatedWTEL, precalculatedRWTEL);
 
@@ -169,7 +188,15 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
     }
 
     /// @dev Assert correctness of canonical ITS return values against TN contracts
-    function _devnetAsserts_rwTEL_rwTELTokenManager(bytes32 expectedTELTokenId, bytes32 returnedTELSalt, bytes32 returnedTELTokenId, address returnedTELTokenManager) internal view {
+    function _devnetAsserts_rwTEL_rwTELTokenManager(
+        bytes32 expectedTELTokenId,
+        bytes32 returnedTELSalt,
+        bytes32 returnedTELTokenId,
+        address returnedTELTokenManager
+    )
+        internal
+        view
+    {
         // config asserts
         assertEq(expectedTELTokenId, canonicalInterchainTokenId);
         assertEq(returnedTELSalt, canonicalInterchainTokenSalt);
@@ -191,17 +218,18 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         assertFalse(canonicalInterchainTokenId == itFactory.canonicalInterchainTokenId(canonicalTEL));
     }
 
-    /// @dev Overwrites devnet config with given `newSigner` for tests
+    /// @dev Overwrites TN devnet config with given `newSigner` as sole verifier for tests
     function _overwriteWeightedSigners(address newSigner) internal returns (WeightedSigners memory, bytes32) {
         WeightedSigners memory oldSigners = WeightedSigners(signerArray, threshold, nonce);
 
         ampdVerifierSigners[0] = newSigner;
         signerArray[0] = WeightedSigner(newSigner, weight);
         WeightedSigners memory newSigners = WeightedSigners(signerArray, threshold, nonce);
- 
+
         // preobtained signature of gateway.messageHashToSign(signersHash, dataHash)
         bytes[] memory adminSig = new bytes[](1);
-        adminSig[0] = hex"1a2949337b09a56bb7f741930c222c42666b25db1caa04aa3abb0abfaeaf415904c4a13f37fb6162966a23be2473475354bd32d149cd810bf7fea733c4bdb9331c";
+        adminSig[0] =
+            hex"1a2949337b09a56bb7f741930c222c42666b25db1caa04aa3abb0abfaeaf415904c4a13f37fb6162966a23be2473475354bd32d149cd810bf7fea733c4bdb9331c";
         Proof memory newProof = Proof(oldSigners, adminSig);
 
         vm.warp(block.timestamp + minimumRotationDelay);
@@ -209,6 +237,71 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
 
         bytes32 newSignersHash = keccak256(abi.encode(newSigners));
         return (newSigners, newSignersHash);
+    }
+
+    /// @dev Overwrites a canonical chain gateway's verifiers with `newSigner` as sole verifier for tests
+    /// @notice Required bc canonical gateways use a legacy version incompatible with _overwriteWeightedSigners
+    function _eth_overwriteWeightedSigners(
+        address targetGateway,
+        address newSigner
+    )
+        internal
+        returns (bytes32, address[] memory, uint256[] memory)
+    {
+        address[] memory newOperators = new address[](1);
+        newOperators[0] = newSigner;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = weight;
+        bytes memory params = abi.encode(newOperators, weights, threshold);
+        bytes32 newOperatorsHash = keccak256(params);
+
+        // mock `transferOperatorship()` state changes
+        (, bytes memory ret) = targetGateway.call(abi.encodeWithSignature("authModule()"));
+        address authModule = abi.decode(ret, (address));
+        bytes32 currentEpochSlot = bytes32(0x0);
+        bytes32 epochForTests = 0x00000000000000000000000000000000000000000000000000000000000000ae; // rewind to a known
+            // epoch
+        vm.store(authModule, currentEpochSlot, epochForTests);
+        bytes32 hashForEpochTestSlot = 0xcd308dfe822f4a376d452f3c35929b255b891b4318e82a1bcf379137aa8f8340;
+        vm.store(authModule, hashForEpochTestSlot, newOperatorsHash);
+
+        // derive epochForHash mapping storage slot
+        bytes32 epochForHashBaseSlot = bytes32(abi.encode(2)); // `epochForHash` is in AuthModule storage slot 2
+        bytes32 epochForHashTestSlot = keccak256(bytes.concat(newOperatorsHash, epochForHashBaseSlot));
+        vm.store(authModule, epochForHashTestSlot, epochForTests);
+
+        // assert correct slot was written to
+        (, bytes memory r) = authModule.call(abi.encodeWithSignature("epochForHash(bytes32)", newOperatorsHash));
+        assert(abi.decode(r, (bytes32)) == epochForTests);
+
+        return (newOperatorsHash, newOperators, weights);
+    }
+
+    /// @dev Returns a canonical chain gateway's `approveContractCall()` parameters for signing
+    /// @notice Required bc canonical gateways use a legacy version incompatible with `approveMessages()`
+    function _getLegacyGatewayApprovalParams(
+        bytes32 commandId,
+        string memory sourceChain,
+        string memory sourceAddressString,
+        address destinationAddress,
+        bytes memory wrappedPayload
+    )
+        internal
+        pure
+        returns (bytes memory, bytes32)
+    {
+        bytes32[] memory commandIds = new bytes32[](1);
+        commandIds[0] = commandId;
+        string[] memory commands = new string[](1);
+        commands[0] = "approveContractCall";
+        bytes[] memory approveParams = new bytes[](1);
+        approveParams[0] =
+            abi.encode(sourceChain, sourceAddressString, destinationAddress, keccak256(wrappedPayload), bytes32(0x0), 0);
+
+        bytes memory executeData = abi.encode(SEPOLIA_CHAINID, commandIds, commands, approveParams);
+        bytes32 executeHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(executeData)));
+
+        return (executeData, executeHash);
     }
 
     /// @notice Redeclared event from `IAxelarGMPGateway` for asserts

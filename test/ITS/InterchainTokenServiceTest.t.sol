@@ -56,7 +56,8 @@ contract InterchainTokenServiceTest is Test, ITSConfig {
         vm.etch(canonicalTEL, address(mockTEL).code);
 
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        (address precalculatedITS, address precalculatedWTEL, address precalculatedRWTEL) = _precalculateCreate3ConstructorArgs(create3, admin);
+        (address precalculatedITS, address precalculatedWTEL, address precalculatedRWTEL) =
+            _precalculateCreate3ConstructorArgs(create3, admin);
 
         _setUpDevnetConfig(admin, canonicalTEL, precalculatedWTEL, precalculatedRWTEL);
 

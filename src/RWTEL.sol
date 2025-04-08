@@ -20,8 +20,6 @@ import { Ownable } from "solady/auth/Ownable.sol";
 import { SystemCallable } from "./consensus/SystemCallable.sol";
 import { IRWTEL } from "./interfaces/IRWTEL.sol";
 
-// import { Test, console2, Vm } from "forge-std/Test.sol"; //todo
-
 /// @title Recoverable Wrapped Telcoin
 /// @notice The RWTEL module serves as an Axelar InterchainToken merging functionality of TEL
 /// both as ITS ERC20 token and as native gas currency for TN
@@ -30,7 +28,7 @@ import { IRWTEL } from "./interfaces/IRWTEL.sol";
 /// For security, only RWTEL balances settled by elapsing the recoverable window can be bridged
 contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgradeable, Ownable, SystemCallable {
     using RecordsDequeLib for RecordsDeque;
-    
+
     /// @dev StakeManager system precompile assigned by protocol to a constant address
     address public constant stakeManager = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
@@ -101,7 +99,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     }
 
     /// @inheritdoc IRWTEL
-    function doubleWrap() external virtual payable {
+    function doubleWrap() external payable virtual {
         address caller = msg.sender;
         uint256 amount = msg.value;
         if (amount == 0) revert MintFailed(caller, amount);
@@ -114,26 +112,13 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     }
 
     /// @inheritdoc IRWTEL
-    function permitWrap(
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external virtual payable {
+    function permitWrap(uint256 deadline, uint8 v, bytes32 r, bytes32 s) external payable virtual {
         address caller = msg.sender;
         uint256 amount = msg.value;
         if (amount == 0) revert MintFailed(caller, amount);
 
         WETH wTEL = WETH(payable(address(baseERC20)));
-        wTEL.permit(
-            caller,
-            address(this),
-            amount,
-            deadline,
-            v,
-            r,
-            s
-        );
+        wTEL.permit(caller, address(this), amount, deadline, v, r, s);
 
         bool success = wTEL.transferFrom(caller, address(this), amount);
         if (!success) revert PermitWrapFailed(caller, amount);
@@ -201,16 +186,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
      */
 
     /// @inheritdoc IRWTEL
-    function mint(
-        address to,
-        uint256 interchainAmount
-    )
-        external
-        virtual
-        override
-        onlyTokenManager
-        returns (uint256)
-    {
+    function mint(address to, uint256 interchainAmount) external virtual override onlyTokenManager returns (uint256) {
         uint256 nativeAmount = toEighteenDecimals(interchainAmount);
 
         (bool r,) = to.call{ value: nativeAmount }("");
@@ -220,26 +196,18 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     }
 
     /// @inheritdoc IRWTEL
-    function burn(
-        address from,
-        uint256 nativeAmount
-    )
-        external
-        virtual
-        override
-        onlyTokenManager
-        returns (uint256)
-    {
+    function burn(address from, uint256 nativeAmount) external virtual override onlyTokenManager returns (uint256) {
         (uint256 interchainAmount, uint256 remainder) = toTwoDecimals(nativeAmount);
         uint256 burnAmount = nativeAmount - remainder;
 
-        // burn from settled balance only 
+        // burn from settled balance only
         _burn(from, burnAmount);
         // reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
         WETH(payable(address(baseERC20))).withdraw(burnAmount);
-        
+
         // do not revert bridging if forwarding truncated unbridgeable amount fails
-        (bool r,) = governanceAddress.call{ value: remainder}("");r;
+        (bool r,) = governanceAddress.call{ value: remainder }("");
+        r;
 
         return interchainAmount;
     }

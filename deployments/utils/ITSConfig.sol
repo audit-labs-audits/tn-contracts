@@ -9,7 +9,7 @@ import {
     WeightedSigners,
     Proof
 } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
-import { IAxelarGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
+import { IAxelarGateway } from "@axelar-network/axelar-cgp-solidity/contracts/interfaces/IAxelarGateway.sol";
 import { ITokenManagerType } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
 import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
 import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
@@ -28,6 +28,7 @@ abstract contract ITSConfig is ITSUtils {
     address constant MAINNET_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
     address constant MAINNET_GATEWAY = 0x4F4495243837681061C4743b74B3eEdf548D56A5;
     address constant MAINNET_TEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
+    uint256 constant SEPOLIA_CHAINID = 11155111;
     string constant DEVNET_SEPOLIA_CHAIN_NAME = "core-ethereum";
     bytes32 constant DEVNET_SEPOLIA_CHAINNAMEHASH = 0xbef3ef21418c49cdf83043f00d3ffeebe97f404dee721f6a81a99b66d96d6724;
     address constant DEVNET_SEPOLIA_ITS = 0x77883201091c08570D55000AB32645b88cB96324;
@@ -98,7 +99,7 @@ abstract contract ITSConfig is ITSUtils {
         trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
         trustedChainNames.push(DEVNET_SEPOLIA_CHAIN_NAME);
         trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
-        trustedAddresses.push(LibString.toHexString(DEVNET_SEPOLIA_ITS));
+        trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
         itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
 
         // InterchainTokenFactory
@@ -111,7 +112,7 @@ abstract contract ITSConfig is ITSUtils {
         name_ = "Recoverable Wrapped Telcoin";
         recoverableWindow_ = 604_800;
         governanceAddress_ = address(0xda0); //todo: select multisig for recoverable governance
-        maxToClean = type(uint16).max;
+        maxToClean = type(uint16).max; // todo: reduce
         baseERC20_ = wtel; 
 
         // rwTELTokenManager config
