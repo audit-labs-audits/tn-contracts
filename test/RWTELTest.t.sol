@@ -63,10 +63,10 @@ contract RWTELTest is Test, ITSTestHelper {
 
     function setUp() public {
         admin = address(0xbeef);
-        setUp_tnFork_devnetConfig_create3(admin, canonicalTEL);
+        setUp_tnFork_devnetConfig_create3(admin, originTEL);
 
         MockTEL mockTEL = new MockTEL();
-        vm.etch(canonicalTEL, address(mockTEL).code);
+        vm.etch(originTEL, address(mockTEL).code);
     }
 
     function test_setUp() public view {

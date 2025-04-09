@@ -48,8 +48,8 @@ interface IRWTEL {
     function tokenManagerCreate3Salt() external view returns (bytes32);
 
     /// @notice Returns the unique salt required for RWTEL ITS integration
-    /// @dev Equivalent to `InterchainTokenFactory::canonicalInterchainTokenDeploySalt()`
-    function canonicalInterchainTokenDeploySalt() external view returns (bytes32);
+    /// @dev Equivalent to `InterchainTokenFactory::linkedTokenDeploySalt()`
+    function linkedTokenDeploySalt() external view returns (bytes32);
 
     /// @notice Returns the ITS TokenManager address for RWTEL, derived via create3
     /// @dev ITS uses `interchainTokenId()` as the create3 salt used to deploy TokenManagers
@@ -75,11 +75,11 @@ interface IRWTEL {
     /// @notice TN equivalent of `IERC20MintableBurnable::burn()` handling cross chain `ERC20::decimals` and native TEL
     /// @dev Mints native TEL to , returning the converted native decimal amount
     /// @return _ The native TEL amount converted to 18 decimals from the 2 of ERC20 TEL on remote chains
-    function mint(address to, uint256 canonicalAmount) external returns (uint256);
+    function mint(address to, uint256 originAmount) external returns (uint256);
 
     /// @notice TN equivalent of `IERC20MintableBurnable::burn()` handling cross chain `ERC20::decimals` and native TEL
-    /// @dev Burns & reclaims native TEL from settled (recoverable) balance, returning canonical decimal amount
-    /// @return _ The canonical TEL ERC20 amount converted to 2 decimals from the 18 of native & wTEL
+    /// @dev Burns & reclaims native TEL from settled (recoverable) balance, returning origin decimal amount
+    /// @return _ The origin TEL ERC20 amount converted to 2 decimals from the 18 of native & wTEL
     function burn(address from, uint256 nativeAmount) external returns (uint256);
 
     /// @notice Handles decimal conversion of remote ERC20 TEL to native TEL

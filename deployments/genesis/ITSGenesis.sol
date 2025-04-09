@@ -234,9 +234,9 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(rwTEL), slots);
     }
 
-    function instantiateRWTELTokenManager(address its_, bytes32 canonicalInterchainTokenId) public virtual override returns (TNTokenManager simulatedDeployment) {
+    function instantiateRWTELTokenManager(address its_, bytes32 customLinkedTokenId) public virtual override returns (TNTokenManager simulatedDeployment) {
         vm.startStateDiffRecording();
-        simulatedDeployment = super.instantiateRWTELTokenManager(its_, canonicalInterchainTokenId);
+        simulatedDeployment = super.instantiateRWTELTokenManager(its_, customLinkedTokenId);
         Vm.AccountAccess[] memory rwtelTMRecords = vm.stopAndReturnStateDiff();
 
         bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), rwtelTMRecords);

@@ -41,10 +41,12 @@ import { TNTokenHandler } from "../../src/interchain-token-service/TNTokenHandle
 import { Create3Utils, Salts, ImplSalts } from "./Create3Utils.sol";
 
 abstract contract ITSUtils is Create3Utils {
-    // canonical chain config for constructors, asserts (sepolia for devnet/testnet, ethereum for mainnet)
-    bytes32 canonicalInterchainTokenSalt;
-    bytes32 canonicalInterchainTokenId;
-    TokenManager canonicalTELTokenManager;
+    // origin chain config for constructors, asserts (sepolia for devnet/testnet, ethereum for mainnet)
+    address linker;
+    bytes32 customLinkedTokenSalt;
+    bytes32 customLinkedTokenId;
+    TokenManager originTELTokenManager;
+    ITokenManagerType.TokenManagerType originTMType = ITokenManagerType.TokenManagerType.LOCK_UNLOCK; 
 
     // ITS core contracts
     Create3Deployer create3; // not included in genesis
@@ -104,8 +106,8 @@ abstract contract ITSUtils is Create3Utils {
     address itfOwner;
 
     // rwTEL config
-    address canonicalTEL;
-    string canonicalChainName_;
+    address originTEL;
+    string originChainName_;
     string symbol_;
     string name_;
     uint256 recoverableWindow_;
@@ -114,9 +116,9 @@ abstract contract ITSUtils is Create3Utils {
     uint16 maxToClean;
 
     // rwTELTokenManager config
-    ITokenManagerType.TokenManagerType rwtelTMType;
+    ITokenManagerType.TokenManagerType rwtelTMType = ITokenManagerType.TokenManagerType.MINT_BURN;
     address tokenAddress;
-    bytes operator;
+    bytes tmOperator;
     bytes params;
 
     // stored for assertion
@@ -189,8 +191,8 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function instantiateTokenHandler(bytes32 telInterchainTokenId_) public virtual returns (TNTokenHandler th) {
-        bytes memory thConstructorArgs = abi.encode(telInterchainTokenId_);
+    function instantiateTokenHandler(bytes32 linkedTokenId_) public virtual returns (TNTokenHandler th) {
+        bytes memory thConstructorArgs = abi.encode(linkedTokenId_);
         th = TNTokenHandler(create3Deploy(create3, type(TNTokenHandler).creationCode, thConstructorArgs, salts.thSalt));
     }
 
@@ -302,8 +304,10 @@ abstract contract ITSUtils is Create3Utils {
     /// TODO: convert to singleton for mainnet
     function instantiateRWTELImpl(address its_) public virtual returns (RWTEL impl) {
         bytes memory rwTELImplConstructorArgs = abi.encode(
-            canonicalTEL,
-            canonicalChainName_,
+            originTEL,
+            linker,
+            salts.registerCustomTokenSalt,
+            originChainName_,
             its_,
             name_,
             symbol_,
@@ -325,33 +329,35 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function instantiateRWTELTokenManager(address its_, bytes32 canonicalInterchainTokenId_) public virtual returns (TNTokenManager rwtelTM) {        
-        bytes memory rwtelTMConstructorArgs = abi.encode(its_, uint256(rwtelTMType), canonicalInterchainTokenId_, params);
+    function instantiateRWTELTokenManager(address its_, bytes32 customLinkedTokenId_) public virtual returns (TNTokenManager rwtelTM) {        
+        bytes memory rwtelTMConstructorArgs = abi.encode(its_, uint256(rwtelTMType), customLinkedTokenId_, params);
         rwtelTM = TNTokenManager(
             create3Deploy(create3, type(TokenManagerProxy).creationCode, rwtelTMConstructorArgs, salts.rwtelTMSalt)
         );
     }
 
-    /// @notice Registers canonical TEL with ITS hub & deploys its TokenManager on its source chain
+    /// @notice Registers origin TEL with ITS hub & deploys its TokenManager on its source chain
     /// @dev After execution, relayer detects & forwards ContractCall event to Axelar Network hub via GMP API
-    /// @dev Once registered w/ ITS Hub, `msg.sender` can use same salt to register/deploy to more chains
-    /// @dev TokenManagers deployed for canonical tokens like TEL on Ethereum have no operator; however
-    /// TN's RWTEL TokenManager is of `NATIVE_INTERCHAIN_TOKEN` type and
-    function eth_registerCanonicalTELAndDeployTELTokenManager(
+    /// @dev Once registered w/ ITS Hub, `msg.sender` can use same salt to link to more chains
+    function eth_registerCustomTokenAndLinkToken(
         address tel,
-        InterchainTokenService service,
+        address linker_,
+        string memory destinationChain_,
+        ITokenManagerType.TokenManagerType tmType, 
+        address tmOperator_,
+        uint256 gasValue_,
         InterchainTokenFactory factory
     )
         public
-        returns (bytes32 telInterchainSalt, bytes32 telInterchainTokenId, TokenManager telTokenManager)
+        returns (bytes32 linkedTokenSalt, bytes32 linkedTokenId, TokenManager telTokenManager)
     {
-        // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
-        service.registerTokenMetadata{ value: gasValue }(tel, gasValue);
+        // Register origin TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
+        factory.registerCustomToken{ value: gasValue_ }(salts.registerCustomTokenSalt, tel, tmType, tmOperator_);
 
-        telInterchainSalt = factory.canonicalInterchainTokenDeploySalt(canonicalTEL);
-        telInterchainTokenId = factory.registerCanonicalInterchainToken(canonicalTEL);
+        linkedTokenSalt = factory.linkedTokenDeploySalt(linker_, salts.registerCustomTokenSalt);
+        linkedTokenId = factory.linkToken{value: gasValue_}(salts.registerCustomTokenSalt, destinationChain_, AddressBytes.toBytes(tel), tmType, AddressBytes.toBytes(tmOperator_), gasValue_);
 
-        telTokenManager = TokenManager(service.tokenManagerAddress(telInterchainTokenId));
+        telTokenManager = TokenManager(address(factory.interchainTokenService().tokenManagerAddress(linkedTokenId)));
     }
 
     /// @dev Returns a single RECEIVE_FROM_HUB message for approval & execution

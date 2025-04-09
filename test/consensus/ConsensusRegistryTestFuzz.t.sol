@@ -106,8 +106,19 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         vm.deal(validator4, 100_000_000 ether);
 
         // deploy an RWTEL module and then use its bytecode to etch on a fixed address (use create2 in prod)
-        RWTEL tmp =
-            new RWTEL(address(0xbabe), "chain", address(0xbeef), "test", "TEST", 0, address(0x0), address(0x0), 0);
+        RWTEL tmp = new RWTEL(
+            address(0xbabe),
+            address(0xdead),
+            bytes32(0x0),
+            "chain",
+            address(0xbeef),
+            "test",
+            "TEST",
+            0,
+            address(0x0),
+            address(0x0),
+            0
+        );
         vm.etch(address(rwTEL), address(tmp).code);
         // deal RWTEL max TEL supply to test reward distribution
         vm.deal(address(rwTEL), telMaxSupply);

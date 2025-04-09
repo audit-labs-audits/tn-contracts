@@ -63,7 +63,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
     address originAddress; // original EVM source chain ITS address
     string sourceChain; // ITS hub wraps messages and becomes sourceChain
     string sourceAddressString; // ITS hub wraps messages with hub identifier as source address
-    string destChain;
+    string destinationChain;
     address destinationAddress;
     string axelarHubAddress;
     string name;
@@ -100,18 +100,24 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
 
     /// @dev Test the flow for registering a token with ITS hub + deploying its manager
     /// @notice In prod, these calls must be performed on Ethereum prior to TN genesis
-    function test_sepoliaFork_registerCanonicalInterchainToken() public {
+    function test_sepoliaFork_registerCustomTokenAndLinkToken() public {
         vm.selectFork(sepoliaFork);
         setUp_sepoliaFork_devnetConfig(
+            deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
             deployments.its.InterchainTokenFactory,
             deployments.rwTELImpl
         );
 
-        // Register canonical TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
+        // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
+        destinationChain = TN_CHAIN_NAME;
+        vm.startPrank(linker);
         (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
+        eth_registerCustomTokenAndLinkToken(
+            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+        );
+        vm.stopPrank();
 
         vm.expectRevert();
         returnedTELTokenManager.proposeOperatorship(admin);
@@ -131,19 +137,19 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         vm.expectRevert();
         returnedTELTokenManager.addFlowOut(dummyAmt);
         vm.expectRevert();
-        returnedTELTokenManager.mintToken(address(canonicalTEL), address(admin), dummyAmt);
+        returnedTELTokenManager.mintToken(address(originTEL), address(admin), dummyAmt);
         vm.expectRevert();
-        returnedTELTokenManager.burnToken(address(canonicalTEL), address(admin), dummyAmt);
+        returnedTELTokenManager.burnToken(address(originTEL), address(admin), dummyAmt);
 
         // `BaseProxy::setup()` doesn't revert but does nothing if invoked outside of `TokenManagerProxy` constructor
         returnedTELTokenManager.setup(abi.encode(address(0), address(0x42)));
         assertFalse(returnedTELTokenManager.isOperator(address(0x42)));
 
-        // check expected create3 address for canonicalTEL TokenManager using harness & restore
+        // check expected create3 address for originTEL TokenManager using harness & restore
         bytes memory restoreCodeITS = address(sepoliaITS).code;
         vm.etch(address(sepoliaITS), type(HarnessCreate3FixedAddressForITS).runtimeCode);
         HarnessCreate3FixedAddressForITS itsCreate3 = HarnessCreate3FixedAddressForITS(address(sepoliaITS));
-        // note to deploy TokenManagers ITS uses a different create3 salt schema that 'wraps' the token's canonical
+        // note to deploy TokenManagers ITS uses a different create3 salt schema that 'wraps' the token's origin
         // deploy salt
         bytes32 tmDeploySaltIsTELInterchainTokenId =
             keccak256(abi.encode(keccak256("its-interchain-token-id"), address(0x0), returnedInterchainTokenSalt));
@@ -155,25 +161,25 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         assertEq(address(returnedTELTokenManager), returnedTELTokenManagerExpected);
         assertTrue(returnedTELTokenManagerExpected.code.length > 0);
         assertEq(address(sepoliaITS.deployedTokenManager(returnedInterchainTokenId)), address(returnedTELTokenManager));
-        assertEq(sepoliaITS.registeredTokenAddress(returnedInterchainTokenId), canonicalTEL);
+        assertEq(sepoliaITS.registeredTokenAddress(returnedInterchainTokenId), originTEL);
 
-        // canonicalTEL TokenManager asserts
+        // originTEL TokenManager asserts
         assertEq(returnedTELTokenManager.contractId(), keccak256("token-manager"));
         assertEq(returnedTELTokenManager.interchainTokenId(), tmDeploySaltIsTELInterchainTokenId);
         assertEq(returnedTELTokenManager.implementationType(), uint256(ITokenManagerType.TokenManagerType.LOCK_UNLOCK));
-        assertEq(returnedTELTokenManager.tokenAddress(), address(canonicalTEL));
-        assertEq(returnedTELTokenManager.isOperator(address(0x0)), true);
+        assertEq(returnedTELTokenManager.tokenAddress(), address(originTEL));
+        assertEq(returnedTELTokenManager.isOperator(governanceAddress_), true);
         assertEq(returnedTELTokenManager.isOperator(address(sepoliaITS)), true);
         assertEq(returnedTELTokenManager.isFlowLimiter(address(sepoliaITS)), true);
         assertEq(returnedTELTokenManager.flowLimit(), 0); // set by ITS
         assertEq(returnedTELTokenManager.flowInAmount(), 0); // set by ITS
         assertEq(returnedTELTokenManager.flowOutAmount(), 0); // set by ITS
-        bytes memory ethTMSetupParams = abi.encode(bytes(""), canonicalTEL);
-        assertEq(returnedTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), canonicalTEL);
+        bytes memory ethTMSetupParams = abi.encode(bytes(""), originTEL);
+        assertEq(returnedTELTokenManager.getTokenAddressFromParams(ethTMSetupParams), originTEL);
         (uint256 implementationType, address tokenAddress) =
             TokenManagerProxy(payable(address(returnedTELTokenManager))).getImplementationTypeAndTokenAddress();
         assertEq(implementationType, uint256(ITokenManagerType.TokenManagerType.LOCK_UNLOCK));
-        assertEq(tokenAddress, canonicalTEL);
+        assertEq(tokenAddress, originTEL);
     }
 
     /// @dev TN-inbound ITS bridge tests
@@ -181,64 +187,76 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
     function test_sepoliaFork_itsInterchainTransfer_TEL() public {
         vm.selectFork(sepoliaFork);
         setUp_sepoliaFork_devnetConfig(
+            deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
             deployments.its.InterchainTokenFactory,
             deployments.rwTELImpl
         );
 
-        // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
+        // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
+        destinationChain = TN_CHAIN_NAME;
+        vm.startPrank(linker);
         (, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
+        eth_registerCustomTokenAndLinkToken(
+            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+        );
+        vm.stopPrank();
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
-        string memory destinationChain = TN_CHAIN_NAME;
+        destinationChain = TN_CHAIN_NAME;
         vm.prank(sepoliaITS.owner());
         sepoliaITS.setTrustedAddress(destinationChain, ITS_HUB_ROUTING_IDENTIFIER);
 
         // give gas funds to user and pre-approve ITS to spend its TEL
         vm.deal(user, gasValue);
         vm.prank(user);
-        IERC20(canonicalTEL).approve(address(sepoliaITS), amount);
+        IERC20(originTEL).approve(address(sepoliaITS), amount);
 
         bytes memory destAddressBytes = AddressBytes.toBytes(user);
-        uint256 srcBalBefore = IERC20(canonicalTEL).balanceOf(user);
-        uint256 destBalBefore = IERC20(canonicalTEL).balanceOf(address(returnedTELTokenManager));
+        uint256 srcBalBefore = IERC20(originTEL).balanceOf(user);
+        uint256 destBalBefore = IERC20(originTEL).balanceOf(address(returnedTELTokenManager));
         vm.prank(user);
         sepoliaITS.interchainTransfer{ value: gasValue }(
             returnedInterchainTokenId, destinationChain, destAddressBytes, amount, "", gasValue
         );
 
-        assertEq(IERC20(canonicalTEL).balanceOf(user), srcBalBefore - amount);
-        assertEq(IERC20(canonicalTEL).balanceOf(address(returnedTELTokenManager)), destBalBefore + amount);
+        assertEq(IERC20(originTEL).balanceOf(user), srcBalBefore - amount);
+        assertEq(IERC20(originTEL).balanceOf(address(returnedTELTokenManager)), destBalBefore + amount);
     }
 
     function test_sepoliaFork_itsTransmitInterchainTransfer_TEL() public {
         vm.selectFork(sepoliaFork);
         setUp_sepoliaFork_devnetConfig(
+            deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
             deployments.its.InterchainTokenFactory,
             deployments.rwTELImpl
         );
 
-        // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
+        // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
+        destinationChain = TN_CHAIN_NAME;
+        vm.startPrank(linker);
         (, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
+        eth_registerCustomTokenAndLinkToken(
+            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+        );
+        vm.stopPrank();
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
-        string memory destinationChain = TN_CHAIN_NAME;
+        destinationChain = TN_CHAIN_NAME;
         vm.prank(sepoliaITS.owner());
         sepoliaITS.setTrustedAddress(destinationChain, ITS_HUB_ROUTING_IDENTIFIER);
 
         // give gas funds to user and pre-approve ITS to spend its TEL
         vm.deal(user, gasValue);
         vm.prank(user);
-        IERC20(canonicalTEL).approve(address(sepoliaITS), amount);
+        IERC20(originTEL).approve(address(sepoliaITS), amount);
 
         bytes memory destAddressBytes = AddressBytes.toBytes(user);
-        uint256 srcBalBefore = IERC20(canonicalTEL).balanceOf(user);
-        uint256 destBalBefore = IERC20(canonicalTEL).balanceOf(address(returnedTELTokenManager));
+        uint256 srcBalBefore = IERC20(originTEL).balanceOf(user);
+        uint256 destBalBefore = IERC20(originTEL).balanceOf(address(returnedTELTokenManager));
 
         // note: direct calls to `ITS::transmitInterchainTransfer()` can only be called by the token
         // thus it is disabled on Ethereum since ethTEL doesn't have this function
@@ -248,22 +266,27 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             returnedInterchainTokenId, user, destinationChain, destAddressBytes, amount, ""
         );
 
-        assertEq(IERC20(canonicalTEL).balanceOf(user), srcBalBefore);
-        assertEq(IERC20(canonicalTEL).balanceOf(address(returnedTELTokenManager)), destBalBefore);
+        assertEq(IERC20(originTEL).balanceOf(user), srcBalBefore);
+        assertEq(IERC20(originTEL).balanceOf(address(returnedTELTokenManager)), destBalBefore);
     }
 
     function test_sepoliaFork_execute() public {
         vm.selectFork(sepoliaFork);
         setUp_sepoliaFork_devnetConfig(
+            deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
             deployments.its.InterchainTokenFactory,
             deployments.rwTELImpl
         );
 
-        // Register canonical TEL metadata and deploy canonical TEL token manager on sepolia
-        (, canonicalInterchainTokenId, canonicalTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
+        // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
+        destinationChain = TN_CHAIN_NAME;
+        vm.startPrank(linker);
+        eth_registerCustomTokenAndLinkToken(
+            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+        );
+        vm.stopPrank();
 
         /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
         payload = abi.encode(
@@ -315,22 +338,16 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         sepoliaITS.setTrustedAddress(sourceChain, ITS_HUB_ROUTING_IDENTIFIER);
         vm.stopPrank();
 
-        uint256 userBalBefore = IERC20(canonicalTEL).balanceOf(user);
+        uint256 userBalBefore = IERC20(originTEL).balanceOf(user);
 
         vm.expectEmit(true, true, true, true);
         emit IInterchainTokenService.InterchainTransferReceived(
-            commandId,
-            canonicalInterchainTokenId,
-            originChain,
-            AddressBytes.toBytes(user),
-            recipient,
-            amount,
-            bytes32(0x0)
+            commandId, customLinkedTokenId, originChain, AddressBytes.toBytes(user), recipient, amount, bytes32(0x0)
         );
         sepoliaITS.execute(commandId, sourceChain, sourceAddressString, wrappedPayload);
 
         assertTrue(sepoliaGateway.isCommandExecuted(commandId));
-        assertEq(IERC20(canonicalTEL).balanceOf(user), userBalBefore + amount);
+        assertEq(IERC20(originTEL).balanceOf(user), userBalBefore + amount);
     }
 
     function test_tnFork_approveMessages() public {
@@ -478,7 +495,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         vm.prank(user);
         rwTEL.doubleWrap{ value: amount }();
 
-        string memory destinationChain = DEVNET_SEPOLIA_CHAIN_NAME;
+        destinationChain = DEVNET_SEPOLIA_CHAIN_NAME;
         bytes memory destAddressBytes = AddressBytes.toBytes(user);
         uint256 unsettledBal = IERC20(address(rwTEL)).balanceOf(user);
         uint256 srcBalBeforeTEL = user.balance;
@@ -500,7 +517,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         assertEq(settledBalBefore, amount);
         assertEq(IERC20(address(rwTEL)).totalSupply(), amount);
         its.interchainTransfer{ value: gasValue }(
-            canonicalInterchainTokenId, destinationChain, destAddressBytes, amount, "", gasValue
+            customLinkedTokenId, destinationChain, destAddressBytes, amount, "", gasValue
         );
 
         uint256 expectedUserBalTEL = settledBalBefore - amount;

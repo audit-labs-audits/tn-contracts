@@ -66,6 +66,8 @@ abstract contract ITSConfig is ITSUtils {
     }
 
     function _setUpDevnetConfig(address admin, address devnetTEL, address wtel, address rwtel) internal virtual {
+        linker = admin;
+
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         routerAddress = ITS_HUB_ROUTER_ADDR;
@@ -98,6 +100,8 @@ abstract contract ITSConfig is ITSUtils {
         chainName_ = TN_CHAIN_NAME;
         trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
         trustedChainNames.push(DEVNET_SEPOLIA_CHAIN_NAME);
+        trustedChainNames.push(TN_CHAIN_NAME); //todo: this one is correct, refactor tests
+        trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
         trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
         trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
         itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
@@ -106,27 +110,26 @@ abstract contract ITSConfig is ITSUtils {
         itfOwner = admin;
 
         // rwTEL config
-        canonicalTEL = devnetTEL;
-        canonicalChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
+        originTEL = devnetTEL;
+        originChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
         symbol_ = "rwTEL";
         name_ = "Recoverable Wrapped Telcoin";
         recoverableWindow_ = 604_800;
-        governanceAddress_ = address(0xda0); //todo: select multisig for recoverable governance
-        maxToClean = type(uint16).max; // todo: reduce
+        governanceAddress_ = admin;
+        maxToClean = uint16(300);
         baseERC20_ = wtel; 
 
         // rwTELTokenManager config
-        rwtelTMType = ITokenManagerType.TokenManagerType.NATIVE_INTERCHAIN_TOKEN;
-        operator = AddressBytes.toBytes(address(0xda0)); //todo: select operator who can set flowlimits
+        tmOperator = AddressBytes.toBytes(governanceAddress_);
         tokenAddress = rwtel;
-        params = abi.encode(operator, tokenAddress);
+        params = abi.encode(tmOperator, tokenAddress);
 
         // stored for asserts
         abiEncodedWeightedSigners = abi.encode(weightedSigners);
     }
 
-    /// @notice Transition to testnet handled by updating deployments.json, deploying fresh `testnetTEL` clone of canonical TEL
-    function _setUpTestnetConfig(address testnetTEL) internal {
+    /// @notice Transition to testnet handled by updating deployments.json, deploying fresh `testnetTEL` clone of origin TEL
+    function _setUpTestnetConfig(address testnetTEL, address wtel, address rwtel) internal {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         // routerAddress = ; //todo: testnet router
@@ -165,14 +168,20 @@ abstract contract ITSConfig is ITSUtils {
         // itfOwner = ; // todo: dedicated factory owner
 
         // rwTEL config
-        canonicalTEL = testnetTEL;
-        canonicalChainName_ = TESTNET_SEPOLIA_CHAIN_NAME;
+        originTEL = testnetTEL;
+        originChainName_ = TESTNET_SEPOLIA_CHAIN_NAME;
         symbol_ = "rwTEL";
         name_ = "Recoverable Wrapped Telcoin";
         // recoverableWindow_ = 604_800; // todo: confirm 1 week
         // governanceAddress_ = ; // todo: multisig/council/DAO address in prod
-        // maxToClean = type(uint16).max; // todo: revisit gas expectations; clear all relevant storage?
-        baseERC20_ = address(wTEL);
+        maxToClean = uint16(300);
+        baseERC20_ = wtel;
+
+        // rwTELTokenManager config
+        rwtelTMType = ITokenManagerType.TokenManagerType.MINT_BURN;
+        tmOperator = AddressBytes.toBytes(governanceAddress_);
+        tokenAddress = rwtel;
+        params = abi.encode(tmOperator, tokenAddress);
 
         // stored for asserts
         abiEncodedWeightedSigners = abi.encode(weightedSigners);

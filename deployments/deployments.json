@@ -51,9 +51,9 @@
     "TokenManagerImpl": "0x495F27C1cb5AF1587EAcF0D11dfcD12938680A95",
     "TokenManagerDeployer": "0xD6ED4C2C4b2bd5a1AAc82FcD444b3e428a396372"
   },
-  "rwTEL": "0x815aDE33a299f40146b0F1af8702b97eF63Db5b6",
+  "rwTEL": "0xBFe46FAC4f1bc5953c862e9cE3216EAc9A89CB6b",
   "rwTELImpl": "0x47be47e6bb852496efcbdc8a5497c16ca8cf12d2",
-  "rwTELTokenManager": "0x919a7Cf01A18b8876667AaA20855C9E5737ac3dd",
+  "rwTELTokenManager": "0x87Def521e2fD56fB83368C814314f8336c2B1394",
   "sepoliaTEL": "0x92bc9f0D42A3194Df2C5AB55c3bbDD82e6Fb2F92",
   "uniswapV2": {
     "UniswapV2Factory": "0x764eca68a03ff1eb710e7d1a02c2e7c008877f2f",

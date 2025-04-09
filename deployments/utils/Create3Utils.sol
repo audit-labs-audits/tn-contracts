@@ -24,6 +24,7 @@ struct Salts {
     bytes32 wtelSalt;
     bytes32 rwtelSalt;
     bytes32 rwtelTMSalt;
+    bytes32 registerCustomTokenSalt;
 }
 
 /// @dev Proxy implementation salts separated into second `ImplSalts` struct for "stack too deep"
@@ -54,7 +55,8 @@ abstract contract Create3Utils {
         tmdSalt: keccak256("token-manager-deployer"),
         wtelSalt: keccak256("wrapped-telcoin"),
         rwtelSalt: keccak256("recoverable-wrapped-telcoin"),
-        rwtelTMSalt: keccak256("rwtel-token-manager")
+        rwtelTMSalt: keccak256("rwtel-token-manager"),
+        registerCustomTokenSalt: keccak256("register-custom-token")
     });
 
     ImplSalts public implSalts = ImplSalts({

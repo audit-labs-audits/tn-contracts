@@ -37,10 +37,12 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     /// @dev The precompiled Axelar ITS contract address for this chain
     address private immutable _interchainTokenService;
 
-    /// @dev Constants for deriving the RWTEL canonical ITS deploy salt, token id, and TokenManager address
-    address private immutable canonicalTEL;
-    bytes32 private immutable canonicalChainNameHash;
-    bytes32 private constant PREFIX_CANONICAL_TOKEN_SALT = keccak256("canonical-token-salt");
+    /// @dev Constants for deriving the origin chain's ITS custom linked deploy salt, token id, and TokenManager address
+    address private immutable originTEL;
+    address private immutable originLinker;
+    bytes32 private immutable originSalt;
+    bytes32 private immutable originChainNameHash;
+    bytes32 private constant PREFIX_CUSTOM_TOKEN_SALT = keccak256("custom-token-salt");
     bytes32 private constant PREFIX_INTERCHAIN_TOKEN_ID = keccak256("its-interchain-token-id");
     bytes32 private constant CREATE_DEPLOY_BYTECODE_HASH =
         0xdb4bab1640a2602c9f66f33765d12be4af115accf74b24515702961e82a71327;
@@ -67,8 +69,10 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     /// @param name_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
     /// @param symbol_ Not used; required for `RecoverableWrapper::constructor()` but is overridden
     constructor(
-        address canonicalTEL_,
-        string memory canonicalChainName_,
+        address originTEL_,
+        address originLinker_,
+        bytes32 originSalt_,
+        string memory originChainName_,
         address interchainTokenService_,
         string memory name_,
         string memory symbol_,
@@ -81,8 +85,10 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     {
         _disableInitializers();
         _interchainTokenService = interchainTokenService_;
-        canonicalTEL = canonicalTEL_;
-        canonicalChainNameHash = keccak256(bytes(canonicalChainName_));
+        originTEL = originTEL_;
+        originLinker = originLinker_;
+        originSalt = originSalt_;
+        originChainNameHash = keccak256(bytes(originChainName_));
         tokenManager = tokenManagerAddress();
     }
 
@@ -240,17 +246,14 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     }
 
     /// @notice Returns the top-level ITS interchain token ID for RWTEL
-    /// @dev The interchain token ID is *canonical*, ie based on Ethereum ERC20 TEL, and shared across chains
+    /// @dev The interchain token ID is *custom-linked*, ie based on Ethereum ERC20 TEL, and shared across chains
     function interchainTokenId() public view override returns (bytes32) {
-        return keccak256(
-            abi.encode(PREFIX_INTERCHAIN_TOKEN_ID, TOKEN_FACTORY_DEPLOYER, canonicalInterchainTokenDeploySalt())
-        );
+        return keccak256(abi.encode(PREFIX_INTERCHAIN_TOKEN_ID, TOKEN_FACTORY_DEPLOYER, linkedTokenDeploySalt()));
     }
 
     /// @inheritdoc IRWTEL
-    function canonicalInterchainTokenDeploySalt() public view override returns (bytes32) {
-        // note chain namehash for Ethereum canonical TEL is used since `itFactory&&its::chainNameHash()` are for TN
-        return keccak256(abi.encode(PREFIX_CANONICAL_TOKEN_SALT, canonicalChainNameHash, canonicalTEL));
+    function linkedTokenDeploySalt() public view override returns (bytes32) {
+        return keccak256(abi.encode(PREFIX_CUSTOM_TOKEN_SALT, originChainNameHash, originLinker, originSalt));
     }
 
     /// @inheritdoc IRWTEL

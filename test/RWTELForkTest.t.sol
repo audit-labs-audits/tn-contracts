@@ -103,110 +103,6 @@ contract RWTELForkTest is Test, ITSTestHelper {
         tnFork = vm.createFork(TN_RPC_URL);
     }
 
-    /// @notice Test TN genesis precompiles rwTEL and rwTELTokenManager match Ethereum ITS's canonical addresses
-    /// by simulating `deployRemoteCanonicalInterchainToken` (obviated by Telcoin-Network genesis)
-    /// @notice Ensures precompiles for RWTEL + its TokenManager match those expected (& otherwise produced) by ITS
-    function test_e2eDevnet_deployRemoteCanonicalInterchainToken_RWTEL() public {
-        vm.selectFork(sepoliaFork);
-        setUp_sepoliaFork_devnetConfig(
-            deployments.sepoliaTEL,
-            deployments.its.InterchainTokenService,
-            deployments.its.InterchainTokenFactory,
-            deployments.rwTELImpl
-        );
-
-        // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
-        (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
-
-        // sanity asserts for post canonical registration
-        assertEq(sepoliaITS.interchainTokenAddress(returnedInterchainTokenId), deployments.rwTEL);
-        assertEq(address(returnedTELTokenManager), deployments.rwTELTokenManager);
-        bytes32 expectedTELTokenId = sepoliaITF.canonicalInterchainTokenId(canonicalTEL);
-        assertEq(expectedTELTokenId, sepoliaITS.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
-
-        // note that TN must be added as a trusted chain to the Ethereum ITS contract
-        destinationChain = TN_CHAIN_NAME;
-        vm.prank(sepoliaITS.owner());
-        sepoliaITS.setTrustedAddress(destinationChain, ITS_HUB_ROUTING_IDENTIFIER);
-
-        // sends remote deploy message to ITS hub for rwTEL and its TokenManager on TN
-        payload =
-            abi.encode(MESSAGE_TYPE_DEPLOY_INTERCHAIN_TOKEN, returnedInterchainTokenId, name, symbol, decimals, "");
-        wrappedPayload = abi.encode(MESSAGE_TYPE_SEND_TO_HUB, destinationChain, payload);
-        vm.expectEmit(true, true, true, true);
-        emit ContractCall(
-            address(sepoliaITS), ITS_HUB_CHAIN_NAME, ITS_HUB_ROUTER_ADDR, keccak256(wrappedPayload), wrappedPayload
-        );
-        /// @notice This deployment and all following steps are obviated by genesis precompiles and must
-        /// be skipped, because ITS + RWTEL are created at TN genesis, and it results in `RWTEL::decimals == 2`
-        bytes32 remoteCanonicalTokenId =
-            sepoliaITF.deployRemoteCanonicalInterchainToken{ value: gasValue }(canonicalTEL, destinationChain, gasValue);
-        assertEq(remoteCanonicalTokenId, returnedInterchainTokenId);
-
-        /// @notice Message is relayed through Axelar Network
-
-        vm.selectFork(tnFork);
-        setUp_tnFork_devnetConfig_genesis(
-            deployments.its,
-            deployments.admin,
-            deployments.sepoliaTEL,
-            deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
-        );
-
-        // assert returned ITS values match genesis expectations
-        _devnetAsserts_rwTEL_rwTELTokenManager(
-            expectedTELTokenId, returnedInterchainTokenSalt, returnedInterchainTokenId, address(returnedTELTokenManager)
-        );
-        /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
-        /// for interchain transfers, Message's `destinationAddress = its` and payload's `recipient = user`
-        originChain = DEVNET_SEPOLIA_CHAIN_NAME;
-        wrappedPayload = abi.encode(MESSAGE_TYPE_RECEIVE_FROM_HUB, originChain, payload);
-        sourceChain = ITS_HUB_CHAIN_NAME;
-        sourceAddressString = ITS_HUB_ROUTING_IDENTIFIER;
-        destinationAddress = address(its);
-        messageId = "42";
-        Message memory message =
-            _craftITSMessage(messageId, sourceChain, sourceAddressString, destinationAddress, wrappedPayload);
-        messages.push(message);
-
-        // use gatewayOperator to overwrite devnet config verifier for tests
-        vm.startPrank(admin);
-        (WeightedSigners memory weightedSigners, bytes32 signersHash) = _overwriteWeightedSigners(mockVerifier.addr);
-        vm.stopPrank();
-
-        // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
-        bytes32 approveMessagesHash =
-            gateway.messageHashToSign(signersHash, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0] = abi.encodePacked(r, s, v);
-        Proof memory proof = Proof(weightedSigners, signatures);
-
-        bytes32 commandId = gateway.messageToCommandId(sourceChain, messageId);
-        vm.expectEmit(true, true, true, true);
-        emit MessageApproved(
-            commandId, sourceChain, messageId, sourceAddressString, destinationAddress, keccak256(wrappedPayload)
-        );
-        gateway.approveMessages(messages, proof);
-
-        bytes memory alreadyDeployed = abi.encodePacked(IDeploy.AlreadyDeployed.selector);
-        bytes memory rwtelCollision =
-            abi.encodeWithSelector(IInterchainTokenService.InterchainTokenDeploymentFailed.selector, alreadyDeployed);
-        vm.expectRevert(rwtelCollision);
-        its.execute(commandId, sourceChain, sourceAddressString, wrappedPayload);
-
-        // wipe genesis deployment to prevent revert on token deployment and reach revert on token manager deploy
-        vm.etch(address(rwTEL), "");
-        bytes memory tokenManagerCollision =
-            abi.encodeWithSelector(IInterchainTokenService.TokenManagerDeploymentFailed.selector, alreadyDeployed);
-        vm.expectRevert(tokenManagerCollision);
-        its.execute(commandId, sourceChain, sourceAddressString, wrappedPayload);
-    }
-
     function test_tn_rwtelInterchainTransfer_RWTEL() public {
         vm.selectFork(tnFork);
         setUp_tnFork_devnetConfig_genesis(
@@ -306,34 +202,130 @@ contract RWTELForkTest is Test, ITSTestHelper {
         assertEq(address(rwTEL).balance, rwtelBalBefore + nativeAmount);
     }
 
-    function test_e2eDevnet_bridgeSimulation_toTN() public {
+    /// @notice Test TN genesis precompiles rwTEL and rwTELTokenManager match Ethereum ITS's origin addresses
+    /// by simulating `linkToken()` to Telcoin Network (obviated by Telcoin-Network genesis)
+    /// @notice Ensures precompiles for RWTEL + its TokenManager match those expected (& otherwise produced) by ITS
+    function test_e2eDevnet_linkToken_RWTEL() public {
         vm.selectFork(sepoliaFork);
         setUp_sepoliaFork_devnetConfig(
+            deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
             deployments.its.InterchainTokenFactory,
             deployments.rwTELImpl
         );
 
-        // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
+        // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
+        destinationChain = TN_CHAIN_NAME;
+        vm.startPrank(linker);
         (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-            eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
+        eth_registerCustomTokenAndLinkToken(
+            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+        );
+        vm.stopPrank();
 
-        // sanity asserts for post canonical registration
-        assertEq(sepoliaITS.interchainTokenAddress(returnedInterchainTokenId), deployments.rwTEL);
+        // sanity asserts for post origin registration
         assertEq(address(returnedTELTokenManager), deployments.rwTELTokenManager);
-        bytes32 expectedTELTokenId = sepoliaITF.canonicalInterchainTokenId(canonicalTEL);
+        bytes32 expectedTELTokenId = sepoliaITF.linkedTokenId(linker, salts.registerCustomTokenSalt);
         assertEq(expectedTELTokenId, sepoliaITS.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
 
-        // note that TN must be added as a trusted chain to the Ethereum ITS contract
+        // sends remote deploy message to ITS hub for rwTEL and its TokenManager on TN
+        payload = abi.encode(
+            MESSAGE_TYPE_LINK_TOKEN,
+            returnedInterchainTokenId,
+            rwtelTMType,
+            AddressBytes.toBytes(originTEL),
+            AddressBytes.toBytes(address(rwTEL)),
+            tmOperator
+        );
+
+        /// @notice Message is relayed through Axelar Network
+
+        vm.selectFork(tnFork);
+        setUp_tnFork_devnetConfig_genesis(
+            deployments.its,
+            deployments.admin,
+            deployments.sepoliaTEL,
+            deployments.wTEL,
+            deployments.rwTELImpl,
+            deployments.rwTEL,
+            deployments.rwTELTokenManager
+        );
+
+        // assert returned ITS values match genesis expectations
+        _devnetAsserts_rwTEL_rwTELTokenManager(
+            expectedTELTokenId, returnedInterchainTokenSalt, returnedInterchainTokenId, address(returnedTELTokenManager)
+        );
+        /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
+        /// for interchain transfers, Message's `destinationAddress = its` and payload's `recipient = user`
+        originChain = DEVNET_SEPOLIA_CHAIN_NAME;
+        wrappedPayload = abi.encode(MESSAGE_TYPE_RECEIVE_FROM_HUB, originChain, payload);
+        sourceChain = ITS_HUB_CHAIN_NAME;
+        sourceAddressString = ITS_HUB_ROUTING_IDENTIFIER;
+        destinationAddress = address(its);
+        messageId = "42";
+        Message memory message =
+            _craftITSMessage(messageId, sourceChain, sourceAddressString, destinationAddress, wrappedPayload);
+        messages.push(message);
+
+        // use gatewayOperator to overwrite devnet config verifier for tests
+        vm.startPrank(admin);
+        (WeightedSigners memory weightedSigners, bytes32 signersHash) = _overwriteWeightedSigners(mockVerifier.addr);
+        vm.stopPrank();
+
+        // Axelar gateway signer proofs are ECDSA signatures of bridge message `eth_sign` hash
+        bytes32 approveMessagesHash =
+            gateway.messageHashToSign(signersHash, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = abi.encodePacked(r, s, v);
+        Proof memory proof = Proof(weightedSigners, signatures);
+
+        bytes32 commandId = gateway.messageToCommandId(sourceChain, messageId);
+        vm.expectEmit(true, true, true, true);
+        emit MessageApproved(
+            commandId, sourceChain, messageId, sourceAddressString, destinationAddress, keccak256(wrappedPayload)
+        );
+        gateway.approveMessages(messages, proof);
+
+        bytes memory alreadyDeployed = abi.encodePacked(IDeploy.AlreadyDeployed.selector);
+        bytes memory tokenManagerCollision =
+            abi.encodeWithSelector(IInterchainTokenService.TokenManagerDeploymentFailed.selector, alreadyDeployed);
+        vm.expectRevert(tokenManagerCollision);
+        its.execute(commandId, sourceChain, sourceAddressString, wrappedPayload);
+
+        assertEq(its.interchainTokenAddress(expectedTELTokenId), address(rwTEL));
+    }
+
+    function test_e2eDevnet_bridgeSimulation_toTN() public {
+        vm.selectFork(sepoliaFork);
+        setUp_sepoliaFork_devnetConfig(
+            deployments.admin,
+            deployments.sepoliaTEL,
+            deployments.its.InterchainTokenService,
+            deployments.its.InterchainTokenFactory,
+            deployments.rwTELImpl
+        );
+
+        // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
         destinationChain = TN_CHAIN_NAME;
-        vm.prank(sepoliaITS.owner());
-        sepoliaITS.setTrustedAddress(destinationChain, ITS_HUB_ROUTING_IDENTIFIER);
+        vm.startPrank(linker);
+        (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
+        eth_registerCustomTokenAndLinkToken(
+            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+        );
+        vm.stopPrank();
+
+        // sanity asserts for post origin registration
+        assertEq(sepoliaITS.interchainTokenAddress(returnedInterchainTokenId), deployments.rwTEL);
+        assertEq(address(returnedTELTokenManager), deployments.rwTELTokenManager);
+        bytes32 expectedTELTokenId = sepoliaITF.linkedTokenId(linker, salts.registerCustomTokenSalt);
+        assertEq(expectedTELTokenId, sepoliaITS.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
 
         // give gas funds to user and pre-approve ITS to spend its TEL
         vm.deal(user, gasValue);
         vm.prank(user);
-        IERC20(canonicalTEL).approve(address(sepoliaITS), interchainAmount);
+        IERC20(originTEL).approve(address(sepoliaITS), interchainAmount);
         originAddress = address(sepoliaITS);
         payload = abi.encode(
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
@@ -347,10 +339,10 @@ contract RWTELForkTest is Test, ITSTestHelper {
 
         vm.startPrank(user);
         // user must have tokens and approve gateway
-        IERC20(canonicalTEL).approve(address(sepoliaITS), interchainAmount);
+        IERC20(originTEL).approve(address(sepoliaITS), interchainAmount);
 
-        uint256 srcBalBefore = IERC20(canonicalTEL).balanceOf(user);
-        uint256 destBalBefore = IERC20(canonicalTEL).balanceOf(address(returnedTELTokenManager));
+        uint256 srcBalBefore = IERC20(originTEL).balanceOf(user);
+        uint256 destBalBefore = IERC20(originTEL).balanceOf(address(returnedTELTokenManager));
 
         // ITS wraps `ContractCall` events with Axelar Hub info
         vm.expectEmit(true, true, true, true);
@@ -363,8 +355,8 @@ contract RWTELForkTest is Test, ITSTestHelper {
         );
         vm.stopPrank();
 
-        assertEq(IERC20(canonicalTEL).balanceOf(user), srcBalBefore - interchainAmount);
-        assertEq(IERC20(canonicalTEL).balanceOf(address(returnedTELTokenManager)), destBalBefore + interchainAmount);
+        assertEq(IERC20(originTEL).balanceOf(user), srcBalBefore - interchainAmount);
+        assertEq(IERC20(originTEL).balanceOf(address(returnedTELTokenManager)), destBalBefore + interchainAmount);
 
         /**
          * @dev Relayer Action: Monitor Source Gateway for GMP Message Event Emission
@@ -519,16 +511,20 @@ contract RWTELForkTest is Test, ITSTestHelper {
          */
         vm.selectFork(sepoliaFork);
         setUp_sepoliaFork_devnetConfig(
+            deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
             deployments.its.InterchainTokenFactory,
             deployments.rwTELImpl
         );
 
-        // Register canonical TEL metadata and deploy canonical TEL token manager on ethereum
-        // (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager
-        // returnedTELTokenManager) =
-        eth_registerCanonicalTELAndDeployTELTokenManager(canonicalTEL, sepoliaITS, sepoliaITF);
+        // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
+        destinationChain = TN_CHAIN_NAME; // linking done out of order after TN actions
+        vm.startPrank(linker);
+        eth_registerCustomTokenAndLinkToken(
+            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+        );
+        vm.stopPrank();
 
         originChain = TN_CHAIN_NAME;
         wrappedPayload = abi.encode(MESSAGE_TYPE_RECEIVE_FROM_HUB, originChain, payload);
@@ -571,12 +567,12 @@ contract RWTELForkTest is Test, ITSTestHelper {
         sepoliaITS.setTrustedAddress(sourceChain, ITS_HUB_ROUTING_IDENTIFIER);
         vm.stopPrank();
 
-        uint256 userBalBefore = IERC20(canonicalTEL).balanceOf(user);
+        uint256 userBalBefore = IERC20(originTEL).balanceOf(user);
 
         vm.expectEmit(true, true, true, true);
         emit IInterchainTokenService.InterchainTransferReceived(
             commandId,
-            canonicalInterchainTokenId,
+            customLinkedTokenId,
             originChain,
             AddressBytes.toBytes(user),
             recipient,
@@ -587,7 +583,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
 
         assertTrue(sepoliaGateway.isCommandExecuted(commandId));
         // native TN TEL has been bridged and delivered to user as interchain ERC20 TEL
-        assertEq(IERC20(canonicalTEL).balanceOf(user), userBalBefore + interchainAmount);
+        assertEq(IERC20(originTEL).balanceOf(user), userBalBefore + interchainAmount);
     }
 
     //todo: fuzz tests for rwTEL, TEL bridging, rwteltest.t.sol

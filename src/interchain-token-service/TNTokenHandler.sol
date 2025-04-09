@@ -12,7 +12,7 @@ import { TokenHandler } from './TokenHandler.sol';
 import { TNTokenManager } from "./TNTokenManager.sol";
 
 contract TNTokenHandler is TokenHandler {
-    bytes32 public immutable telInterchainTokenId = 0xc34cbb885926317c1d606b677fc05fcf5207cc2acdc4af0b4cc61763b2069a58;
+    bytes32 public immutable telInterchainTokenId;
 
     constructor(bytes32 telInterchainTokenId_) {
         telInterchainTokenId = telInterchainTokenId_;

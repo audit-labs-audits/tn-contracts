@@ -97,7 +97,7 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         // rwTEL impl before ITS to fetch token id for TokenHandler::constructor
         address simulatedRWTELImpl = address(instantiateRWTELImpl(deployments.its.InterchainTokenService));
         yamlAppendBytecode(dest, simulatedRWTELImpl, deployments.rwTELImpl);
-        canonicalInterchainTokenId = rwTELImpl.interchainTokenId();
+        customLinkedTokenId = rwTELImpl.interchainTokenId();
 
         // gateway impl (no storage)
         address simulatedGatewayImpl = address(instantiateAxelarAmplifierGatewayImpl());
@@ -119,7 +119,7 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         address simulatedTMImpl = address(instantiateTokenManagerImpl(deployments.its.InterchainTokenService));
         yamlAppendBytecode(dest, simulatedTMImpl, deployments.its.TokenManagerImpl);
         // token handler (no storage)
-        address simulatedTH = address(instantiateTokenHandler(canonicalInterchainTokenId));
+        address simulatedTH = address(instantiateTokenHandler(customLinkedTokenId));
         yamlAppendBytecode(dest, simulatedTH, deployments.its.TokenHandler);
 
         // gas service (has storage)
