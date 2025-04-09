@@ -41,7 +41,6 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
-import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
 import { Deployments } from "../../deployments/Deployments.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
 import { ITSConfig } from "../../deployments/utils/ITSConfig.sol";
@@ -332,11 +331,8 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         );
         sepoliaGateway.execute(abi.encode(executeData, proof));
 
-        // todo: clarify setTrustedAddress with Axelar
-        vm.startPrank(sepoliaITS.owner());
-        sepoliaITS.setTrustedAddress(originChain, ITS_HUB_ROUTING_IDENTIFIER);
+        vm.prank(sepoliaITS.owner());
         sepoliaITS.setTrustedAddress(sourceChain, ITS_HUB_ROUTING_IDENTIFIER);
-        vm.stopPrank();
 
         uint256 userBalBefore = IERC20(originTEL).balanceOf(user);
 
@@ -489,7 +485,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         );
 
         // give funds to user
-        amount = 10e18; // 1 nativeTEL
+        amount = 1e18; // 1 nativeTEL
         vm.deal(user, amount + gasValue);
         // user double wraps native TEL
         vm.prank(user);

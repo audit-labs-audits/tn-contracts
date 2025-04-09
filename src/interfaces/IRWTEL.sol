@@ -9,13 +9,6 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { Ownable } from "solady/auth/Ownable.sol";
 import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 
-/// @dev Designed for AxelarGMPExecutable's required implementation of `_execute()`
-struct ExtCall {
-    address target;
-    uint256 value;
-    bytes data;
-} //todo:delete
-
 interface IRWTEL {
     error OnlyManager(address authority);
     error OnlyBaseToken(address authority);
@@ -35,7 +28,16 @@ interface IRWTEL {
     /// @notice Convenience function for users to wrap wTEL to rwTEL in one tx without approval
     /// @dev Explicitly allows malleable signatures for optionality. Malleability is handled
     /// by abstracting signature reusability away via stateful nonce within the EIP-712 structhash
-    function permitWrap(uint256 deadline, uint8 v, bytes32 r, bytes32 s) external payable;
+    function permitWrap(
+        address owner,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        external
+        payable;
 
     /// @notice Fetches the account's outstanding unsettled records
     /// @dev Intended as a convenience function only, eg for frontends. Does not prevent

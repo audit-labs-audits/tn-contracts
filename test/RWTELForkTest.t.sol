@@ -43,7 +43,6 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { WTEL } from "../src/WTEL.sol";
 import { RWTEL } from "../src/RWTEL.sol";
-import { ExtCall } from "../src/interfaces/IRWTEL.sol";
 import { Deployments } from "../deployments/Deployments.sol";
 import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Utils.sol";
 import { ITS } from "../deployments/Deployments.sol";
@@ -93,7 +92,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
         symbol = "TEL";
         decimals = 2;
         interchainAmount = 100; // 1 interchain ERC20 TEL
-        nativeAmount = 10e18; // 1 nativeTEL
+        nativeAmount = 1e18; // 1 nativeTEL
 
         sepoliaFork = vm.createSelectFork(SEPOLIA_RPC_URL);
         // send tokenManager sepolia TEL so it can unlock them
@@ -561,11 +560,9 @@ contract RWTELForkTest is Test, ITSTestHelper {
         );
         sepoliaGateway.execute(abi.encode(executeData, proof));
 
-        // todo: clarify setTrustedAddress with Axelar
         vm.startPrank(sepoliaITS.owner());
-        sepoliaITS.setTrustedAddress(originChain, ITS_HUB_ROUTING_IDENTIFIER);
+        // sepoliaITS.setTrustedAddress(originChain, ITS_HUB_ROUTING_IDENTIFIER);
         sepoliaITS.setTrustedAddress(sourceChain, ITS_HUB_ROUTING_IDENTIFIER);
-        vm.stopPrank();
 
         uint256 userBalBefore = IERC20(originTEL).balanceOf(user);
 
@@ -585,9 +582,4 @@ contract RWTELForkTest is Test, ITSTestHelper {
         // native TN TEL has been bridged and delivered to user as interchain ERC20 TEL
         assertEq(IERC20(originTEL).balanceOf(user), userBalBefore + interchainAmount);
     }
-
-    //todo: fuzz tests for rwTEL, TEL bridging, rwteltest.t.sol
-    //todo: incorporate RWTEL contracts to TN protocol on rust side
-    //todo: remove ExtCall
-    //todo: update readme, npm instructions
 }

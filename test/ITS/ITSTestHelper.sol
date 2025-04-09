@@ -236,10 +236,10 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         signerArray[0] = WeightedSigner(newSigner, weight);
         WeightedSigners memory newSigners = WeightedSigners(signerArray, threshold, nonce);
 
-        // preobtained signature of gateway.messageHashToSign(signersHash, dataHash)
+        // devnet verifier ECDSA key's pre-signed bytes of gateway.messageHashToSign(signersHash, dataHash)
         bytes[] memory adminSig = new bytes[](1);
         adminSig[0] =
-            hex"1a2949337b09a56bb7f741930c222c42666b25db1caa04aa3abb0abfaeaf415904c4a13f37fb6162966a23be2473475354bd32d149cd810bf7fea733c4bdb9331c";
+            hex"569c8339275ea25d2a628495a7863506674d35a179c4d4074d0941573857a99b76b6677a2066f790332f72ae4f9175c0b28befee7dae65589072d8ddd6a57a371c";
         Proof memory newProof = Proof(oldSigners, adminSig);
 
         vm.warp(block.timestamp + minimumRotationDelay);

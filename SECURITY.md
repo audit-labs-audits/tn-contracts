@@ -47,27 +47,6 @@ To bolster this contract's security posture, the contract enforces strict invari
 
 - $TEL can only be burned (locked) after a 24 hour settlement period, meaning that any attacker cannot send $TEL off of Telcoin Network until 24 hours have passed for any received $TEL. This is enforced by Circle Research's `RecoverableWrapper`
 - $TEL can only be minted (released) as a result of incoming bridge transactions validated by Axelar Network verifiers. This is enforced by a call to the Axelar external gateway
-- $TEL bridge transactions that fail execution by the RWTEL module for any reason do not revert and instead emit a failure event. This way, failed transactions can not get stuck or be re-attempted and must be resubmitted as a new message on the source chain (which will be re-validated by Axelar verifiers)
-- $TEL minting occurs as part of the simplest low-level call available within the EVM, represented and decoded from the following Solidity struct which is designed to mirror a protocol transaction:
-
-```solidity
-/// @dev Designed for InterchainTokenExecutable's required implementation of `_execute()`
-struct ExtCall {
-    address target;
-    uint256 value;
-    bytes data;
-}
-
-//todo
-struct InterchainTransfer {
-    uint256 messageType;
-    bytes32 tokenId;
-    bytes sourceAddress;
-    bytes destinationAddress;
-    uint256 amount;
-    bytes data; /// @dev abi.encode(ExtCall)
-}
-```
 
 ### Relayers
 

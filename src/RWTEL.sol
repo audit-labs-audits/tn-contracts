@@ -53,7 +53,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     string internal constant _name_ = "Recoverable Wrapped Telcoin";
     string internal constant _symbol_ = "rwTEL";
 
-    uint256 public constant DECIMALS_CONVERTER = 10e16;
+    uint256 public constant DECIMALS_CONVERTER = 1e16;
 
     modifier onlyTokenManager() {
         if (msg.sender != tokenManager) revert OnlyManager(tokenManager);
@@ -118,19 +118,28 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
     }
 
     /// @inheritdoc IRWTEL
-    function permitWrap(uint256 deadline, uint8 v, bytes32 r, bytes32 s) external payable virtual {
-        address caller = msg.sender;
-        uint256 amount = msg.value;
-        if (amount == 0) revert MintFailed(caller, amount);
+    function permitWrap(
+        address owner,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        external
+        payable
+        virtual
+    {
+        if (amount == 0) revert MintFailed(owner, amount);
 
         WETH wTEL = WETH(payable(address(baseERC20)));
-        wTEL.permit(caller, address(this), amount, deadline, v, r, s);
+        wTEL.permit(owner, address(this), amount, deadline, v, r, s);
 
-        bool success = wTEL.transferFrom(caller, address(this), amount);
-        if (!success) revert PermitWrapFailed(caller, amount);
+        bool success = wTEL.transferFrom(owner, address(this), amount);
+        if (!success) revert PermitWrapFailed(owner, amount);
 
-        _mint(caller, amount);
-        emit Wrap(caller, amount);
+        _mint(owner, amount);
+        emit Wrap(owner, amount);
     }
 
     /// @notice Named by inheritance: has no relationship to `mint()`

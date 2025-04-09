@@ -78,7 +78,7 @@ abstract contract ITSConfig is ITSUtils {
         weight = 1; 
         threshold = 1;
         nonce = bytes32(0x0);
-        ampdVerifierSigners.push(admin);  // todo: use ampd signer
+        ampdVerifierSigners.push(0xCc9Cc353B765Fee36669Af494bDcdc8660402d32); // devnet verifier running tofnd + ampd
         signerArray.push(WeightedSigner(ampdVerifierSigners[0], weight));
         // in memory since nested arrays within custom Solidity structs cannot be copied to storage
         WeightedSigners memory weightedSigners = WeightedSigners(signerArray, threshold, nonce);
@@ -100,7 +100,7 @@ abstract contract ITSConfig is ITSUtils {
         chainName_ = TN_CHAIN_NAME;
         trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
         trustedChainNames.push(DEVNET_SEPOLIA_CHAIN_NAME);
-        trustedChainNames.push(TN_CHAIN_NAME); //todo: this one is correct, refactor tests
+        trustedChainNames.push(TN_CHAIN_NAME);
         trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
         trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
         trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);

@@ -40,7 +40,6 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { RWTEL } from "../../src/RWTEL.sol";
-import { ExtCall } from "../../src/interfaces/IRWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
 import { ITSUtils } from "../../deployments/utils/ITSUtils.sol";
 import { HarnessCreate3FixedAddressForITS, MockTEL, ITSTestHelper } from "./ITSTestHelper.sol";
