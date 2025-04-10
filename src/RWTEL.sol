@@ -212,13 +212,12 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
 
     /// @inheritdoc IRWTEL
     function burn(address from, uint256 nativeAmount) external virtual override onlyTokenManager returns (uint256) {
-        (uint256 interchainAmount, uint256 remainder) = toTwoDecimals(nativeAmount);
-        uint256 burnAmount = nativeAmount - remainder;
-
         // burn from settled balance only
-        _burn(from, burnAmount);
+        _burn(from, nativeAmount);
         // reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
-        WETH(payable(address(baseERC20))).withdraw(burnAmount);
+        WETH(payable(address(baseERC20))).withdraw(nativeAmount);
+
+        (uint256 interchainAmount, uint256 remainder) = toTwoDecimals(nativeAmount);
 
         // do not revert bridging if forwarding truncated unbridgeable amount fails
         (bool r,) = governanceAddress.call{ value: remainder }("");

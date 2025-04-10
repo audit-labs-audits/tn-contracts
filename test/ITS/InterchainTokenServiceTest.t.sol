@@ -269,7 +269,7 @@ contract InterchainTokenServiceTest is ITSTestHelper {
     function test_eth_interchainTransfer_TEL() public {
         // Register origin TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         vm.startPrank(linker);
-        (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
+        (, bytes32 returnedInterchainTokenId,) =
         eth_registerCustomTokenAndLinkToken(originTEL, admin, TN_CHAIN_NAME, originTMType, admin, gasValue, itFactory);
         vm.stopPrank();
 
@@ -291,7 +291,7 @@ contract InterchainTokenServiceTest is ITSTestHelper {
     function test_eth_transmitInterchainTransfer_TEL() public {
         // Register origin TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         vm.startPrank(linker);
-        (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
+        (, bytes32 returnedInterchainTokenId,) =
         eth_registerCustomTokenAndLinkToken(originTEL, admin, TN_CHAIN_NAME, originTMType, admin, gasValue, itFactory);
         vm.stopPrank();
 

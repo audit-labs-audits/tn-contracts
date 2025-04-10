@@ -133,7 +133,7 @@ contract RWTELTest is Test, ITSTestHelper {
     }
 
     function testFuzz_burn(uint96 nativeAmount) public {
-        vm.assume(nativeAmount > 0 && nativeAmount >= rwTEL.DECIMALS_CONVERTER() && nativeAmount < 1e29);
+        vm.assume(nativeAmount > 0 && nativeAmount < 1e29);
 
         vm.deal(user, nativeAmount);
         vm.prank(user);
@@ -142,16 +142,24 @@ contract RWTELTest is Test, ITSTestHelper {
 
         vm.startPrank(rwTEL.tokenManager());
         uint256 initialBal = rwTEL.balanceOf(user);
+        assertEq(initialBal, nativeAmount);
 
+        bool willRevert = nativeAmount < rwTEL.DECIMALS_CONVERTER();
+        if (willRevert) vm.expectRevert();
         (uint256 interchainAmount, uint256 remainder) = rwTEL.toTwoDecimals(nativeAmount);
-        uint256 expectedBurnAmount = nativeAmount - remainder;
 
+        if (willRevert) vm.expectRevert();
         uint256 result = rwTEL.burn(user, nativeAmount);
 
-        assertEq(result, interchainAmount);
-        assertEq(rwTEL.balanceOf(user), initialBal - expectedBurnAmount);
-
         vm.stopPrank();
+
+        if (!willRevert) {
+            assertEq((result * rwTEL.DECIMALS_CONVERTER()) + remainder, nativeAmount);
+            assertEq(result, nativeAmount / rwTEL.DECIMALS_CONVERTER());
+            assertEq(remainder, nativeAmount % rwTEL.DECIMALS_CONVERTER());
+            assertEq(result, interchainAmount);
+            assertEq(rwTEL.balanceOf(user), 0);
+        }
     }
 
     function test_burn_revertIfNotTokenManager(uint96 nativeAmount) public {
@@ -172,6 +180,7 @@ contract RWTELTest is Test, ITSTestHelper {
         (uint256 interchainAmount, uint256 remainder) = rwTEL.toTwoDecimals(nativeAmount);
 
         if (!willRevert) {
+            assertEq((interchainAmount * rwTEL.DECIMALS_CONVERTER()) + remainder, nativeAmount);
             assertEq(interchainAmount, nativeAmount / rwTEL.DECIMALS_CONVERTER());
             assertEq(remainder, nativeAmount % rwTEL.DECIMALS_CONVERTER());
         }
