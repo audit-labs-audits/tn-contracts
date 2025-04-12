@@ -87,7 +87,8 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
     function run() public {
         vm.startBroadcast();
 
-        // initialize yaml file
+        // initialize clean yaml file
+        if (vm.exists(dest)) vm.removeFile(dest);
         vm.writeLine(dest, "---"); // indicate yaml format
 
         // wTEL
