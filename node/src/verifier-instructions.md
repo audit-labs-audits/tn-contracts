@@ -103,23 +103,23 @@ url="http://127.0.0.1:50051"
 cosmwasm_contract="axelar19jxy26z0qnnspa45y5nru0l5rmy9d637z5km2ndjxthfxf5qaswst9290r"
 type="MultisigSigner"
 
-# Ethereum-Sepolia EvmMsgVerifier handler declaration.
+# Eth-Sepolia EvmMsgVerifier handler declaration.
 [[handlers]]
-chain_name="ethereum-sepolia"
+chain_name="eth-sepolia"
 # URL of JSON-RPC endpoint for external chain
 chain_rpc_url="https://rpc.ankr.com/eth_sepolia"
 # verifier contract address
-cosmwasm_contract="axelar1e6jnuljng6aljk0tjct6f0hl9tye6l0n9p067pwx2374h82dmr0s9qcqy9"
+cosmwasm_contract="axelar16swl5eh3vspnyzddwltuf93hc65nwju7498u0zyq33u4cj8rxy4sgxx30m"
 # handler type. Could be EvmMsgVerifier | SuiMsgVerifier
 type="EvmMsgVerifier"
 # if the chain supports the finalized tag via RPC API, use RPCFinalizedBlock, else use ConfirmationHeight
 chain_finalization="RPCFinalizedBlock"
 
-# Ethereum-Sepolia EvmVerifierSetVerifier handler declaration.
+# Eth-Sepolia EvmVerifierSetVerifier handler declaration.
 [[handlers]]
-chain_name="ethereum-sepolia"
+chain_name="eth-sepolia"
 chain_rpc_url="https://rpc.ankr.com/eth_sepolia"
-cosmwasm_contract="axelar1e6jnuljng6aljk0tjct6f0hl9tye6l0n9p067pwx2374h82dmr0s9qcqy9"
+cosmwasm_contract="axelar16swl5eh3vspnyzddwltuf93hc65nwju7498u0zyq33u4cj8rxy4sgxx30m"
 type="EvmVerifierSetVerifier"
 
 # Telcoin-Network EvmMsgVerifier handler declaration
@@ -200,7 +200,7 @@ This step registers the ampd instances public key
 
 Use `ampd register-chain-support` to register support for specific chains, in this case Telcoin-Network and Sepolia. Be sure to pass in the correct "service name"!
 
-`ampd register-chain-support validators ethereum-sepolia telcoin-network`
+`ampd register-chain-support validators eth-sepolia ethereum-sepolia telcoin-network`
 
 #### Important: any chain included in the `register-chain-support` command must have associated handler declarations in the `~/.ampd/config.toml` file above
 

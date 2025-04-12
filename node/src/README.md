@@ -50,7 +50,7 @@ const provider = new ethers.providers.JsonRpcProvider(
 // Sepolia external gateway
 const axlExtGatewayContract = "0xe432150cce91c13a887f7D836923d5597adD8E31";
 // must use Axelar’s exact naming convention for each chain. Sepolia is as follows:
-const sourceChain = "ethereum-sepolia";
+const sourceChain = "eth-sepolia";
 const destinationChain = "telcoin-network";
 // this must be the destination chain’s Axelar Executable contract. On TN this is RWTEL
 const destinationContractAddress = "0xca568d148d23a4ca9b77bef783dca0d2f5962c12";

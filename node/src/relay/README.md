@@ -67,7 +67,7 @@ The Subscriber can be configured at runtime with the flags below.
 For example, to run the Subscriber set up to subscribe to `ContractCall` events from the RWTEL module on Telcoin Network:
 
 ```bash
-npm run subscriber -- --target-chain telcoin-network --target-contract 0xca568d148d23a4ca9b77bef783dca0d2f5962c12
+npm run subscriber -- --target-chain telcoin-network --target-contract 0x2e821cfe53C061239Ac20fEa4692D8D6767d8c6D
 ```
 
 ### Subscriber spec:

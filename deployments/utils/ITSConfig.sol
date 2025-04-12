@@ -9,7 +9,7 @@ import {
     WeightedSigners,
     Proof
 } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/types/WeightedMultisigTypes.sol";
-import { IAxelarGateway } from "@axelar-network/axelar-cgp-solidity/contracts/interfaces/IAxelarGateway.sol";
+import { AxelarAmplifierGateway } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
 import { ITokenManagerType } from "@axelar-network/interchain-token-service/contracts/interfaces/ITokenManagerType.sol";
 import { InterchainTokenService } from "@axelar-network/interchain-token-service/contracts/InterchainTokenService.sol";
 import { InterchainTokenFactory } from "@axelar-network/interchain-token-service/contracts/InterchainTokenFactory.sol";
@@ -29,10 +29,10 @@ abstract contract ITSConfig is ITSUtils {
     address constant MAINNET_GATEWAY = 0x4F4495243837681061C4743b74B3eEdf548D56A5;
     address constant MAINNET_TEL = 0x467Bccd9d29f223BcE8043b84E8C8B282827790F;
     uint256 constant SEPOLIA_CHAINID = 11155111;
-    string constant DEVNET_SEPOLIA_CHAIN_NAME = "core-ethereum";
-    bytes32 constant DEVNET_SEPOLIA_CHAINNAMEHASH = 0xbef3ef21418c49cdf83043f00d3ffeebe97f404dee721f6a81a99b66d96d6724;
-    address constant DEVNET_SEPOLIA_ITS = 0x77883201091c08570D55000AB32645b88cB96324;
-    address constant DEVNET_SEPOLIA_GATEWAY = 0x7C60aA56482c2e78D75Fd6B380e1AdC537B97319;
+    string constant DEVNET_SEPOLIA_CHAIN_NAME = "eth-sepolia";
+    bytes32 constant DEVNET_SEPOLIA_CHAINNAMEHASH = 0x24f78f6b35533491ef3d467d5e8306033cca94049b9b76db747dfc786df43f86;
+    address constant DEVNET_SEPOLIA_ITS = 0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff;
+    address constant DEVNET_SEPOLIA_GATEWAY = 0xF128c84c3326727c3e155168daAa4C0156B87AD1;
     string constant TESTNET_SEPOLIA_CHAIN_NAME = "ethereum-sepolia";
     bytes32 constant TESTNET_SEPOLIA_CHAINNAMEHASH = 0x564ccaf7594d66b1eaaea24fe01f0585bf52ee70852af4eac0cc4b04711cd0e2;
     address constant TESTNET_SEPOLIA_ITS = 0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C;
@@ -41,7 +41,7 @@ abstract contract ITSConfig is ITSUtils {
     // message type constants; these serve as headers for ITS messages between chains
     uint256 constant MESSAGE_TYPE_INTERCHAIN_TRANSFER = 0;
     uint256 constant MESSAGE_TYPE_DEPLOY_INTERCHAIN_TOKEN = 1;
-    // uint256 constant MESSAGE_TYPE_DEPLOY_TOKEN_MANAGER = 2;
+    // uint256 constant MESSAGE_TYPE_DEPLOY_TOKEN_MANAGER = 2; // replaced with `linkToken() in v2.1.0`
     uint256 constant MESSAGE_TYPE_SEND_TO_HUB = 3;
     uint256 constant MESSAGE_TYPE_RECEIVE_FROM_HUB = 4;
     uint256 constant MESSAGE_TYPE_LINK_TOKEN = 5;
@@ -52,7 +52,7 @@ abstract contract ITSConfig is ITSUtils {
     IERC20 sepoliaTEL;
     InterchainTokenService sepoliaITS;
     InterchainTokenFactory sepoliaITF;
-    IAxelarGateway sepoliaGateway;
+    AxelarAmplifierGateway sepoliaGateway;
 
     //todo: Ethereum
     uint256 public constant telTotalSupply = 100_000_000_000e18;
@@ -66,7 +66,9 @@ abstract contract ITSConfig is ITSUtils {
     }
 
     function _setUpDevnetConfig(address admin, address devnetTEL, address wtel, address rwtel) internal virtual {
+        // devnet uses adminas linker and single verifier running tofnd + ampd
         linker = admin;
+        address ampdVerifier = 0xCc9Cc353B765Fee36669Af494bDcdc8660402d32;
 
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
@@ -78,7 +80,7 @@ abstract contract ITSConfig is ITSUtils {
         weight = 1; 
         threshold = 1;
         nonce = bytes32(0x0);
-        ampdVerifierSigners.push(0xCc9Cc353B765Fee36669Af494bDcdc8660402d32); // devnet verifier running tofnd + ampd
+        ampdVerifierSigners.push(ampdVerifier);
         signerArray.push(WeightedSigner(ampdVerifierSigners[0], weight));
         // in memory since nested arrays within custom Solidity structs cannot be copied to storage
         WeightedSigners memory weightedSigners = WeightedSigners(signerArray, threshold, nonce);
@@ -129,7 +131,7 @@ abstract contract ITSConfig is ITSUtils {
     }
 
     /// @notice Transition to testnet handled by updating deployments.json, deploying fresh `testnetTEL` clone of origin TEL
-    function _setUpTestnetConfig(address testnetTEL, address wtel, address rwtel) internal {
+    function _setUpTestnetConfig(address testnetTEL, address wtel, address rwtel, address[] memory /*ampdVerifiers*/) internal {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         // routerAddress = ; //todo: testnet router

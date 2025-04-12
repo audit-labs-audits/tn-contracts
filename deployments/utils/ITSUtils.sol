@@ -340,9 +340,10 @@ abstract contract ITSUtils is Create3Utils {
     /// @dev After execution, relayer detects & forwards ContractCall event to Axelar Network hub via GMP API
     /// @dev Once registered w/ ITS Hub, `msg.sender` can use same salt to link to more chains
     function eth_registerCustomTokenAndLinkToken(
-        address tel,
+        address originTel,
         address linker_,
         string memory destinationChain_,
+        address destTel,
         ITokenManagerType.TokenManagerType tmType, 
         address tmOperator_,
         uint256 gasValue_,
@@ -352,10 +353,10 @@ abstract contract ITSUtils is Create3Utils {
         returns (bytes32 linkedTokenSalt, bytes32 linkedTokenId, TokenManager telTokenManager)
     {
         // Register origin TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
-        factory.registerCustomToken{ value: gasValue_ }(salts.registerCustomTokenSalt, tel, tmType, tmOperator_);
+        factory.registerCustomToken{ value: gasValue_ }(salts.registerCustomTokenSalt, originTel, tmType, tmOperator_);
 
         linkedTokenSalt = factory.linkedTokenDeploySalt(linker_, salts.registerCustomTokenSalt);
-        linkedTokenId = factory.linkToken{value: gasValue_}(salts.registerCustomTokenSalt, destinationChain_, AddressBytes.toBytes(tel), tmType, AddressBytes.toBytes(tmOperator_), gasValue_);
+        linkedTokenId = factory.linkToken{value: gasValue_}(salts.registerCustomTokenSalt, destinationChain_, AddressBytes.toBytes(destTel), tmType, AddressBytes.toBytes(tmOperator_), gasValue_);
 
         telTokenManager = TokenManager(address(factory.interchainTokenService().tokenManagerAddress(linkedTokenId)));
     }

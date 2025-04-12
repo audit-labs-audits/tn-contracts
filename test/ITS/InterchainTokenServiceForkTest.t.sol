@@ -105,8 +105,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
-            deployments.its.InterchainTokenFactory,
-            deployments.rwTELImpl
+            deployments.its.InterchainTokenFactory
         );
 
         // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
@@ -114,7 +113,14 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         vm.startPrank(linker);
         (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
         eth_registerCustomTokenAndLinkToken(
-            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+            originTEL,
+            linker,
+            destinationChain,
+            deployments.rwTEL,
+            originTMType,
+            AddressBytes.toAddress(tmOperator),
+            gasValue,
+            sepoliaITF
         );
         vm.stopPrank();
 
@@ -189,8 +195,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
-            deployments.its.InterchainTokenFactory,
-            deployments.rwTELImpl
+            deployments.its.InterchainTokenFactory
         );
 
         // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
@@ -198,7 +203,14 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         vm.startPrank(linker);
         (, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
         eth_registerCustomTokenAndLinkToken(
-            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+            originTEL,
+            linker,
+            destinationChain,
+            deployments.rwTEL,
+            originTMType,
+            AddressBytes.toAddress(tmOperator),
+            gasValue,
+            sepoliaITF
         );
         vm.stopPrank();
 
@@ -230,8 +242,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
-            deployments.its.InterchainTokenFactory,
-            deployments.rwTELImpl
+            deployments.its.InterchainTokenFactory
         );
 
         // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
@@ -239,7 +250,14 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         vm.startPrank(linker);
         (, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
         eth_registerCustomTokenAndLinkToken(
-            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+            originTEL,
+            linker,
+            destinationChain,
+            deployments.rwTEL,
+            originTMType,
+            AddressBytes.toAddress(tmOperator),
+            gasValue,
+            sepoliaITF
         );
         vm.stopPrank();
 
@@ -275,22 +293,28 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.its.InterchainTokenService,
-            deployments.its.InterchainTokenFactory,
-            deployments.rwTELImpl
+            deployments.its.InterchainTokenFactory
         );
 
         // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
         destinationChain = TN_CHAIN_NAME;
         vm.startPrank(linker);
         eth_registerCustomTokenAndLinkToken(
-            originTEL, linker, destinationChain, originTMType, AddressBytes.toAddress(tmOperator), gasValue, sepoliaITF
+            originTEL,
+            linker,
+            destinationChain,
+            deployments.rwTEL,
+            originTMType,
+            AddressBytes.toAddress(tmOperator),
+            gasValue,
+            sepoliaITF
         );
         vm.stopPrank();
 
         /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
         payload = abi.encode(
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
-            RWTEL(payable(deployments.rwTELImpl)).interchainTokenId(), // etched to fetch tokenID
+            customLinkedTokenId, // set in setup fn
             AddressBytes.toBytes(user),
             AddressBytes.toBytes(recipient),
             amount,
@@ -309,27 +333,24 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         messages.push(message);
 
         // use gatewayOperator to overwrite devnet config verifier for tests
-        (, address[] memory newOperators, uint256[] memory weights) =
-            _eth_overwriteWeightedSigners(address(sepoliaGateway), mockVerifier.addr);
-
-        // approve call using sepolia gateway's legacy versioning
-        bytes32 commandId = keccak256(bytes(string.concat(sourceChain, "_", messageId)));
-        (bytes memory executeData, bytes32 executeHash) = _getLegacyGatewayApprovalParams(
-            commandId, sourceChain, sourceAddressString, destinationAddress, wrappedPayload
-        );
+        vm.prank(sepoliaGateway.operator());
+        (WeightedSigners memory newSigners, bytes32 signersHash) =
+            _overwriteWeightedSigners(sepoliaGateway, mockVerifier.addr);
 
         // spoof verifier signature of approval params
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, executeHash);
+        bytes32 approveMessagesHash =
+            sepoliaGateway.messageHashToSign(signersHash, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(mockVerifier.privateKey, approveMessagesHash);
         bytes[] memory signatures = new bytes[](1);
         signatures[0] = abi.encodePacked(r, s, v);
-        bytes memory proof = abi.encode(newOperators, weights, threshold, signatures);
+        Proof memory proof = Proof(newSigners, signatures);
 
-        // approve contract call using legacy gateway execute()
+        bytes32 commandId = sepoliaGateway.messageToCommandId(sourceChain, messageId);
         vm.expectEmit(true, true, true, true);
-        emit IAxelarGateway.ContractCallApproved(
-            commandId, sourceChain, sourceAddressString, destinationAddress, keccak256(wrappedPayload), bytes32(0x0), 0
+        emit MessageApproved(
+            commandId, sourceChain, messageId, sourceAddressString, destinationAddress, keccak256(wrappedPayload)
         );
-        sepoliaGateway.execute(abi.encode(executeData, proof));
+        sepoliaGateway.approveMessages(messages, proof);
 
         vm.prank(sepoliaITS.owner());
         sepoliaITS.setTrustedAddress(sourceChain, ITS_HUB_ROUTING_IDENTIFIER);
@@ -381,7 +402,8 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
 
         // use gatewayOperator to overwrite devnet config verifier for tests
         vm.startPrank(admin);
-        (WeightedSigners memory weightedSigners, bytes32 signersHash) = _overwriteWeightedSigners(mockVerifier.addr);
+        (WeightedSigners memory weightedSigners, bytes32 signersHash) =
+            _overwriteWeightedSigners(gateway, mockVerifier.addr);
         bytes32 approveMessagesHash =
             gateway.messageHashToSign(signersHash, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
         vm.stopPrank();
@@ -441,7 +463,8 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
 
         // use gatewayOperator to overwrite devnet config verifier for tests
         vm.startPrank(admin);
-        (WeightedSigners memory weightedSigners, bytes32 signersHash) = _overwriteWeightedSigners(mockVerifier.addr);
+        (WeightedSigners memory weightedSigners, bytes32 signersHash) =
+            _overwriteWeightedSigners(gateway, mockVerifier.addr);
         bytes32 approveMessagesHash =
             gateway.messageHashToSign(signersHash, keccak256(abi.encode(CommandType.ApproveMessages, messages)));
         vm.stopPrank();

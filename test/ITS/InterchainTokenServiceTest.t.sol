@@ -189,7 +189,9 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         // Register origin TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         vm.startPrank(linker);
         (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
-        eth_registerCustomTokenAndLinkToken(originTEL, admin, TN_CHAIN_NAME, originTMType, admin, gasValue, itFactory);
+        eth_registerCustomTokenAndLinkToken(
+            originTEL, admin, TN_CHAIN_NAME, address(rwTEL), originTMType, admin, gasValue, itFactory
+        );
         vm.stopPrank();
 
         assertEq(returnedInterchainTokenSalt, customLinkedTokenSalt);
@@ -269,8 +271,9 @@ contract InterchainTokenServiceTest is ITSTestHelper {
     function test_eth_interchainTransfer_TEL() public {
         // Register origin TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         vm.startPrank(linker);
-        (, bytes32 returnedInterchainTokenId,) =
-        eth_registerCustomTokenAndLinkToken(originTEL, admin, TN_CHAIN_NAME, originTMType, admin, gasValue, itFactory);
+        (, bytes32 returnedInterchainTokenId,) = eth_registerCustomTokenAndLinkToken(
+            originTEL, admin, TN_CHAIN_NAME, address(rwTEL), originTMType, admin, gasValue, itFactory
+        );
         vm.stopPrank();
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract
@@ -291,8 +294,9 @@ contract InterchainTokenServiceTest is ITSTestHelper {
     function test_eth_transmitInterchainTransfer_TEL() public {
         // Register origin TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         vm.startPrank(linker);
-        (, bytes32 returnedInterchainTokenId,) =
-        eth_registerCustomTokenAndLinkToken(originTEL, admin, TN_CHAIN_NAME, originTMType, admin, gasValue, itFactory);
+        (, bytes32 returnedInterchainTokenId,) = eth_registerCustomTokenAndLinkToken(
+            originTEL, admin, TN_CHAIN_NAME, address(rwTEL), originTMType, admin, gasValue, itFactory
+        );
         vm.stopPrank();
 
         // note that TN must have been added as a trusted chain to the Ethereum ITS contract

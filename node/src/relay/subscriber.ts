@@ -90,7 +90,7 @@ async function main() {
 async function processLogs(logs: Log[]) {
   // handle axelar's custom nomenclature for sepolia
   let sourceChain = targetChain.name.toLowerCase();
-  if (targetChain === sepolia) sourceChain = `ethereum-${sourceChain}`;
+  if (targetChain === sepolia) sourceChain = `eth-${sourceChain}`;
 
   const events = [];
   for (const log of logs) {

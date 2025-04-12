@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import { Test, console2 } from "forge-std/Test.sol";
 import { Create3Deployer } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol";
 import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
-import { IAxelarGateway } from "@axelar-network/axelar-cgp-solidity/contracts/interfaces/IAxelarGateway.sol";
 import { AxelarAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
 import { AxelarAmplifierGatewayProxy } from
@@ -49,8 +48,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         address linker_,
         address sepoliaTel,
         address sepoliaIts,
-        address sepoliaItf,
-        address rwtelImpl
+        address sepoliaItf
     )
         internal
     {
@@ -61,15 +59,13 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         sepoliaTEL = IERC20(sepoliaTel);
         sepoliaITS = InterchainTokenService(sepoliaIts);
         sepoliaITF = InterchainTokenFactory(sepoliaItf);
-        sepoliaGateway = IAxelarGateway(DEVNET_SEPOLIA_GATEWAY);
+        sepoliaGateway = AxelarAmplifierGateway(DEVNET_SEPOLIA_GATEWAY);
         // etch RWTEL impl bytecode for fetching origin linkedTokenId
         originTEL = address(sepoliaTEL);
         originChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
         governanceAddress_ = address(linker);
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        RWTEL temp = ITSUtils.instantiateRWTELImpl(sepoliaIts);
-        vm.etch(rwtelImpl, address(temp).code);
-        customLinkedTokenId = RWTEL(payable(rwtelImpl)).interchainTokenId();
+        customLinkedTokenId = ITSUtils.instantiateRWTELImpl(sepoliaIts).interchainTokenId();
 
         // note that TN must be added as a trusted chain to the Ethereum ITS contract
         vm.prank(sepoliaITS.owner());
@@ -229,29 +225,50 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
     }
 
     /// @dev Overwrites TN devnet config with given `newSigner` as sole verifier for tests
-    function _overwriteWeightedSigners(address newSigner) internal returns (WeightedSigners memory, bytes32) {
-        WeightedSigners memory oldSigners = WeightedSigners(signerArray, threshold, nonce);
-
+    /// @notice Mocks `rotateSigners()` state changes with `vm.store()`
+    function _overwriteWeightedSigners(
+        AxelarAmplifierGateway targetGateway,
+        address newSigner
+    )
+        internal
+        returns (WeightedSigners memory, bytes32)
+    {
+        // some fork tests tests don't initialize with config setup fn, so push with default vals
+        if (signerArray.length == 0) {
+            ampdVerifierSigners.push();
+            signerArray.push();
+        }
         ampdVerifierSigners[0] = newSigner;
         signerArray[0] = WeightedSigner(newSigner, weight);
         WeightedSigners memory newSigners = WeightedSigners(signerArray, threshold, nonce);
-
-        // devnet verifier ECDSA key's pre-signed bytes of gateway.messageHashToSign(signersHash, dataHash)
-        bytes[] memory adminSig = new bytes[](1);
-        adminSig[0] =
-            hex"569c8339275ea25d2a628495a7863506674d35a179c4d4074d0941573857a99b76b6677a2066f790332f72ae4f9175c0b28befee7dae65589072d8ddd6a57a371c";
-        Proof memory newProof = Proof(oldSigners, adminSig);
-
-        vm.warp(block.timestamp + minimumRotationDelay);
-        gateway.rotateSigners(newSigners, newProof);
-
         bytes32 newSignersHash = keccak256(abi.encode(newSigners));
+
+        // rewind to a known epoch
+        bytes32 epochSlot = 0x457f3fc26bf430b020fe76358b1bfaba57e1657ace718da6437cda9934eabfe8;
+        bytes32 epochForTests = 0x0000000000000000000000000000000000000000000000000000000000000001;
+        vm.store(address(targetGateway), epochSlot, epochForTests);
+
+        // derive signersHashByEpoch mapping storage slot
+        bytes32 signersHashByEpochBaseSlot = bytes32(uint256(epochSlot) + 2);
+        bytes32 signersHashByEpochTestSlot = _getMappingSlot(epochForTests, signersHashByEpochBaseSlot);
+        vm.store(address(targetGateway), signersHashByEpochTestSlot, newSignersHash);
+
+        // derive epochBySignersHash mapping storage slot
+        bytes32 epochBySignersHashBaseSlot = bytes32(uint256(epochSlot) + 3);
+        bytes32 epochBySignersHashTestSlot = _getMappingSlot(newSignersHash, epochBySignersHashBaseSlot);
+        vm.store(address(targetGateway), epochBySignersHashTestSlot, epochForTests);
+
+        // assert correct slots were written to
+        assertEq(targetGateway.epoch(), uint256(epochForTests));
+        assertEq(targetGateway.signersHashByEpoch(uint256(epochForTests)), newSignersHash);
+        assertEq(targetGateway.epochBySignersHash(newSignersHash), uint256(epochForTests));
+
         return (newSigners, newSignersHash);
     }
 
-    /// @dev Overwrites a origin chain gateway's verifiers with `newSigner` as sole verifier for tests
-    /// @notice Required bc origin gateways use a legacy version incompatible with _overwriteWeightedSigners
-    function _eth_overwriteWeightedSigners(
+    /// @dev Overwrites a legacy gateway chain's verifiers with `newSigner` as sole verifier for tests
+    /// @notice Required bc legacy gateway version incompatible with _overwriteWeightedSigners
+    function _legacy_overwriteWeightedSigners(
         address targetGateway,
         address newSigner
     )
@@ -269,15 +286,18 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         (, bytes memory ret) = targetGateway.call(abi.encodeWithSignature("authModule()"));
         address authModule = abi.decode(ret, (address));
         bytes32 currentEpochSlot = bytes32(0x0);
-        bytes32 epochForTests = 0x00000000000000000000000000000000000000000000000000000000000000ae; // rewind to a known
-            // epoch
+        // rewind to a known epoch
+        bytes32 epochForTests = 0x00000000000000000000000000000000000000000000000000000000000000ae;
         vm.store(authModule, currentEpochSlot, epochForTests);
-        bytes32 hashForEpochTestSlot = 0xcd308dfe822f4a376d452f3c35929b255b891b4318e82a1bcf379137aa8f8340;
+
+        // derive hashForEpoch mapping storage slot
+        bytes32 hashForEpochBaseSlot = bytes32(abi.encode(1));
+        bytes32 hashForEpochTestSlot = _getMappingSlot(epochForTests, hashForEpochBaseSlot);
         vm.store(authModule, hashForEpochTestSlot, newOperatorsHash);
 
         // derive epochForHash mapping storage slot
         bytes32 epochForHashBaseSlot = bytes32(abi.encode(2)); // `epochForHash` is in AuthModule storage slot 2
-        bytes32 epochForHashTestSlot = keccak256(bytes.concat(newOperatorsHash, epochForHashBaseSlot));
+        bytes32 epochForHashTestSlot = _getMappingSlot(newOperatorsHash, epochForHashBaseSlot);
         vm.store(authModule, epochForHashTestSlot, epochForTests);
 
         // assert correct slot was written to
@@ -312,6 +332,10 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         bytes32 executeHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(executeData)));
 
         return (executeData, executeHash);
+    }
+
+    function _getMappingSlot(bytes32 key, bytes32 baseSlot) internal pure returns (bytes32 valueSlot) {
+        return keccak256(bytes.concat(key, baseSlot));
     }
 
     /// @notice Redeclared event from `IAxelarGMPGateway` for asserts

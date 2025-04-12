@@ -199,7 +199,7 @@ async function recordTaskExecuted(
   // handle axelar's custom nomenclature for sepolia
   let destinationChainName = destinationChain.name.toLowerCase();
   if (destinationChain === sepolia)
-    destinationChainName = `ethereum-${destinationChainName}`;
+    destinationChainName = `eth-${destinationChainName}`;
 
   // make post request
   try {
