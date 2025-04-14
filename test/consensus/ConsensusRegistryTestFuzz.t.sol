@@ -37,7 +37,6 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         hex"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     bytes public blsSig =
         hex"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890";
-    bytes32 public ed25519Pubkey = bytes32(hex"1234567890123456789012345678901234567890123456789012345678901234");
 
     uint256 public telMaxSupply = 100_000_000_000 ether;
     uint256 public stakeAmount = 1_000_000 ether;
@@ -51,10 +50,8 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
 
         // provide an initial validator as the network will launch with at least one validator
         bytes memory validator0BLSKey = _createRandomBlsPubkey(0);
-        bytes32 validator0ED25519Key = keccak256(abi.encode(0));
         validatorInfo0 = IConsensusRegistry.ValidatorInfo(
             validator0BLSKey,
-            validator0ED25519Key,
             validator0,
             uint32(0),
             uint32(0),
@@ -63,7 +60,6 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         );
         validatorInfo1 = IConsensusRegistry.ValidatorInfo(
             _createRandomBlsPubkey(1),
-            keccak256(abi.encode(1)),
             validator1,
             uint32(0),
             uint32(0),
@@ -72,7 +68,6 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         );
         validatorInfo2 = IConsensusRegistry.ValidatorInfo(
             _createRandomBlsPubkey(2),
-            keccak256(abi.encode(2)),
             validator2,
             uint32(0),
             uint32(0),
@@ -81,7 +76,6 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         );
         validatorInfo3 = IConsensusRegistry.ValidatorInfo(
             _createRandomBlsPubkey(3),
-            keccak256(abi.encode(3)),
             validator3,
             uint32(0),
             uint32(0),
@@ -159,10 +153,9 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
             // create random new validator keys
             bytes memory newBLSPubkey = _createRandomBlsPubkey(i);
             bytes memory newBLSSig = _createRandomBlsSig(i);
-            bytes32 newED25519Pubkey = _createRandomED25519Pubkey(i);
 
             vm.prank(newValidator);
-            consensusRegistry.stake{ value: stakeAmount }(newBLSPubkey, newBLSSig, newED25519Pubkey);
+            consensusRegistry.stake{ value: stakeAmount }(newBLSPubkey, newBLSSig);
 
             // push first third of new validators to new committee
             if (committeeCounter < newCommittee.length) {
@@ -215,7 +208,7 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
 
         // First stake
         vm.prank(validator4);
-        consensusRegistry.stake{ value: stakeAmount }(blsPubkey, blsSig, ed25519Pubkey);
+        consensusRegistry.stake{ value: stakeAmount }(blsPubkey, blsSig);
 
         // Capture initial rewards info
         uint256 initialRewards = consensusRegistry.getRewards(validator4);

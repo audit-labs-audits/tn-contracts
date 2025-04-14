@@ -52,11 +52,6 @@ contract GenerateConsensusRegistryStorage is Script, Test {
     bytes32 constant VALIDATOR_4_BLS_C = keccak256("VALIDATOR_4_BLS_C");
     bytes validator4BlsPubkey;
 
-    bytes32 VALIDATOR_1_ED25519 = keccak256("VALIDATOR_1_ED25519");
-    bytes32 VALIDATOR_2_ED25519 = keccak256("VALIDATOR_2_ED25519");
-    bytes32 VALIDATOR_3_ED25519 = keccak256("VALIDATOR_3_ED25519");
-    bytes32 VALIDATOR_4_ED25519 = keccak256("VALIDATOR_4_ED25519");
-
     address public validator1 = address(0xbabe);
     address public validator2 = address(0xbeefbabe);
     address public validator3 = address(0xdeadbeefbabe);
@@ -93,7 +88,6 @@ contract GenerateConsensusRegistryStorage is Script, Test {
         // populate `initialValidators` array with base struct from storage
         validatorInfo1 = IConsensusRegistry.ValidatorInfo(
             validator1BlsPubkey,
-            VALIDATOR_1_ED25519,
             validator1,
             uint32(0),
             uint32(0),
@@ -104,7 +98,6 @@ contract GenerateConsensusRegistryStorage is Script, Test {
 
         validatorInfo2 = IConsensusRegistry.ValidatorInfo(
             validator2BlsPubkey,
-            VALIDATOR_2_ED25519,
             validator2,
             uint32(0),
             uint32(0),
@@ -115,7 +108,6 @@ contract GenerateConsensusRegistryStorage is Script, Test {
 
         validatorInfo3 = IConsensusRegistry.ValidatorInfo(
             validator3BlsPubkey,
-            VALIDATOR_3_ED25519,
             validator3,
             uint32(0),
             uint32(0),
@@ -126,7 +118,6 @@ contract GenerateConsensusRegistryStorage is Script, Test {
 
         validatorInfo4 = IConsensusRegistry.ValidatorInfo(
             validator4BlsPubkey,
-            VALIDATOR_4_ED25519,
             validator4,
             uint32(0),
             uint32(0),
@@ -226,38 +217,3 @@ contract GenerateConsensusRegistryStorage is Script, Test {
         vm.stopBroadcast();
     }
 }
-
-/* below are slots that will be dynamic depending on genesis config (number of validators, committee size & content)
-these are kept here as they may be relevant to keep track of depending on whether client runs this script at genesis
-
-`epochInfo[0:2].committee.length == 4` (only 0-2 are set)
-0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F23101 : `epochInfo[0].committee.length == 4`
-0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F23103 : `epochInfo[1].committee.length == 4`
-0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F23105 : `epochInfo[2].committee.length == 4`
-0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F23107 : `epochInfo[3].committee.length == 0`
-
-`futureEpochInfo[0:2].committee.length` (only 0-2 are set)
-0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F23109 : `futureEpochInfo[0].committee.length == 4`
-0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F2310a : `futureEpochInfo[1].committee.length == 4`
-0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F2310b : `futureEpochInfo[2].committee.length == 4`
-0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F2310c : `futureEpochInfo[3].committee.length == 0`
-
-`validator[1:4].packedSlot` ->
-`validators[1:4].packed(currentStatus.validatorIndex.exitEpoch.activationEpoch.ecdsaPubkey)`
-0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2C : 0x20000010000000000000000000000000000000000000000000000000000BABE
-0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2F : 0x2000002000000000000000000000000000000000000000000000000BEEFBABE
-0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A32 : 0x200000300000000000000000000000000000000000000000000DEADBEEFBABE
-0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A35 : 0x20000040000000000000000000000000000000000000000000000C0FFEEBABE
-
-`validators.length` (includes undefined placeholder `validatorIndex == 0`)
-0xAF33537D204B7C8488A91AD2A40F2C043712BAD394401B7DD7BD4CB801F2310D : `validators.length == 5`
-
-`numGenesisValidators`
-0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f2310E : `numGenesisValidators == 4`
-
-stakeInfo.validatorIndex -> `keccak256(abi.encodePacked(validator, stakeInfo.slot))`
-`keccak256(abi.encodePacked(validator1, stakeInfo.slot))`          : `validatorIndex(1)`
-`keccak256(abi.encodePacked(validator2, stakeInfo.slot))`          : `validatorIndex(2)`
-`keccak256(abi.encodePacked(validator3, stakeInfo.slot))`          : `validatorIndex(3)`
-`keccak256(abi.encodePacked(validator4, stakeInfo.slot))`          : `validatorIndex(4)`
-*/

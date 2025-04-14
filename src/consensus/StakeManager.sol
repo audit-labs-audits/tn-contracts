@@ -20,7 +20,7 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7400;
 
     /// @inheritdoc IStakeManager
-    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable virtual;
+    function stake(bytes calldata blsPubkey, bytes calldata blsSig) external payable virtual;
 
     /// @inheritdoc IStakeManager
     function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external virtual;

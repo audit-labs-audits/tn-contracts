@@ -37,10 +37,6 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         hex"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     bytes public blsSig =
         hex"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890";
-    bytes32 public ed25519Pubkey =
-        bytes32(
-            hex"1234567890123456789012345678901234567890123456789012345678901234"
-        );
 
     uint256 public telMaxSupply = 100_000_000_000 ether;
     uint256 public stakeAmount = 1_000_000 ether;
@@ -52,10 +48,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
 
         // provide an initial validator as the network will launch with at least one validator
         bytes memory validator0BLSKey = _createRandomBlsPubkey(0);
-        bytes32 validator0ED25519Key = keccak256(abi.encode(0));
         validatorInfo0 = IConsensusRegistry.ValidatorInfo(
             validator0BLSKey,
-            validator0ED25519Key,
             validator0,
             uint32(0),
             uint32(0),
@@ -64,7 +58,6 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         );
         validatorInfo1 = IConsensusRegistry.ValidatorInfo(
             _createRandomBlsPubkey(1),
-            keccak256(abi.encode(1)),
             validator1,
             uint32(0),
             uint32(0),
@@ -73,7 +66,6 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         );
         validatorInfo2 = IConsensusRegistry.ValidatorInfo(
             _createRandomBlsPubkey(2),
-            keccak256(abi.encode(2)),
             validator2,
             uint32(0),
             uint32(0),
@@ -82,7 +74,6 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         );
         validatorInfo3 = IConsensusRegistry.ValidatorInfo(
             _createRandomBlsPubkey(3),
-            keccak256(abi.encode(3)),
             validator3,
             uint32(0),
             uint32(0),
@@ -413,8 +404,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         // keccak256(abi.encode(validatorsBaseSlot))
         bytes32 validatorsSlot = 0x8127b3d06d1bc4fc33994fe62c6bb5ac3963bb2d1bcb96f34a40e1bdc5624a27;
 
-        // first 3 slots belong to the undefined validator
-        for (uint256 i; i < 3; ++i) {
+        // first 2 slots belong to the undefined validator
+        for (uint256 i; i < 2; ++i) {
             bytes32 emptySlot = vm.load(
                 address(consensusRegistry),
                 bytes32(uint256(validatorsSlot) + i)
@@ -422,8 +413,8 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
             assertEq(emptySlot, bytes32(0x0));
         }
 
-        // ValidatorInfo occupies 3 base slots (blsPubkeyLen, ed25519Pubkey, packed(ecdsaPubkey, activation, exit, index, currentStatus))
-        bytes32 firstValidatorSlot = 0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A2A;
+        // ValidatorInfo occupies 2 base slots (blsPubkeyLen, packed(ecdsaPubkey, activation, exit, index, currentStatus))
+        bytes32 firstValidatorSlot = 0x8127B3D06D1BC4FC33994FE62C6BB5AC3963BB2D1BCB96F34A40E1BDC5624A29;
 
         // check BLS pubkey
         bytes32 returnedBLSPubkeyLen = vm.load(
@@ -433,61 +424,61 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         /// @notice For byte arrays that store data.length >= 32, the main slot stores `length * 2 + 1` (content is stored as usual in keccak256(slot))
         assertEq(returnedBLSPubkeyLen, bytes32(uint256(0xc1))); // `0xc1 == blsPubkey.length * 2 + 1`
 
-        /// @notice this only checks against `validator0` - must change to test multiple initial validators
-        bytes memory blsKey = validatorInfo0.blsPubkey;
-        // since BLS pubkey is 96bytes, it occupies 3 slots
-        bytes32 blsPubkeyPartA;
-        bytes32 blsPubkeyPartB;
-        bytes32 blsPubkeyPartC;
+        // check bls pubkeys and packed slots
+        for (uint256 i; i < initialValidators.length; ++i) {
+            IConsensusRegistry.ValidatorInfo memory currentValidator = initialValidators[i];
+            
+            bytes memory blsKey = currentValidator.blsPubkey;
+            // since BLS pubkey is 96bytes, it occupies 3 slots
+            bytes32 blsPubkeyPartA;
+            bytes32 blsPubkeyPartB;
+            bytes32 blsPubkeyPartC;
+            assembly {
+                // Load the first 32 bytes (leftmost)
+                blsPubkeyPartA := mload(add(blsKey, 0x20))
+                // Load the second 32 bytes (middle)
+                blsPubkeyPartB := mload(add(blsKey, 0x40))
+                // Load the third 32 bytes (rightmost)
+                blsPubkeyPartC := mload(add(blsKey, 0x60))
+            }
 
-        assembly {
-            // Load the first 32 bytes (leftmost)
-            blsPubkeyPartA := mload(add(blsKey, 0x20))
-            // Load the second 32 bytes (middle)
-            blsPubkeyPartB := mload(add(blsKey, 0x40))
-            // Load the third 32 bytes (rightmost)
-            blsPubkeyPartC := mload(add(blsKey, 0x60))
+            bytes32 currentValidatorSlot = bytes32(uint256(firstValidatorSlot) + i * 2);
+            bytes32 returnedBLSPubkeyA = vm.load(
+                address(consensusRegistry),
+                keccak256(abi.encode(currentValidatorSlot))
+            );
+            assertEq(returnedBLSPubkeyA, blsPubkeyPartA);
+            bytes32 returnedBLSPubkeyB = vm.load(
+                address(consensusRegistry),
+                bytes32(uint256(keccak256(abi.encode(currentValidatorSlot))) + 1)
+            );
+            assertEq(returnedBLSPubkeyB, blsPubkeyPartB);
+            bytes32 returnedBLSPubkeyC = vm.load(
+                address(consensusRegistry),
+                bytes32(uint256(keccak256(abi.encode(currentValidatorSlot))) + 2)
+            );
+            assertEq(returnedBLSPubkeyC, blsPubkeyPartC);
+
+            // check packed slots
+            uint256 currentValidatorIndex = i + 1;
+            bytes32 expectedPackedValues = bytes32(
+                abi.encodePacked(
+                    IConsensusRegistry.ValidatorStatus.Active,
+                    uint24(currentValidatorIndex),
+                    uint32(0),
+                    uint32(0),
+                    currentValidator.ecdsaPubkey
+                )
+            );
+
+            // packed slots are offset by 1
+            bytes32 currentValidatorPackedSlot = bytes32(uint256(currentValidatorSlot) + 1);
+            bytes32 returnedPackedValues = vm.load(
+                address(consensusRegistry),
+                currentValidatorPackedSlot
+            );
+            assertEq(expectedPackedValues, returnedPackedValues);
         }
-
-        bytes32 returnedBLSPubkeyA = vm.load(
-            address(consensusRegistry),
-            keccak256(abi.encode(firstValidatorSlot))
-        );
-        assertEq(returnedBLSPubkeyA, blsPubkeyPartA);
-        bytes32 returnedBLSPubkeyB = vm.load(
-            address(consensusRegistry),
-            bytes32(uint256(keccak256(abi.encode(firstValidatorSlot))) + 1)
-        );
-        assertEq(returnedBLSPubkeyB, blsPubkeyPartB);
-        bytes32 returnedBLSPubkeyC = vm.load(
-            address(consensusRegistry),
-            bytes32(uint256(keccak256(abi.encode(firstValidatorSlot))) + 2)
-        );
-        assertEq(returnedBLSPubkeyC, blsPubkeyPartC);
-
-        // check ED25519 pubkey
-        bytes32 returnedED25519Pubkey = vm.load(
-            address(consensusRegistry),
-            bytes32(uint256(firstValidatorSlot) + 1)
-        );
-        assertEq(returnedED25519Pubkey, validatorInfo0.ed25519Pubkey);
-
-        // check packed slot
-        /// @notice `ValidatorInfo.ecdsaPubkey == validator0` only for `validator0`; this test should be updated if launching with > 1 validator at genesis
-        bytes32 expectedPackedValues = bytes32(
-            abi.encodePacked(
-                IConsensusRegistry.ValidatorStatus.Active,
-                uint24(1),
-                uint32(0),
-                uint32(0),
-                validator0
-            )
-        );
-        bytes32 returnedPackedValues = vm.load(
-            address(consensusRegistry),
-            bytes32(uint256(firstValidatorSlot) + 2)
-        );
-        assertEq(expectedPackedValues, returnedPackedValues);
 
         // (consensusRegistrySlot + 5)
         bytes32 numGenesisValidatorsSlot = 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f2310E;
@@ -511,7 +502,6 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         emit IConsensusRegistry.ValidatorPendingActivation(
             IConsensusRegistry.ValidatorInfo(
                 blsPubkey,
-                ed25519Pubkey,
                 validator4,
                 activationEpoch,
                 uint32(0),
@@ -522,8 +512,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.prank(validator4);
         consensusRegistry.stake{value: stakeAmount}(
             blsPubkey,
-            blsSig,
-            ed25519Pubkey
+            blsSig
         );
 
         // Check validator information
@@ -534,7 +523,6 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         assertEq(validators.length, 1);
         assertEq(validators[0].ecdsaPubkey, validator4);
         assertEq(validators[0].blsPubkey, blsPubkey);
-        assertEq(validators[0].ed25519Pubkey, ed25519Pubkey);
         assertEq(validators[0].activationEpoch, activationEpoch);
         assertEq(validators[0].exitEpoch, uint32(0));
         assertEq(validators[0].validatorIndex, expectedIndex);
@@ -569,7 +557,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
     function testRevert_stake_invalidblsPubkeyLength() public {
         vm.prank(validator4);
         vm.expectRevert(IConsensusRegistry.InvalidBLSPubkey.selector);
-        consensusRegistry.stake{value: stakeAmount}("", blsSig, ed25519Pubkey);
+        consensusRegistry.stake{value: stakeAmount}("", blsSig);
     }
 
     function testRevert_stake_invalidBlsSigLength() public {
@@ -577,8 +565,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.expectRevert(IConsensusRegistry.InvalidProof.selector);
         consensusRegistry.stake{value: stakeAmount}(
             blsPubkey,
-            "",
-            ed25519Pubkey
+            ""
         );
     }
 
@@ -588,7 +575,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.expectRevert(
             abi.encodeWithSelector(IStakeManager.InvalidStakeAmount.selector, 0)
         );
-        consensusRegistry.stake{value: 0}(blsPubkey, blsSig, ed25519Pubkey);
+        consensusRegistry.stake{value: 0}(blsPubkey, blsSig);
     }
 
     function test_exit() public {
@@ -600,8 +587,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.prank(validator4);
         consensusRegistry.stake{value: stakeAmount}(
             blsPubkey,
-            blsSig,
-            ed25519Pubkey
+            blsSig
         );
 
         // Finalize epoch to twice reach activation epoch
@@ -618,7 +604,6 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         emit IConsensusRegistry.ValidatorPendingExit(
             IConsensusRegistry.ValidatorInfo(
                 blsPubkey,
-                ed25519Pubkey,
                 validator4,
                 activationEpoch,
                 exitEpoch,
@@ -670,8 +655,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.prank(validator4);
         consensusRegistry.stake{value: stakeAmount}(
             blsPubkey,
-            blsSig,
-            ed25519Pubkey
+            blsSig
         );
 
         // Finalize epoch to twice reach activation epoch
@@ -698,7 +682,6 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         emit IConsensusRegistry.ValidatorPendingActivation(
             IConsensusRegistry.ValidatorInfo(
                 blsPubkey,
-                ed25519Pubkey,
                 validator4,
                 newActivationEpoch,
                 exitEpoch,
@@ -708,7 +691,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         );
         // Re-stake after exit
         vm.prank(validator4);
-        consensusRegistry.rejoin(blsPubkey, ed25519Pubkey);
+        consensusRegistry.rejoin(blsPubkey);
 
         // Check validator information
         IConsensusRegistry.ValidatorInfo[] memory validators = consensusRegistry
@@ -747,8 +730,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.prank(validator4);
         consensusRegistry.stake{value: stakeAmount}(
             blsPubkey,
-            blsSig,
-            ed25519Pubkey
+            blsSig
         );
 
         // Attempt to exit without being active
@@ -771,8 +753,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.prank(validator4);
         consensusRegistry.stake{value: stakeAmount}(
             blsPubkey,
-            blsSig,
-            ed25519Pubkey
+            blsSig
         );
 
         // Finalize epoch to process stake
@@ -868,8 +849,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.prank(validator4);
         consensusRegistry.stake{value: stakeAmount}(
             blsPubkey,
-            blsSig,
-            ed25519Pubkey
+            blsSig
         );
 
         // Attempt to unstake without exiting
@@ -908,8 +888,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.prank(validator4);
         consensusRegistry.stake{value: stakeAmount}(
             blsPubkey,
-            blsSig,
-            ed25519Pubkey
+            blsSig
         );
 
         // Finalize epoch twice to reach validator4 activationEpoch
@@ -976,8 +955,7 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         vm.prank(validator4);
         consensusRegistry.stake{value: stakeAmount}(
             blsPubkey,
-            new bytes(96),
-            ed25519Pubkey
+            new bytes(96)
         );
 
         // Fast forward epochs to reach activation epoch

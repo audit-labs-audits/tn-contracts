@@ -11,7 +11,6 @@ import { SystemCallable } from "./SystemCallable.sol";
 
 // TODO: amend stake()'s activation delay from being automatically set as epoch+2
 // to require a separate self activation tx, using existing exit->rejoin functionality
-// TODO: remove ed25519 keys from onchain storage
 
 /**
  * @title ConsensusRegistry
@@ -144,8 +143,7 @@ contract ConsensusRegistry is
     /// @inheritdoc StakeManager
     function stake(
         bytes calldata blsPubkey,
-        bytes calldata blsSig,
-        bytes32 ed25519Pubkey
+        bytes calldata blsSig
     )
         external
         payable
@@ -168,7 +166,6 @@ contract ConsensusRegistry is
         uint32 activationEpoch = $.currentEpoch + 2;
         ValidatorInfo memory newValidator = ValidatorInfo(
             blsPubkey,
-            ed25519Pubkey,
             msg.sender,
             activationEpoch,
             uint32(0),
@@ -222,7 +219,7 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc IConsensusRegistry
-    function rejoin(bytes calldata blsPubkey, bytes32 ed25519Pubkey) external override whenNotPaused {
+    function rejoin(bytes calldata blsPubkey) external override whenNotPaused {
         // require caller is known by this registry
         uint24 validatorIndex = _checkKnownValidatorIndex(_stakeManagerStorage(), msg.sender);
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
@@ -242,9 +239,6 @@ contract ConsensusRegistry is
         // update keys if provided
         if (blsPubkey.length != 0) {
             validator.blsPubkey = blsPubkey;
-        }
-        if (ed25519Pubkey.length != 0) {
-            validator.ed25519Pubkey = ed25519Pubkey;
         }
 
         emit ValidatorPendingActivation(validator);
@@ -568,7 +562,7 @@ contract ConsensusRegistry is
                 // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
                 $C.validators.push(
                     ValidatorInfo(
-                        "", bytes32(0x0), address(0x0), uint32(0), uint32(0), uint24(0), ValidatorStatus.Undefined
+                        "", address(0x0), uint32(0), uint32(0), uint24(0), ValidatorStatus.Undefined
                     )
                 );
 
@@ -581,9 +575,6 @@ contract ConsensusRegistry is
             // assert `validatorIndex` struct members match expected value
             if (currentValidator.blsPubkey.length != 96) {
                 revert InvalidBLSPubkey();
-            }
-            if (currentValidator.ed25519Pubkey == bytes32(0x0)) {
-                revert InvalidEd25519Pubkey();
             }
             if (currentValidator.ecdsaPubkey == address(0x0)) {
                 revert InvalidECDSAPubkey();
