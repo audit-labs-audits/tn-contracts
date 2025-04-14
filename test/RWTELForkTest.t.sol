@@ -343,10 +343,8 @@ contract RWTELForkTest is Test, ITSTestHelper {
         bytes32 expectedTELTokenId = sepoliaITF.linkedTokenId(linker, salts.registerCustomTokenSalt);
         assertEq(expectedTELTokenId, sepoliaITS.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
 
-        // give gas funds to user and pre-approve ITS to spend its TEL
+        // give gas funds to user
         vm.deal(user, gasValue);
-        vm.prank(user);
-        IERC20(originTEL).approve(address(sepoliaITS), interchainAmount);
         originAddress = address(sepoliaITS);
         payload = abi.encode(
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
@@ -359,7 +357,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
         wrappedPayload = abi.encode(MESSAGE_TYPE_SEND_TO_HUB, destinationChain, payload);
 
         vm.startPrank(user);
-        // user must have tokens and approve gateway
+        // user must have tokens and approve ITS to spend its TEL
         IERC20(originTEL).approve(address(sepoliaITS), interchainAmount);
 
         uint256 srcBalBefore = IERC20(originTEL).balanceOf(user);

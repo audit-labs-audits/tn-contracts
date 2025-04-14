@@ -116,7 +116,7 @@ abstract contract ITSConfig is ITSUtils {
         originChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
         symbol_ = "rwTEL";
         name_ = "Recoverable Wrapped Telcoin";
-        recoverableWindow_ = 604_800;
+        recoverableWindow_ = 60; // 1 minute for devnet
         governanceAddress_ = admin;
         maxToClean = uint16(300);
         baseERC20_ = wtel; 

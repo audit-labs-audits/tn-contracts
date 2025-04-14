@@ -124,7 +124,7 @@ type="EvmVerifierSetVerifier"
 
 # Telcoin-Network EvmMsgVerifier handler declaration
 [[handlers]]
-chain_name="telcoin-network"
+chain_name="telcoin-devnet"
 # URL of JSON-RPC endpoint for external chain
 chain_rpc_url="https://adiri.tel"
 # verifier contract address
@@ -136,7 +136,7 @@ chain_finalization="RPCFinalizedBlock"
 
 # Telcoin-Network EvmVerifierSetVerifier handler declaration
 [[handlers]]
-chain_name="telcoin-network"
+chain_name="telcoin-devnet"
 # URL of JSON-RPC endpoint for external chain
 chain_rpc_url="https://adiri.tel"
 # verifier contract address
