@@ -137,28 +137,12 @@ await bridgeERC20();
 
 All of Axelar's canonical deployments are listed [here](https://github.com/axelarnetwork/axelar-contract-deployments/tree/main/axelar-chains-config/info)
 
-### EVM Network Deployments
-
-Please note that the Telcoin-Network deployments are being iterated on and liable to change, leaving their entries in the following table outdated. For canonical deployments on TN which are guaranteed to be up to date, refer to `deployments/deployments.json`
-
-| Name          | Network         | Address                                    |
-| ------------- | --------------- | ------------------------------------------ |
-| Gateway Proxy | Sepolia         | 0xe432150cce91c13a887f7D836923d5597adD8E31 |
-| Gateway Impl  | Sepolia         | 0xc1712652326E87D193Ac11910934085FF45C2F48 |
-| Gateway Proxy | Ethereum        | 0x4F4495243837681061C4743b74B3eEdf548D56A5 |
-| Gateway Impl  | Ethereum        | 0x99B5FA03a5ea4315725c43346e55a6A6fbd94098 |
-| Gateway Proxy | Polygon         | 0x6f015F16De9fC8791b234eF68D486d2bF203FBA8 |
-| Gateway Impl  | Polygon         | 0x99B5FA03a5ea4315725c43346e55a6A6fbd94098 |
-| Gateway Proxy | Telcoin-Network | 0xbf02955dc36e54fe0274159dbac8a7b79b4e4dc3 |
-| Gateway Impl  | Telcoin-Network | 0xd118b3966488e29008e7355fc9090c5bca9fdef8 |
-| RWTEL (exec)  | Telcoin-Network | 0xca568d148d23a4ca9b77bef783dca0d2f5962c12 |
-
 ### Amplifier-Devnet Deployments
 
 The Amplifier-Devnet AVM contract deployment addresses for Telcoin-Network use the pre-existing implementations and are as follows:
 
 | Name             | Network          | Address                                                           | CodeId |
 | ---------------- | ---------------- | ----------------------------------------------------------------- | ------ |
-| Voting Verifier  | Amplifier-Devnet | axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxuvtxx | 626    |
-| Internal Gateway | Amplifier-Devnet | axelar16zy7kl6nv8zk0racw6nsm6n0yl7h02lz4s9zz4lt8cfl0vxhfp8sqmtqcr | 616    |
-| Multisig Prover  | Amplifier-Devnet | axelar162t7mxkcnu7psw7qxlsd4cc5u6ywm399h8xg6qhgseg8nq6qhf6s7q8m0e | 618    |
+| Voting Verifier  | Amplifier-Devnet | axelar1kdzmvkjtvu8cct0gzzqdj8jyd6yvlcswauu73ccmvcl0w429xcxqdqst4p | 626    |
+| Internal Gateway | Amplifier-Devnet | axelar1ecyaz6vr4hj6qwnza8vh0xuer04jmwxnd4vpewtuju3404hvwv7sdj30zz | 616    |
+| Multisig Prover  | Amplifier-Devnet | axelar1e3fr74wrnjfazhqzhq6aehcf8y3gjut9kgac2ufndaqpz32lq5sskln40l | 618    |

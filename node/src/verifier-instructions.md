@@ -128,7 +128,7 @@ chain_name="telcoin-network"
 # URL of JSON-RPC endpoint for external chain
 chain_rpc_url="https://adiri.tel"
 # verifier contract address
-cosmwasm_contract="axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxuvtxx"
+cosmwasm_contract="axelar1kdzmvkjtvu8cct0gzzqdj8jyd6yvlcswauu73ccmvcl0w429xcxqdqst4p"
 # handler type; TN is EVM
 type="EvmMsgVerifier"
 # TN supports the finalized tag via RPC API; use RPCFinalizedBlock
@@ -140,7 +140,7 @@ chain_name="telcoin-network"
 # URL of JSON-RPC endpoint for external chain
 chain_rpc_url="https://adiri.tel"
 # verifier contract address
-cosmwasm_contract="axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxuvtxx"
+cosmwasm_contract="axelar1kdzmvkjtvu8cct0gzzqdj8jyd6yvlcswauu73ccmvcl0w429xcxqdqst4p"
 # handler type; TN is EVM
 type="EvmVerifierSetVerifier"
 ```
