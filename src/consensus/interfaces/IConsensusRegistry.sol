@@ -25,7 +25,7 @@ interface IConsensusRegistry {
     struct ValidatorInfo {
         bytes blsPubkey; // BLS public key is 48 bytes long; BLS proofs are 96 bytes
         address ecdsaPubkey;
-        uint32 activationEpoch; // uint32 provides ~22000yr for 160s epochs (5s rounds)
+        uint32 activationEpoch; // uint32 provides 3.7e14 years for 24hr epochs
         uint32 exitEpoch;
         uint24 validatorIndex;
         ValidatorStatus currentStatus;
@@ -66,14 +66,14 @@ interface IConsensusRegistry {
     event RewardsClaimed(address claimant, uint256 rewards);
 
     enum ValidatorStatus {
-        Undefined,
+        Any,
         PendingActivation,
         Active,
         PendingExit,
         Exited
     }
 
-    /// @notice Voting Validator Committee changes once every epoch (== 32 rounds)
+    /// @notice Voting Validator Committee changes once every epoch
     /// @notice Can only be called in a `syscall` context, at the end of an epoch
     /// @dev Accepts the committee of voting validators for 2 epochs in the future
     /// @param newCommittee The future validator committee for 2 epochs after
@@ -84,11 +84,6 @@ interface IConsensusRegistry {
     /// @notice Reverts if the caller would cause the network to lose BFT by exiting
     /// @notice Caller must be a validator with `ValidatorStatus.Active` status
     function exit() external;
-
-    /// @dev Issues a rejoin request for an exited validator to reactivate
-    /// @notice Caller must be a validator with `ValidatorStatus.Exited` status
-    /// @param blsPubkey Callers may provide a new BLS key if they wish to update it
-    function rejoin(bytes calldata blsPubkey) external;
 
     /// @dev Returns the current epoch
     function getCurrentEpoch() external view returns (uint32);

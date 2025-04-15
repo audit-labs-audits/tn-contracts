@@ -9,9 +9,6 @@ import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 
-// TODO: amend stake()'s activation delay from being automatically set as epoch+2
-// to require a separate self activation tx, using existing exit->rejoin functionality
-
 /**
  * @title ConsensusRegistry
  * @author Telcoin Association
@@ -33,9 +30,8 @@ contract ConsensusRegistry is
     bytes32 internal constant ConsensusRegistryStorageSlot =
         0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100;
 
-    /// @dev Validators are permitted to exit and rejoin at will (ie for maintenance),
-    /// but those that `unstake()` are barred from rejoining by setting their validator
-    /// index to `UNSTAKED`, requiring them to stake and enter again with a new index
+    /// @dev Validators that exit and unstake are permanently ejected by setting their validator
+    /// index to `UNSTAKED`, requiring them to stake and reactivate with a new index
     uint24 internal constant UNSTAKED = type(uint24).max;
 
     /**
@@ -47,6 +43,10 @@ contract ConsensusRegistry is
     /// @inheritdoc IConsensusRegistry
     function concludeEpoch(address[] calldata newCommittee) external override onlySystemCall {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+
+        // todo: pendingExit validator logic:
+        // if pendingExit validator is not in current or future committees or `newCommittee`,
+        // it means protocol has decided you are good to be marked as `Exited`; eject them
 
         // update epoch and ring buffer info
         uint32 newEpoch = _updateEpochInfo($, newCommittee);
@@ -75,7 +75,7 @@ contract ConsensusRegistry is
             // only genesis validators can be active with an `activationEpoch == 0`
             if (index > $.numGenesisValidators) {
                 if (currentValidator.activationEpoch == 0) {
-                    revert InvalidStatus(ValidatorStatus.Undefined);
+                    revert InvalidStatus(ValidatorStatus.Any);
                 }
             }
 
@@ -218,32 +218,6 @@ contract ConsensusRegistry is
         emit ValidatorPendingExit(validator);
     }
 
-    /// @inheritdoc IConsensusRegistry
-    function rejoin(bytes calldata blsPubkey) external override whenNotPaused {
-        // require caller is known by this registry
-        uint24 validatorIndex = _checkKnownValidatorIndex(_stakeManagerStorage(), msg.sender);
-        // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
-        _checkConsensusNFTOwnership(msg.sender, validatorIndex);
-
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-
-        // require caller status is `Exited`
-        _checkValidatorStatus($, validatorIndex, ValidatorStatus.Exited);
-
-        // enter validator in `PendingActivation` queue (will be activated in 1.x epochs)
-        ValidatorInfo storage validator = $.validators[validatorIndex];
-        uint32 activationEpoch = $.currentEpoch + 2;
-        validator.activationEpoch = activationEpoch;
-        validator.currentStatus = ValidatorStatus.PendingActivation;
-
-        // update keys if provided
-        if (blsPubkey.length != 0) {
-            validator.blsPubkey = blsPubkey;
-        }
-
-        emit ValidatorPendingActivation(validator);
-    }
-
     /// @inheritdoc StakeManager
     function unstake() external override whenNotPaused {
         StakeManagerStorage storage $S = _stakeManagerStorage();
@@ -252,16 +226,14 @@ contract ConsensusRegistry is
         // require caller owns the ConsensusNFT where `validatorIndex == tokenId`
         _checkConsensusNFTOwnership(msg.sender, validatorIndex);
 
-        // burn the ConsensusNFT; can be reversed if caller rejoins as validator
-        _burn(validatorIndex);
-
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
-
         // require caller status is `Exited`
         _checkValidatorStatus($C, validatorIndex, ValidatorStatus.Exited);
-        // set status to `Undefined` and index to `UNSTAKED` to prevent rejoining
+
+        // burn the ConsensusNFT, set status to `Any` and indexes to `UNSTAKED`
+        _burn(validatorIndex);
         ValidatorInfo storage callingValidator = $C.validators[validatorIndex];
-        callingValidator.currentStatus = ValidatorStatus.Undefined;
+        callingValidator.currentStatus = ValidatorStatus.Any;
         callingValidator.validatorIndex = UNSTAKED;
         $S.stakeInfo[msg.sender].validatorIndex = UNSTAKED;
 
@@ -467,8 +439,8 @@ contract ConsensusRegistry is
     {
         ValidatorInfo[] memory allValidators = $.validators;
 
-        if (status == ValidatorStatus.Undefined) {
-            // provide undefined status `== uint8(0)` to get full validator array (of any status)
+        if (status == ValidatorStatus.Any) {
+            // provide Any status `== uint8(0)` to get full validator array (of any status)
             return allValidators;
         } else {
             // identify number of validators matching provided `status`
@@ -562,7 +534,7 @@ contract ConsensusRegistry is
                 // push a null ValidatorInfo to the 0th index in `validators` as 0 should be an invalid `validatorIndex`
                 $C.validators.push(
                     ValidatorInfo(
-                        "", address(0x0), uint32(0), uint32(0), uint24(0), ValidatorStatus.Undefined
+                        "", address(0x0), uint32(0), uint32(0), uint24(0), ValidatorStatus.Any
                     )
                 );
 

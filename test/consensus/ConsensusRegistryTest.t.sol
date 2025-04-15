@@ -646,66 +646,6 @@ contract ConsensusRegistryTest is KeyTestUtils, Test {
         );
     }
 
-    function test_exit_rejoin() public {
-        vm.prank(owner);
-        uint256 tokenId = 5;
-        consensusRegistry.mint(validator4, tokenId);
-
-        // First stake
-        vm.prank(validator4);
-        consensusRegistry.stake{value: stakeAmount}(
-            blsPubkey,
-            blsSig
-        );
-
-        // Finalize epoch to twice reach activation epoch
-        vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](4));
-        consensusRegistry.concludeEpoch(new address[](4));
-        vm.stopPrank();
-
-        // Exit
-        vm.prank(validator4);
-        consensusRegistry.exit();
-
-        // Finalize epoch twice to reach exit epoch
-        vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](4));
-        consensusRegistry.concludeEpoch(new address[](4));
-        vm.stopPrank();
-
-        // Check event emission
-        uint32 newActivationEpoch = consensusRegistry.getCurrentEpoch() + 2;
-        uint32 exitEpoch = uint32(4);
-        uint24 expectedIndex = 5;
-        vm.expectEmit(true, true, true, true);
-        emit IConsensusRegistry.ValidatorPendingActivation(
-            IConsensusRegistry.ValidatorInfo(
-                blsPubkey,
-                validator4,
-                newActivationEpoch,
-                exitEpoch,
-                expectedIndex,
-                IConsensusRegistry.ValidatorStatus.PendingActivation
-            )
-        );
-        // Re-stake after exit
-        vm.prank(validator4);
-        consensusRegistry.rejoin(blsPubkey);
-
-        // Check validator information
-        IConsensusRegistry.ValidatorInfo[] memory validators = consensusRegistry
-            .getValidators(
-                IConsensusRegistry.ValidatorStatus.PendingActivation
-            );
-        assertEq(validators.length, 1);
-        assertEq(validators[0].ecdsaPubkey, validator4);
-        assertEq(
-            uint8(validators[0].currentStatus),
-            uint8(IConsensusRegistry.ValidatorStatus.PendingActivation)
-        );
-    }
-
     // Test for exit by a non-validator
     function testRevert_exit_nonValidator() public {
         address nonValidator = address(0x3);
