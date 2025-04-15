@@ -33,11 +33,7 @@ contract TNTokenHandler is TokenHandler {
             tokenManagerType == uint256(TokenManagerType.MINT_BURN) ||
             tokenManagerType == uint256(TokenManagerType.MINT_BURN_FROM)
         ) {
-            if (tokenId == telInterchainTokenId) {
-                amount = _mintTEL(TNTokenManager(tokenManager), tokenAddress, to, amount);
-            } else {
-                _mintToken(ITokenManager(tokenManager), tokenAddress, to, amount);
-            }
+            amount = _handleMintToken(tokenId, tokenManager, tokenAddress, to, amount);
         } else if (tokenManagerType == uint256(TokenManagerType.LOCK_UNLOCK)) {
             _transferTokenFrom(tokenAddress, tokenManager, to, amount);
         } else if (tokenManagerType == uint256(TokenManagerType.LOCK_UNLOCK_FEE)) {
@@ -69,11 +65,7 @@ contract TNTokenHandler is TokenHandler {
         if (
             tokenManagerType == uint256(TokenManagerType.NATIVE_INTERCHAIN_TOKEN) || tokenManagerType == uint256(TokenManagerType.MINT_BURN)
         ) {
-            if (tokenId == telInterchainTokenId) {
-                amount = _burnTEL(TNTokenManager(tokenManager), tokenAddress, from, amount);
-            } else {
-                _burnToken(ITokenManager(tokenManager), tokenAddress, from, amount);
-            }
+            amount = _handleBurnToken(tokenId, tokenManager, tokenAddress, from, amount);
         } else if (tokenManagerType == uint256(TokenManagerType.MINT_BURN_FROM)) {
             _burnTokenFrom(tokenAddress, from, amount);
         } else if (tokenManagerType == uint256(TokenManagerType.LOCK_UNLOCK)) {
@@ -90,11 +82,21 @@ contract TNTokenHandler is TokenHandler {
         return amount;
     }
 
-    function _mintTEL(TNTokenManager telTokenManager, address tokenAddress_, address to, uint256 amount) internal returns (uint256) {
-        return telTokenManager.mintTokenWithReturn(tokenAddress_, to, amount);
+    function _handleMintToken(bytes32 tokenId, address tokenManager, address tokenAddress, address to, uint256 amount) internal returns (uint256) {
+        if (tokenId == telInterchainTokenId) {
+            return TNTokenManager(tokenManager).mintTokenWithReturn(tokenAddress, to, amount);
+        } else {
+            _mintToken(ITokenManager(tokenManager), tokenAddress, to, amount);
+            return amount;
+        }
     }
 
-    function _burnTEL(TNTokenManager telTokenManager, address tokenAddress_, address from, uint256 amount) internal returns (uint256) {
-        return telTokenManager.burnTokenWithReturn(tokenAddress_, from, amount);
+    function _handleBurnToken(bytes32 tokenId, address tokenManager, address tokenAddress, address from, uint256 amount) internal returns (uint256) {
+        if (tokenId == telInterchainTokenId) {
+            return TNTokenManager(tokenManager).burnTokenWithReturn(tokenAddress, from, amount);
+        } else {
+            _burnToken(ITokenManager(tokenManager), tokenAddress, from, amount);
+            return amount;
+        }
     }
 }
