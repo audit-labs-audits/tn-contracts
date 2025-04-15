@@ -14,6 +14,7 @@ import { InterchainTokenStandard } from
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { RecordsDeque, RecordsDequeLib, Record } from "recoverable-wrapper/contracts/util/RecordUtil.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { SafeCast } from "@openzeppelin-contracts/utils/math/SafeCast.sol";
 import { ERC20 } from "node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { WETH } from "solady/tokens/WETH.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
@@ -148,7 +149,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
         _clean(account);
 
         // 10e12 TEL supply can never overflow w/out inflating 27 orders of magnitude
-        uint128 bytes16Amount = uint128(amount);
+        uint128 bytes16Amount = SafeCast.toUint128(amount);
         _unsettledRecords[account].enqueue(bytes16Amount, block.timestamp + recoverableWindow);
 
         _totalSupply += amount;
@@ -221,7 +222,7 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
 
         // do not revert bridging if forwarding truncated unbridgeable amount fails
         (bool r,) = governanceAddress.call{ value: remainder }("");
-        r;
+        if (!r) emit RemainderTransferFailed(from, remainder);
 
         return interchainAmount;
     }

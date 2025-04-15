@@ -301,7 +301,6 @@ abstract contract ITSUtils is Create3Utils {
         wtel = WTEL(payable(create3Deploy(create3, type(WTEL).creationCode, '', salts.wtelSalt)));
     }
 
-    /// TODO: convert to singleton for mainnet
     function instantiateRWTELImpl(address its_) public virtual returns (RWTEL impl) {
         bytes memory rwTELImplConstructorArgs = abi.encode(
             originTEL,
@@ -321,7 +320,6 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    /// TODO: convert to singleton for mainnet
     function instantiateRWTEL(address impl) public virtual returns (RWTEL proxy) {
         bytes memory rwTELConstructorArgs = abi.encode(impl, "");
         proxy = RWTEL(

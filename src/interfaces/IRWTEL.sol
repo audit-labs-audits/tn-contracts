@@ -7,9 +7,10 @@ import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/Recoverabl
 import { Record } from "recoverable-wrapper/contracts/util/RecordUtil.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
-import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 
 interface IRWTEL {
+    event RemainderTransferFailed(address indexed to, uint256 amount);
+
     error OnlyManager(address authority);
     error OnlyBaseToken(address authority);
     error RewardDistributionFailure(address validator);
