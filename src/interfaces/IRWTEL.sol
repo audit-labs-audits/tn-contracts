@@ -76,7 +76,7 @@ interface IRWTEL {
     function isMinter(address addr) external view returns (bool);
 
     /// @notice TN equivalent of `IERC20MintableBurnable::burn()` handling cross chain `ERC20::decimals` and native TEL
-    /// @dev Mints native TEL to , returning the converted native decimal amount
+    /// @dev Mints native TEL to `to`, returning the converted native decimal amount
     /// @return _ The native TEL amount converted to 18 decimals from the 2 of ERC20 TEL on remote chains
     function mint(address to, uint256 originAmount) external returns (uint256);
 

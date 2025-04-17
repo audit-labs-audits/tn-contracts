@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import { Test, console2 } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IRecoverableWrapper } from "recoverable-wrapper/contracts/interfaces/IRecoverableWrapper.sol";
+import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { WTEL } from "../src/WTEL.sol";
 import { RWTEL } from "../src/RWTEL.sol";
 import { IRWTEL } from "../src/interfaces/IRWTEL.sol";
@@ -196,5 +197,88 @@ contract RWTELTest is Test, ITSTestHelper {
         rwTEL.doubleWrap{ value: amount }();
         vm.expectRevert();
         rwTEL.transfer(address(this), amount);
+    }
+
+    function test_pause() public {
+        vm.prank(governanceAddress_);
+        rwTEL.pause();
+        assertTrue(rwTEL.paused());
+
+        uint256 zeroPK = uint256(keccak256("zero"));
+        user = vm.addr(zeroPK);
+        bytes memory expectedErr = "Pausable: paused";
+        uint256 amt = 1;
+
+        vm.startPrank(rwTEL.tokenManagerAddress());
+        vm.expectRevert(expectedErr);
+        rwTEL.mint(user, amt);
+        vm.expectRevert(expectedErr);
+        rwTEL.burn(user, amt);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        vm.deal(user, amt * 2);
+        wTEL.approve(address(rwTEL), amt);
+        wTEL.deposit{ value: amt }();
+
+        uint32 deadline = uint32(block.timestamp + 1);
+        bytes32 permitTypehash = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+        bytes32 permitDigest = keccak256(
+            abi.encodePacked(
+                hex"1901",
+                wTEL.DOMAIN_SEPARATOR(),
+                keccak256(abi.encode(permitTypehash, user, address(rwTEL), amt, wTEL.nonces(user), deadline))
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(zeroPK, permitDigest);
+        vm.expectRevert(expectedErr);
+        rwTEL.permitWrap(user, amt, deadline, v, r, s);
+
+        vm.expectRevert(expectedErr);
+        rwTEL.wrap(amt);
+        vm.expectRevert(expectedErr);
+        rwTEL.doubleWrap{ value: amt }();
+        vm.expectRevert(expectedErr);
+        rwTEL.unwrap(amt);
+        vm.expectRevert(expectedErr);
+        rwTEL.unwrapTo(admin, amt);
+        vm.stopPrank();
+    }
+
+    function testRevert_pause_governanceOnly() public {
+        bytes memory expectedErr =
+            abi.encodeWithSelector(RecoverableWrapper.CallerMustBeGovernance.selector, address(this));
+        vm.expectRevert(expectedErr);
+        rwTEL.pause();
+
+        assertFalse(rwTEL.paused());
+    }
+
+    function test_unpause() public {
+        vm.startPrank(governanceAddress_);
+        rwTEL.pause();
+        assertTrue(rwTEL.paused());
+
+        rwTEL.unpause();
+        vm.stopPrank();
+        assertFalse(rwTEL.paused());
+
+        // wrapping re-enabled
+        uint256 amt = 1;
+        vm.deal(user, amt);
+        vm.prank(user);
+        rwTEL.doubleWrap{ value: amt }();
+    }
+
+    function testRevert_unpause_governanceOnly() public {
+        vm.prank(governanceAddress_);
+        rwTEL.pause();
+
+        bytes memory expectedErr =
+            abi.encodeWithSelector(RecoverableWrapper.CallerMustBeGovernance.selector, address(this));
+        vm.expectRevert(expectedErr);
+        rwTEL.unpause();
+
+        assertTrue(rwTEL.paused());
     }
 }
