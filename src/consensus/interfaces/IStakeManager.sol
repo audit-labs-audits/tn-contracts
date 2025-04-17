@@ -9,9 +9,10 @@ pragma solidity 0.8.26;
  * @notice This interface declares the ConsensusRegistry's staking API and data structures
  * @dev Implemented within StakeManager.sol, which is inherited by the ConsensusRegistry
  */
+
 struct StakeInfo {
-    uint24 validatorIndex;
-    uint240 stakingRewards;
+    uint24 tokenId;
+    uint232 stakingRewards;
 }
 
 interface IStakeManager {
@@ -30,7 +31,7 @@ interface IStakeManager {
 
     /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
     /// @notice Caller must already have been issued a `ConsensusNFT` by Telcoin governance
-    function stake(bytes calldata blsPubkey, bytes calldata blsSig) external payable;
+    function stake(bytes calldata blsPubkey) external payable;
 
     /// @dev Increments the claimable rewards for each validator
     /// @notice May only be called by the client via system call, at the start of a new epoch

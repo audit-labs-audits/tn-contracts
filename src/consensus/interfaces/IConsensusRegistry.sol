@@ -17,9 +17,10 @@ interface IConsensusRegistry {
         uint32 currentEpoch;
         uint8 epochPointer;
         EpochInfo[4] epochInfo;
-        FutureEpochInfo[4] futureEpochInfo;
+        EpochInfo[4] futureEpochInfo;
         ValidatorInfo[] validators;
         uint256 numGenesisValidators;
+        mapping(uint24 => uint24) tokenIdToIndex;
     }
 
     struct ValidatorInfo {
@@ -27,18 +28,13 @@ interface IConsensusRegistry {
         address ecdsaPubkey;
         uint32 activationEpoch; // uint32 provides 3.7e14 years for 24hr epochs
         uint32 exitEpoch;
-        uint24 validatorIndex;
+        uint24 tokenId;
         ValidatorStatus currentStatus;
     }
 
     struct EpochInfo {
         address[] committee;
         uint64 blockHeight;
-    }
-
-    /// @dev Used to populate a separate ring buffer to prevent overflow conditions when writing future state
-    struct FutureEpochInfo {
-        address[] committee;
     }
 
     error LowLevelCallFailure();
@@ -80,10 +76,14 @@ interface IConsensusRegistry {
     /// the current one is finalized; ie `$.currentEpoch + 3` (this func increments `currentEpoch`)
     function concludeEpoch(address[] calldata newCommittee) external;
 
-    /// @dev Issues an exit request for a validator to be ejected from the active validator set
+    /// @dev Activates the calling validator, setting the next epoch as activation epoch
+    /// @notice Caller must own the ConsensusNFT for their index and be pending activation status
+    function activate() external;
+
+    /// @dev Issues an exit request for a validator to be retired from the active validator set
     /// @notice Reverts if the caller would cause the network to lose BFT by exiting
     /// @notice Caller must be a validator with `ValidatorStatus.Active` status
-    function exit() external;
+    function beginExit() external;
 
     /// @dev Returns the current epoch
     function getCurrentEpoch() external view returns (uint32);
@@ -101,7 +101,7 @@ interface IConsensusRegistry {
 
     /// @dev Fetches the `validatorIndex` for a given validator address
     /// @notice A returned `validatorIndex` value of `0` is invalid and indicates
-    /// that the given address is not a known validator's ECDSA externalkey
+    /// that the given address is not a known validator's ECDSA pubkey
     function getValidatorIndex(
         address ecdsaPubkey
     ) external view returns (uint24 validatorIndex);

@@ -19,8 +19,12 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     bytes32 internal constant StakeManagerStorageSlot =
         0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7400;
 
+    /// @dev Validators that unstake are permanently ejected by setting their index to `UNSTAKED`
+    /// @notice Rejoining requires re-onboarding with new validator address, tokenId, stake, & index
+    uint24 internal constant UNSTAKED = type(uint24).max;
+
     /// @inheritdoc IStakeManager
-    function stake(bytes calldata blsPubkey, bytes calldata blsSig) external payable virtual;
+    function stake(bytes calldata blsPubkey) external payable virtual;
 
     /// @inheritdoc IStakeManager
     function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external virtual;
@@ -102,25 +106,21 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         IRWTEL($.rwTEL).distributeStakeReward(msg.sender, rewards);
     }
 
-    function _unstake() internal virtual returns (uint256 stakeAndRewards) {
+    //todo: handle validatorAddr, 
+    function _unstake(address validatorAddr) internal virtual returns (uint256 stakeAndRewards) {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
-        // wipe ledger and send rewards, then send stake
-        uint256 rewards = uint256($.stakeInfo[msg.sender].stakingRewards);
-        $.stakeInfo[msg.sender].stakingRewards = 0;
-        IRWTEL($.rwTEL).distributeStakeReward(msg.sender, rewards);
+        // wipe existing stakeInfo and send stake along with reward through RWTEL
+        StakeInfo storage stakeInfo = $.stakeInfo[msg.sender];
+        uint256 rewards = uint256(stakeInfo.stakingRewards);
+        stakeInfo.stakingRewards = 0;
+        stakeInfo.tokenId = UNSTAKED;
 
-        uint256 stakeAmount = $.stakeAmount;
-        (bool r,) = msg.sender.call{ value: stakeAmount }("");
-        require(r);
+        // forward the stake amount through RWTEL module to caller
+        uint256 stakeAmount = $.stakeAmount; //todo handle configurable stake amt
+        IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmount }(msg.sender, rewards);
 
         return stakeAmount + rewards;
-    }
-
-    /// @notice Reverts if `validatorIndex` is not already minted as a `tokenId`
-    /// and is not owned by the given `caller` address
-    function _checkConsensusNFTOwnership(address caller, uint256 validatorIndex) internal virtual {
-        if (_ownerOf(validatorIndex) != caller) revert RequiresConsensusNFT();
     }
 
     function _checkRewardsExceedMinWithdrawAmount(
@@ -150,6 +150,10 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         returns (uint240 claimableRewards)
     {
         return $.stakeInfo[ecdsaPubkey].stakingRewards;
+    }
+
+    function _getTokenId(StakeManagerStorage storage $, address ecdsaPubkey) internal view returns (uint24) {
+        return $.stakeInfo[ecdsaPubkey].tokenId;
     }
 
     function _stakeManagerStorage() internal pure virtual returns (StakeManagerStorage storage $) {

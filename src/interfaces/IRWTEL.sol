@@ -18,8 +18,9 @@ interface IRWTEL {
     error BurnFailed(address from, uint256 amount);
     error InvalidAmount(uint256 nativeAmount);
 
-    /// @notice May only be called by the StakeManager as part of its `claimStakeRewards()` flow
-    function distributeStakeReward(address validator, uint256 rewardAmount) external;
+    /// @notice May only be called by StakeManager as part of `claimStakeRewards()` or `_unstake()`
+    /// @dev Sends `rewardAmount`, and if additionally provided as `msg.value`, forwards stake amount
+    function distributeStakeReward(address validator, uint256 rewardAmount) external payable;
 
     /// @notice Convenience function for users to wrap native TEL directly to rwTEL in one tx
     /// @dev RWTEL performs WETH9 deposit on behalf of caller so they need not hold wTEL or make approval

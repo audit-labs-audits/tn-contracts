@@ -99,8 +99,9 @@ contract RWTEL is IRWTEL, RecoverableWrapper, InterchainTokenStandard, UUPSUpgra
      */
 
     /// @inheritdoc IRWTEL
-    function distributeStakeReward(address validator, uint256 rewardAmount) external virtual onlyStakeManager {
-        (bool res,) = validator.call{ value: rewardAmount }("");
+    function distributeStakeReward(address validator, uint256 rewardAmount) external payable virtual onlyStakeManager {
+        uint256 totalAmount = rewardAmount + msg.value;
+        (bool res,) = validator.call{ value: totalAmount }("");
         if (!res) revert RewardDistributionFailure(validator);
     }
 
