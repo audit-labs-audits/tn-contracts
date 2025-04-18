@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
-import {StakeInfo} from "./IStakeManager.sol";
+import { StakeInfo } from "./IStakeManager.sol";
 
 /**
  * @title ConsensusRegistry Interface
@@ -41,10 +41,7 @@ interface IConsensusRegistry {
     error InvalidECDSAPubkey();
     error InvalidProof();
     error InitializerArityMismatch();
-    error InvalidCommitteeSize(
-        uint256 minCommitteeSize,
-        uint256 providedCommitteeSize
-    );
+    error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
     error CommitteeRequirement(address ecdsaPubkey);
     error NotValidator(address ecdsaPubkey);
     error AlreadyDefined(address ecdsaPubkey);
@@ -64,6 +61,7 @@ interface IConsensusRegistry {
         None,
         Governance,
         Signature // todo: require validator.ecdsaPubkey sig for no DOS
+
     }
 
     enum ValidatorStatus {
@@ -81,7 +79,7 @@ interface IConsensusRegistry {
     /// the current one is finalized; ie `$.currentEpoch + 3` (this func increments `currentEpoch`)
     function concludeEpoch(address[] calldata newCommittee) external;
 
-    /// @dev Activates the calling validator, setting the next epoch as activation epoch
+    /// @dev Activates the calling validator, setting the epoch two in future as activation epoch
     /// @notice Caller must own the ConsensusNFT for their index and be pending activation status
     function activate() external;
 
@@ -95,23 +93,15 @@ interface IConsensusRegistry {
 
     /// @dev Returns information about the provided epoch. Only four latest & two future epochs are stored
     /// @notice When querying for future epochs, `blockHeight` will be 0 as they are not yet known
-    function getEpochInfo(
-        uint32 epoch
-    ) external view returns (EpochInfo memory currentEpochInfo);
+    function getEpochInfo(uint32 epoch) external view returns (EpochInfo memory currentEpochInfo);
 
     /// @dev Returns an array of `ValidatorInfo` structs that match the provided status for this epoch
-    function getValidators(
-        ValidatorStatus status
-    ) external view returns (ValidatorInfo[] memory);
+    function getValidators(ValidatorStatus status) external view returns (ValidatorInfo[] memory);
 
     /// @dev Fetches the `tokenId` for a given validator ecdsaPubkey
-    function getValidatorTokenId(
-        address ecdsaPubkey
-    ) external view returns (uint256);
+    function getValidatorTokenId(address ecdsaPubkey) external view returns (uint256);
 
     /// @dev Fetches the `ValidatorInfo` for a given ConsensusNFT tokenId
     /// @notice To enable checks against storage slots initialized to zero by the EVM, `tokenId` cannot be `0`
-    function getValidatorByTokenId(
-        uint256 tokenId
-    ) external view returns (ValidatorInfo memory);
+    function getValidatorByTokenId(uint256 tokenId) external view returns (ValidatorInfo memory);
 }

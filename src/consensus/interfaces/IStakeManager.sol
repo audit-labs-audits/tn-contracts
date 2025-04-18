@@ -9,7 +9,6 @@ pragma solidity 0.8.26;
  * @notice This interface declares the ConsensusRegistry's staking API and data structures
  * @dev Implemented within StakeManager.sol, which is inherited by the ConsensusRegistry
  */
-
 struct StakeInfo {
     uint24 tokenId;
     uint232 stakingRewards;
@@ -24,7 +23,7 @@ interface IStakeManager {
         mapping(address => StakeInfo) stakeInfo;
         uint24 totalSupply;
         uint8 stakeVersion;
-        mapping (address => address) delegations; //todo: work this in
+        mapping(address => address) delegations; //todo: work this in
     }
 
     error InvalidStakeAmount(uint256 stakeAmount);

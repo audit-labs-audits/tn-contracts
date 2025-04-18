@@ -55,7 +55,7 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
     function mint(address to, uint256 tokenId) external virtual;
 
-    /// @dev In the case of malicious or erroneous node operator behavior, governance can use this function 
+    /// @dev In the case of malicious or erroneous node operator behavior, governance can use this function
     /// to burn a validator's `ConsensusNFT` and immediately eject from consensus committees if applicable
     /// @param from Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
     /// @notice ECDSA pubkey `from` will be marked `UNSTAKED` so the validator address cannot be reused
@@ -106,7 +106,7 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         IRWTEL($.rwTEL).distributeStakeReward(msg.sender, rewards);
     }
 
-    //todo: handle validatorAddr, 
+    //todo: handle validatorAddr,
     function _unstake(address validatorAddr, uint256 tokenId) internal virtual returns (uint256 stakeAndRewards) {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
@@ -155,10 +155,7 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     }
 
     function _getTokenId(StakeManagerStorage storage $, address ecdsaPubkey) internal view returns (uint24) {
-        uint24 tokenId = $.stakeInfo[ecdsaPubkey].tokenId;
-        if (tokenId == 0) revert ERC721NonexistentToken(uint256(tokenId));
-
-        return tokenId;
+        return $.stakeInfo[ecdsaPubkey].tokenId;
     }
 
     function _exists(uint256 tokenId) internal view virtual returns (bool) {
