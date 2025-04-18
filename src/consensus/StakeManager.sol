@@ -50,17 +50,17 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     /// @dev The StakeManager's ERC721 ledger serves a permissioning role over validators, requiring
     /// Telcoin governance to approve each node operator and manually issue them a `ConsensusNFT`
     /// @param to Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
-    /// @param tokenId Refers to the `ERC721::tokenId` which mirrors `ConsensusRegistry::validatorIndex`
-    /// @notice To match ConsensusRegistry's validator index, `tokenId` cannot exceed `type(uint24).max`
+    /// @param tokenId Refers to the `ERC721::tokenId` which must be less than `UNSTAKED` and nonzero
+    /// For storage efficiency, tokenIds can be reused after being burned though ecdsaPubkeys cannot
     /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
     function mint(address to, uint256 tokenId) external virtual;
 
-    /// @dev In the case of malicious or erroneous node operator behavior, this function can be
-    /// used by Telcoin governance to eject a validator from consensus and burn their `ConsensusNFT`
+    /// @dev In the case of malicious or erroneous node operator behavior, governance can use this function 
+    /// to burn a validator's `ConsensusNFT` and immediately eject from consensus committees if applicable
     /// @param from Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
-    /// @notice The ERC721 `tokenId` corresponds to ConsensusRegistry's validator index
+    /// @notice ECDSA pubkey `from` will be marked `UNSTAKED` so the validator address cannot be reused
     /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
-    function burn(address from) external virtual;
+    function burn(address from) external virtual returns (bool);
 
     /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
     function transferFrom(
@@ -107,16 +107,18 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     }
 
     //todo: handle validatorAddr, 
-    function _unstake(address validatorAddr) internal virtual returns (uint256 stakeAndRewards) {
+    function _unstake(address validatorAddr, uint256 tokenId) internal virtual returns (uint256 stakeAndRewards) {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
-        // wipe existing stakeInfo and send stake along with reward through RWTEL
+        // wipe existing stakeInfo and burn the token
         StakeInfo storage stakeInfo = $.stakeInfo[msg.sender];
         uint256 rewards = uint256(stakeInfo.stakingRewards);
         stakeInfo.stakingRewards = 0;
         stakeInfo.tokenId = UNSTAKED;
+        $.totalSupply--;
+        _burn(tokenId);
 
-        // forward the stake amount through RWTEL module to caller
+        // forward the stake amount and outstanding rewards through RWTEL module to caller
         uint256 stakeAmount = $.stakeAmount; //todo handle configurable stake amt
         IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmount }(msg.sender, rewards);
 
@@ -153,7 +155,15 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     }
 
     function _getTokenId(StakeManagerStorage storage $, address ecdsaPubkey) internal view returns (uint24) {
-        return $.stakeInfo[ecdsaPubkey].tokenId;
+        uint24 tokenId = $.stakeInfo[ecdsaPubkey].tokenId;
+        if (tokenId == 0) revert ERC721NonexistentToken(uint256(tokenId));
+
+        return tokenId;
+    }
+
+    function _exists(uint256 tokenId) internal view virtual returns (bool) {
+        if (tokenId == 0) revert ERC721NonexistentToken(tokenId);
+        return _ownerOf(tokenId) != address(0);
     }
 
     function _stakeManagerStorage() internal pure virtual returns (StakeManagerStorage storage $) {

@@ -22,6 +22,9 @@ interface IStakeManager {
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
         mapping(address => StakeInfo) stakeInfo;
+        uint24 totalSupply;
+        uint8 stakeVersion;
+        mapping (address => address) delegations; //todo: work this in
     }
 
     error InvalidStakeAmount(uint256 stakeAmount);
@@ -45,6 +48,7 @@ interface IStakeManager {
 
     /// @dev Returns previously staked funds and accrued rewards, if any, to the calling validator
     /// @notice May only be called after fully exiting
+    /// @notice `StakeInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
     function unstake() external;
 
     /// @dev Fetches the claimable rewards accrued for a given validator address

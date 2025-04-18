@@ -14,21 +14,20 @@ import {StakeInfo} from "./IStakeManager.sol";
 interface IConsensusRegistry {
     /// @custom:storage-location erc7201:telcoin.storage.ConsensusRegistry
     struct ConsensusRegistryStorage {
-        uint32 currentEpoch;
+        uint8 numGenesisValidators;
+        uint32 currentEpoch; // uint32 provides 3.7e14 years for 24hr epochs
         uint8 epochPointer;
         EpochInfo[4] epochInfo;
         EpochInfo[4] futureEpochInfo;
-        ValidatorInfo[] validators;
-        uint256 numGenesisValidators;
-        mapping(uint24 => uint24) tokenIdToIndex;
+        mapping(uint24 => ValidatorInfo) validators;
     }
 
     struct ValidatorInfo {
-        bytes blsPubkey; // BLS public key is 48 bytes long; BLS proofs are 96 bytes
+        bytes blsPubkey; // using uncompressed 96 byte BLS public keys
         address ecdsaPubkey;
-        uint32 activationEpoch; // uint32 provides 3.7e14 years for 24hr epochs
+        uint32 activationEpoch;
         uint32 exitEpoch;
-        uint24 tokenId;
+        uint24 tokenId; //todo: use for uint8 stakeAmountVersion, delegation enum, some other versioning
         ValidatorStatus currentStatus;
     }
 
@@ -51,15 +50,21 @@ interface IConsensusRegistry {
     error AlreadyDefined(address ecdsaPubkey);
     error InvalidTokenId(uint256 tokenId);
     error InvalidStatus(ValidatorStatus status);
-    error InvalidIndex(uint24 validatorIndex);
     error InvalidEpoch(uint32 epoch);
 
     event ValidatorPendingActivation(ValidatorInfo validator);
     event ValidatorActivated(ValidatorInfo validator);
     event ValidatorPendingExit(ValidatorInfo validator);
     event ValidatorExited(ValidatorInfo validator);
+    event ValidatorRetired(ValidatorInfo validator);
     event NewEpoch(EpochInfo epoch);
     event RewardsClaimed(address claimant, uint256 rewards);
+
+    enum Delegation {
+        None,
+        Governance,
+        Signature // todo: require validator.ecdsaPubkey sig for no DOS
+    }
 
     enum ValidatorStatus {
         Any,
@@ -99,16 +104,14 @@ interface IConsensusRegistry {
         ValidatorStatus status
     ) external view returns (ValidatorInfo[] memory);
 
-    /// @dev Fetches the `validatorIndex` for a given validator address
-    /// @notice A returned `validatorIndex` value of `0` is invalid and indicates
-    /// that the given address is not a known validator's ECDSA pubkey
-    function getValidatorIndex(
+    /// @dev Fetches the `tokenId` for a given validator ecdsaPubkey
+    function getValidatorTokenId(
         address ecdsaPubkey
-    ) external view returns (uint24 validatorIndex);
+    ) external view returns (uint256);
 
-    /// @dev Fetches the `ValidatorInfo` for a given validator index
-    /// @notice To enable checks against storage slots initialized to zero by the EVM, `validatorIndex` cannot be `0`
-    function getValidatorByIndex(
-        uint24 validatorIndex
-    ) external view returns (ValidatorInfo memory validator);
+    /// @dev Fetches the `ValidatorInfo` for a given ConsensusNFT tokenId
+    /// @notice To enable checks against storage slots initialized to zero by the EVM, `tokenId` cannot be `0`
+    function getValidatorByTokenId(
+        uint256 tokenId
+    ) external view returns (ValidatorInfo memory);
 }
