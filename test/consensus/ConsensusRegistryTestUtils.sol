@@ -50,16 +50,16 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry {
 
         // provide initial validator set as the network will launch with at least four validators
         validatorInfo1 = ValidatorInfo(
-            _createRandomBlsPubkey(1), validator1, uint32(0), uint32(0), uint24(1), ValidatorStatus.Active
+            _createRandomBlsPubkey(1), validator1, uint32(0), uint32(0), ValidatorStatus.Active, false, false, uint8(0)
         );
         validatorInfo2 = ValidatorInfo(
-            _createRandomBlsPubkey(2), validator2, uint32(0), uint32(0), uint24(2), ValidatorStatus.Active
+            _createRandomBlsPubkey(2), validator2, uint32(0), uint32(0), ValidatorStatus.Active, false, false, uint8(0)
         );
         validatorInfo3 = ValidatorInfo(
-            _createRandomBlsPubkey(3), validator3, uint32(0), uint32(0), uint24(3), ValidatorStatus.Active
+            _createRandomBlsPubkey(3), validator3, uint32(0), uint32(0), ValidatorStatus.Active, false, false, uint8(0)
         );
         validatorInfo4 = ValidatorInfo(
-            _createRandomBlsPubkey(4), validator4, uint32(0), uint32(0), uint24(4), ValidatorStatus.Active
+            _createRandomBlsPubkey(4), validator4, uint32(0), uint32(0), ValidatorStatus.Active, false, false, uint8(0)
         );
         initialValidators.push(validatorInfo1);
         initialValidators.push(validatorInfo2);

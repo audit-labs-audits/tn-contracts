@@ -128,10 +128,18 @@ contract ConsensusRegistry is
 
     /// @inheritdoc IConsensusRegistry
     function getValidatorByTokenId(uint256 tokenId) public view returns (ValidatorInfo memory) {
-        if (tokenId >= UNSTAKED || !_exists(tokenId)) revert InvalidTokenId(tokenId);
+        if (!_exists(tokenId)) revert InvalidTokenId(tokenId);
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         return $.validators[uint24(tokenId)];
+    }
+
+    /// @inheritdoc IConsensusRegistry
+    function isRetired(uint256 tokenId) public view returns (bool) {
+        // tokenId cannot be in use, `0`, `UNSTAKED`, or out of uint24 bounds
+        if (_exists(tokenId)) revert InvalidTokenId(tokenId);
+
+        return _consensusRegistryStorage().validators[uint24(tokenId)].isRetired;
     }
 
     /**
@@ -146,13 +154,30 @@ contract ConsensusRegistry is
         _checkStakeValue(msg.value);
 
         // require caller is known & whitelisted, having been issued a ConsensusNFT by governance
-        uint24 tokenId = _checkKnownValidator(_stakeManagerStorage(), msg.sender);
+        StakeManagerStorage storage $S = _stakeManagerStorage();
+        uint24 tokenId = _checkKnownValidator($S, msg.sender);
 
         // enter validator in activation queue
-        _beginActivation(_consensusRegistryStorage(), msg.sender, blsPubkey, tokenId);
+        _beginActivation(blsPubkey, msg.sender, false, $S.stakeVersion, tokenId);
     }
 
-    //todo stakeFor() ?
+    // todo: function stakeFor(bytes calldata blsPubkey, address ecdsaPubkey, bytes calldata validatorSig) external
+    // payable override whenNotPaused {
+    // if (blsPubkey.length != 96) revert InvalidBLSPubkey();
+    // _checkStakeValue(msg.value);
+
+    // StakeManagerStorage storage $S = _stakeManagerStorage();
+    // uint24 tokenId = _checkKnownValidator($, ecdsaPubkey);
+
+    // handle dynamic type for blsPubkey a la eip712
+    // bytes32 blsPubkeyHash = keccak256(blsPubkey);
+    // bytes32 digest = eip712DigestHash(blsPubkeyHash, tokenId);
+    // todo: validatorSig represents validator consent to delegation so it must be signed over the blsPubkey hash
+    // require( ecdsa.recover(validatorSig) == ecdsaPubkey);
+
+    // delegations[ecdsaPubkey] = msg.sender;
+    // _beginActivation(_consensusRegistryStorage(), blsPubkey, ecdsaPubkey, true, $S.stakeVersion, tokenId);
+    // }
 
     /// @inheritdoc IConsensusRegistry
     function activate() external override whenNotPaused {
@@ -172,8 +197,9 @@ contract ConsensusRegistry is
     function claimStakeRewards() external override whenNotPaused {
         // require caller is whitelisted, having been issued a ConsensusNFT by governance
         StakeManagerStorage storage $ = _stakeManagerStorage();
-        _checkKnownValidator($, msg.sender);
 
+        //todo: support delegations
+        _checkKnownValidator($, msg.sender);
         uint256 rewards = _claimStakeRewards($);
 
         emit RewardsClaimed(msg.sender, rewards);
@@ -205,7 +231,7 @@ contract ConsensusRegistry is
     function unstake() external override whenNotPaused {
         StakeManagerStorage storage $S = _stakeManagerStorage();
         // require caller is whitelisted, having been issued a ConsensusNFT by governance
-        uint24 tokenId = _checkKnownValidator($S, msg.sender);
+        uint24 tokenId = _checkKnownValidator($S, msg.sender); //todo: support delegations
 
         // require caller status is `Exited`
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
@@ -216,6 +242,7 @@ contract ConsensusRegistry is
         _retire(validator);
 
         // return stake and send any outstanding rewards
+        //todo: support delegations
         uint256 stakeAndRewards = _unstake(validator.ecdsaPubkey, uint256(tokenId));
 
         emit RewardsClaimed(msg.sender, stakeAndRewards);
@@ -229,9 +256,6 @@ contract ConsensusRegistry is
 
     /// @inheritdoc StakeManager
     function mint(address ecdsaPubkey, uint256 tokenId) external override onlyOwner {
-        // tokenId cannot be in use, `0`, `UNSTAKED`, or out of uint24 bounds
-        if (tokenId >= UNSTAKED || _exists(tokenId)) revert InvalidTokenId(tokenId);
-
         StakeManagerStorage storage $ = _stakeManagerStorage();
         // validators may only possess one token and `ecdsaPubkey` cannot be reused
         if (balanceOf(ecdsaPubkey) != 0 || _getTokenId($, ecdsaPubkey) != 0) {
@@ -240,7 +264,10 @@ contract ConsensusRegistry is
 
         // set tokenId and increment supply
         $.stakeInfo[ecdsaPubkey].tokenId = uint24(tokenId);
-        $.totalSupply++;
+        uint24 newSupply = ++$.totalSupply;
+
+        // enforce `tokenId` does not exist, is valid, and in incrementing order if not retired
+        if (tokenId != newSupply && !isRetired(tokenId)) revert InvalidTokenId(tokenId);
 
         // issue the ConsensusNFT
         _mint(ecdsaPubkey, tokenId);
@@ -252,16 +279,15 @@ contract ConsensusRegistry is
         // require caller is whitelisted, having been issued a ConsensusNFT by governance
         uint24 tokenId = _checkKnownValidator($S, ecdsaPubkey);
 
-        // set recorded tokenId to `UNSTAKED`, decrement supply, and burn the token
+        // mark `ecdsaPubkey` as spent using `UNSTAKED`, decrement supply
         $S.stakeInfo[ecdsaPubkey].tokenId = UNSTAKED;
         $S.totalSupply--;
-        _burn(tokenId);
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
         ValidatorInfo storage validator = $C.validators[tokenId];
         bool ejected = _ejectFromCommittees($C, ecdsaPubkey);
 
-        // exit, unstake, and retire validator immediately
+        // exit, unstake + burn, and retire validator immediately
         _exit(validator, $C.currentEpoch);
         _unstake(ecdsaPubkey, tokenId);
         _retire(validator);
@@ -278,22 +304,32 @@ contract ConsensusRegistry is
     /// @notice Enters a validator into the activation queue upon receiving stake
     /// @dev Stores the new validator in the `validators` vector
     function _beginActivation(
-        ConsensusRegistryStorage storage $,
-        address ecdsaPubkey,
         bytes calldata blsPubkey,
+        address ecdsaPubkey,
+        bool isDelegated,
+        uint8 stakeVersion,
         uint24 tokenId
     )
         internal
     {
-        ValidatorInfo memory newValidator =
-            ValidatorInfo(blsPubkey, ecdsaPubkey, PENDING_EPOCH, uint32(0), tokenId, ValidatorStatus.PendingActivation);
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        ValidatorInfo memory newValidator = ValidatorInfo(
+            blsPubkey,
+            ecdsaPubkey,
+            PENDING_EPOCH,
+            uint32(0),
+            ValidatorStatus.PendingActivation,
+            false,
+            isDelegated,
+            stakeVersion
+        );
         $.validators[tokenId] = newValidator;
 
         emit ValidatorPendingActivation(newValidator);
     }
 
     /// @dev Activates a validator
-    /// @dev Sets the next epoch as activation timestamp for epoch completeness wrt incentives
+    /// @dev Sets the epoch after next as activation timestamp for epoch completeness wrt incentives
     function _activate(ValidatorInfo storage validator, uint32 currentEpoch) internal {
         validator.currentStatus = ValidatorStatus.Active;
         validator.activationEpoch = currentEpoch + 2;
@@ -327,7 +363,7 @@ contract ConsensusRegistry is
     /// @dev Rejoining must be done by restarting validator onboarding process
     function _retire(ValidatorInfo storage validator) internal {
         validator.currentStatus = ValidatorStatus.Any;
-        validator.tokenId = UNSTAKED;
+        validator.isRetired = true;
 
         emit ValidatorRetired(validator);
     }
@@ -361,7 +397,7 @@ contract ConsensusRegistry is
     {
         for (uint256 i; i < pendingExit.length; ++i) {
             // ensure validator is not in current or future committees
-            uint24 tokenId = pendingExit[i].tokenId;
+            uint24 tokenId = _getTokenId(_stakeManagerStorage(), pendingExit[i].ecdsaPubkey);
             ValidatorInfo storage validator = $.validators[tokenId];
             if (_exitEligibility($, validator)) {
                 _exit(validator, currentEpoch);
@@ -491,10 +527,10 @@ contract ConsensusRegistry is
         }
     }
 
-    /// @dev Reverts if the provided address doesn't correspond to an existing `tokenId`
+    /// @dev Reverts if the provided address doesn't correspond to an existing `tokenId` owned by `ecdsaPubkey`
     function _checkKnownValidator(StakeManagerStorage storage $, address ecdsaPubkey) private view returns (uint24) {
         uint24 tokenId = _getTokenId($, ecdsaPubkey);
-        if (tokenId == 0 || tokenId == UNSTAKED) revert InvalidTokenId(tokenId);
+        if (!_exists(tokenId)) revert InvalidTokenId(tokenId);
         if (ownerOf(tokenId) != ecdsaPubkey) revert NotValidator(ecdsaPubkey);
 
         return tokenId;
@@ -630,6 +666,7 @@ contract ConsensusRegistry is
     /// It is left in the contract for readable information about the relevant storage slots at genesis
     /// @param initialValidators_ The initial validator set running Telcoin Network; these validators will
     /// comprise the voter committee for the first three epochs, ie `epochInfo[0:2]`
+    /// @dev Only governance delegation is enabled at genesis
     function initialize(
         address rwTEL_,
         uint256 stakeAmount_,
@@ -659,7 +696,7 @@ contract ConsensusRegistry is
 
         // set 0th validator placeholder with invalid values for future checks
         $C.validators[0] =
-            ValidatorInfo(hex"ff", address(0xff), uint32(0xff), uint32(0xff), uint24(0xff), ValidatorStatus.Any);
+            ValidatorInfo(hex"ff", address(0xff), uint32(0xff), uint32(0xff), ValidatorStatus.Any, true, true, 0xff);
         for (uint256 i; i < initialValidators_.length; ++i) {
             ValidatorInfo memory currentValidator = initialValidators_[i];
 
@@ -674,14 +711,20 @@ contract ConsensusRegistry is
                 revert InvalidEpoch(currentValidator.activationEpoch);
             }
             if (currentValidator.exitEpoch != uint32(0)) {
-                revert InvalidEpoch(currentValidator.activationEpoch);
+                revert InvalidEpoch(currentValidator.exitEpoch);
             }
             if (currentValidator.currentStatus != ValidatorStatus.Active) {
                 revert InvalidStatus(currentValidator.currentStatus);
             }
-            uint24 tokenId = uint24(i + 1);
-            if (currentValidator.tokenId != tokenId) {
-                revert InvalidTokenId(currentValidator.tokenId);
+            if (currentValidator.isRetired != false) {
+                revert InvalidStatus(ValidatorStatus.Exited);
+            }
+            if (currentValidator.isDelegated == true) {
+                // at genesis, only governance delegations are enabled
+                $C.delegations[currentValidator.ecdsaPubkey] = owner_;
+            }
+            if (currentValidator.stakeVersion != 0) {
+                revert InvalidStakeAmount(currentValidator.stakeVersion);
             }
 
             // first three epochs use initial validators as committee
@@ -690,6 +733,7 @@ contract ConsensusRegistry is
                 $C.futureEpochInfo[j].committee.push(currentValidator.ecdsaPubkey);
             }
 
+            uint24 tokenId = uint24(i + 1);
             $C.validators[tokenId] = currentValidator;
             $S.stakeInfo[currentValidator.ecdsaPubkey].tokenId = tokenId;
             $S.totalSupply++;

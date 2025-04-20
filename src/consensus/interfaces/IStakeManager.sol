@@ -26,6 +26,7 @@ interface IStakeManager {
         mapping(address => address) delegations; //todo: work this in
     }
 
+    error InvalidTokenId(uint256 tokenId);
     error InvalidStakeAmount(uint256 stakeAmount);
     error InsufficientRewards(uint256 withdrawAmount);
     error NotTransferable();

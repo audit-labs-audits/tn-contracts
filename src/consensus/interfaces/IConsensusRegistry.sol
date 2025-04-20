@@ -20,6 +20,7 @@ interface IConsensusRegistry {
         EpochInfo[4] epochInfo;
         EpochInfo[4] futureEpochInfo;
         mapping(uint24 => ValidatorInfo) validators;
+        mapping(address => address) delegations; //todo must be wiped clean on unstake/retirement
     }
 
     struct ValidatorInfo {
@@ -27,8 +28,10 @@ interface IConsensusRegistry {
         address ecdsaPubkey;
         uint32 activationEpoch;
         uint32 exitEpoch;
-        uint24 tokenId; //todo: use for uint8 stakeAmountVersion, delegation enum, some other versioning
         ValidatorStatus currentStatus;
+        bool isRetired;
+        bool isDelegated; // todo: require validator.ecdsaPubkey sig for no DOS
+        uint8 stakeVersion;
     }
 
     struct EpochInfo {
@@ -45,7 +48,6 @@ interface IConsensusRegistry {
     error CommitteeRequirement(address ecdsaPubkey);
     error NotValidator(address ecdsaPubkey);
     error AlreadyDefined(address ecdsaPubkey);
-    error InvalidTokenId(uint256 tokenId);
     error InvalidStatus(ValidatorStatus status);
     error InvalidEpoch(uint32 epoch);
 
@@ -56,13 +58,6 @@ interface IConsensusRegistry {
     event ValidatorRetired(ValidatorInfo validator);
     event NewEpoch(EpochInfo epoch);
     event RewardsClaimed(address claimant, uint256 rewards);
-
-    enum Delegation {
-        None,
-        Governance,
-        Signature // todo: require validator.ecdsaPubkey sig for no DOS
-
-    }
 
     enum ValidatorStatus {
         Any,
@@ -104,4 +99,8 @@ interface IConsensusRegistry {
     /// @dev Fetches the `ValidatorInfo` for a given ConsensusNFT tokenId
     /// @notice To enable checks against storage slots initialized to zero by the EVM, `tokenId` cannot be `0`
     function getValidatorByTokenId(uint256 tokenId) external view returns (ValidatorInfo memory);
+
+    /// @dev Returns whether validator associated with `tokenId` is exited && unstaked, ie "retired"
+    /// @notice Retired validators' ConsensusNFTs are burned, so existing tokenIds are invalid
+    function isRetired(uint256 tokenId) external view returns (bool);
 }

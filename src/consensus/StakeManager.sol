@@ -51,8 +51,9 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     /// Telcoin governance to approve each node operator and manually issue them a `ConsensusNFT`
     /// @param to Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
     /// @param tokenId Refers to the `ERC721::tokenId` which must be less than `UNSTAKED` and nonzero
-    /// For storage efficiency, tokenIds can be reused after being burned though ecdsaPubkeys cannot
+    /// tokenIds must be minted in order unless overwriting a retired validator for storage efficiency
     /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
+
     function mint(address to, uint256 tokenId) external virtual;
 
     /// @dev In the case of malicious or erroneous node operator behavior, governance can use this function
@@ -159,7 +160,7 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     }
 
     function _exists(uint256 tokenId) internal view virtual returns (bool) {
-        if (tokenId == 0) revert ERC721NonexistentToken(tokenId);
+        if (tokenId == 0 || tokenId >= UNSTAKED) revert InvalidTokenId(tokenId);
         return _ownerOf(tokenId) != address(0);
     }
 

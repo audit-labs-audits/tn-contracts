@@ -308,8 +308,10 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils, Test {
                 validator5,
                 PENDING_EPOCH,
                 uint32(0),
-                uint24(tokenId),
-                ValidatorStatus.PendingActivation
+                ValidatorStatus.PendingActivation,
+                false,
+                false,
+                uint8(0)
             )
         );
         vm.prank(validator5);
@@ -322,7 +324,9 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils, Test {
         assertEq(validators[0].blsPubkey, validator5BlsPubkey);
         assertEq(validators[0].activationEpoch, PENDING_EPOCH);
         assertEq(validators[0].exitEpoch, uint32(0));
-        assertEq(validators[0].tokenId, tokenId);
+        assertEq(validators[0].isRetired, false);
+        assertEq(validators[0].isDelegated, false);
+        assertEq(validators[0].stakeVersion, uint8(0));
         assertEq(uint8(validators[0].currentStatus), uint8(ValidatorStatus.PendingActivation));
     }
 
@@ -340,7 +344,14 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils, Test {
         vm.expectEmit(true, true, true, true);
         emit ValidatorActivated(
             ValidatorInfo(
-                validator5BlsPubkey, validator5, activationEpoch, uint32(0), uint24(tokenId), ValidatorStatus.Active
+                validator5BlsPubkey,
+                validator5,
+                activationEpoch,
+                uint32(0),
+                ValidatorStatus.Active,
+                false,
+                false,
+                uint8(0)
             )
         );
         vm.prank(validator5);
@@ -409,8 +420,10 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils, Test {
                 validator5,
                 activationEpoch,
                 PENDING_EPOCH,
-                uint24(tokenId),
-                ValidatorStatus.PendingExit
+                ValidatorStatus.PendingExit,
+                false,
+                false,
+                uint8(0)
             )
         );
         // begin exit

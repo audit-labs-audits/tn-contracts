@@ -71,22 +71,50 @@ contract GenerateConsensusRegistryStorage is Script, Test {
 
         // populate `initialValidators` array with base struct from storage
         validatorInfo1 = IConsensusRegistry.ValidatorInfo(
-            validator1BlsPubkey, validator1, uint32(0), uint32(0), uint24(1), IConsensusRegistry.ValidatorStatus.Active
+            validator1BlsPubkey,
+            validator1,
+            uint32(0),
+            uint32(0),
+            IConsensusRegistry.ValidatorStatus.Active,
+            false,
+            false,
+            uint8(0)
         );
         initialValidators.push(validatorInfo1);
 
         validatorInfo2 = IConsensusRegistry.ValidatorInfo(
-            validator2BlsPubkey, validator2, uint32(0), uint32(0), uint24(2), IConsensusRegistry.ValidatorStatus.Active
+            validator2BlsPubkey,
+            validator2,
+            uint32(0),
+            uint32(0),
+            IConsensusRegistry.ValidatorStatus.Active,
+            false,
+            false,
+            uint8(0)
         );
         initialValidators.push(validatorInfo2);
 
         validatorInfo3 = IConsensusRegistry.ValidatorInfo(
-            validator3BlsPubkey, validator3, uint32(0), uint32(0), uint24(3), IConsensusRegistry.ValidatorStatus.Active
+            validator3BlsPubkey,
+            validator3,
+            uint32(0),
+            uint32(0),
+            IConsensusRegistry.ValidatorStatus.Active,
+            false,
+            false,
+            uint8(0)
         );
         initialValidators.push(validatorInfo3);
 
         validatorInfo4 = IConsensusRegistry.ValidatorInfo(
-            validator4BlsPubkey, validator4, uint32(0), uint32(0), uint24(4), IConsensusRegistry.ValidatorStatus.Active
+            validator4BlsPubkey,
+            validator4,
+            uint32(0),
+            uint32(0),
+            IConsensusRegistry.ValidatorStatus.Active,
+            false,
+            false,
+            uint8(0)
         );
         initialValidators.push(validatorInfo4);
     }
