@@ -200,7 +200,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
             vm.expectEmit(true, true, true, true);
             emit IConsensusRegistry.RewardsClaimed(validator, rewardPerValidator);
             vm.prank(validator);
-            consensusRegistry.claimStakeRewards();
+            consensusRegistry.claimStakeRewards(validator);
 
             // check balance after claiming
             uint256 updatedBalance = validator.balance;

@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
@@ -152,28 +153,50 @@ contract ConsensusRegistry is
         StakeManagerStorage storage $S = _stakeManagerStorage();
         _checkStakeValue(msg.value, $S.stakeVersion);
         uint24 tokenId = _checkKnownValidator($S, msg.sender);
+        // require validator status is `Any`
+        _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Any);
 
         // enter validator in activation queue
         _recordStaked(blsPubkey, msg.sender, false, $S.stakeVersion, tokenId);
     }
 
-    // todo: function stakeFor(bytes calldata blsPubkey, address ecdsaPubkey, bytes calldata validatorSig) external
-    // payable override whenNotPaused {
-    // if (blsPubkey.length != 96) revert InvalidBLSPubkey();
-    // _checkStakeValue(msg.value, $S.stakeVersion);
+    /// @inheritdoc StakeManager
+    function delegateStake(
+        bytes calldata blsPubkey,
+        address ecdsaPubkey,
+        bytes calldata validatorSig
+    )
+        external
+        payable
+        override
+        whenNotPaused
+    {
+        if (blsPubkey.length != 96) revert InvalidBLSPubkey();
 
-    // StakeManagerStorage storage $S = _stakeManagerStorage();
-    // uint24 tokenId = _checkKnownValidator($, ecdsaPubkey);
+        // require caller is known & whitelisted, having been issued a ConsensusNFT by governance
+        StakeManagerStorage storage $S = _stakeManagerStorage();
+        uint8 validatorVersion = $S.stakeVersion;
+        _checkStakeValue(msg.value, validatorVersion);
+        uint24 tokenId = _checkKnownValidator($S, ecdsaPubkey);
 
-    // handle dynamic type for blsPubkey a la eip712
-    // bytes32 blsPubkeyHash = keccak256(blsPubkey);
-    // bytes32 digest = eip712DigestHash(blsPubkeyHash, tokenId);
-    // todo: validatorSig represents validator consent to delegation so it must be signed over the blsPubkey hash
-    // require( ecdsa.recover(validatorSig) == ecdsaPubkey);
+        // require validator status is `Any`
+        _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Any);
+        uint64 nonce = $S.delegations[ecdsaPubkey].nonce++;
+        bytes32 blsPubkeyHash = keccak256(blsPubkey);
 
-    // delegations[ecdsaPubkey] = msg.sender;
-    // _recordStaked(_consensusRegistryStorage(), blsPubkey, ecdsaPubkey, true, $S.stakeVersion, tokenId);
-    // }
+        // governance may utilize white-glove onboarding or offchain agreements
+        if (msg.sender != owner()) {
+            bytes32 typeHash =
+                keccak256(abi.encode(DELEGATION_TYPEHASH, blsPubkeyHash, msg.sender, tokenId, validatorVersion, nonce));
+            bytes32 digest = _hashTypedData(typeHash);
+            if (!SignatureCheckerLib.isValidSignatureNowCalldata(ecdsaPubkey, digest, validatorSig)) {
+                revert NotValidator(ecdsaPubkey);
+            }
+        }
+
+        $S.delegations[ecdsaPubkey] = Delegation(blsPubkeyHash, msg.sender, tokenId, validatorVersion, nonce);
+        _recordStaked(blsPubkey, ecdsaPubkey, true, validatorVersion, tokenId);
+    }
 
     /// @inheritdoc IConsensusRegistry
     function activate() external override whenNotPaused {
@@ -190,16 +213,19 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc StakeManager
-    function claimStakeRewards() external override whenNotPaused {
-        // require caller is whitelisted, having been issued a ConsensusNFT by governance
+    function claimStakeRewards(address ecdsaPubkey) external override whenNotPaused {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
-        //todo: support delegations
-        uint24 tokenId = _checkKnownValidator($, msg.sender);
+        // require validator is whitelisted, having been issued a ConsensusNFT by governance
+        uint24 tokenId = _checkKnownValidator($, ecdsaPubkey);
         uint8 validatorVersion = _consensusRegistryStorage().validators[tokenId].stakeVersion;
-        uint256 rewards = _claimStakeRewards($, validatorVersion);
 
-        emit RewardsClaimed(msg.sender, rewards);
+        // require caller is either the validator or its delegator
+        address recipient = ecdsaPubkey;
+        if (msg.sender != ecdsaPubkey) recipient = _checkKnownDelegation($, ecdsaPubkey, msg.sender);
+        uint256 rewards = _claimStakeRewards($, ecdsaPubkey, recipient, validatorVersion);
+
+        emit RewardsClaimed(recipient, rewards);
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -225,24 +251,27 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc StakeManager
-    function unstake() external override whenNotPaused {
+    function unstake(address ecdsaPubkey) external override whenNotPaused {
         StakeManagerStorage storage $S = _stakeManagerStorage();
-        // require caller is whitelisted, having been issued a ConsensusNFT by governance
-        uint24 tokenId = _checkKnownValidator($S, msg.sender); //todo: support delegations
+        // require validator is whitelisted, having been issued a ConsensusNFT by governance
+        uint24 tokenId = _checkKnownValidator($S, ecdsaPubkey);
 
-        // require caller status is `Exited`
+        // require caller is either the validator or its delegator
+        address recipient = ecdsaPubkey;
+        if (msg.sender != ecdsaPubkey) recipient = _checkKnownDelegation($S, ecdsaPubkey, msg.sender);
+
+        // require validator status is `Exited`
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
         _checkValidatorStatus($C, tokenId, ValidatorStatus.Exited);
 
-        // burn the ConsensusNFT and permanently retire the validator
+        // permanently retire the validator and burn the ConsensusNFT
         ValidatorInfo storage validator = $C.validators[tokenId];
         _retire(validator);
 
         // return stake and send any outstanding rewards
-        //todo: support delegations
-        uint256 stakeAndRewards = _unstake(validator.ecdsaPubkey, uint256(tokenId), validator.stakeVersion);
+        uint256 stakeAndRewards = _unstake(ecdsaPubkey, recipient, uint256(tokenId), validator.stakeVersion);
 
-        emit RewardsClaimed(msg.sender, stakeAndRewards);
+        emit RewardsClaimed(recipient, stakeAndRewards);
     }
 
     /**
@@ -276,6 +305,10 @@ contract ConsensusRegistry is
         // require ecdsaPubkey is whitelisted, having been issued a ConsensusNFT by governance
         uint24 tokenId = _checkKnownValidator($S, ecdsaPubkey);
 
+        Delegation storage delegation = $S.delegations[ecdsaPubkey];
+        address recipient = delegation.delegator;
+        if (recipient == address(0x0) || delegation.tokenId != tokenId) recipient = ecdsaPubkey;
+
         // mark `ecdsaPubkey` as spent using `UNSTAKED`
         $S.stakeInfo[ecdsaPubkey].tokenId = UNSTAKED;
 
@@ -286,7 +319,7 @@ contract ConsensusRegistry is
         // exit, retire, and unstake + burn validator immediately
         _exit(validator, $C.currentEpoch);
         _retire(validator);
-        _unstake(ecdsaPubkey, tokenId, validator.stakeVersion);
+        _unstake(ecdsaPubkey, recipient, tokenId, validator.stakeVersion);
 
         return ejected;
     }
@@ -335,7 +368,6 @@ contract ConsensusRegistry is
     /// @notice Enters a validator into the exit queue
     /// @dev Finalized by the protocol when the validator is no longer required for committees
     function _beginExit(ValidatorInfo storage validator) internal {
-        // set validator status to `PendingExit` and set exit epoch
         validator.currentStatus = ValidatorStatus.PendingExit;
         validator.exitEpoch = PENDING_EPOCH;
 
@@ -346,7 +378,6 @@ contract ConsensusRegistry is
     /// @dev Only invoked via protocol client system call to `concludeEpoch()` or governance ejection
     /// @dev Once exited, the validator may unstake to reclaim their stake and rewards
     function _exit(ValidatorInfo storage validator, uint32 currentEpoch) internal {
-        // set validator status to `Exited` and set exit epoch
         validator.currentStatus = ValidatorStatus.Exited;
         validator.exitEpoch = currentEpoch;
 
@@ -517,6 +548,23 @@ contract ConsensusRegistry is
                 revert InvalidCommitteeSize(minCommitteeSize, committeeSize);
             }
         }
+    }
+
+    /// @dev Reverts if the provided claimant doesn't correspond to an existing delegation entry keyed under
+    /// `ecdsaPubkey`
+    function _checkKnownDelegation(
+        StakeManagerStorage storage $,
+        address ecdsaPubkey,
+        address claimant
+    )
+        internal
+        view
+        returns (address)
+    {
+        address delegator = $.delegations[ecdsaPubkey].delegator;
+        if (claimant != delegator) revert NotDelegator(claimant);
+
+        return delegator;
     }
 
     /// @dev Reverts if the provided address doesn't correspond to an existing `tokenId` owned by `ecdsaPubkey`
@@ -691,9 +739,11 @@ contract ConsensusRegistry is
             if (currentValidator.isRetired != false) {
                 revert InvalidStatus(ValidatorStatus.Exited);
             }
+            uint24 tokenId = uint24(i + 1);
             if (currentValidator.isDelegated == true) {
                 // at genesis, only governance delegations are enabled
-                $C.delegations[currentValidator.ecdsaPubkey] = owner_;
+                $S.delegations[currentValidator.ecdsaPubkey] =
+                    Delegation(keccak256(currentValidator.blsPubkey), owner_, tokenId, uint8(0), uint64(1));
             }
             if (currentValidator.stakeVersion != 0) {
                 revert InvalidStakeAmount(currentValidator.stakeVersion);
@@ -705,7 +755,6 @@ contract ConsensusRegistry is
                 $C.futureEpochInfo[j].committee.push(currentValidator.ecdsaPubkey);
             }
 
-            uint24 tokenId = uint24(i + 1);
             $C.validators[tokenId] = currentValidator;
             $S.stakeInfo[currentValidator.ecdsaPubkey].tokenId = tokenId;
             $S.totalSupply++;

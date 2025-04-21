@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import { EIP712 } from "solady/utils/EIP712.sol";
 import { IRWTEL } from "../interfaces/IRWTEL.sol";
 import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 
@@ -13,7 +14,7 @@ import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
  * @notice This abstract contract provides modular management of consensus validator stake
  * @dev Designed for inheritance by the ConsensusRegistry
  */
-abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
+abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.StakeManager")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant StakeManagerStorageSlot =
@@ -23,17 +24,32 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     /// @notice Rejoining requires re-onboarding with new validator address, tokenId, stake, & index
     uint24 internal constant UNSTAKED = type(uint24).max;
 
+    /// @dev EIP-712 typed struct hash used to enable delegated proof of stake
+    bytes32 DELEGATION_TYPEHASH = keccak256(
+        "Delegation(bytes32 blsPubkeyHash,address delegator,uint24 tokenId,uint8 validatorVersion,uint64 nonce)"
+    );
+
     /// @inheritdoc IStakeManager
     function stake(bytes calldata blsPubkey) external payable virtual;
+
+    /// @inheritdoc IStakeManager
+    function delegateStake(
+        bytes calldata blsPubkey,
+        address ecdsaPubkey,
+        bytes calldata validatorSig
+    )
+        external
+        payable
+        virtual;
 
     /// @inheritdoc IStakeManager
     function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external virtual;
 
     /// @inheritdoc IStakeManager
-    function claimStakeRewards() external virtual;
+    function claimStakeRewards(address ecsdaPubkey) external virtual;
 
     /// @inheritdoc IStakeManager
-    function unstake() external virtual;
+    function unstake(address ecdsaPubkey) external virtual;
 
     /// @inheritdoc IStakeManager
     function getRewards(address ecdsaPubkey) public view virtual returns (uint240) {
@@ -51,21 +67,9 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     }
 
     /// @inheritdoc IStakeManager
-    function stakeAmount() public view virtual returns (uint256) {
+    function stakeConfig(uint8 version) public view virtual returns (StakeConfig memory) {
         StakeManagerStorage storage $ = _stakeManagerStorage();
-        return $.versions[$.stakeVersion].stakeAmount;
-    }
-
-    /// @inheritdoc IStakeManager
-    function minWithdrawAmount() public view virtual returns (uint256) {
-        StakeManagerStorage storage $ = _stakeManagerStorage();
-        return $.versions[$.stakeVersion].minWithdrawAmount;
-    }
-
-    /// @inheritdoc IStakeManager
-    function consensusBlockReward() public view virtual returns (uint256) {
-        StakeManagerStorage storage $ = _stakeManagerStorage();
-        return $.versions[$.stakeVersion].consensusBlockReward;
+        return $.versions[version];
     }
 
     /// @inheritdoc IStakeManager
@@ -121,22 +125,24 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     /// @notice Sends staking rewards only and is not used for withdrawing initial stake
     function _claimStakeRewards(
         StakeManagerStorage storage $,
+        address ecdsaPubkey,
+        address recipient,
         uint8 validatorVersion
     )
         internal
         virtual
         returns (uint256 rewards)
     {
-        rewards = _checkRewardsExceedMinWithdrawAmount($, msg.sender, validatorVersion);
+        rewards = _checkRewardsExceedMinWithdrawAmount($, ecdsaPubkey, validatorVersion);
 
         // wipe ledger to prevent reentrancy and send via the `RWTEL` module
-        $.stakeInfo[msg.sender].stakingRewards = 0;
-        IRWTEL($.rwTEL).distributeStakeReward(msg.sender, rewards);
+        $.stakeInfo[ecdsaPubkey].stakingRewards = 0;
+        IRWTEL($.rwTEL).distributeStakeReward(recipient, rewards);
     }
 
-    //todo: handle validatorAddr,
     function _unstake(
         address ecdsaPubkey,
+        address recipient,
         uint256 tokenId,
         uint8 validatorVersion
     )
@@ -147,7 +153,7 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
         // wipe existing stakeInfo and burn the token
-        StakeInfo storage info = $.stakeInfo[msg.sender];
+        StakeInfo storage info = $.stakeInfo[ecdsaPubkey];
         uint256 rewards = uint256(info.stakingRewards);
         info.stakingRewards = 0;
         info.tokenId = UNSTAKED;
@@ -156,21 +162,21 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
 
         // forward the stake amount and outstanding rewards through RWTEL module to caller
         uint256 stakeAmt = $.versions[validatorVersion].stakeAmount;
-        IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmt }(msg.sender, rewards);
+        IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmt }(recipient, rewards);
 
         return stakeAmt + rewards;
     }
 
     function _checkRewardsExceedMinWithdrawAmount(
         StakeManagerStorage storage $,
-        address rewardee,
+        address ecdsaPubkey,
         uint8 validatorVersion
     )
         internal
         virtual
         returns (uint256 rewards)
     {
-        rewards = stakeInfo(rewardee).stakingRewards;
+        rewards = stakeInfo(ecdsaPubkey).stakingRewards;
         if (rewards < $.versions[validatorVersion].minWithdrawAmount) revert InsufficientRewards(rewards);
     }
 
@@ -203,5 +209,15 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         assembly {
             $.slot := StakeManagerStorageSlot
         }
+    }
+
+    function _domainNameAndVersion()
+        internal
+        view
+        virtual
+        override
+        returns (string memory name, string memory version)
+    {
+        return ("Telcoin StakeManager", "1");
     }
 }

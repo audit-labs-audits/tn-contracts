@@ -19,7 +19,6 @@ interface IConsensusRegistry {
         EpochInfo[4] epochInfo;
         EpochInfo[4] futureEpochInfo;
         mapping(uint24 => ValidatorInfo) validators;
-        mapping(address => address) delegations; //todo must be wiped clean on unstake/retirement
     }
 
     struct ValidatorInfo {

@@ -48,9 +48,9 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             }
         }
         assertEq(consensusRegistry.totalSupply(), 4);
-        assertEq(consensusRegistry.stakeAmount(), stakeAmount_);
         assertEq(consensusRegistry.stakeVersion(), 0);
-        assertEq(consensusRegistry.minWithdrawAmount(), minWithdrawAmount_);
+        assertEq(consensusRegistry.stakeConfig(0).stakeAmount, stakeAmount_);
+        assertEq(consensusRegistry.stakeConfig(0).minWithdrawAmount, minWithdrawAmount_);
     }
 
     // Test for successful staking
@@ -273,7 +273,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         emit RewardsClaimed(validator5, stakeAmount_);
         // Unstake
         vm.prank(validator5);
-        consensusRegistry.unstake();
+        consensusRegistry.unstake(validator5);
 
         // Check balance after unstake
         uint256 finalBalance = validator5.balance;
@@ -289,7 +289,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
         vm.prank(nonValidator);
         vm.expectRevert();
-        consensusRegistry.unstake();
+        consensusRegistry.unstake(nonValidator);
     }
 
     // Test for unstake by a validator who has not exited
@@ -305,7 +305,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         // Attempt to unstake without exiting
         vm.prank(validator5);
         vm.expectRevert(abi.encodeWithSelector(InvalidStatus.selector, ValidatorStatus.Staked));
-        consensusRegistry.unstake();
+        consensusRegistry.unstake(validator5);
     }
 
     // Test for claim by a non-validator
@@ -315,7 +315,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
         vm.prank(nonValidator);
         vm.expectRevert(abi.encodeWithSelector(InvalidTokenId.selector, 0));
-        consensusRegistry.claimStakeRewards();
+        consensusRegistry.claimStakeRewards(nonValidator);
     }
 
     // Test for claim by a validator with insufficient rewards
@@ -335,7 +335,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         // Attempt to claim rewards
         vm.prank(validator1);
         vm.expectRevert(abi.encodeWithSelector(IStakeManager.InsufficientRewards.selector, notEnoughRewards));
-        consensusRegistry.claimStakeRewards();
+        consensusRegistry.claimStakeRewards(validator1);
     }
 
     function test_concludeEpoch_updatesEpochInfo() public {
