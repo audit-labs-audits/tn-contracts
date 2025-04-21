@@ -213,7 +213,6 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(wTEL), new bytes32[](0));
     }
 
-    /// TODO: convert to singleton for mainnet
     function instantiateRWTELImpl(address its_) public virtual override returns (RWTEL simulatedDeployment) {
         vm.startStateDiffRecording();
         simulatedDeployment = super.instantiateRWTELImpl(its_);
@@ -223,7 +222,6 @@ abstract contract ITSGenesis is ITSConfig, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(rwTELImpl), slots);
     }
 
-    /// TODO: convert to singleton for mainnet
     function instantiateRWTEL(address impl) public virtual override returns (RWTEL simulatedDeployment) {
         vm.startStateDiffRecording();
         simulatedDeployment = super.instantiateRWTEL(impl);
