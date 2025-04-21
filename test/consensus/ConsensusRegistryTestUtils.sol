@@ -24,14 +24,14 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     ValidatorInfo[] initialValidators; // contains validatorInfo1-4
 
     address public sysAddress;
-    
+
     // non-genesis validator for testing
     address public validator5 = _createRandomAddress(5);
     bytes public validator5BlsPubkey = _createRandomBlsPubkey(5);
 
     uint256 public telMaxSupply = 100_000_000_000 ether;
-    uint256 public stakeAmount = 1_000_000 ether;
-    uint256 public minWithdrawAmount = 10_000 ether;
+    uint256 public stakeAmount_ = 1_000_000 ether;
+    uint256 public minWithdrawAmount_ = 10_000 ether;
     // `OZ::ERC721Upgradeable::mint()` supports up to ~14_300 fuzzed mint iterations
     uint256 public MAX_MINTABLE = 14_000;
 
@@ -108,7 +108,14 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         }
     }
 
-    function _fuzz_computeCommitteeSize(uint256 numActive, uint256 numFuzzedValidators) internal pure returns (uint256) {
+    function _fuzz_computeCommitteeSize(
+        uint256 numActive,
+        uint256 numFuzzedValidators
+    )
+        internal
+        pure
+        returns (uint256)
+    {
         // identify expected committee size
         uint256 committeeSize;
         if (numFuzzedValidators <= 6) {
@@ -121,7 +128,14 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         return committeeSize;
     }
 
-    function _fuzz_createNewCommittee(uint256 numActive, uint256 committeeSize) internal pure returns (address[] memory) {
+    function _fuzz_createNewCommittee(
+        uint256 numActive,
+        uint256 committeeSize
+    )
+        internal
+        pure
+        returns (address[] memory)
+    {
         // reloop to construct `newCommittee` array
         address[] memory newCommittee = new address[](committeeSize);
         uint256 committeeCounter;

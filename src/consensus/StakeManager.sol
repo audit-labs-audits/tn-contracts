@@ -36,10 +36,39 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     function unstake() external virtual;
 
     /// @inheritdoc IStakeManager
-    function getRewards(address ecdsaPubkey) public view virtual returns (uint240 claimableRewards) {
-        StakeManagerStorage storage $ = _stakeManagerStorage();
-        claimableRewards = _getRewards($, ecdsaPubkey);
+    function getRewards(address ecdsaPubkey) public view virtual returns (uint240) {
+        return _getRewards(_stakeManagerStorage(), ecdsaPubkey);
     }
+
+    /// @inheritdoc IStakeManager
+    function stakeInfo(address ecdsaPubkey) public view virtual returns (StakeInfo memory) {
+        return _stakeManagerStorage().stakeInfo[ecdsaPubkey];
+    }
+
+    /// @inheritdoc IStakeManager
+    function stakeAmount() public view virtual returns (uint256) {
+        return _stakeManagerStorage().stakeAmount;
+    }
+
+    /// @inheritdoc IStakeManager
+    function stakeVersion() public view virtual returns (uint8) {
+        return _stakeManagerStorage().stakeVersion;
+    }
+
+    /// @inheritdoc IStakeManager
+    function minWithdrawAmount() public view virtual returns (uint256) {
+        return _stakeManagerStorage().minWithdrawAmount;
+    }
+
+    /// @inheritdoc IStakeManager
+    function upgradeStakeVersion(
+        uint256 newStakeAmount,
+        uint256 newMinWithdrawAmount,
+        uint256 newConsensusBlockReward
+    )
+        external
+        virtual
+        returns (uint8);
 
     /**
      *
@@ -53,7 +82,6 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     /// @param tokenId Refers to the `ERC721::tokenId` which must be less than `UNSTAKED` and nonzero
     /// tokenIds must be minted in order unless overwriting a retired validator for storage efficiency
     /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
-
     function mint(address to, uint256 tokenId) external virtual;
 
     /// @dev In the case of malicious or erroneous node operator behavior, governance can use this function
@@ -78,18 +106,9 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         revert NotTransferable();
     }
 
-    /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
-    function safeTransferFrom(
-        address, /* from */
-        address, /* to */
-        uint256, /* tokenId */
-        bytes memory /* data */
-    )
-        public
-        virtual
-        override
-    {
-        revert NotTransferable();
+    /// @inheritdoc IStakeManager
+    function totalSupply() public view virtual returns (uint256) {
+        return _stakeManagerStorage().totalSupply;
     }
 
     /**
@@ -112,18 +131,18 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
         // wipe existing stakeInfo and burn the token
-        StakeInfo storage stakeInfo = $.stakeInfo[msg.sender];
-        uint256 rewards = uint256(stakeInfo.stakingRewards);
-        stakeInfo.stakingRewards = 0;
-        stakeInfo.tokenId = UNSTAKED;
+        StakeInfo storage info = $.stakeInfo[msg.sender];
+        uint256 rewards = uint256(info.stakingRewards);
+        info.stakingRewards = 0;
+        info.tokenId = UNSTAKED;
         $.totalSupply--;
         _burn(tokenId);
 
         // forward the stake amount and outstanding rewards through RWTEL module to caller
-        uint256 stakeAmount = $.stakeAmount; //todo handle configurable stake amt
-        IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmount }(msg.sender, rewards);
+        uint256 stakeAmt = $.stakeAmount; //todo handle configurable stake amt
+        IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmt }(msg.sender, rewards);
 
-        return stakeAmount + rewards;
+        return stakeAmt + rewards;
     }
 
     function _checkRewardsExceedMinWithdrawAmount(

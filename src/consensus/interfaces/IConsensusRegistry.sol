@@ -14,7 +14,6 @@ import { StakeInfo } from "./IStakeManager.sol";
 interface IConsensusRegistry {
     /// @custom:storage-location erc7201:telcoin.storage.ConsensusRegistry
     struct ConsensusRegistryStorage {
-        uint8 numGenesisValidators;
         uint32 currentEpoch; // uint32 provides 3.7e14 years for 24hr epochs
         uint8 epochPointer;
         EpochInfo[4] epochInfo;
@@ -62,6 +61,7 @@ interface IConsensusRegistry {
 
     enum ValidatorStatus {
         Any,
+        Staked,
         PendingActivation,
         Active,
         PendingExit,
@@ -73,9 +73,10 @@ interface IConsensusRegistry {
     /// @dev Accepts the committee of voting validators for 2 epochs in the future
     /// @param newCommittee The future validator committee for 2 epochs after
     /// the current one is finalized; ie `$.currentEpoch + 3` (this func increments `currentEpoch`)
-    function concludeEpoch(address[] calldata newCommittee) external;
+    function concludeEpoch(address[] calldata newCommittee) external returns (ValidatorInfo[] memory);
 
-    /// @dev Activates the calling validator, setting the epoch two in future as activation epoch
+    /// @dev Activates the calling validator, setting the next epoch as activation epoch
+    /// to ensure ineligibility for rewards until completing a full epoch
     /// @notice Caller must own the ConsensusNFT for their index and be pending activation status
     function activate() external;
 

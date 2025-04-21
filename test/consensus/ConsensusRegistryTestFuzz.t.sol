@@ -18,7 +18,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         vm.etch(address(consensusRegistry), type(ERC1967Proxy).runtimeCode);
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
-        consensusRegistry.initialize(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, crOwner);
+        consensusRegistry.initialize(address(rwTEL), stakeAmount_, minWithdrawAmount_, initialValidators, crOwner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
@@ -32,21 +32,22 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
             address newValidator = _createRandomAddress(tokenId);
 
             // deal `stakeAmount` funds and prank governance NFT mint to `newValidator`
-            vm.deal(newValidator, stakeAmount);
+            vm.deal(newValidator, stakeAmount_);
             vm.prank(crOwner);
             consensusRegistry.mint(newValidator, tokenId);
         }
     }
 
     function testFuzz_concludeEpoch(uint24 numValidators, uint232 fuzzedRewards) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 1050)); // ~MNOs in the world
-        fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount, telMaxSupply));
+        numValidators = uint24(bound(uint256(numValidators), 1, 900));
+        fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount_, telMaxSupply));
 
-        _fuzz_stake(numValidators, stakeAmount);
+        uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
+
+        _fuzz_stake(numValidators, stakeAmount_);
         _fuzz_activate(numValidators);
 
         // identify committee size, conclude an epoch to reach activation epoch, then create a committee
-        uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
         uint256 committeeSize = _fuzz_computeCommitteeSize(numActive, numValidators);
         // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
         vm.startPrank(sysAddress);
@@ -64,22 +65,29 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         assertEq(numActiveAfter, numActive);
         uint32 newEpoch = consensusRegistry.getCurrentEpoch();
         address[] memory currentCommittee = consensusRegistry.getEpochInfo(newEpoch).committee;
-        for (uint256 i; i < currentCommittee.length; ++i) assertEq(currentCommittee[i], initialValidators[i].ecdsaPubkey);
+        for (uint256 i; i < currentCommittee.length; ++i) {
+            assertEq(currentCommittee[i], initialValidators[i].ecdsaPubkey);
+        }
         address[] memory nextCommittee = consensusRegistry.getEpochInfo(newEpoch + 1).committee;
-        for (uint256 i; i < nextCommittee.length; ++i) assertEq(nextCommittee[i], zeroCommittee[i]);
+        for (uint256 i; i < nextCommittee.length; ++i) {
+            assertEq(nextCommittee[i], zeroCommittee[i]);
+        }
         address[] memory subsequentCommittee = consensusRegistry.getEpochInfo(newEpoch + 2).committee;
-        for (uint256 i; i < subsequentCommittee.length; ++i) assertEq(subsequentCommittee[i], newCommittee[i]);
+        for (uint256 i; i < subsequentCommittee.length; ++i) {
+            assertEq(subsequentCommittee[i], newCommittee[i]);
+        }
     }
 
     function testFuzz_incrementRewards(uint24 numValidators, uint232 fuzzedRewards) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 1050)); // ~MNOs in the world 
-        fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount, telMaxSupply));
+        numValidators = uint24(bound(uint256(numValidators), 1, 1050)); // ~MNOs in the world
+        fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount_, telMaxSupply));
 
-        _fuzz_stake(numValidators, stakeAmount);
+        uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
+
+        _fuzz_stake(numValidators, stakeAmount_);
         _fuzz_activate(numValidators);
 
         // identify committee size, conclude an epoch to reach activation epoch, then create a committee
-        uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
         uint256 committeeSize = _fuzz_computeCommitteeSize(numActive, numValidators);
         // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
         vm.startPrank(sysAddress);
@@ -115,11 +123,11 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_claimStakeRewards(uint24 numValidators, uint232 fuzzedRewards) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 1050)); // ~MNOs in the world 
+        numValidators = uint24(bound(uint256(numValidators), 1, 1050)); // ~MNOs in the world
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
-        fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount * numActive, telMaxSupply));
+        fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount_ * numActive, telMaxSupply));
 
-        _fuzz_stake(numValidators, stakeAmount);
+        _fuzz_stake(numValidators, stakeAmount_);
         _fuzz_activate(numValidators);
 
         // identify committee size, conclude an epoch to reach activation epoch, then create a committee

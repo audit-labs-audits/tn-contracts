@@ -20,9 +20,10 @@ interface IStakeManager {
         address rwTEL;
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
-        mapping(address => StakeInfo) stakeInfo;
+        uint256 consensusBlockReward;
         uint24 totalSupply;
         uint8 stakeVersion;
+        mapping(address => StakeInfo) stakeInfo;
         mapping(address => address) delegations; //todo: work this in
     }
 
@@ -51,8 +52,32 @@ interface IStakeManager {
     /// @notice `StakeInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
     function unstake() external;
 
+    /// @dev Returns the current total supply of minted ConsensusNFTs
+    function totalSupply() external view returns (uint256);
+
     /// @dev Fetches the claimable rewards accrued for a given validator address
     /// @notice Does not include the original stake amount and cannot be claimed until surpassing `minWithdrawAmount`
     /// @return claimableRewards The validator's claimable rewards, not including the validator's stake
     function getRewards(address ecdsaPubkey) external view returns (uint240 claimableRewards);
+
+    /// @dev Returns staking information for the given address
+    function stakeInfo(address ecdsaPubkey) external view returns (StakeInfo memory);
+
+    /// @dev Returns the current stake amount
+    function stakeAmount() external view returns (uint256);
+
+    /// @dev Returns the current stake version
+    function stakeVersion() external view returns (uint8);
+
+    /// @dev Returns the current minimum withdrawal amount
+    function minWithdrawAmount() external view returns (uint256);
+
+    /// @dev Permissioned function to upgrade stake, withdrawal, and consensus block reward configurations
+    function upgradeStakeVersion(
+        uint256 newStakeAmount,
+        uint256 newMinWithdrawAmount,
+        uint256 newConsensusBlockReward
+    )
+        external
+        returns (uint8);
 }
