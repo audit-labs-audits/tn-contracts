@@ -10,7 +10,7 @@ import {ConsensusRegistry} from "src/consensus/ConsensusRegistry.sol";
 import {IConsensusRegistry} from "src/consensus/interfaces/IConsensusRegistry.sol";
 
 /// @title ConsensusRegistry Genesis Storage Config Generator
-/// @notice Generates a .txt file comprising the storage slots and their values written by `initialize()`
+/// @notice Generates a yaml file comprising the storage slots and their values written by `initialize()`
 /// Used by Telcoin-Network protocol to instantiate the contract with required configuration at genesis
 
 /// @dev Usage: `forge script script/GenerateConsensusRegistryStorage.s.sol -vvvv`
@@ -189,7 +189,7 @@ contract GenerateConsensusRegistryStorage is Script, Test {
         string memory root = vm.projectRoot();
         string memory dest = string.concat(
             root,
-            "/deployments/consensus-registry-storage.yaml"
+            "/deployments/genesis/consensus-registry-config.yaml"
         );
         vm.writeLine(dest, "---"); // indicate yaml format
 

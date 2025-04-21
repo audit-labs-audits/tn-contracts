@@ -47,7 +47,7 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
 
     function setUp() public {
         // set RWTEL address (its bytecode is written after deploying ConsensusRegistry)
-        rwTEL = RWTEL(address(0x7e1));
+        rwTEL = RWTEL(payable(address(0x7e1)));
 
         // provide an initial validator as the network will launch with at least one validator
         bytes memory validator0BLSKey = _createRandomBlsPubkey(0);
@@ -94,7 +94,11 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         initialValidators.push(validatorInfo3);
 
         consensusRegistryImpl = new ConsensusRegistry();
-        consensusRegistry = ConsensusRegistry(payable(address(new ERC1967Proxy(address(consensusRegistryImpl), ""))));
+
+        consensusRegistry = ConsensusRegistry(0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
+        vm.etch(address(consensusRegistry), type(ERC1967Proxy).runtimeCode);
+        bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+        vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
         consensusRegistry.initialize(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
@@ -102,8 +106,19 @@ contract ConsensusRegistryTestFuzz is KeyTestUtils, Test {
         vm.deal(validator4, 100_000_000 ether);
 
         // deploy an RWTEL module and then use its bytecode to etch on a fixed address (use create2 in prod)
-        RWTEL tmp =
-            new RWTEL(address(consensusRegistry), address(0xbeef), "test", "TEST", 0, address(0x0), address(0x0), 0);
+        RWTEL tmp = new RWTEL(
+            address(0xbabe),
+            address(0xdead),
+            bytes32(0x0),
+            "chain",
+            address(0xbeef),
+            "test",
+            "TEST",
+            0,
+            address(0x0),
+            address(0x0),
+            0
+        );
         vm.etch(address(rwTEL), address(tmp).code);
         // deal RWTEL max TEL supply to test reward distribution
         vm.deal(address(rwTEL), telMaxSupply);

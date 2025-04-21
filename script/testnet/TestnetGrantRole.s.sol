@@ -33,28 +33,40 @@ contract TestnetGrantRole is Script {
         deployments = abi.decode(data, (Deployments));
 
         // fetch role values
-        adminRole = Stablecoin(deployments.eAUD).DEFAULT_ADMIN_ROLE();
-        supportRole = Stablecoin(deployments.eAUD).SUPPORT_ROLE();
-        minterRole = Stablecoin(deployments.eAUD).MINTER_ROLE();
-        burnerRole = Stablecoin(deployments.eAUD).BURNER_ROLE();
-        blacklisterRole = Stablecoin(deployments.eAUD).BLACKLISTER_ROLE();
+        adminRole = Stablecoin(deployments.eXYZs.eAUD).DEFAULT_ADMIN_ROLE();
+        supportRole = Stablecoin(deployments.eXYZs.eAUD).SUPPORT_ROLE();
+        minterRole = Stablecoin(deployments.eXYZs.eAUD).MINTER_ROLE();
+        burnerRole = Stablecoin(deployments.eXYZs.eAUD).BURNER_ROLE();
+        blacklisterRole = Stablecoin(deployments.eXYZs.eAUD).BLACKLISTER_ROLE();
 
         // populate target arrays
         recipients.push(recipient0);
         recipients.push(recipient1);
         recipients.push(recipient2);
         recipients.push(recipient3);
-        stables.push(Stablecoin(deployments.eAUD));
-        stables.push(Stablecoin(deployments.eCAD));
-        stables.push(Stablecoin(deployments.eCHF));
-        stables.push(Stablecoin(deployments.eEUR));
-        stables.push(Stablecoin(deployments.eGBP));
-        stables.push(Stablecoin(deployments.eHKD));
-        stables.push(Stablecoin(deployments.eJPY));
-        stables.push(Stablecoin(deployments.eMXN));
-        stables.push(Stablecoin(deployments.eNOK));
-        stables.push(Stablecoin(deployments.eSDR));
-        stables.push(Stablecoin(deployments.eSGD));
+        stables.push(Stablecoin(deployments.eXYZs.eAUD));
+        stables.push(Stablecoin(deployments.eXYZs.eCAD));
+        stables.push(Stablecoin(deployments.eXYZs.eCFA));
+        stables.push(Stablecoin(deployments.eXYZs.eCHF));
+        stables.push(Stablecoin(deployments.eXYZs.eCZK));
+        stables.push(Stablecoin(deployments.eXYZs.eDKK));
+        stables.push(Stablecoin(deployments.eXYZs.eEUR));
+        stables.push(Stablecoin(deployments.eXYZs.eGBP));
+        stables.push(Stablecoin(deployments.eXYZs.eHKD));
+        stables.push(Stablecoin(deployments.eXYZs.eHUF));
+        stables.push(Stablecoin(deployments.eXYZs.eINR));
+        stables.push(Stablecoin(deployments.eXYZs.eISK));
+        stables.push(Stablecoin(deployments.eXYZs.eJPY));
+        stables.push(Stablecoin(deployments.eXYZs.eKES));
+        stables.push(Stablecoin(deployments.eXYZs.eMXN));
+        stables.push(Stablecoin(deployments.eXYZs.eNOK));
+        stables.push(Stablecoin(deployments.eXYZs.eNZD));
+        stables.push(Stablecoin(deployments.eXYZs.eSDR));
+        stables.push(Stablecoin(deployments.eXYZs.eSEK));
+        stables.push(Stablecoin(deployments.eXYZs.eSGD));
+        stables.push(Stablecoin(deployments.eXYZs.eTRY));
+        stables.push(Stablecoin(deployments.eXYZs.eUSD));
+        stables.push(Stablecoin(deployments.eXYZs.eZAR));
     }
 
     function run() public {

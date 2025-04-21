@@ -15,9 +15,8 @@ import {
     DETERMINISTIC_FAUCET_PROXY_DATA
 } from "../../../deployments/Deployments.sol";
 
-/// @dev Usage: `forge script script/deploy/TestnetDeployStablecoinManager.s.sol --rpc-url $TN_RPC_URL -vvvv
-/// --private-key
-/// $ADMIN_PK`
+/// @dev Usage: `forge script script/testnet/deploy/TestnetDeployStablecoinManager.s.sol \
+/// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 contract TestnetDeployStablecoinManager is Script {
     StablecoinManager stablecoinManagerImpl;
     StablecoinManager stablecoinManager;
@@ -58,17 +57,29 @@ contract TestnetDeployStablecoinManager is Script {
         lowBalanceThreshold = 10_000;
 
         // populate stables array
-        stables.push(deployments.eAUD);
-        stables.push(deployments.eCAD);
-        stables.push(deployments.eCHF);
-        stables.push(deployments.eEUR);
-        stables.push(deployments.eGBP);
-        stables.push(deployments.eHKD);
-        stables.push(deployments.eMXN);
-        stables.push(deployments.eNOK);
-        stables.push(deployments.eJPY);
-        stables.push(deployments.eSDR);
-        stables.push(deployments.eSGD);
+        stables.push(deployments.eXYZs.eAUD);
+        stables.push(deployments.eXYZs.eCAD);
+        stables.push(deployments.eXYZs.eCFA);
+        stables.push(deployments.eXYZs.eCHF);
+        stables.push(deployments.eXYZs.eCZK);
+        stables.push(deployments.eXYZs.eDKK);
+        stables.push(deployments.eXYZs.eEUR);
+        stables.push(deployments.eXYZs.eGBP);
+        stables.push(deployments.eXYZs.eHKD);
+        stables.push(deployments.eXYZs.eHUF);
+        stables.push(deployments.eXYZs.eINR);
+        stables.push(deployments.eXYZs.eISK);
+        stables.push(deployments.eXYZs.eJPY);
+        stables.push(deployments.eXYZs.eKES);
+        stables.push(deployments.eXYZs.eMXN);
+        stables.push(deployments.eXYZs.eNOK);
+        stables.push(deployments.eXYZs.eNZD);
+        stables.push(deployments.eXYZs.eSDR);
+        stables.push(deployments.eXYZs.eSEK);
+        stables.push(deployments.eXYZs.eSGD);
+        stables.push(deployments.eXYZs.eTRY);
+        stables.push(deployments.eXYZs.eUSD);
+        stables.push(deployments.eXYZs.eZAR);
 
         faucets.push(faucet0);
         faucets.push(faucet1);

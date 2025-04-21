@@ -5,18 +5,46 @@ pragma solidity ^0.8.26;
 /// therefore upper-case struct member names must come **BEFORE** lower-case ones!
 struct Deployments {
     address ArachnidDeterministicDeployFactory;
-    address AxelarAmplifierGateway;
-    address AxelarAmplifierGatewayImpl;
     address ConsensusRegistry;
     address GitAttestationRegistry;
     address StablecoinImpl;
     address StablecoinManager;
     address StablecoinManagerImpl;
+    address StakeManager;
     address TANIssuanceHistory;
     address TANIssuancePlugin;
-    address UniswapV2Factory;
-    address UniswapV2Router02;
     address admin;
+    EXYZs eXYZs;
+    ITS its;
+    address rwTEL;
+    address rwTELImpl;
+    address rwTELTokenManager;
+    address sepoliaTEL;
+    UniswapV2 uniswapV2;
+    address wTEL;
+}
+
+/// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering
+struct ITS {
+    address AxelarAmplifierGateway;
+    address AxelarAmplifierGatewayImpl;
+    address Create3Deployer;
+    address GasService;
+    address GasServiceImpl;
+    address GatewayCaller;
+    address InterchainTokenDeployer;
+    address InterchainTokenFactory;
+    address InterchainTokenFactoryImpl;
+    address InterchainTokenImpl;
+    address InterchainTokenService;
+    address InterchainTokenServiceImpl;
+    address TokenHandler;
+    address TokenManagerDeployer;
+    address TokenManagerImpl;
+}
+
+/// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering
+struct EXYZs {
     address eAUD;
     address eCAD;
     address eCFA;
@@ -40,15 +68,12 @@ struct Deployments {
     address eTRY;
     address eUSD;
     address eZAR;
-    address rwTEL;
-    address rwTELImpl;
-    address sepoliaTEL;
-    UniV2Pools uniV2Pools;
-    address wTEL;
 }
 
 /// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering
-struct UniV2Pools {
+struct UniswapV2 {
+    address UniswapV2Factory;
+    address UniswapV2Router02;
     address eEUR_eAUD_Pool;
     address eEUR_eCAD_Pool;
     address eEUR_eCFA_Pool;

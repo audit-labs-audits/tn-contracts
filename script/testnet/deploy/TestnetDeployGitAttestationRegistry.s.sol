@@ -7,9 +7,8 @@ import { LibString } from "solady/utils/LibString.sol";
 import { Deployments } from "../../../deployments/Deployments.sol";
 import "../../../src/CI/GitAttestationRegistry.sol";
 
-/// @dev Usage: `forge script script/deploy/TestnetDeployGitAttestationRegistry.s.sol --rpc-url $TN_RPC_URL -vvvv
-/// --private-key
-/// $ADMIN_PK`
+/// @dev Usage: `forge script script/testnet/deploy/TestnetDeployGitAttestationRegistry.s.sol \
+/// --rpc-url $TN_RPC_URL -vvvv --private-key $ADMIN_PK`
 contract TestnetDeployGitAttestationRegistry is Script {
     GitAttestationRegistry gitAttestationRegistry;
 

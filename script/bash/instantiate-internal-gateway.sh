@@ -3,18 +3,15 @@
 set -e
 set -u
 
-GATEWAY_CODE_ID=616
+# devnet-amplifier config
+GATEWAY_CODE_ID=848
 CHAIN_ID="devnet-amplifier"
-
-# fallback addresses are for devnet-amplifier
-FALLBACK_WALLET_ADDR="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
-FALLBACK_VERIFIER_ADDR="axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxuvtxx"
-FALLBACK_RPC_URL="http://devnet-amplifier.axelar.dev:26657" 
+ROUTER_ADDR="axelar14jjdxqhuxk803e9pq64w4fgf385y86xxhkpzswe9crmu6vxycezst0zq8y"
+RPC="http://devnet-amplifier.axelar.dev:26657" 
 
 # initialize to default values before parsing CLI args
-WALLET_ADDR="$FALLBACK_WALLET_ADDR"
-VOTING_VERIFIER_ADDR="$FALLBACK_VERIFIER_ADDR"
-RPC="$FALLBACK_RPC_URL"
+WALLET_ADDR="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
+VOTING_VERIFIER_ADDR="axelar1kdzmvkjtvu8cct0gzzqdj8jyd6yvlcswauu73ccmvcl0w429xcxqdqst4p"
 
 # parse CLI args if given
 while [[ "$#" -gt 0 ]]; do
@@ -61,14 +58,14 @@ echo "Using RPC url: $RPC"
 axelard tx wasm instantiate $GATEWAY_CODE_ID \
     '{
         "verifier_address": "'"$VOTING_VERIFIER_ADDR"'",
-        "router_address": "axelar14jjdxqhuxk803e9pq64w4fgf385y86xxhkpzswe9crmu6vxycezst0zq8y"
+        "router_address": "'"$ROUTER_ADDR"'"
     }' \
-    --keyring-backend test \
-    --from wallet \
+    --keyring-backend file \
+    --from devnet \
     --gas auto --gas-adjustment 1.5 --gas-prices 0.00005uamplifier\
     --chain-id $CHAIN_ID \
     --node $RPC \
     --label test-gateway-tn \
     --admin $WALLET_ADDR
 
-# Resulting internal-gateway address: axelar16zy7kl6nv8zk0racw6nsm6n0yl7h02lz4s9zz4lt8cfl0vxhfp8sqmtqcr
+# Resulting internal-gateway address: axelar1ecyaz6vr4hj6qwnza8vh0xuer04jmwxnd4vpewtuju3404hvwv7sdj30zz

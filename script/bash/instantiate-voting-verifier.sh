@@ -3,18 +3,18 @@
 set -e
 set -u
 
-VERIFIER_CODE_ID=626
+# devnet-amplifier config
+VERIFIER_CODE_ID=854
 CHAIN_ID="devnet-amplifier"
-
-# fallback addresses are for devnet-amplifier
-FALLBACK_WALLET_ADDR="axelar1sky56slxkswwd8e68ln8da3j44vlhjdvqkxnqg"
-FALLBACK_SOURCE_GATEWAY="0xBf02955Dc36E54Fe0274159DbAC8A7B79B4e4dc3"
-FALLBACK_RPC_URL="http://devnet-amplifier.axelar.dev:26657" 
+RPC="http://devnet-amplifier.axelar.dev:26657"
+SERVICE_REGISTRY_ADDR="axelar1c9fkszt5lq34vvvlat3fxj6yv7ejtqapz04e97vtc9m5z9cwnamq8zjlhz"
+GOVERNANCE_ADDR="axelar1zlr7e5qf3sz7yf890rkh9tcnu87234k6k7ytd9"
 
 # initialize to default values before parsing CLI args
-WALLET_ADDR="$FALLBACK_WALLET_ADDR"
-SOURCE_GATEWAY_ADDR="$FALLBACK_SOURCE_GATEWAY"
-RPC="$FALLBACK_RPC_URL"
+WALLET_ADDR="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
+SERVICE_NAME="devnet-tn"
+CHAIN_NAME="telcoin-devnet"
+SOURCE_GATEWAY_ADDR="0xF128c84c3326727c3e155168daAa4C0156B87AD1"
 
 # parse CLI args if given
 while [[ "$#" -gt 0 ]]; do
@@ -55,29 +55,31 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 echo "Using wallet address: $WALLET_ADDR"
+echo "Using service name: $SERVICE_NAME"
+echo "Using source chain name: $CHAIN_NAME"
 echo "Using source gateway: $SOURCE_GATEWAY_ADDR"
 echo "Using RPC url: $RPC"
 
 axelard tx wasm instantiate $VERIFIER_CODE_ID \
     '{
-        "governance_address": "axelar1zlr7e5qf3sz7yf890rkh9tcnu87234k6k7ytd9",
-        "service_registry_address":"axelar1c9fkszt5lq34vvvlat3fxj6yv7ejtqapz04e97vtc9m5z9cwnamq8zjlhz",
-        "service_name":"validators-tn",
+        "governance_address": "'"$GOVERNANCE_ADDR"'",
+        "service_registry_address":"'"$SERVICE_REGISTRY_ADDR"'",
+        "service_name":"'"$SERVICE_NAME"'",
         "source_gateway_address":"'"$SOURCE_GATEWAY_ADDR"'",
         "voting_threshold":["1","1"],
         "block_expiry":"10",
         "confirmation_height":1,
-        "source_chain":"telcoin-network",
-        "rewards_address":"axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk",
+        "source_chain":"'"$CHAIN_NAME"'",
+        "rewards_address":"'"$WALLET_ADDR"'",
         "msg_id_format":"hex_tx_hash_and_event_index",
         "address_format": "eip55"
     }' \
-    --keyring-backend test \
-    --from wallet \
+    --keyring-backend file \
+    --from devnet \
     --gas auto --gas-adjustment 1.5 --gas-prices 0.00005uamplifier\
     --chain-id $CHAIN_ID \
     --node $RPC \
     --label test-voting-verifier-tn \
     --admin $WALLET_ADDR
     
-# Resulting voting-verifier address: axelar16rlsy2vs89yv6wvexur0sgq3kvcq6glu4cy6xz2et36hsmehhhuswxuw05
+# Resulting voting-verifier address: axelar1kdzmvkjtvu8cct0gzzqdj8jyd6yvlcswauu73ccmvcl0w429xcxqdqst4p

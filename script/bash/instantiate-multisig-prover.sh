@@ -3,20 +3,21 @@
 set -e
 set -u
 
-PROVER_CODE_ID=618
+# devnet-amplifier config
+PROVER_CODE_ID=855
 CHAIN_ID="devnet-amplifier"
-
-# fallback addresses are for devnet-amplifier
-FALLBACK_WALLET_ADDR="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
-FALLBACK_VERIFIER_ADDR="axelar1n2g7xr4wuy4frc0936vtqhgr0fyklc0rxhx7qty5em2m2df47clsxuvtxx"
-FALLBACK_INTERNAL_GATEWAY_ADDR="axelar16zy7kl6nv8zk0racw6nsm6n0yl7h02lz4s9zz4lt8cfl0vxhfp8sqmtqcr"
-FALLBACK_RPC_URL="http://devnet-amplifier.axelar.dev:26657" 
+RPC="http://devnet-amplifier.axelar.dev:26657" 
+GOVERNANCE_ADDR="axelar1zlr7e5qf3sz7yf890rkh9tcnu87234k6k7ytd9"
+MULTISIG_ADDR="axelar19jxy26z0qnnspa45y5nru0l5rmy9d637z5km2ndjxthfxf5qaswst9290r"
+COORDINATOR_ADDR="axelar1m2498n4h2tskcsmssjnzswl5e6eflmqnh487ds47yxyu6y5h4zuqr9zk4g"
+SERVICE_REGISTRY_ADDR="axelar1c9fkszt5lq34vvvlat3fxj6yv7ejtqapz04e97vtc9m5z9cwnamq8zjlhz"
 
 # initialize to default values before parsing CLI args
-WALLET_ADDR="$FALLBACK_WALLET_ADDR"
-VOTING_VERIFIER_ADDR="$FALLBACK_VERIFIER_ADDR"
-INTERNAL_GATEWAY_ADDR="$FALLBACK_INTERNAL_GATEWAY_ADDR"
-RPC="$FALLBACK_RPC_URL"
+WALLET_ADDR="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
+SERVICE_NAME="devnet-tn"
+CHAIN_NAME="telcoin-devnet"
+VOTING_VERIFIER_ADDR="axelar1kdzmvkjtvu8cct0gzzqdj8jyd6yvlcswauu73ccmvcl0w429xcxqdqst4p"
+INTERNAL_GATEWAY_ADDR="axelar1ecyaz6vr4hj6qwnza8vh0xuer04jmwxnd4vpewtuju3404hvwv7sdj30zz"
 
 # parse CLI args if given
 while [[ "$#" -gt 0 ]]; do
@@ -66,39 +67,42 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # using cast, derive domain separator from `${chainName}_${myWalletAddress}_${proverCodeId}`
-input_string="telcoin-network_${WALLET_ADDR}_${PROVER_CODE_ID}"
-# will be `0x0035b22d651590efd9f93af65ea459a46e0775da014fe31629513fa0e63a4de0`
+input_string="${CHAIN_NAME}_${WALLET_ADDR}_${PROVER_CODE_ID}"
+# will be `0x15b72bb6e752ec66a5f922de454da5933a832df977c77f66e8b1859115ed6bac`
 domain_separator=$(cast keccak "$input_string")
 domain_separator_unprefixed=${domain_separator#0x}
 
 echo "Using wallet address: $WALLET_ADDR"
+echo "Using service name: $SERVICE_NAME"
+echo "Using chain name: $CHAIN_NAME"
 echo "Using voting verifier: $VOTING_VERIFIER_ADDR"
+echo "Using internal gateway: $INTERNAL_GATEWAY_ADDR"
 echo "Using domain separator: $domain_separator"
 echo "Using RPC url: $RPC"
 
 axelard tx wasm instantiate $PROVER_CODE_ID \
     '{
         "admin_address": "'"$WALLET_ADDR"'",
-        "governance_address": "axelar1zlr7e5qf3sz7yf890rkh9tcnu87234k6k7ytd9",
+        "governance_address": "'"$GOVERNANCE_ADDR"'",
         "gateway_address": "'"$INTERNAL_GATEWAY_ADDR"'",
-        "multisig_address": "axelar19jxy26z0qnnspa45y5nru0l5rmy9d637z5km2ndjxthfxf5qaswst9290r",
-        "coordinator_address":"axelar1m2498n4h2tskcsmssjnzswl5e6eflmqnh487ds47yxyu6y5h4zuqr9zk4g",
-        "service_registry_address":"axelar1c9fkszt5lq34vvvlat3fxj6yv7ejtqapz04e97vtc9m5z9cwnamq8zjlhz",
+        "multisig_address": "'"$MULTISIG_ADDR"'",
+        "coordinator_address":"'"$COORDINATOR_ADDR"'",
+        "service_registry_address":"'"$SERVICE_REGISTRY_ADDR"'",
         "voting_verifier_address": "'"$VOTING_VERIFIER_ADDR"'",
         "signing_threshold": ["1","1"],
-        "service_name": "validators-tn",
-        "chain_name":"telcoin-network",
+        "service_name": "'"$SERVICE_NAME"'",
+        "chain_name":"'"$CHAIN_NAME"'",
         "verifier_set_diff_threshold": 1,
         "encoder": "abi",
         "key_type": "ecdsa",
         "domain_separator": "'"$domain_separator_unprefixed"'"
     }' \
-    --keyring-backend test \
-    --from wallet \
+    --keyring-backend file \
+    --from devnet \
     --gas auto --gas-adjustment 1.5 --gas-prices 0.00005uamplifier\
     --chain-id $CHAIN_ID \
     --node $RPC \
     --label test-prover-tn  \
     --admin $WALLET_ADDR
 
-# Resulting multisig-prover address: axelar162t7mxkcnu7psw7qxlsd4cc5u6ywm399h8xg6qhgseg8nq6qhf6s7q8m0e
+# Resulting multisig-prover address: axelar1e3fr74wrnjfazhqzhq6aehcf8y3gjut9kgac2ufndaqpz32lq5sskln40l

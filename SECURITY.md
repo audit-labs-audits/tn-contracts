@@ -39,23 +39,14 @@ To bolster this contract's security posture, Telcoin Network uses the canonical 
 
 #### RWTEL Executable "AxelarGMPExecutable.sol"
 
+//todo: update this section
+
 The RWTEL executable contract communicates with the external gateway to lock and release native $TEL tokens. It is vital that this contract is secure to handle the movement of native $TEL as part of validated bridge messages.
 
 To bolster this contract's security posture, the contract enforces strict invariant conditions under which $TEL may be released:
 
 - $TEL can only be burned (locked) after a 24 hour settlement period, meaning that any attacker cannot send $TEL off of Telcoin Network until 24 hours have passed for any received $TEL. This is enforced by Circle Research's `RecoverableWrapper`
 - $TEL can only be minted (released) as a result of incoming bridge transactions validated by Axelar Network verifiers. This is enforced by a call to the Axelar external gateway
-- $TEL bridge transactions that fail execution by the RWTEL module for any reason do not revert and instead emit a failure event. This way, failed transactions can not get stuck or be re-attempted and must be resubmitted as a new message on the source chain (which will be re-validated by Axelar verifiers)
-- $TEL minting occurs as part of the simplest low-level call available within the EVM, represented and decoded from the following Solidity struct which is designed to mirror a protocol transaction:
-
-```solidity
-/// @dev Designed for AxelarGMPExecutable's required implementation of `_execute()`
-struct ExtCall {
-    address target;
-    uint256 value;
-    bytes data;
-}
-```
 
 ### Relayers
 

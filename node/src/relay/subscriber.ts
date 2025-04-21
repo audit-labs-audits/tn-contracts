@@ -10,7 +10,7 @@ import {
   PublicClient,
 } from "viem";
 import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
-import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGateway.json" assert { type: "json" };
+import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGateway.json" with { type: "json" };
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -90,7 +90,7 @@ async function main() {
 async function processLogs(logs: Log[]) {
   // handle axelar's custom nomenclature for sepolia
   let sourceChain = targetChain.name.toLowerCase();
-  if (targetChain === sepolia) sourceChain = `ethereum-${sourceChain}`;
+  if (targetChain === sepolia) sourceChain = `eth-${sourceChain}`;
 
   const events = [];
   for (const log of logs) {

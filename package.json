@@ -16,9 +16,7 @@
     "build-and-start": "npm run build && npm run start",
     "clean": "rm -rf node/dist",
     "watch": "tsc --watch",
-    "test": "forge test",
-    "prepare": "husky",
-    "postinstall": "husky install"
+    "test": "forge test"
   },
   "repository": {
     "type": "git",
@@ -34,8 +32,13 @@
   },
   "homepage": "https://github.com/Telcoin-Association/tn-contracts#readme",
   "dependencies": {
+    "@axelar-network/axelar-cgp-solidity": "^6.4.0",
+    "@axelar-network/axelar-gmp-sdk-solidity": "^6.0.5",
     "@axelar-network/axelar-local-dev": "^2.3.3",
-    "@ethersproject/experimental": "^5.7.0",
+    "@axelar-network/interchain-token-service": "^2.1.0",
+    "@ethersproject/experimental": "^5.8.0",
+    "@openzeppelin/contracts": "^5.2.0",
+    "@openzeppelin/contracts-upgradeable": "^5.2.0",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
     "axios": "^1.7.7",
@@ -43,12 +46,11 @@
     "forge-std": "github:foundry-rs/forge-std",
     "recoverable-wrapper": "git@github.com:robriks/recoverable-wrapper.git",
     "solady": "^0.0.227",
-    "telcoin-contracts": "^1.0.0",
+    "telcoin-contracts": "1.0.0",
     "viem": "^2.21.43"
   },
   "devDependencies": {
     "@types/node": "^20.14.11",
-    "husky": "^9.1.1",
     "mermaid": "^11.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.3"
