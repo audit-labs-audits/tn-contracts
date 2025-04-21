@@ -147,10 +147,10 @@ contract ConsensusRegistry is
     /// @inheritdoc StakeManager
     function stake(bytes calldata blsPubkey) external payable override whenNotPaused {
         if (blsPubkey.length != 96) revert InvalidBLSPubkey();
-        _checkStakeValue(msg.value);
 
         // require caller is known & whitelisted, having been issued a ConsensusNFT by governance
         StakeManagerStorage storage $S = _stakeManagerStorage();
+        _checkStakeValue(msg.value, $S.stakeVersion);
         uint24 tokenId = _checkKnownValidator($S, msg.sender);
 
         // enter validator in activation queue
@@ -160,7 +160,7 @@ contract ConsensusRegistry is
     // todo: function stakeFor(bytes calldata blsPubkey, address ecdsaPubkey, bytes calldata validatorSig) external
     // payable override whenNotPaused {
     // if (blsPubkey.length != 96) revert InvalidBLSPubkey();
-    // _checkStakeValue(msg.value);
+    // _checkStakeValue(msg.value, $S.stakeVersion);
 
     // StakeManagerStorage storage $S = _stakeManagerStorage();
     // uint24 tokenId = _checkKnownValidator($, ecdsaPubkey);
@@ -195,8 +195,9 @@ contract ConsensusRegistry is
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
         //todo: support delegations
-        _checkKnownValidator($, msg.sender);
-        uint256 rewards = _claimStakeRewards($);
+        uint24 tokenId = _checkKnownValidator($, msg.sender);
+        uint8 validatorVersion = _consensusRegistryStorage().validators[tokenId].stakeVersion;
+        uint256 rewards = _claimStakeRewards($, validatorVersion);
 
         emit RewardsClaimed(msg.sender, rewards);
     }
@@ -239,7 +240,7 @@ contract ConsensusRegistry is
 
         // return stake and send any outstanding rewards
         //todo: support delegations
-        uint256 stakeAndRewards = _unstake(validator.ecdsaPubkey, uint256(tokenId));
+        uint256 stakeAndRewards = _unstake(validator.ecdsaPubkey, uint256(tokenId), validator.stakeVersion);
 
         emit RewardsClaimed(msg.sender, stakeAndRewards);
     }
@@ -285,7 +286,7 @@ contract ConsensusRegistry is
         // exit, retire, and unstake + burn validator immediately
         _exit(validator, $C.currentEpoch);
         _retire(validator);
-        _unstake(ecdsaPubkey, tokenId);
+        _unstake(ecdsaPubkey, tokenId, validator.stakeVersion);
 
         return ejected;
     }
@@ -659,9 +660,9 @@ contract ConsensusRegistry is
 
         // Set stake storage configs
         $S.rwTEL = rwTEL_;
-        $S.stakeAmount = stakeAmount_;
-        $S.minWithdrawAmount = minWithdrawAmount_;
-        $S.consensusBlockReward = consensusBlockReward_;
+        $S.versions[0].stakeAmount = stakeAmount_;
+        $S.versions[0].minWithdrawAmount = minWithdrawAmount_;
+        $S.versions[0].consensusBlockReward = consensusBlockReward_;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
 
@@ -716,11 +717,7 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc IStakeManager
-    function upgradeStakeVersion(
-        uint256 newStakeAmount,
-        uint256 newMinWithdrawAmount,
-        uint256 newConsensusBlockReward
-    )
+    function upgradeStakeVersion(StakeConfig calldata newConfig)
         external
         override
         onlyOwner
@@ -728,10 +725,10 @@ contract ConsensusRegistry is
         returns (uint8)
     {
         StakeManagerStorage storage $ = _stakeManagerStorage();
-        $.stakeAmount = newStakeAmount;
-        $.minWithdrawAmount = newMinWithdrawAmount;
-        $.consensusBlockReward = newConsensusBlockReward;
-        return ++$.stakeVersion;
+        uint8 newVersion = ++$.stakeVersion;
+        $.versions[newVersion] = newConfig;
+
+        return newVersion;
     }
 
     /// @notice Only the owner may perform an upgrade

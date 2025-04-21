@@ -46,29 +46,30 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     }
 
     /// @inheritdoc IStakeManager
-    function stakeAmount() public view virtual returns (uint256) {
-        return _stakeManagerStorage().stakeAmount;
-    }
-
-    /// @inheritdoc IStakeManager
     function stakeVersion() public view virtual returns (uint8) {
         return _stakeManagerStorage().stakeVersion;
     }
 
     /// @inheritdoc IStakeManager
-    function minWithdrawAmount() public view virtual returns (uint256) {
-        return _stakeManagerStorage().minWithdrawAmount;
+    function stakeAmount() public view virtual returns (uint256) {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        return $.versions[$.stakeVersion].stakeAmount;
     }
 
     /// @inheritdoc IStakeManager
-    function upgradeStakeVersion(
-        uint256 newStakeAmount,
-        uint256 newMinWithdrawAmount,
-        uint256 newConsensusBlockReward
-    )
-        external
-        virtual
-        returns (uint8);
+    function minWithdrawAmount() public view virtual returns (uint256) {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        return $.versions[$.stakeVersion].minWithdrawAmount;
+    }
+
+    /// @inheritdoc IStakeManager
+    function consensusBlockReward() public view virtual returns (uint256) {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        return $.versions[$.stakeVersion].consensusBlockReward;
+    }
+
+    /// @inheritdoc IStakeManager
+    function upgradeStakeVersion(StakeConfig calldata config) external virtual returns (uint8);
 
     /**
      *
@@ -118,8 +119,15 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
      */
 
     /// @notice Sends staking rewards only and is not used for withdrawing initial stake
-    function _claimStakeRewards(StakeManagerStorage storage $) internal virtual returns (uint256 rewards) {
-        rewards = _checkRewardsExceedMinWithdrawAmount($, msg.sender);
+    function _claimStakeRewards(
+        StakeManagerStorage storage $,
+        uint8 validatorVersion
+    )
+        internal
+        virtual
+        returns (uint256 rewards)
+    {
+        rewards = _checkRewardsExceedMinWithdrawAmount($, msg.sender, validatorVersion);
 
         // wipe ledger to prevent reentrancy and send via the `RWTEL` module
         $.stakeInfo[msg.sender].stakingRewards = 0;
@@ -127,7 +135,15 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
     }
 
     //todo: handle validatorAddr,
-    function _unstake(address validatorAddr, uint256 tokenId) internal virtual returns (uint256 stakeAndRewards) {
+    function _unstake(
+        address ecdsaPubkey,
+        uint256 tokenId,
+        uint8 validatorVersion
+    )
+        internal
+        virtual
+        returns (uint256 stakeAndRewards)
+    {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
         // wipe existing stakeInfo and burn the token
@@ -139,7 +155,7 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         _burn(tokenId);
 
         // forward the stake amount and outstanding rewards through RWTEL module to caller
-        uint256 stakeAmt = $.stakeAmount; //todo handle configurable stake amt
+        uint256 stakeAmt = $.versions[validatorVersion].stakeAmount;
         IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmt }(msg.sender, rewards);
 
         return stakeAmt + rewards;
@@ -147,19 +163,19 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
 
     function _checkRewardsExceedMinWithdrawAmount(
         StakeManagerStorage storage $,
-        address caller
+        address rewardee,
+        uint8 validatorVersion
     )
         internal
         virtual
         returns (uint256 rewards)
     {
-        rewards = $.stakeInfo[caller].stakingRewards;
-        if (rewards < $.minWithdrawAmount) revert InsufficientRewards(rewards);
+        rewards = stakeInfo(rewardee).stakingRewards;
+        if (rewards < $.versions[validatorVersion].minWithdrawAmount) revert InsufficientRewards(rewards);
     }
 
-    function _checkStakeValue(uint256 value) internal virtual {
-        StakeManagerStorage storage $ = _stakeManagerStorage();
-        if (value != $.stakeAmount) revert InvalidStakeAmount(msg.value);
+    function _checkStakeValue(uint256 value, uint8 version) internal virtual {
+        if (value != _stakeManagerStorage().versions[version].stakeAmount) revert InvalidStakeAmount(msg.value);
     }
 
     function _getRewards(

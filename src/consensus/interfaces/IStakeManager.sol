@@ -18,13 +18,17 @@ interface IStakeManager {
     /// @custom:storage-location erc7201:telcoin.storage.StakeManager
     struct StakeManagerStorage {
         address rwTEL;
+        uint24 totalSupply;
+        uint8 stakeVersion;
+        mapping(uint8 => StakeConfig) versions;
+        mapping(address => StakeInfo) stakeInfo;
+        mapping(address => address) delegations; //todo: work this in
+    }
+
+    struct StakeConfig {
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
         uint256 consensusBlockReward;
-        uint24 totalSupply;
-        uint8 stakeVersion;
-        mapping(address => StakeInfo) stakeInfo;
-        mapping(address => address) delegations; //todo: work this in
     }
 
     error InvalidTokenId(uint256 tokenId);
@@ -63,21 +67,18 @@ interface IStakeManager {
     /// @dev Returns staking information for the given address
     function stakeInfo(address ecdsaPubkey) external view returns (StakeInfo memory);
 
-    /// @dev Returns the current stake amount
-    function stakeAmount() external view returns (uint256);
-
     /// @dev Returns the current stake version
     function stakeVersion() external view returns (uint8);
+
+    /// @dev Returns the current stake amount
+    function stakeAmount() external view returns (uint256);
 
     /// @dev Returns the current minimum withdrawal amount
     function minWithdrawAmount() external view returns (uint256);
 
+    /// @dev Returns the current consensus block reward
+    function consensusBlockReward() external view returns (uint256);
+
     /// @dev Permissioned function to upgrade stake, withdrawal, and consensus block reward configurations
-    function upgradeStakeVersion(
-        uint256 newStakeAmount,
-        uint256 newMinWithdrawAmount,
-        uint256 newConsensusBlockReward
-    )
-        external
-        returns (uint8);
+    function upgradeStakeVersion(StakeConfig calldata newVersion) external returns (uint8);
 }
