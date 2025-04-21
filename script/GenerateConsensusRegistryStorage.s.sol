@@ -24,6 +24,7 @@ contract GenerateConsensusRegistryStorage is Script, Test {
     address public rwTEL = address(0x7e1); //todo: this must be updated
     uint256 public stakeAmount = 1_000_000 ether;
     uint256 public minWithdrawAmount = 10_000 ether;
+    uint256 public consensusBlockReward = 100_000 ether; //todo: math on this
     IConsensusRegistry.ValidatorInfo[] initialValidators;
     address public owner = address(0x42);
 
@@ -124,7 +125,9 @@ contract GenerateConsensusRegistryStorage is Script, Test {
 
         vm.startStateDiffRecording();
         recordedRegistry = ConsensusRegistry(payable(address(new ERC1967Proxy(address(consensusRegistryImpl), ""))));
-        recordedRegistry.initialize(address(rwTEL), stakeAmount, minWithdrawAmount, initialValidators, owner);
+        recordedRegistry.initialize(
+            address(rwTEL), stakeAmount, minWithdrawAmount, consensusBlockReward, initialValidators, owner
+        );
         Vm.AccountAccess[] memory records = vm.stopAndReturnStateDiff();
 
         // loop through all records to identify written storage slots so their final (current) value can later be read

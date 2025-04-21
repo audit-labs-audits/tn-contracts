@@ -32,6 +32,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     uint256 public telMaxSupply = 100_000_000_000 ether;
     uint256 public stakeAmount_ = 1_000_000 ether;
     uint256 public minWithdrawAmount_ = 10_000 ether;
+    uint256 public consensusBlockReward_ = 100_000 ether;
     // `OZ::ERC721Upgradeable::mint()` supports up to ~14_300 fuzzed mint iterations
     uint256 public MAX_MINTABLE = 14_000;
 
@@ -81,9 +82,51 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         return abi.encodePacked(seedHash, seedHash, seedHash);
     }
 
+    function _fuzz_mint(uint24 numValidators) internal {
+        for (uint256 i; i < numValidators; ++i) {
+            // account for initial validators
+            uint256 tokenId = i + 5;
+            address newValidator = _createRandomAddress(tokenId);
+
+            // deal `stakeAmount` funds and prank governance NFT mint to `newValidator`
+            vm.deal(newValidator, stakeAmount_);
+            vm.prank(crOwner);
+            consensusRegistry.mint(newValidator, tokenId);
+        }
+    }
+
+    function _fuzz_burn(uint24 numValidators) internal returns (uint256[] memory) {
+        numValidators += 4; // include initial validators
+        // create list of token IDs to be burned
+        uint256[] memory tokenIds = new uint256[](numValidators);
+        for (uint256 i; i < numValidators; ++i) {
+            tokenIds[i] = i + 1;
+        }
+
+        // shuffle array to simulate semi-random burn order
+        for (uint256 i; i < numValidators; ++i) {
+            uint256 n = i + uint256(keccak256(abi.encodePacked(numValidators))) % (numValidators - i);
+            uint256 temp = tokenIds[n];
+            tokenIds[n] = tokenIds[i];
+            tokenIds[i] = temp;
+        }
+
+        // burn tokens in the shuffled order
+        for (uint256 i; i < numValidators; ++i) {
+            uint256 tokenId = tokenIds[i];
+            address validatorToBurn = _createRandomAddress(tokenId);
+
+            // burn the token for the validator
+            vm.prank(crOwner);
+            consensusRegistry.burn(validatorToBurn);
+        }
+
+        return tokenIds;
+    }
+
     function _fuzz_stake(uint24 numValidators, uint256 amount) internal {
         for (uint256 i; i < numValidators; ++i) {
-            // recreate `newValidator` address minted a ConsensusNFT in `setUp()` loop
+            // recreate `newValidator`, accounting for initial validators
             uint256 tokenId = i + 5;
             address newValidator = _createRandomAddress(tokenId);
 
@@ -99,7 +142,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
 
     function _fuzz_activate(uint24 numValidators) internal {
         for (uint256 i; i < numValidators; ++i) {
-            // recreate `newValidator` address minted a ConsensusNFT in `setUp()` loop
+            // recreate `newValidator`, accounting for initial validators
             uint256 tokenId = i + 5;
             address newValidator = _createRandomAddress(tokenId);
 

@@ -19,7 +19,9 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
 
-        consensusRegistry.initialize(address(rwTEL), stakeAmount_, minWithdrawAmount_, initialValidators, crOwner);
+        consensusRegistry.initialize(
+            address(rwTEL), stakeAmount_, minWithdrawAmount_, consensusBlockReward_, initialValidators, crOwner
+        );
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
@@ -277,8 +279,6 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         uint256 finalBalance = validator5.balance;
         assertEq(finalBalance, initialBalance + stakeAmount_);
     }
-
-    // todo test unstake with rewards applied
 
     // Test for unstake by a non-validator
     function testRevert_unstake_nonValidator() public {

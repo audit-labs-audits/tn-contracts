@@ -18,18 +18,50 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         vm.etch(address(consensusRegistry), type(ERC1967Proxy).runtimeCode);
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
-        consensusRegistry.initialize(address(rwTEL), stakeAmount_, minWithdrawAmount_, initialValidators, crOwner);
+        consensusRegistry.initialize(
+            address(rwTEL), stakeAmount_, minWithdrawAmount_, consensusBlockReward_, initialValidators, crOwner
+        );
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
         // deal RWTEL max TEL supply to test reward distribution
         vm.deal(address(rwTEL), telMaxSupply);
+    }
 
-        // to prevent exceeding block gas limit, `mint(newValidator)` step is performed in setup
-        for (uint256 i; i < MAX_MINTABLE; ++i) {
+    function testFuzz_mintBurn(uint24 numValidators) public {
+        numValidators = uint24(bound(uint256(numValidators), 1, 845));
+
+        _fuzz_mint(numValidators);
+        vm.deal(address(consensusRegistry), stakeAmount_ * (numValidators + 5)); // provide funds
+        uint256[] memory tokenIds = _fuzz_burn(numValidators);
+
+        // asserts
+        assertEq(consensusRegistry.totalSupply(), 0);
+        for (uint256 i; i < tokenIds.length; ++i) {
+            uint256 tokenId = tokenIds[i];
+            // recreate validator
+            address burned = _createRandomAddress(tokenId);
+            assertTrue(consensusRegistry.isRetired(tokenId));
+            assertEq(consensusRegistry.balanceOf(burned), 0);
+
+            vm.expectRevert();
+            consensusRegistry.ownerOf(tokenId);
+            vm.expectRevert();
+            consensusRegistry.getValidatorTokenId(burned);
+            vm.expectRevert();
+            consensusRegistry.getValidatorByTokenId(tokenId);
+        }
+
+        // remint can't be done with same addresses
+        vm.expectRevert();
+        consensusRegistry.mint(_createRandomAddress(1), 1);
+
+        // remint with new addresses
+        for (uint256 i; i < numValidators; ++i) {
             // account for initial validators
             uint256 tokenId = i + 5;
-            address newValidator = _createRandomAddress(tokenId);
+            uint256 uniqueSeed = tokenId + numValidators;
+            address newValidator = _createRandomAddress(uniqueSeed);
 
             // deal `stakeAmount` funds and prank governance NFT mint to `newValidator`
             vm.deal(newValidator, stakeAmount_);
@@ -44,6 +76,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
 
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
 
+        _fuzz_mint(numValidators);
         _fuzz_stake(numValidators, stakeAmount_);
         _fuzz_activate(numValidators);
 
@@ -79,11 +112,12 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_incrementRewards(uint24 numValidators, uint232 fuzzedRewards) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 1050)); // ~MNOs in the world
+        numValidators = uint24(bound(uint256(numValidators), 1, 1050));
         fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount_, telMaxSupply));
 
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
 
+        _fuzz_mint(numValidators);
         _fuzz_stake(numValidators, stakeAmount_);
         _fuzz_activate(numValidators);
 
@@ -123,10 +157,11 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_claimStakeRewards(uint24 numValidators, uint232 fuzzedRewards) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 1050)); // ~MNOs in the world
+        numValidators = uint24(bound(uint256(numValidators), 1, 1050));
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
         fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount_ * numActive, telMaxSupply));
 
+        _fuzz_mint(numValidators);
         _fuzz_stake(numValidators, stakeAmount_);
         _fuzz_activate(numValidators);
 

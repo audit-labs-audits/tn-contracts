@@ -9,7 +9,8 @@ import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 
-import "forge-std/Test.sol"; //todo
+import "forge-std/Test.sol";
+//todo
 
 /**
  * @title ConsensusRegistry
@@ -271,12 +272,11 @@ contract ConsensusRegistry is
     /// @inheritdoc StakeManager
     function burn(address ecdsaPubkey) external override onlyOwner returns (bool) {
         StakeManagerStorage storage $S = _stakeManagerStorage();
-        // require caller is whitelisted, having been issued a ConsensusNFT by governance
+        // require ecdsaPubkey is whitelisted, having been issued a ConsensusNFT by governance
         uint24 tokenId = _checkKnownValidator($S, ecdsaPubkey);
 
-        // mark `ecdsaPubkey` as spent using `UNSTAKED`, decrement supply
+        // mark `ecdsaPubkey` as spent using `UNSTAKED`
         $S.stakeInfo[ecdsaPubkey].tokenId = UNSTAKED;
-        $S.totalSupply--;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
         ValidatorInfo storage validator = $C.validators[tokenId];
@@ -429,7 +429,9 @@ contract ConsensusRegistry is
             if (committee[i] == ecdsaPubkey) {
                 committee[i] = committee[len - 1];
                 committee.pop();
+
                 ejected = true;
+                break;
             }
         }
 
@@ -489,7 +491,7 @@ contract ConsensusRegistry is
         returns (EpochInfo storage)
     {
         // identify diff from pointer, preventing underflow by adding 4 (will be modulo'd away)
-        uint8 pointerDiff = uint8(recentEpoch + 4 - currentEpoch);
+        uint8 pointerDiff = uint8(4 + currentEpoch - recentEpoch);
         uint8 pointer = (currentPointer + pointerDiff) % 4;
         return $.epochInfo[pointer];
     }
@@ -550,37 +552,8 @@ contract ConsensusRegistry is
         return false;
     }
 
-    // /// @dev Returns true if the given `ecdsaPubkey` is on the current committee
-    // function _isCurrentCommitteeMember(
-    //     ConsensusRegistryStorage storage $,
-    //     address ecdsaPubkey
-    // )
-    //     internal
-    //     view
-    //     returns (bool)
-    // {
-    //     address[] memory currentCommittee = $.epochInfo[$.epochPointer].committee;
-    //     return _isCommitteeMember(ecdsaPubkey, currentCommittee);
-    // }
-
-    // /// @dev Returns true if the given `ecdsaPubkey` is on the next voter committee
-    // function _isNextCommitteeMember(
-    //     ConsensusRegistryStorage storage $,
-    //     address ecdsaPubkey
-    // )
-    //     internal
-    //     view
-    //     returns (bool)
-    // {
-    //     uint8 currentEpochPointer = $.epochPointer;
-    //     uint8 nextEpochPointer = (currentEpochPointer + 1) % 4;
-    //     address[] memory nextCommittee = $.futureEpochInfo[nextEpochPointer].committee;
-    //     if (_isCommitteeMember(ecdsaPubkey, nextCommittee)) return true;
-
-    //     return false;
-    // }
-
-    /// @dev There are ~1000 total MNOs in the world so `SLOAD` loops will not run out of gas
+    /// @dev There are ~1000 total MNOs in the world so `SLOAD` loops should not run out of gas
+    /// @dev Room for storage optimization (SSTORE2 etc) to hold more validators
     function _getValidators(
         ConsensusRegistryStorage storage $,
         ValidatorStatus status
@@ -668,6 +641,7 @@ contract ConsensusRegistry is
         address rwTEL_,
         uint256 stakeAmount_,
         uint256 minWithdrawAmount_,
+        uint256 consensusBlockReward_,
         ValidatorInfo[] memory initialValidators_,
         address owner_
     )
@@ -687,6 +661,7 @@ contract ConsensusRegistry is
         $S.rwTEL = rwTEL_;
         $S.stakeAmount = stakeAmount_;
         $S.minWithdrawAmount = minWithdrawAmount_;
+        $S.consensusBlockReward = consensusBlockReward_;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
 
@@ -756,7 +731,7 @@ contract ConsensusRegistry is
         $.stakeAmount = newStakeAmount;
         $.minWithdrawAmount = newMinWithdrawAmount;
         $.consensusBlockReward = newConsensusBlockReward;
-        $.stakeVersion += 1;
+        return ++$.stakeVersion;
     }
 
     /// @notice Only the owner may perform an upgrade
