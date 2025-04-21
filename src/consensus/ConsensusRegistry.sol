@@ -9,6 +9,9 @@ import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 
+import "forge-std/Test.sol";//todo
+
+
 /**
  * @title ConsensusRegistry
  * @author Telcoin Association
@@ -33,6 +36,9 @@ contract ConsensusRegistry is
     /// @dev Signals a validator's pending status until activation/exit to correctly apply incentives
     uint32 internal constant PENDING_EPOCH = type(uint32).max;
 
+    /// @dev Addresses precision loss for BFT check calculations; much higher than all MNOs
+    uint256 internal constant PRECISION_FACTOR = 1_000_000;
+
     /**
      *
      *   consensus
@@ -45,16 +51,15 @@ contract ConsensusRegistry is
 
         // update epoch and ring buffer info
         uint32 newEpoch = _updateEpochInfo($, newCommittee);
-
-        // exit validators with `PendingExit` status if applicable
-        ValidatorInfo[] memory pendingExit = _getValidators($, ValidatorStatus.PendingExit);
-        _exitEligibleValidators($, pendingExit, newEpoch);
+        // update validator queue
+        _updateValidatorQueue($, newEpoch);
 
         // ensure new epoch's canonical network state is still BFT and of expected size
-        uint256 numActiveValidators = _getValidators($, ValidatorStatus.Active).length;
-        _checkFaultTolerance(numActiveValidators, newCommittee.length);
-        // beyond BFT, the committee also must comprise all active validators if less than 10
-        if (numActiveValidators <= 10) assert(numActiveValidators == newCommittee.length);
+        uint256 numActive = _getValidators($, ValidatorStatus.Active).length;
+        // console2.logUint(newCommittee.length); //todo
+        _checkFaultTolerance(numActive, newCommittee.length);
+        // beyond BFT, committees smaller than 10 also must comprise all active validators
+        if (numActive <= 10 && numActive != newCommittee.length) revert InvalidCommitteeSize(numActive, newCommittee.length);
 
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1)));
     }
@@ -62,31 +67,21 @@ contract ConsensusRegistry is
     /// @inheritdoc IStakeManager
     function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external override onlySystemCall {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        uint32 currentEpoch = $.currentEpoch;
-        //todo
 
         // update each validator's claimable rewards with given amounts
+        uint32 currentEpoch = $.currentEpoch;
         for (uint256 i; i < stakingRewardInfos.length; ++i) {
+            console2.logUint(stakingRewardInfos[i].tokenId); //todo
             ValidatorInfo memory currentValidator = getValidatorByTokenId(stakingRewardInfos[i].tokenId);
-            uint24 tokenId = _checkKnownValidator(_stakeManagerStorage(), currentValidator.ecdsaPubkey);
-            assert(tokenId == stakingRewardInfos[i].tokenId);
 
-            // ensure client provided rewards only to known validators that were active in previous epoch
-            if (currentEpoch < currentValidator.activationEpoch) {
+            // ensure client provided rewards only to known validators that were active for a full epoch
+            uint24 tokenId = _checkKnownValidator(_stakeManagerStorage(), currentValidator.ecdsaPubkey);
+            if (tokenId != stakingRewardInfos[i].tokenId) revert InvalidTokenId(stakingRewardInfos[i].tokenId);
+            if (currentValidator.activationEpoch > currentEpoch) {
                 revert InvalidStatus(ValidatorStatus.PendingActivation);
             }
 
-            //todo: is this check necessary? abstraction?
-            // only genesis validators can be active with an `activationEpoch == 0`
-            if (i > $.numGenesisValidators) {
-                //todo: check if genesis validators have left and been reminted
-                if (currentValidator.activationEpoch == 0) {
-                    revert InvalidStatus(ValidatorStatus.Any);
-                }
-            }
-
             uint232 epochReward = stakingRewardInfos[i].stakingRewards;
-
             _stakeManagerStorage().stakeInfo[currentValidator.ecdsaPubkey].stakingRewards += epochReward;
         }
     }
@@ -158,7 +153,7 @@ contract ConsensusRegistry is
         uint24 tokenId = _checkKnownValidator($S, msg.sender);
 
         // enter validator in activation queue
-        _beginActivation(blsPubkey, msg.sender, false, $S.stakeVersion, tokenId);
+        _recordStaked(blsPubkey, msg.sender, false, $S.stakeVersion, tokenId);
     }
 
     // todo: function stakeFor(bytes calldata blsPubkey, address ecdsaPubkey, bytes calldata validatorSig) external
@@ -176,7 +171,7 @@ contract ConsensusRegistry is
     // require( ecdsa.recover(validatorSig) == ecdsaPubkey);
 
     // delegations[ecdsaPubkey] = msg.sender;
-    // _beginActivation(_consensusRegistryStorage(), blsPubkey, ecdsaPubkey, true, $S.stakeVersion, tokenId);
+    // _recordStaked(_consensusRegistryStorage(), blsPubkey, ecdsaPubkey, true, $S.stakeVersion, tokenId);
     // }
 
     /// @inheritdoc IConsensusRegistry
@@ -190,7 +185,7 @@ contract ConsensusRegistry is
 
         ValidatorInfo storage validator = $C.validators[tokenId];
         // activate validator using subsequent epoch for future committee size calculations
-        _activate(validator, $C.currentEpoch);
+        _beginActivation(validator, $C.currentEpoch);
     }
 
     /// @inheritdoc StakeManager
@@ -211,9 +206,9 @@ contract ConsensusRegistry is
         uint24 tokenId = _checkKnownValidator(_stakeManagerStorage(), msg.sender);
 
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        uint256 numActiveValidators = _getValidators($, ValidatorStatus.Active).length;
+        uint256 numActive = _getValidators($, ValidatorStatus.Active).length;
         uint256 committeeSize = $.epochInfo[$.epochPointer].committee.length;
-        _checkFaultTolerance(numActiveValidators, committeeSize);
+        _checkFaultTolerance(numActive, committeeSize);
 
         // require caller status is `Active` and `currentEpoch >= activationEpoch`
         _checkValidatorStatus($, tokenId, ValidatorStatus.Active);
@@ -303,7 +298,7 @@ contract ConsensusRegistry is
 
     /// @notice Enters a validator into the activation queue upon receiving stake
     /// @dev Stores the new validator in the `validators` vector
-    function _beginActivation(
+    function _recordStaked(
         bytes calldata blsPubkey,
         address ecdsaPubkey,
         bool isDelegated,
@@ -325,14 +320,19 @@ contract ConsensusRegistry is
         );
         $.validators[tokenId] = newValidator;
 
-        emit ValidatorPendingActivation(newValidator);
+        emit ValidatorStaked(newValidator);
+    }
+
+    /// @dev Sets the next epoch as activation timestamp for epoch completeness wrt incentives
+    function _beginActivation(ValidatorInfo storage validator, uint32 currentEpoch) internal {
+        validator.activationEpoch = currentEpoch + 1;
+
+        emit ValidatorPendingActivation(validator);        
     }
 
     /// @dev Activates a validator
-    /// @dev Sets the epoch after next as activation timestamp for epoch completeness wrt incentives
-    function _activate(ValidatorInfo storage validator, uint32 currentEpoch) internal {
+    function _activate(ValidatorInfo storage validator) internal {
         validator.currentStatus = ValidatorStatus.Active;
-        validator.activationEpoch = currentEpoch + 2;
 
         emit ValidatorActivated(validator);
     }
@@ -368,40 +368,34 @@ contract ConsensusRegistry is
         emit ValidatorRetired(validator);
     }
 
-    function _exitEligibility(
-        ConsensusRegistryStorage storage $,
-        ValidatorInfo storage validator
-    )
-        internal
-        view
-        returns (bool)
-    {
-        // ensure validator is not in current or future committees
-        address validatorAddr = validator.ecdsaPubkey;
-        if (_isCurrentCommitteeMember($, validatorAddr) || _isFutureCommitteeMember($, validatorAddr)) {
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    /// @notice Finalizes exit for validators with `PendingExit` status if applicable
-    /// @dev Protocol determines a validator is eligible if not in committee across 3 epochs
+    /// @notice Performs activation and/or exit for validators pending in queue where applicable
+    /// @dev Activation is time-based & automatic at the start of validator's first full epoch
+    /// @dev Protocol determines exit eligibility via voter committee assignments across 3 epochs
     /// @dev Invoked via system call within `concludeEpoch()`
-    function _exitEligibleValidators(
+    function _updateValidatorQueue(
         ConsensusRegistryStorage storage $,
-        ValidatorInfo[] memory pendingExit,
         uint32 currentEpoch
     )
         internal
     {
+        ValidatorInfo[] memory pendingActivation = _getValidators($, ValidatorStatus.PendingActivation);
+        for (uint256 i; i < pendingActivation.length; ++i) {
+            if (pendingActivation[i].activationEpoch != currentEpoch) continue;
+
+            uint24 tokenId = _getTokenId(_stakeManagerStorage(), pendingActivation[i].ecdsaPubkey);
+            ValidatorInfo storage activateValidator = $.validators[tokenId];
+            _activate(activateValidator);
+        }
+
+        ValidatorInfo[] memory pendingExit = _getValidators($, ValidatorStatus.PendingExit);
         for (uint256 i; i < pendingExit.length; ++i) {
             // ensure validator is not in current or future committees
-            uint24 tokenId = _getTokenId(_stakeManagerStorage(), pendingExit[i].ecdsaPubkey);
-            ValidatorInfo storage validator = $.validators[tokenId];
-            if (_exitEligibility($, validator)) {
-                _exit(validator, currentEpoch);
-            }
+            address ecdsaPubkey = pendingExit[i].ecdsaPubkey;
+            if (_isCurrentCommitteeMember($, ecdsaPubkey) && _isFutureCommitteeMember($, ecdsaPubkey)) continue;
+
+            uint24 tokenId = _getTokenId(_stakeManagerStorage(), ecdsaPubkey);
+            ValidatorInfo storage exitValidator = $.validators[tokenId];
+            _exit(exitValidator, currentEpoch);
         }
     }
 
@@ -504,23 +498,23 @@ contract ConsensusRegistry is
 
     /// @dev Checks the given committee size against the total number of active validators using below 3f + 1 BFT rule
     /// @notice Prevents the network from reaching zero active validators (such as by exit)
-    function _checkFaultTolerance(uint256 numActiveValidators, uint256 committeeSize) internal pure {
-        if (numActiveValidators == 0) {
+    function _checkFaultTolerance(uint256 numActive, uint256 committeeSize) internal pure {
+        if (numActive == 0) {
             revert InvalidCommitteeSize(0, 0);
-        } else if (committeeSize > numActiveValidators) {
+        } else if (committeeSize > numActive) {
             // sanity check committee size is less than number of active validators
-            revert InvalidCommitteeSize(numActiveValidators, committeeSize);
+            revert InvalidCommitteeSize(numActive, committeeSize);
         }
 
         // if the total validator set is small, all must vote and no faults can be tolerated
-        if (numActiveValidators <= 4 && committeeSize != numActiveValidators) {
-            revert InvalidCommitteeSize(numActiveValidators, committeeSize);
+        if (numActive <= 4 && committeeSize != numActive) {
+            revert InvalidCommitteeSize(numActive, committeeSize);
         } else {
             // calculate number of tolerable faults for given node count using 33% threshold
-            uint256 tolerableFaults = (numActiveValidators * 10_000) / 3;
+            uint256 tolerableFaults = (numActive * PRECISION_FACTOR) / 3;
 
             // committee size must be greater than tolerable faults
-            uint256 minCommitteeSize = tolerableFaults / 10_000 + 1;
+            uint256 minCommitteeSize = tolerableFaults / PRECISION_FACTOR + 1;
             if (committeeSize < minCommitteeSize) {
                 revert InvalidCommitteeSize(minCommitteeSize, committeeSize);
             }
@@ -595,6 +589,7 @@ contract ConsensusRegistry is
         return false;
     }
 
+    /// @dev There are ~1400 total MNOs in the world so `SLOAD` loops will not run out of gas
     function _getValidators(
         ConsensusRegistryStorage storage $,
         ValidatorStatus status
@@ -603,33 +598,37 @@ contract ConsensusRegistry is
         view
         returns (ValidatorInfo[] memory)
     {
-        ValidatorInfo[] memory allValidators = new ValidatorInfo[](_stakeManagerStorage().totalSupply);
-        for (uint256 i; i < allValidators.length; ++i) {
-            allValidators[i] = $.validators[uint24(i + 1)];
-        }
+        ValidatorInfo[] memory untrimmed = new ValidatorInfo[](_stakeManagerStorage().totalSupply);
+        uint256 numMatches;
+        bool getAll = status == ValidatorStatus.Any;
+        for (uint256 i = 1; i <= untrimmed.length; ++i) {
+            ValidatorInfo storage current = $.validators[uint24(i)];
+            if (current.isRetired) continue;
 
-        if (status == ValidatorStatus.Any) {
-            // provide Any status `== uint8(0)` to get full validator list
-            return allValidators;
-        } else {
-            // identify number of validators matching provided `status`
-            uint256 numMatches;
-            for (uint256 i; i < allValidators.length; ++i) {
-                if (allValidators[i].currentStatus == status) ++numMatches;
-            }
-
-            // populate new array once length has been identified
-            ValidatorInfo[] memory validatorsMatched = new ValidatorInfo[](numMatches);
-            uint256 indexCounter;
-            for (uint256 i; i < allValidators.length; ++i) {
-                if (allValidators[i].currentStatus == status) {
-                    validatorsMatched[indexCounter] = allValidators[i];
-                    ++indexCounter;
+            if (getAll) {
+                // query provided `Any` status; grab all unretired
+                untrimmed[i - 1] = current;
+                ++numMatches;
+            } else {
+                // query is more granular; grab matches only
+                if (current.currentStatus == status) {
+                    untrimmed[i - 1] = current;
+                    ++numMatches;
                 }
             }
-
-            return validatorsMatched;
         }
+
+        // trim and return final array
+        uint256 indexCounter;
+        ValidatorInfo[] memory validatorsMatched = new ValidatorInfo[](numMatches);
+        for (uint256 i; i < untrimmed.length; ++i) {
+            // blsPubkey will be empty for skipped members (non-matches)
+            if (untrimmed[i].blsPubkey.length == 0) continue;
+
+            validatorsMatched[indexCounter] = untrimmed[i];
+            ++indexCounter;
+        }
+        return validatorsMatched;
     }
 
     function _consensusRegistryStorage() internal pure returns (ConsensusRegistryStorage storage $) {

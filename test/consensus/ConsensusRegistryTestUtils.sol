@@ -10,11 +10,10 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry {
     RWTEL public rwTEL;
 
     address public crOwner = address(0xc0ffee);
-    address public validator1 = address(uint160(uint256(keccak256(abi.encode(0)))));
-    address public validator2 = address(uint160(uint256(keccak256(abi.encode(1)))));
-    address public validator3 = address(uint160(uint256(keccak256(abi.encode(2)))));
-    address public validator4 = address(uint160(uint256(keccak256(abi.encode(3)))));
-    address public validator5 = address(uint160(uint256(keccak256(abi.encode(4)))));
+    address public validator1 = _createRandomAddress(1);
+    address public validator2 = _createRandomAddress(2);
+    address public validator3 = _createRandomAddress(3);
+    address public validator4 = _createRandomAddress(4);
 
     ValidatorInfo validatorInfo1;
     ValidatorInfo validatorInfo2;
@@ -24,6 +23,9 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry {
     ValidatorInfo[] initialValidators; // contains validatorInfo1-4
 
     address public sysAddress;
+    
+    // non-genesis validator for testing
+    address public validator5 = _createRandomAddress(5);
     bytes public validator5BlsPubkey = _createRandomBlsPubkey(5);
 
     uint256 public telMaxSupply = 100_000_000_000 ether;
@@ -67,6 +69,10 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry {
         initialValidators.push(validatorInfo4);
 
         consensusRegistryImpl = new ConsensusRegistry();
+    }
+
+    function _createRandomAddress(uint256 seed) internal pure returns (address) {
+        return address(uint160(uint256(keccak256(abi.encode(seed)))));
     }
 
     function _createRandomBlsPubkey(uint256 seed) internal pure returns (bytes memory) {
