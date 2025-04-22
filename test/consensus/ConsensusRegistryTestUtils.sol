@@ -33,6 +33,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     uint256 public stakeAmount_ = 1_000_000 ether;
     uint256 public minWithdrawAmount_ = 1000 ether;
     uint256 public epochIssuance_ = 20_000_000 ether;
+    uint32 public epochDuration_ = 24 hours;
     // `OZ::ERC721Upgradeable::mint()` supports up to ~14_300 fuzzed mint iterations
     uint256 public MAX_MINTABLE = 14_000;
 

@@ -18,9 +18,9 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         vm.etch(address(consensusRegistry), type(ERC1967Proxy).runtimeCode);
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
-        consensusRegistry.initialize(
-            address(rwTEL), stakeAmount_, minWithdrawAmount_, epochIssuance_, initialValidators, crOwner
-        );
+
+        StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_);
+        consensusRegistry.initialize(address(rwTEL), stakeConfig_, initialValidators, crOwner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
@@ -95,8 +95,9 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         address[] memory newCommittee = _fuzz_createNewCommittee(numActive, committeeSize);
 
         // set the subsequent epoch committee by concluding epoch
+        uint32 duration = consensusRegistry.getCurrentEpochInfo().epochDuration;
         vm.expectEmit(true, true, true, true);
-        emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommittee, uint64(block.number + 1)));
+        emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommittee, uint64(block.number + 1), duration));
         consensusRegistry.concludeEpoch(newCommittee);
 
         // asserts

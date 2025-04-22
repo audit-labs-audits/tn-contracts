@@ -85,6 +85,11 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     }
 
     /// @inheritdoc IStakeManager
+    function getCurrentStakeConfig() public view returns (StakeConfig memory) {
+        return stakeConfig(stakeVersion());
+    }
+
+    /// @inheritdoc IStakeManager
     function upgradeStakeVersion(StakeConfig calldata config) external virtual returns (uint8);
 
     /**
@@ -104,7 +109,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     /// @dev In the case of malicious or erroneous node operator behavior, governance can use this function
     /// to burn a validator's `ConsensusNFT` and immediately eject from consensus committees if applicable
     /// @param from Refers to the struct member `ValidatorInfo.validatorAddress` in `IConsensusRegistry`
-    /// @notice ECDSA pubkey `from` will be marked `UNSTAKED` so the validator address cannot be reused
+    /// @notice `from` will be marked `UNSTAKED` so the validator address cannot be reused
     /// @dev Intended for sparing use; only reverts if burning results in empty committee
     function burn(address from) external virtual;
 

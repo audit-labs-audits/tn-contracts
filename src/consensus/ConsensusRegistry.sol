@@ -47,14 +47,14 @@ contract ConsensusRegistry is
     function concludeEpoch(address[] calldata newCommittee) external override onlySystemCall {
         // update epoch ring buffer info, validator queue
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-        uint32 newEpoch = _updateEpochInfo($, newCommittee);
+        (uint32 newEpoch, uint32 duration) = _updateEpochInfo($, newCommittee);
         _updateValidatorQueue($, newCommittee, newEpoch);
 
         // assert new epoch committee is valid against total now eligible
         uint256 newActive = _getValidators($, ValidatorStatus.Active).length;
         _checkCommitteeSize(newActive, newCommittee.length);
 
-        emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1)));
+        emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), duration));
     }
 
     /// @notice Slashing is not live but scaffolding for it is included here. For the time being,
@@ -85,6 +85,12 @@ contract ConsensusRegistry is
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
 
         return $.currentEpoch;
+    }
+
+    /// @inheritdoc IConsensusRegistry
+    function getCurrentEpochInfo() public view returns (EpochInfo memory) {
+        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+        return _getRecentEpochInfo($, $.currentEpoch, $.currentEpoch, $.epochPointer);
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -509,7 +515,7 @@ contract ConsensusRegistry is
         address[] memory newCommittee
     )
         internal
-        returns (uint32)
+        returns (uint32, uint32)
     {
         // cache epoch ring buffer's pointers in memory
         uint8 prevEpochPointer = $.epochPointer;
@@ -517,7 +523,8 @@ contract ConsensusRegistry is
 
         // update new current epoch info
         address[] storage currentCommittee = $.futureEpochInfo[newEpochPointer].committee;
-        $.epochInfo[newEpochPointer] = EpochInfo(currentCommittee, uint64(block.number));
+        uint32 newDuration = getCurrentStakeConfig().epochDuration;
+        $.epochInfo[newEpochPointer] = EpochInfo(currentCommittee, uint64(block.number), newDuration);
         $.epochPointer = newEpochPointer;
         uint32 newEpoch = ++$.currentEpoch;
 
@@ -525,7 +532,7 @@ contract ConsensusRegistry is
         uint8 twoEpochsInFuturePointer = (newEpochPointer + 2) % 4;
         $.futureEpochInfo[twoEpochsInFuturePointer].committee = newCommittee;
 
-        return newEpoch;
+        return (newEpoch, newDuration);
     }
 
     /// @notice Slashing is not live but scaffolding for it is included here.
@@ -792,9 +799,7 @@ contract ConsensusRegistry is
     /// @dev Only governance delegation is enabled at genesis
     function initialize(
         address rwTEL_,
-        uint256 stakeAmount_,
-        uint256 minWithdrawAmount_,
-        uint256 epochIssuance_,
+        StakeConfig memory genesisConfig_,
         ValidatorInfo[] memory initialValidators_,
         address owner_
     )
@@ -812,9 +817,7 @@ contract ConsensusRegistry is
 
         // Set stake storage configs
         $S.rwTEL = rwTEL_;
-        $S.versions[0].stakeAmount = stakeAmount_;
-        $S.versions[0].minWithdrawAmount = minWithdrawAmount_;
-        $S.versions[0].epochIssuance = epochIssuance_;
+        $S.versions[0] = genesisConfig_;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
 
@@ -855,7 +858,9 @@ contract ConsensusRegistry is
 
             // first three epochs use initial validators as committee
             for (uint256 j; j <= 2; ++j) {
-                $C.epochInfo[j].committee.push(currentValidator.validatorAddress);
+                EpochInfo storage epochZero = $C.epochInfo[j];
+                epochZero.committee.push(currentValidator.validatorAddress);
+                epochZero.epochDuration = genesisConfig_.epochDuration;
                 $C.futureEpochInfo[j].committee.push(currentValidator.validatorAddress);
             }
 

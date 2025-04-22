@@ -38,6 +38,7 @@ interface IConsensusRegistry {
     struct EpochInfo {
         address[] committee;
         uint64 blockHeight;
+        uint32 epochDuration;
     }
 
     error LowLevelCallFailure();
@@ -98,6 +99,9 @@ interface IConsensusRegistry {
 
     /// @dev Returns the current epoch
     function getCurrentEpoch() external view returns (uint32);
+
+    /// @dev Returns the current epoch's committee and block height
+    function getCurrentEpochInfo() external view returns (EpochInfo memory currentEpochInfo);
 
     /// @dev Returns information about the provided epoch. Only four latest & two future epochs are stored
     /// @notice When querying for future epochs, `blockHeight` will be 0 as they are not yet known

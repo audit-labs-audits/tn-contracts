@@ -29,6 +29,7 @@ interface IStakeManager {
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
         uint256 epochIssuance;
+        uint32 epochDuration;
     }
 
     struct Delegation {
@@ -100,6 +101,9 @@ interface IStakeManager {
 
     /// @dev Returns the queried stake configuration
     function stakeConfig(uint8 version) external view returns (StakeConfig memory);
+
+    /// @dev Returns the current stake configuration
+    function getCurrentStakeConfig() external view returns (StakeConfig memory);
 
     /// @dev Permissioned function to upgrade stake, withdrawal, and consensus block reward configurations
     function upgradeStakeVersion(StakeConfig calldata newVersion) external returns (uint8);
