@@ -78,9 +78,6 @@ contract ConsensusRegistry is
             // increment claimable amount
             $S.incentiveInfo[recipients[i]].stakingRewards += uint232(reward);
         }
-
-        // todo: call base fee contract
-        // baseFeeAllocator.settleEpochFees();
     }
 
     /// @inheritdoc IConsensusRegistry

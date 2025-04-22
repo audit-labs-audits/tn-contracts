@@ -8,29 +8,38 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { IConsensusRegistry } from "src/consensus/interfaces/IConsensusRegistry.sol";
+import { Deployments } from "../deployments/Deployments.sol";
+import { StorageDiffRecorder } from "../deployments/genesis/StorageDiffRecorder.sol";
 
 /// @title ConsensusRegistry Genesis Storage Config Generator
 /// @notice Generates a yaml file comprising the storage slots and their values written by `initialize()`
 /// Used by Telcoin-Network protocol to instantiate the contract with required configuration at genesis
 
-/// @dev Usage: `forge script script/GenerateConsensusRegistryStorage.s.sol -vvvv`
-contract GenerateConsensusRegistryStorage is Script, Test {
+/// @dev Usage: `forge script script/GenerateConsensusRegistryGenesisConfig.s.sol -vvvv`
+contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
     ConsensusRegistry consensusRegistryImpl;
-    ConsensusRegistry recordedRegistry;
+    ConsensusRegistry consensusRegistry;
+
+    Deployments deployments;
+    string root;
+    string dest;
+    string fileName = "/deployments/genesis/consensus-registry-config.yaml";
 
     /// @dev Config: set all variables known outside of genesis time here
-    address public rwTEL = address(0x7e1);
+    address public rwTEL;
     uint256 public stakeAmount = 1_000_000 ether;
-    uint256 public minWithdrawAmount = 10_000 ether;
-    uint256 public epochIssuance = 100_000 ether; //todo: math on this
+    uint256 public minWithdrawAmount = 1000 ether;
+    uint256 public epochIssuance = 714_285_714_285_714_285_714_285; // 20_000_000 TEL per month at 1 day epochs
     IConsensusRegistry.ValidatorInfo[] initialValidators;
-    address public owner = address(0x42);
+    address public owner;
 
     /// @dev Config: these will be overwritten into collision-resistant labels and replaced when known at genesis
     IConsensusRegistry.ValidatorInfo public validatorInfo1;
     IConsensusRegistry.ValidatorInfo public validatorInfo2;
     IConsensusRegistry.ValidatorInfo public validatorInfo3;
     IConsensusRegistry.ValidatorInfo public validatorInfo4;
+    IConsensusRegistry.ValidatorInfo public validatorInfo5;
+
     bytes32 constant VALIDATOR_1_BLS_A = keccak256("VALIDATOR_1_BLS_A");
     bytes32 constant VALIDATOR_1_BLS_B = keccak256("VALIDATOR_1_BLS_B");
     bytes32 constant VALIDATOR_1_BLS_C = keccak256("VALIDATOR_1_BLS_C");
@@ -51,22 +60,73 @@ contract GenerateConsensusRegistryStorage is Script, Test {
     bytes32 constant VALIDATOR_4_BLS_C = keccak256("VALIDATOR_4_BLS_C");
     bytes validator4BlsPubkey;
 
+    bytes32 constant VALIDATOR_5_BLS_A = keccak256("VALIDATOR_5_BLS_A");
+    bytes32 constant VALIDATOR_5_BLS_B = keccak256("VALIDATOR_5_BLS_B");
+    bytes32 constant VALIDATOR_5_BLS_C = keccak256("VALIDATOR_5_BLS_C");
+    bytes validator5BlsPubkey;
+
     address public validator1 = address(0xbabe);
     address public validator2 = address(0xbeefbabe);
     address public validator3 = address(0xdeadbeefbabe);
     address public validator4 = address(0xc0ffeebabe);
+    address public validator5 = address(0xc0c0a);
 
-    // misc utils
-    bytes32[] writtenStorageSlots;
-    bytes32 sharedBLSWord;
+    // ConsensusRegistry initialization
+    bytes initData;
 
     function setUp() public {
-        consensusRegistryImpl = new ConsensusRegistry();
+        root = vm.projectRoot();
+        dest = string.concat(root, fileName);
+        string memory path = string.concat(root, "/deployments/deployments.json");
+        string memory json = vm.readFile(path);
+        bytes memory data = vm.parseJson(json);
+        deployments = abi.decode(data, (Deployments));
 
+        _setGenesisTargets(deployments.rwTEL, deployments.ConsensusRegistryImpl, deployments.ConsensusRegistry);
+        _setInitialValidators();
+
+        owner = deployments.admin;
+        initData = abi.encodeWithSelector(
+            ConsensusRegistry.initialize.selector,
+            address(rwTEL),
+            stakeAmount,
+            minWithdrawAmount,
+            epochIssuance,
+            initialValidators,
+            owner
+        );
+    }
+
+    function run() public {
+        vm.startBroadcast();
+
+        // initialize clean yaml file
+        if (vm.exists(dest)) vm.removeFile(dest);
+        vm.writeLine(dest, "---"); // indicate yaml format
+
+        address simulatedCRImpl = address(instantiateConsensusRegistryImpl());
+        yamlAppendBytecode(dest, simulatedCRImpl, deployments.ConsensusRegistryImpl);
+
+        address simulatedCR = address(instantiateConsensusRegistry(deployments.ConsensusRegistryImpl, initData));
+        yamlAppendBytecodeWithStorage(dest, simulatedCR, deployments.ConsensusRegistry);
+
+        overwriteFlags_ECDSA(simulatedCR);
+
+        vm.stopBroadcast();
+    }
+
+    function _setGenesisTargets(address rwtel, address impl, address proxy) internal {
+        rwTEL = rwtel;
+        consensusRegistryImpl = ConsensusRegistry(impl);
+        consensusRegistry = ConsensusRegistry(proxy);
+    }
+
+    function _setInitialValidators() internal {
         validator1BlsPubkey = abi.encodePacked(VALIDATOR_1_BLS_A, VALIDATOR_1_BLS_B, VALIDATOR_1_BLS_C);
         validator2BlsPubkey = abi.encodePacked(VALIDATOR_2_BLS_A, VALIDATOR_2_BLS_B, VALIDATOR_2_BLS_C);
         validator3BlsPubkey = abi.encodePacked(VALIDATOR_3_BLS_A, VALIDATOR_3_BLS_B, VALIDATOR_3_BLS_C);
         validator4BlsPubkey = abi.encodePacked(VALIDATOR_4_BLS_A, VALIDATOR_4_BLS_B, VALIDATOR_4_BLS_C);
+        validator5BlsPubkey = abi.encodePacked(VALIDATOR_5_BLS_A, VALIDATOR_5_BLS_B, VALIDATOR_5_BLS_C);
 
         // populate `initialValidators` array with base struct from storage
         validatorInfo1 = IConsensusRegistry.ValidatorInfo(
@@ -116,55 +176,53 @@ contract GenerateConsensusRegistryStorage is Script, Test {
             uint8(0)
         );
         initialValidators.push(validatorInfo4);
+
+        validatorInfo5 = IConsensusRegistry.ValidatorInfo(
+            validator5BlsPubkey,
+            validator5,
+            uint32(0),
+            uint32(0),
+            IConsensusRegistry.ValidatorStatus.Active,
+            false,
+            false,
+            uint8(0)
+        );
+        initialValidators.push(validatorInfo5);
     }
 
-    function run() public {
-        vm.startBroadcast();
-
+    function instantiateConsensusRegistryImpl() public virtual returns (ConsensusRegistry simulatedDeployment) {
         vm.startStateDiffRecording();
-        recordedRegistry = ConsensusRegistry(payable(address(new ERC1967Proxy(address(consensusRegistryImpl), ""))));
-        recordedRegistry.initialize(
-            address(rwTEL), stakeAmount, minWithdrawAmount, epochIssuance, initialValidators, owner
-        );
-        Vm.AccountAccess[] memory records = vm.stopAndReturnStateDiff();
+        simulatedDeployment = new ConsensusRegistry();
+        Vm.AccountAccess[] memory crImplRecords = vm.stopAndReturnStateDiff();
 
-        // loop through all records to identify written storage slots so their final (current) value can later be read
-        // this is necessary because `AccountAccess.storageAccesses` contains duplicates (due to re-writes on a slot)
-        for (uint256 i; i < records.length; ++i) {
-            // grab all slots with recorded state changes associated with `consensusRegistry`
-            uint256 storageAccessesLen = records[i].storageAccesses.length;
-            for (uint256 j; j < storageAccessesLen; ++j) {
-                VmSafe.StorageAccess memory currentStorageAccess = records[i].storageAccesses[j];
-                // sanity check the slot is relevant to registry
-                assertEq(currentStorageAccess.account, address(recordedRegistry));
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), crImplRecords);
+        copyContractState(address(simulatedDeployment), address(consensusRegistryImpl), slots);
+    }
 
-                if (currentStorageAccess.isWrite) {
-                    // check `writtenStorageSlots` to skip duplicates, since some slots are updated multiple times
-                    bool isDuplicate;
-                    for (uint256 k; k < writtenStorageSlots.length; ++k) {
-                        if (writtenStorageSlots[k] == currentStorageAccess.slot) {
-                            isDuplicate = true;
-                            break;
-                        }
-                    }
+    function instantiateConsensusRegistry(
+        address impl,
+        bytes memory initCall
+    )
+        public
+        virtual
+        returns (ConsensusRegistry simulatedDeployment)
+    {
+        vm.startStateDiffRecording();
+        simulatedDeployment = ConsensusRegistry(payable(address(new ERC1967Proxy(impl, initCall))));
+        Vm.AccountAccess[] memory crRecords = vm.stopAndReturnStateDiff();
 
-                    // store non-duplicate storage slots to read from later
-                    if (!isDuplicate) {
-                        writtenStorageSlots.push(currentStorageAccess.slot);
-                    }
-                }
-            }
-        }
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), crRecords);
+        copyContractState(address(simulatedDeployment), address(consensusRegistry), slots);
+    }
 
-        string memory root = vm.projectRoot();
-        string memory dest = string.concat(root, "/deployments/genesis/consensus-registry-config.yaml");
-        vm.writeLine(dest, "---"); // indicate yaml format
-
+    function overwriteFlags_ECDSA(address simulatedCR) public {
         // read all unique storage slots touched by `initialize()` and fetch their final value
-        for (uint256 i; i < writtenStorageSlots.length; ++i) {
+        bytes32[] storage slots = writtenStorageSlots[simulatedCR];
+        console2.logUint(slots.length);
+        for (uint256 i; i < slots.length; ++i) {
             // load slot value
-            bytes32 currentSlot = writtenStorageSlots[i];
-            bytes32 slotValue = vm.load(address(recordedRegistry), currentSlot);
+            bytes32 currentSlot = slots[i];
+            bytes32 slotValue = vm.load(simulatedCR, currentSlot);
 
             // check if value is a validator ecdsaPubkey and assign collision-resistant label for replacement
             if (uint256(slotValue) == uint256(uint160(validator1))) {
@@ -175,6 +233,8 @@ contract GenerateConsensusRegistryStorage is Script, Test {
                 slotValue = keccak256("VALIDATOR_3_ECDSA");
             } else if (uint256(slotValue) == uint256(uint160(validator4))) {
                 slotValue = keccak256("VALIDATOR_4_ECDSA");
+            } else if (uint256(slotValue) == uint256(uint160(validator5))) {
+                slotValue = keccak256("VALIDATOR_5_ECDSA");
             }
 
             // write slot and value to file
@@ -184,7 +244,5 @@ contract GenerateConsensusRegistryStorage is Script, Test {
 
             vm.writeLine(dest, entry);
         }
-
-        vm.stopBroadcast();
     }
 }
