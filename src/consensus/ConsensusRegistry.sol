@@ -129,6 +129,26 @@ contract ConsensusRegistry is
         return _consensusRegistryStorage().validators[uint24(tokenId)].isRetired;
     }
 
+    /// @inheritdoc StakeManager
+    function delegationDigest(
+        bytes memory blsPubkey,
+        address ecdsaPubkey,
+        address delegator
+    )
+        public
+        view
+        returns (bytes32)
+    {
+        StakeManagerStorage storage $S = _stakeManagerStorage();
+        uint24 tokenId = _checkKnownValidator($S, ecdsaPubkey);
+        uint64 nonce = $S.delegations[ecdsaPubkey].nonce;
+        bytes32 blsPubkeyHash = keccak256(blsPubkey);
+        bytes32 structHash =
+            keccak256(abi.encode(DELEGATION_TYPEHASH, blsPubkeyHash, delegator, tokenId, $S.stakeVersion, nonce));
+
+        return _hashTypedData(structHash);
+    }
+
     /**
      *
      *   validators
@@ -176,9 +196,9 @@ contract ConsensusRegistry is
 
         // governance may utilize white-glove onboarding or offchain agreements
         if (msg.sender != owner()) {
-            bytes32 typeHash =
+            bytes32 structHash =
                 keccak256(abi.encode(DELEGATION_TYPEHASH, blsPubkeyHash, msg.sender, tokenId, validatorVersion, nonce));
-            bytes32 digest = _hashTypedData(typeHash);
+            bytes32 digest = _hashTypedData(structHash);
             if (!SignatureCheckerLib.isValidSignatureNowCalldata(ecdsaPubkey, digest, validatorSig)) {
                 revert NotValidator(ecdsaPubkey);
             }

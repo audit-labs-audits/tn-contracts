@@ -91,6 +91,52 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         assertEq(uint8(validators[0].currentStatus), uint8(ValidatorStatus.Staked));
     }
 
+    function test_delegateStake() public {
+        vm.prank(crOwner);
+        uint256 tokenId = 5;
+        uint256 validator5PrivateKey = 5;
+        validator5 = vm.addr(validator5PrivateKey);
+        address delegator = _createRandomAddress(42);
+        vm.deal(delegator, stakeAmount_);
+
+        consensusRegistry.mint(validator5, tokenId);
+
+        // validator signs delegation
+        bytes32 structHash = consensusRegistry.delegationDigest(validator5BlsPubkey, validator5, delegator);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(validator5PrivateKey, structHash);
+        bytes memory validatorSig = abi.encodePacked(r, s, v);
+
+        // Check event emission
+        bool isDelegate = true;
+        vm.expectEmit(true, true, true, true);
+        emit ValidatorStaked(
+            ValidatorInfo(
+                validator5BlsPubkey,
+                validator5,
+                PENDING_EPOCH,
+                uint32(0),
+                ValidatorStatus.Staked,
+                false,
+                isDelegate,
+                uint8(0)
+            )
+        );
+        vm.prank(delegator);
+        consensusRegistry.delegateStake{ value: stakeAmount_ }(validator5BlsPubkey, validator5, validatorSig);
+
+        // Check validator information
+        ValidatorInfo[] memory validators = consensusRegistry.getValidators(ValidatorStatus.Staked);
+        assertEq(validators.length, 1);
+        assertEq(validators[0].ecdsaPubkey, validator5);
+        assertEq(validators[0].blsPubkey, validator5BlsPubkey);
+        assertEq(validators[0].activationEpoch, PENDING_EPOCH);
+        assertEq(validators[0].exitEpoch, uint32(0));
+        assertEq(validators[0].isRetired, false);
+        assertEq(validators[0].isDelegated, true);
+        assertEq(validators[0].stakeVersion, uint8(0));
+        assertEq(uint8(validators[0].currentStatus), uint8(ValidatorStatus.Staked));
+    }
+
     function test_activate() public {
         vm.prank(crOwner);
         uint256 tokenId = 5;

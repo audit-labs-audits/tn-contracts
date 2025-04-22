@@ -52,6 +52,18 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     function unstake(address ecdsaPubkey) external virtual;
 
     /// @inheritdoc IStakeManager
+    function delegationDigest(
+        bytes memory blsPubkey,
+        address delegator,
+        uint8 validatorVersion
+    )
+        external
+        view
+        virtual
+        override
+        returns (bytes32);
+
+    /// @inheritdoc IStakeManager
     function getRewards(address ecdsaPubkey) public view virtual returns (uint240) {
         return _getRewards(_stakeManagerStorage(), ecdsaPubkey);
     }

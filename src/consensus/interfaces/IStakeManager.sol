@@ -74,6 +74,17 @@ interface IStakeManager {
     /// @notice `IncentiveInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
     function unstake(address ecdsaPubkey) external;
 
+    /// @notice Returns the delegation digest that a validator should sign to accept a delegation
+    /// @return _ EIP-712 typed struct hash used to enable delegated proof of stake
+    function delegationDigest(
+        bytes memory blsPubkey,
+        address delegator,
+        uint8 validatorVersion
+    )
+        external
+        view
+        returns (bytes32);
+
     /// @dev Returns the current total supply of minted ConsensusNFTs
     function totalSupply() external view returns (uint256);
 
