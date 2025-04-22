@@ -35,7 +35,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     /// @inheritdoc IStakeManager
     function delegateStake(
         bytes calldata blsPubkey,
-        address ecdsaPubkey,
+        address validatorAddress,
         bytes calldata validatorSig
     )
         external
@@ -49,13 +49,13 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     function claimStakeRewards(address ecsdaPubkey) external virtual;
 
     /// @inheritdoc IStakeManager
-    function unstake(address ecdsaPubkey) external virtual;
+    function unstake(address validatorAddress) external virtual;
 
     /// @inheritdoc IStakeManager
     function delegationDigest(
         bytes memory blsPubkey,
-        address delegator,
-        uint8 validatorVersion
+        address validatorAddress,
+        address delegator
     )
         external
         view
@@ -64,13 +64,13 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         returns (bytes32);
 
     /// @inheritdoc IStakeManager
-    function getRewards(address ecdsaPubkey) public view virtual returns (uint240) {
-        return _getRewards(_stakeManagerStorage(), ecdsaPubkey);
+    function getRewards(address validatorAddress) public view virtual returns (uint240) {
+        return _getRewards(_stakeManagerStorage(), validatorAddress);
     }
 
     /// @inheritdoc IStakeManager
-    function incentiveInfo(address ecdsaPubkey) public view virtual returns (IncentiveInfo memory) {
-        return _stakeManagerStorage().incentiveInfo[ecdsaPubkey];
+    function incentiveInfo(address validatorAddress) public view virtual returns (IncentiveInfo memory) {
+        return _stakeManagerStorage().incentiveInfo[validatorAddress];
     }
 
     /// @inheritdoc IStakeManager
@@ -95,7 +95,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
 
     /// @dev The StakeManager's ERC721 ledger serves a permissioning role over validators, requiring
     /// Telcoin governance to approve each node operator and manually issue them a `ConsensusNFT`
-    /// @param to Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
+    /// @param to Refers to the struct member `ValidatorInfo.validatorAddress` in `IConsensusRegistry`
     /// @param tokenId Refers to the `ERC721::tokenId` which must be less than `UNSTAKED` and nonzero
     /// tokenIds must be minted in order unless overwriting a retired validator for storage efficiency
     /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
@@ -103,7 +103,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
 
     /// @dev In the case of malicious or erroneous node operator behavior, governance can use this function
     /// to burn a validator's `ConsensusNFT` and immediately eject from consensus committees if applicable
-    /// @param from Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
+    /// @param from Refers to the struct member `ValidatorInfo.validatorAddress` in `IConsensusRegistry`
     /// @notice ECDSA pubkey `from` will be marked `UNSTAKED` so the validator address cannot be reused
     /// @dev Intended for sparing use; only reverts if burning results in empty committee
     function burn(address from) external virtual;
@@ -135,7 +135,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
      */
     function _claimStakeRewards(
         StakeManagerStorage storage $,
-        address ecdsaPubkey,
+        address validatorAddress,
         address recipient,
         uint8 validatorVersion
     )
@@ -143,14 +143,14 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         virtual
         returns (uint256 rewards)
     {
-        rewards = _checkRewardsExceedMinWithdrawAmount($, ecdsaPubkey, validatorVersion);
+        rewards = _checkRewardsExceedMinWithdrawAmount($, validatorAddress, validatorVersion);
         // wipe ledger to prevent reentrancy and send via the `RWTEL` module
-        $.incentiveInfo[ecdsaPubkey].stakingRewards = 0;
+        $.incentiveInfo[validatorAddress].stakingRewards = 0;
         IRWTEL($.rwTEL).distributeStakeReward(recipient, rewards);
     }
 
     function _unstake(
-        address ecdsaPubkey,
+        address validatorAddress,
         address recipient,
         uint256 tokenId,
         uint8 validatorVersion
@@ -162,7 +162,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
         // wipe existing incentiveInfo and burn the token
-        IncentiveInfo storage info = $.incentiveInfo[ecdsaPubkey];
+        IncentiveInfo storage info = $.incentiveInfo[validatorAddress];
         uint256 rewards = uint256(info.stakingRewards);
         info.stakingRewards = 0;
         info.tokenId = UNSTAKED;
@@ -178,14 +178,14 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
 
     function _checkRewardsExceedMinWithdrawAmount(
         StakeManagerStorage storage $,
-        address ecdsaPubkey,
+        address validatorAddress,
         uint8 validatorVersion
     )
         internal
         virtual
         returns (uint256 rewards)
     {
-        rewards = incentiveInfo(ecdsaPubkey).stakingRewards;
+        rewards = incentiveInfo(validatorAddress).stakingRewards;
         if (rewards < $.versions[validatorVersion].minWithdrawAmount) revert InsufficientRewards(rewards);
     }
 
@@ -195,18 +195,18 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
 
     function _getRewards(
         StakeManagerStorage storage $,
-        address ecdsaPubkey
+        address validatorAddress
     )
         internal
         view
         virtual
         returns (uint240 claimableRewards)
     {
-        return $.incentiveInfo[ecdsaPubkey].stakingRewards;
+        return $.incentiveInfo[validatorAddress].stakingRewards;
     }
 
-    function _getTokenId(StakeManagerStorage storage $, address ecdsaPubkey) internal view returns (uint24) {
-        return $.incentiveInfo[ecdsaPubkey].tokenId;
+    function _getTokenId(StakeManagerStorage storage $, address validatorAddress) internal view returns (uint24) {
+        return $.incentiveInfo[validatorAddress].tokenId;
     }
 
     function _exists(uint256 tokenId) internal view virtual returns (bool) {

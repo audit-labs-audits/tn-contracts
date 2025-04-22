@@ -35,16 +35,18 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         assertEq(consensusRegistry.getCurrentEpoch(), 0);
         ValidatorInfo[] memory active = consensusRegistry.getValidators(ValidatorStatus.Active);
         for (uint256 i; i < 3; ++i) {
-            assertEq(active[i].ecdsaPubkey, initialValidators[i].ecdsaPubkey);
-            assertEq(consensusRegistry.getValidatorTokenId(initialValidators[i].ecdsaPubkey), i + 1);
-            assertEq(consensusRegistry.getValidatorByTokenId(i + 1).ecdsaPubkey, initialValidators[i].ecdsaPubkey);
+            assertEq(active[i].validatorAddress, initialValidators[i].validatorAddress);
+            assertEq(consensusRegistry.getValidatorTokenId(initialValidators[i].validatorAddress), i + 1);
+            assertEq(
+                consensusRegistry.getValidatorByTokenId(i + 1).validatorAddress, initialValidators[i].validatorAddress
+            );
             vm.expectRevert();
             consensusRegistry.isRetired(i + 1);
 
             EpochInfo memory info = consensusRegistry.getEpochInfo(uint32(i));
             for (uint256 j; j < 4; ++j) {
-                assertEq(info.committee[j], initialValidators[j].ecdsaPubkey);
-                assertEq(consensusRegistry.incentiveInfo(initialValidators[j].ecdsaPubkey).tokenId, j + 1);
+                assertEq(info.committee[j], initialValidators[j].validatorAddress);
+                assertEq(consensusRegistry.incentiveInfo(initialValidators[j].validatorAddress).tokenId, j + 1);
             }
         }
         assertEq(consensusRegistry.totalSupply(), 4);
@@ -81,7 +83,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         // Check validator information
         ValidatorInfo[] memory validators = consensusRegistry.getValidators(ValidatorStatus.Staked);
         assertEq(validators.length, 1);
-        assertEq(validators[0].ecdsaPubkey, validator5);
+        assertEq(validators[0].validatorAddress, validator5);
         assertEq(validators[0].blsPubkey, validator5BlsPubkey);
         assertEq(validators[0].activationEpoch, PENDING_EPOCH);
         assertEq(validators[0].exitEpoch, uint32(0));
@@ -127,7 +129,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         // Check validator information
         ValidatorInfo[] memory validators = consensusRegistry.getValidators(ValidatorStatus.Staked);
         assertEq(validators.length, 1);
-        assertEq(validators[0].ecdsaPubkey, validator5);
+        assertEq(validators[0].validatorAddress, validator5);
         assertEq(validators[0].blsPubkey, validator5BlsPubkey);
         assertEq(validators[0].activationEpoch, PENDING_EPOCH);
         assertEq(validators[0].exitEpoch, uint32(0));
@@ -172,11 +174,11 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         vm.stopPrank();
 
         // Check validator information
-        assertEq(activeValidators[0].ecdsaPubkey, validator1);
-        assertEq(activeValidators[1].ecdsaPubkey, validator2);
-        assertEq(activeValidators[2].ecdsaPubkey, validator3);
-        assertEq(activeValidators[3].ecdsaPubkey, validator4);
-        assertEq(activeValidators[4].ecdsaPubkey, validator5);
+        assertEq(activeValidators[0].validatorAddress, validator1);
+        assertEq(activeValidators[1].validatorAddress, validator2);
+        assertEq(activeValidators[2].validatorAddress, validator3);
+        assertEq(activeValidators[3].validatorAddress, validator4);
+        assertEq(activeValidators[4].validatorAddress, validator5);
         for (uint256 i; i < activeValidators.length - 1; ++i) {
             assertEq(uint8(activeValidators[i].currentStatus), uint8(ValidatorStatus.Active));
         }
@@ -238,7 +240,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         // Check validator information is pending exit
         ValidatorInfo[] memory pendingExitValidators = consensusRegistry.getValidators(ValidatorStatus.PendingExit);
         assertEq(pendingExitValidators.length, 1);
-        assertEq(pendingExitValidators[0].ecdsaPubkey, validator5);
+        assertEq(pendingExitValidators[0].validatorAddress, validator5);
         assertEq(uint8(pendingExitValidators[0].currentStatus), uint8(ValidatorStatus.PendingExit));
 
         // Finalize epoch twice to reach exit epoch
@@ -253,7 +255,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         // Check validator information is exited
         ValidatorInfo[] memory exitValidators = consensusRegistry.getValidators(ValidatorStatus.Exited);
         assertEq(exitValidators.length, 1);
-        assertEq(exitValidators[0].ecdsaPubkey, validator5);
+        assertEq(exitValidators[0].validatorAddress, validator5);
         assertEq(uint8(exitValidators[0].currentStatus), uint8(ValidatorStatus.Exited));
     }
 

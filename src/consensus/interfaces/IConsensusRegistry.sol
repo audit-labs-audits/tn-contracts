@@ -23,7 +23,7 @@ interface IConsensusRegistry {
 
     struct ValidatorInfo {
         bytes blsPubkey; // using uncompressed 96 byte BLS public keys
-        address ecdsaPubkey;
+        address validatorAddress;
         uint32 activationEpoch;
         uint32 exitEpoch;
         ValidatorStatus currentStatus;
@@ -39,13 +39,13 @@ interface IConsensusRegistry {
 
     error LowLevelCallFailure();
     error InvalidBLSPubkey();
-    error InvalidECDSAPubkey();
+    error InvalidValidatorAddress();
     error InvalidProof();
     error InitializerArityMismatch();
     error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
-    error CommitteeRequirement(address ecdsaPubkey);
-    error NotValidator(address ecdsaPubkey);
-    error AlreadyDefined(address ecdsaPubkey);
+    error CommitteeRequirement(address validatorAddress);
+    error NotValidator(address validatorAddress);
+    error AlreadyDefined(address validatorAddress);
     error InvalidStatus(ValidatorStatus status);
     error InvalidEpoch(uint32 epoch);
 
@@ -96,8 +96,8 @@ interface IConsensusRegistry {
     /// remain eligible for committee service in the next epoch
     function getValidators(ValidatorStatus status) external view returns (ValidatorInfo[] memory);
 
-    /// @dev Fetches the `tokenId` for a given validator ecdsaPubkey
-    function getValidatorTokenId(address ecdsaPubkey) external view returns (uint256);
+    /// @dev Fetches the `tokenId` for a given validator validatorAddress
+    function getValidatorTokenId(address validatorAddress) external view returns (uint256);
 
     /// @dev Fetches the `ValidatorInfo` for a given ConsensusNFT tokenId
     /// @notice To enable checks against storage slots initialized to zero by the EVM, `tokenId` cannot be `0`

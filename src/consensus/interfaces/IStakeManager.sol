@@ -51,10 +51,10 @@ interface IStakeManager {
     function stake(bytes calldata blsPubkey) external payable;
 
     /// @dev Accepts delegated stake from a non-validator caller authorized by a validator's EIP712 signature
-    /// @notice `ecdsaPubkey` must be a validator already in possession of a `ConsensusNFT`
+    /// @notice `validatorAddress` must be a validator already in possession of a `ConsensusNFT`
     function delegateStake(
         bytes calldata blsPubkey,
-        address ecdsaPubkey,
+        address validatorAddress,
         bytes calldata validatorSig
     )
         external
@@ -72,14 +72,14 @@ interface IStakeManager {
     /// @dev Returns previously staked funds in addition to accrued rewards, if any, to the staker
     /// @notice May only be called after fully exiting
     /// @notice `IncentiveInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
-    function unstake(address ecdsaPubkey) external;
+    function unstake(address validatorAddress) external;
 
     /// @notice Returns the delegation digest that a validator should sign to accept a delegation
     /// @return _ EIP-712 typed struct hash used to enable delegated proof of stake
     function delegationDigest(
         bytes memory blsPubkey,
-        address delegator,
-        uint8 validatorVersion
+        address validatorAddress,
+        address delegator
     )
         external
         view
@@ -90,10 +90,10 @@ interface IStakeManager {
 
     /// @dev Fetches the claimable rewards accrued for a given validator address
     /// @return _ The validator's claimable rewards, not including the validator's stake
-    function getRewards(address ecdsaPubkey) external view returns (uint240);
+    function getRewards(address validatorAddress) external view returns (uint240);
 
     /// @dev Returns staking information for the given address
-    function incentiveInfo(address ecdsaPubkey) external view returns (IncentiveInfo memory);
+    function incentiveInfo(address validatorAddress) external view returns (IncentiveInfo memory);
 
     /// @dev Returns the current version
     function stakeVersion() external view returns (uint8);

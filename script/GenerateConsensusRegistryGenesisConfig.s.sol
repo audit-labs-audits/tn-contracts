@@ -110,7 +110,7 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
         address simulatedCR = address(instantiateConsensusRegistry(deployments.ConsensusRegistryImpl, initData));
         yamlAppendBytecodeWithStorage(dest, simulatedCR, deployments.ConsensusRegistry);
 
-        overwriteFlags_ECDSA(simulatedCR);
+        overwriteFlags_ADDR(simulatedCR);
 
         vm.stopBroadcast();
     }
@@ -215,7 +215,7 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(consensusRegistry), slots);
     }
 
-    function overwriteFlags_ECDSA(address simulatedCR) public {
+    function overwriteFlags_ADDR(address simulatedCR) public {
         // read all unique storage slots touched by `initialize()` and fetch their final value
         bytes32[] storage slots = writtenStorageSlots[simulatedCR];
         console2.logUint(slots.length);
@@ -224,17 +224,17 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
             bytes32 currentSlot = slots[i];
             bytes32 slotValue = vm.load(simulatedCR, currentSlot);
 
-            // check if value is a validator ecdsaPubkey and assign collision-resistant label for replacement
+            // check if value is a validator address and assign collision-resistant label for replacement
             if (uint256(slotValue) == uint256(uint160(validator1))) {
-                slotValue = keccak256("VALIDATOR_1_ECDSA");
+                slotValue = keccak256("VALIDATOR_1_ADDR");
             } else if (uint256(slotValue) == uint256(uint160(validator2))) {
-                slotValue = keccak256("VALIDATOR_2_ECDSA");
+                slotValue = keccak256("VALIDATOR_2_ADDR");
             } else if (uint256(slotValue) == uint256(uint160(validator3))) {
-                slotValue = keccak256("VALIDATOR_3_ECDSA");
+                slotValue = keccak256("VALIDATOR_3_ADDR");
             } else if (uint256(slotValue) == uint256(uint160(validator4))) {
-                slotValue = keccak256("VALIDATOR_4_ECDSA");
+                slotValue = keccak256("VALIDATOR_4_ADDR");
             } else if (uint256(slotValue) == uint256(uint160(validator5))) {
-                slotValue = keccak256("VALIDATOR_5_ECDSA");
+                slotValue = keccak256("VALIDATOR_5_ADDR");
             }
 
             // write slot and value to file

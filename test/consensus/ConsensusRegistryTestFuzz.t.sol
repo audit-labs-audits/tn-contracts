@@ -105,7 +105,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         uint32 newEpoch = consensusRegistry.getCurrentEpoch();
         address[] memory currentCommittee = consensusRegistry.getEpochInfo(newEpoch).committee;
         for (uint256 i; i < currentCommittee.length; ++i) {
-            assertEq(currentCommittee[i], initialValidators[i].ecdsaPubkey);
+            assertEq(currentCommittee[i], initialValidators[i].validatorAddress);
         }
         address[] memory nextCommittee = consensusRegistry.getEpochInfo(newEpoch + 1).committee;
         for (uint256 i; i < nextCommittee.length; ++i) {
