@@ -46,7 +46,7 @@ interface IStakeManager {
     error NotTransferable();
     error RequiresConsensusNFT();
 
-    /// @dev Accepts the stake amount of native TEL from the calling validator, enabling self-activation
+    /// @dev Accepts the native TEL stake amount from the calling validator, enabling later self-activation
     /// @notice Caller must already have been issued a `ConsensusNFT` by Telcoin governance
     function stake(bytes calldata blsPubkey) external payable;
 
@@ -60,15 +60,14 @@ interface IStakeManager {
         external
         payable;
 
-    /// @dev Increments the claimable rewards for each staker
-    /// @notice May only be called by the client via system call, at the start of each consensus block
+    /// @dev The network's primary rewards distribution method
+    /// @notice May only be called by the client via system call, at the end of each epoch
     function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external;
 
     /// @dev Used by rewardees to claim staking rewards
-    /// @notice Rewards are incremented every epoch via syscall in `concludeEpoch()`
     function claimStakeRewards(address ecdaPubkey) external;
 
-    /// @dev Returns previously staked funds and accrued rewards, if any, to the staker
+    /// @dev Returns previously staked funds in addition to accrued rewards, if any, to the staker
     /// @notice May only be called after fully exiting
     /// @notice `StakeInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
     function unstake(address ecdsaPubkey) external;
@@ -77,9 +76,8 @@ interface IStakeManager {
     function totalSupply() external view returns (uint256);
 
     /// @dev Fetches the claimable rewards accrued for a given validator address
-    /// @notice Does not include the original stake amount and cannot be claimed until surpassing `minWithdrawAmount`
-    /// @return claimableRewards The validator's claimable rewards, not including the validator's stake
-    function getRewards(address ecdsaPubkey) external view returns (uint240 claimableRewards);
+    /// @return _ The validator's claimable rewards, not including the validator's stake
+    function getRewards(address ecdsaPubkey) external view returns (uint240);
 
     /// @dev Returns staking information for the given address
     function stakeInfo(address ecdsaPubkey) external view returns (StakeInfo memory);

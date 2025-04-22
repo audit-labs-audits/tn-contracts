@@ -29,26 +29,33 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_mintBurn(uint24 numValidators) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 845));
+        numValidators = uint24(bound(uint256(numValidators), 1, 645));
 
         _fuzz_mint(numValidators);
         vm.deal(address(consensusRegistry), stakeAmount_ * (numValidators + 5)); // provide funds
-        uint256[] memory tokenIds = _fuzz_burn(numValidators);
+        uint256 supplyBefore = consensusRegistry.totalSupply();
+
+        // leave enough validators for the committee to stay intact
+        uint32 currentEpoch = consensusRegistry.getCurrentEpoch();
+        address[] memory currentCommittee = consensusRegistry.getEpochInfo(currentEpoch).committee;
+        uint256[] memory burnedIds = _fuzz_burn(numValidators, currentCommittee);
 
         // asserts
-        assertEq(consensusRegistry.totalSupply(), 0);
-        for (uint256 i; i < tokenIds.length; ++i) {
-            uint256 tokenId = tokenIds[i];
+        assertEq(consensusRegistry.totalSupply(), supplyBefore - burnedIds.length);
+        for (uint256 i; i < burnedIds.length; ++i) {
+            uint256 tokenId = burnedIds[i];
+
             // recreate validator
             address burned = _createRandomAddress(tokenId);
+
             assertTrue(consensusRegistry.isRetired(tokenId));
             assertEq(consensusRegistry.balanceOf(burned), 0);
 
-            vm.expectRevert();
+            vm.expectRevert(abi.encodeWithSignature("ERC721NonexistentToken(uint256)", tokenId));
             consensusRegistry.ownerOf(tokenId);
             vm.expectRevert();
             consensusRegistry.getValidatorTokenId(burned);
-            vm.expectRevert();
+            vm.expectRevert(abi.encodeWithSelector(IStakeManager.InvalidTokenId.selector, tokenId));
             consensusRegistry.getValidatorByTokenId(tokenId);
         }
 

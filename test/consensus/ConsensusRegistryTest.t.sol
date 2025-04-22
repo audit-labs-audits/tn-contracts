@@ -252,20 +252,43 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length;
         vm.startPrank(sysAddress);
         consensusRegistry.concludeEpoch(new address[](numActive));
-        consensusRegistry.concludeEpoch(new address[](numActive));
+        // consensusRegistry.concludeEpoch(new address[](numActive));
         vm.stopPrank();
 
-        // Exit
+        // validator becomes `PendingExit` status which is still committee eligible
         vm.prank(validator5);
         consensusRegistry.beginExit();
+        assertEq(numActive, consensusRegistry.getValidators(ValidatorStatus.Active).length);
 
-        // Finalize epoch twice to process exit
+        // validators pending exit are only exited after elapsing 3 epochs without committee service
         vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](4));
-        consensusRegistry.concludeEpoch(new address[](4));
+        address[] memory makeValidator5Wait = new address[](numActive);
+        makeValidator5Wait[0] = validator5;
+        consensusRegistry.concludeEpoch(makeValidator5Wait);
+        // conclude epoch twice with empty committee to simulate protocol-determined exit
+        consensusRegistry.concludeEpoch(new address[](numActive));
+        consensusRegistry.concludeEpoch(new address[](numActive));
+        
+        // exit occurs on third epoch without validator5 in committee
+        uint32 expectedExitEpoch = uint32(consensusRegistry.getCurrentEpoch() + 1);
+        vm.expectEmit(true, true, true, true);
+        emit ValidatorExited(
+            ValidatorInfo(
+                validator5BlsPubkey,
+                validator5,
+                uint32(1), // was activated in epoch 1
+                expectedExitEpoch,
+                ValidatorStatus.Exited,
+                false,
+                false,
+                uint8(0)
+            )
+        );
+        uint256 activeAfterExit = numActive - 1;
+        consensusRegistry.concludeEpoch(new address[](activeAfterExit));
+        consensusRegistry.concludeEpoch(new address[](activeAfterExit));
         vm.stopPrank();
 
-        // Capture pre-exit balance
         uint256 initialBalance = validator5.balance;
 
         // Check event emission

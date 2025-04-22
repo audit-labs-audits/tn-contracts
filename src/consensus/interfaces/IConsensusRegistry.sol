@@ -58,6 +58,9 @@ interface IConsensusRegistry {
     event NewEpoch(EpochInfo epoch);
     event RewardsClaimed(address claimant, uint256 rewards);
 
+
+    /// @notice Validators with `Active || PendingActivation || PendingExit` status are still 
+    /// eligible for committees and thus mentally modelable as still `Active` while awaiting queues
     enum ValidatorStatus {
         Any,
         Staked,
@@ -67,21 +70,18 @@ interface IConsensusRegistry {
         Exited
     }
 
-    /// @notice Voting Validator Committee changes once every epoch
-    /// @notice Can only be called in a `syscall` context, at the end of an epoch
+    /// @notice Voting Validator Committee changes at the end every epoch via syscall
     /// @dev Accepts the committee of voting validators for 2 epochs in the future
-    /// @param newCommittee The future validator committee for 2 epochs after
-    /// the current one is finalized; ie `$.currentEpoch + 3` (this func increments `currentEpoch`)
+    /// @param newCommittee The future validator committee for `$.currentEpoch + 3`
     function concludeEpoch(address[] calldata newCommittee) external returns (ValidatorInfo[] memory);
 
-    /// @dev Activates the calling validator, setting the next epoch as activation epoch
-    /// to ensure ineligibility for rewards until completing a full epoch
-    /// @notice Caller must own the ConsensusNFT for their index and be pending activation status
+    /// @dev Self-activation function for validators, gaining `PendingActivation` status and setting
+    /// next epoch as activation epoch to ensure rewards eligibility only after completing a full epoch
+    /// @notice Caller must own a ConsensusNFT and be `Staked` status, ie staked or delegated
     function activate() external;
 
-    /// @dev Issues an exit request for a validator to be retired from the active validator set
-    /// @notice Reverts if the caller would cause the network to lose BFT by exiting
-    /// @notice Caller must be a validator with `ValidatorStatus.Active` status
+    /// @dev Issues an exit request for a validator to be retired from the `Active` validator set
+    /// @notice Reverts if the exit queue is full, ie if active validator count would drop too low 
     function beginExit() external;
 
     /// @dev Returns the current epoch
@@ -91,7 +91,10 @@ interface IConsensusRegistry {
     /// @notice When querying for future epochs, `blockHeight` will be 0 as they are not yet known
     function getEpochInfo(uint32 epoch) external view returns (EpochInfo memory currentEpochInfo);
 
-    /// @dev Returns an array of `ValidatorInfo` structs that match the provided status for this epoch
+    /// @dev Returns an array of unretired validators matching the provided status
+    /// @param _ `Any` queries return all unretired validators where `status != Any`
+    /// @param _ `Active` queries also include validators pending activation or exit since all three
+    /// remain eligible for committee service in the next epoch
     function getValidators(ValidatorStatus status) external view returns (ValidatorInfo[] memory);
 
     /// @dev Fetches the `tokenId` for a given validator ecdsaPubkey

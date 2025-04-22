@@ -95,8 +95,14 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         }
     }
 
-    function _fuzz_burn(uint24 numValidators) internal returns (uint256[] memory) {
-        numValidators += 4; // include initial validators
+    function _fuzz_burn(uint24 numValidators, address[] memory committee) internal returns (uint256[] memory) {
+        numValidators += 4; // include initial validators in burn list
+        
+        // leave 2 committee members
+        address skipper = committee[0];
+        address skippy = committee[1];
+        uint256 numToBurn = numValidators - 2;
+
         // create list of token IDs to be burned
         uint256[] memory tokenIds = new uint256[](numValidators);
         for (uint256 i; i < numValidators; ++i) {
@@ -104,24 +110,36 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         }
 
         // shuffle array to simulate semi-random burn order
+        bytes32 seed = keccak256(abi.encodePacked(numValidators));
         for (uint256 i; i < numValidators; ++i) {
-            uint256 n = i + uint256(keccak256(abi.encodePacked(numValidators))) % (numValidators - i);
-            uint256 temp = tokenIds[n];
-            tokenIds[n] = tokenIds[i];
-            tokenIds[i] = temp;
+            uint256 n = i + uint256(seed) % (numValidators - i);
+            (tokenIds[i], tokenIds[n]) = (tokenIds[n], tokenIds[i]);
         }
 
-        // burn tokens in the shuffled order
+        // burn tokens in the shuffled order, skipping 2 committee members
+        uint256[] memory tempBurnedIds = new uint256[](numToBurn);
+        uint256 counter;
         for (uint256 i; i < numValidators; ++i) {
             uint256 tokenId = tokenIds[i];
             address validatorToBurn = _createRandomAddress(tokenId);
 
-            // burn the token for the validator
+            // skip burning two committee members
+            if (validatorToBurn == skipper || validatorToBurn == skippy) {
+                continue;
+            }
+
             vm.prank(crOwner);
             consensusRegistry.burn(validatorToBurn);
+            tempBurnedIds[counter++] = tokenId;
         }
 
-        return tokenIds;
+        // return trimmed array handling skips
+        uint256[] memory burnedIds = new uint256[](counter);
+        for (uint256 i; i < counter; ++i) {
+            burnedIds[i] = tempBurnedIds[i];
+        }
+
+        return burnedIds;
     }
 
     function _fuzz_stake(uint24 numValidators, uint256 amount) internal {

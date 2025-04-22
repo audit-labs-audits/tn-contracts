@@ -93,8 +93,8 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     /// to burn a validator's `ConsensusNFT` and immediately eject from consensus committees if applicable
     /// @param from Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
     /// @notice ECDSA pubkey `from` will be marked `UNSTAKED` so the validator address cannot be reused
-    /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
-    function burn(address from) external virtual returns (bool);
+    /// @dev Intended for sparing use; only reverts if burning results in empty committee
+    function burn(address from) external virtual;
 
     /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
     function transferFrom(
@@ -122,7 +122,6 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
      *
      */
 
-    /// @notice Sends staking rewards only and is not used for withdrawing initial stake
     function _claimStakeRewards(
         StakeManagerStorage storage $,
         address ecdsaPubkey,

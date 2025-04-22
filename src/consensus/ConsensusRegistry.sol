@@ -50,20 +50,18 @@ contract ConsensusRegistry is
         onlySystemCall
         returns (ValidatorInfo[] memory)
     {
+        // update epoch ring buffer info, validator queue
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-
-        // update epoch and ring buffer info
         uint32 newEpoch = _updateEpochInfo($, newCommittee);
-        // update validator queue
         _updateValidatorQueue($, newCommittee, newEpoch);
 
-        // ensure future epoch's validator set is BFT and of expected size if <= 10
-        ValidatorInfo[] memory active = _getValidators($, ValidatorStatus.Active);
-        _checkFaultTolerance(active.length, newCommittee.length);
+        // assert new epoch committee is valid against total now eligible
+        ValidatorInfo[] memory newEligible = _getValidators($, ValidatorStatus.Active);
+        _checkCommitteeSize(newEligible.length, newCommittee.length);
 
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1)));
 
-        return active;
+        return newEligible;
     }
 
     /// @inheritdoc IStakeManager
@@ -150,7 +148,7 @@ contract ConsensusRegistry is
         StakeManagerStorage storage $S = _stakeManagerStorage();
         _checkStakeValue(msg.value, $S.stakeVersion);
         uint24 tokenId = _checkKnownValidator($S, msg.sender);
-        // require validator status is `Any`
+        // require validator has not yet staked
         _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Any);
 
         // enter validator in activation queue
@@ -230,10 +228,11 @@ contract ConsensusRegistry is
         // require caller is whitelisted, having been issued a ConsensusNFT by governance
         uint24 tokenId = _checkKnownValidator(_stakeManagerStorage(), msg.sender);
 
+        // disallow filling up the exit queue
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         uint256 numActive = _getValidators($, ValidatorStatus.Active).length;
         uint256 committeeSize = $.epochInfo[$.epochPointer].committee.length;
-        _checkFaultTolerance(numActive, committeeSize);
+        _checkCommitteeSize(numActive, committeeSize);
 
         // require caller status is `Active` and `currentEpoch >= activationEpoch`
         _checkValidatorStatus($, tokenId, ValidatorStatus.Active);
@@ -243,7 +242,7 @@ contract ConsensusRegistry is
             revert InvalidEpoch(currentEpoch);
         }
 
-        // enter validator in exit queue
+        // enter validator in pending exit queue
         _beginExit(validator);
     }
 
@@ -297,7 +296,7 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc StakeManager
-    function burn(address ecdsaPubkey) external override onlyOwner returns (bool) {
+    function burn(address ecdsaPubkey) external override onlyOwner {
         StakeManagerStorage storage $S = _stakeManagerStorage();
         // require ecdsaPubkey is whitelisted, having been issued a ConsensusNFT by governance
         uint24 tokenId = _checkKnownValidator($S, ecdsaPubkey);
@@ -309,16 +308,16 @@ contract ConsensusRegistry is
         // mark `ecdsaPubkey` as spent using `UNSTAKED`
         $S.stakeInfo[ecdsaPubkey].tokenId = UNSTAKED;
 
+        // reverts if decremented committee size after ejection reaches 0, preventing network halt
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
-        ValidatorInfo storage validator = $C.validators[tokenId];
-        bool ejected = _ejectFromCommittees($C, ecdsaPubkey);
+        uint256 numEligible = _getValidators($C, ValidatorStatus.Active).length;
+        _ejectFromCommittees($C, ecdsaPubkey, numEligible);
 
         // exit, retire, and unstake + burn validator immediately
+        ValidatorInfo storage validator = $C.validators[tokenId];
         _exit(validator, $C.currentEpoch);
         _retire(validator);
         _unstake(ecdsaPubkey, recipient, tokenId, validator.stakeVersion);
-
-        return ejected;
     }
 
     /**
@@ -356,6 +355,7 @@ contract ConsensusRegistry is
     }
 
     /// @dev Activates a validator
+    /// @dev Performed by protocol system call at commencement of validator's first full epoch
     function _activate(ValidatorInfo storage validator) internal {
         validator.currentStatus = ValidatorStatus.Active;
 
@@ -431,40 +431,37 @@ contract ConsensusRegistry is
     }
 
     /// @notice Forcibly eject a validator from the current, next, and subsequent committees
-    /// @dev Intended for sparing use; bypasses BFT or committee size checks
-    function _ejectFromCommittees(ConsensusRegistryStorage storage $, address ecdsaPubkey) internal returns (bool) {
+    /// @dev Intended for sparing use; only reverts if burning results in empty committee
+    function _ejectFromCommittees(ConsensusRegistryStorage storage $, address ecdsaPubkey, uint256 numEligible) internal {
         uint32 currentEpoch = $.currentEpoch;
         uint8 currentEpochPointer = $.epochPointer;
         address[] storage currentCommittee =
             _getRecentEpochInfo($, currentEpoch, currentEpoch, currentEpochPointer).committee;
-        bool ejected = _eject(currentCommittee, ecdsaPubkey);
+        _checkCommitteeSize(numEligible, currentCommittee.length - 1);
+        _eject(currentCommittee, ecdsaPubkey);
 
         uint32 nextEpoch = currentEpoch + 1;
         address[] storage nextCommittee = _getFutureEpochInfo($, nextEpoch, currentEpoch, currentEpochPointer).committee;
-        ejected = _eject(nextCommittee, ecdsaPubkey);
+        _checkCommitteeSize(numEligible, nextCommittee.length - 1);
+        _eject(nextCommittee, ecdsaPubkey);
 
         uint32 subsequentEpoch = currentEpoch + 2;
         address[] storage subsequentCommittee =
             _getFutureEpochInfo($, subsequentEpoch, currentEpoch, currentEpochPointer).committee;
-        ejected = _eject(subsequentCommittee, ecdsaPubkey);
-
-        return ejected;
+        _checkCommitteeSize(numEligible, subsequentCommittee.length - 1);
+        _eject(subsequentCommittee, ecdsaPubkey);
     }
 
-    function _eject(address[] storage committee, address ecdsaPubkey) internal returns (bool) {
-        bool ejected;
+    function _eject(address[] storage committee, address ecdsaPubkey) internal {
         uint256 len = committee.length;
         for (uint256 i; i < len; ++i) {
             if (committee[i] == ecdsaPubkey) {
                 committee[i] = committee[len - 1];
                 committee.pop();
 
-                ejected = true;
                 break;
             }
         }
-
-        return ejected;
     }
 
     /// @dev Stores the number of blocks finalized in previous epoch and the voter committee for the new epoch
@@ -489,7 +486,7 @@ contract ConsensusRegistry is
         uint8 twoEpochsInFuturePointer = (newEpochPointer + 2) % 4;
         $.futureEpochInfo[twoEpochsInFuturePointer].committee = newCommittee;
 
-        return (newEpoch);
+        return newEpoch;
     }
 
     /// @dev Fetch info for a future epoch; two epochs into future are stored
@@ -525,30 +522,15 @@ contract ConsensusRegistry is
         return $.epochInfo[pointer];
     }
 
-    /// @dev Checks the given committee size against the total number of active validators using below 3f + 1 BFT rule
-    /// @notice Prevents the network from reaching zero active validators (such as by exit)
-    function _checkFaultTolerance(uint256 numActive, uint256 committeeSize) internal pure {
-        if (numActive == 0 || committeeSize > numActive) {
-            revert InvalidCommitteeSize(numActive, committeeSize);
-        }
-
-        // if the total validator set is small, all must vote and no faults can be tolerated
-        if (numActive <= 4 && committeeSize != numActive) {
-            revert InvalidCommitteeSize(numActive, committeeSize);
-        } else {
-            // calculate number of tolerable faults for given node count using 33% threshold
-            uint256 tolerableFaults = (numActive * PRECISION_FACTOR) / 3;
-
-            // committee size must be greater than tolerable faults
-            uint256 minCommitteeSize = tolerableFaults / PRECISION_FACTOR + 1;
-            if (committeeSize < minCommitteeSize) {
-                revert InvalidCommitteeSize(minCommitteeSize, committeeSize);
-            }
+    /// @dev Checks current committee size against total eligible for committee service in next epoch
+    /// @notice Prevents the network from reaching invalid committee state
+    function _checkCommitteeSize(uint256 activeOrPending, uint256 committeeSize) internal pure {
+        if (activeOrPending == 0 || committeeSize > activeOrPending) {
+            revert InvalidCommitteeSize(activeOrPending, committeeSize);
         }
     }
 
-    /// @dev Reverts if the provided claimant doesn't correspond to an existing delegation entry keyed under
-    /// `ecdsaPubkey`
+    /// @dev Reverts if provided claimant isn't the existing delegation entry keyed under `ecdsaPubkey`
     function _checkKnownDelegation(
         StakeManagerStorage storage $,
         address ecdsaPubkey,
@@ -586,18 +568,20 @@ contract ConsensusRegistry is
         if (status != requiredStatus) revert InvalidStatus(status);
     }
 
-    /// @dev Checks that the given `ecdsaPubkey` is not a member of the next two committees
+    /// @dev Returns whether given `ecdsaPubkey` is a member of the given committee
     function _isCommitteeMember(address ecdsaPubkey, address[] memory committee) internal pure returns (bool) {
         // cache len to memory
         uint256 committeeLen = committee.length;
         for (uint256 i; i < committeeLen; ++i) {
-            // terminate if `ecdsaPubkey` is a member of current committee
+            // terminate if `ecdsaPubkey` is a member of committee
             if (committee[i] == ecdsaPubkey) return true;
         }
 
         return false;
     }
 
+    /// @notice `Active` queries also include validators pending activation or exit
+    /// Because they are eligible for voter committee service in the next epoch
     /// @dev There are ~1000 total MNOs in the world so `SLOAD` loops should not run out of gas
     /// @dev Room for storage optimization (SSTORE2 etc) to hold more validators
     function _getValidators(
@@ -610,32 +594,32 @@ contract ConsensusRegistry is
     {
         ValidatorInfo[] memory untrimmed = new ValidatorInfo[](_stakeManagerStorage().totalSupply);
         uint256 numMatches;
-        bool getAll = status == ValidatorStatus.Any;
-        for (uint256 i = 1; i <= untrimmed.length; ++i) {
-            ValidatorInfo storage current = $.validators[uint24(i)];
+
+        for (uint24 i = 1; i <= untrimmed.length; ++i) {
+            ValidatorInfo storage current = $.validators[i];
             if (current.isRetired) continue;
 
-            if (getAll) {
-                // queries for `Any` status include all unretired validators
-                untrimmed[numMatches] = current;
-                ++numMatches;
-            } else {
-                bool matchFound;
+            // queries for `Any` status include all unretired validators
+            bool matchFound = status == ValidatorStatus.Any;
+            if (!matchFound) {
+                // mem cache to save SLOADs
+                ValidatorStatus currentStatus = current.currentStatus;
+
+                // include pending activation/exit due to committee service eligibility in next epoch
                 if (status == ValidatorStatus.Active) {
-                    // queries for `Active` also include `PendingActivation` validators
                     matchFound = (
-                        current.currentStatus == ValidatorStatus.Active
-                            || current.currentStatus == ValidatorStatus.PendingActivation
+                        currentStatus == ValidatorStatus.Active || 
+                        currentStatus == ValidatorStatus.PendingExit ||
+                        currentStatus == ValidatorStatus.PendingActivation
                     );
                 } else {
-                    // all other queries return only exact status matches
-                    matchFound = (current.currentStatus == status);
+                    // all other queries return only exact matches
+                    matchFound = currentStatus == status;
                 }
+            } 
 
-                if (matchFound) {
-                    untrimmed[numMatches] = current;
-                    ++numMatches;
-                }
+            if (matchFound) {
+                untrimmed[numMatches++] = current;
             }
         }
 
