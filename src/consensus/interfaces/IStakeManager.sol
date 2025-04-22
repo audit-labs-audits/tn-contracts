@@ -9,7 +9,7 @@ pragma solidity 0.8.26;
  * @notice This interface declares the ConsensusRegistry's staking API and data structures
  * @dev Implemented within StakeManager.sol, which is inherited by the ConsensusRegistry
  */
-struct StakeInfo {
+struct IncentiveInfo {
     uint24 tokenId;
     uint232 stakingRewards;
 }
@@ -21,14 +21,14 @@ interface IStakeManager {
         uint24 totalSupply;
         uint8 stakeVersion;
         mapping(uint8 => StakeConfig) versions;
-        mapping(address => StakeInfo) stakeInfo;
+        mapping(address => IncentiveInfo) incentiveInfo;
         mapping(address => Delegation) delegations;
     }
 
     struct StakeConfig {
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
-        uint256 consensusBlockReward;
+        uint256 epochIssuance;
     }
 
     struct Delegation {
@@ -60,16 +60,18 @@ interface IStakeManager {
         external
         payable;
 
-    /// @dev The network's primary rewards distribution method
+    /// @dev The network's epoch issuance distribution method, rewarding stake originators
+    /// proportionally to their share of total stake, tied to the validator's stake version
+    /// @notice Stake originators are either a delegator if one exists, or the validator itself
     /// @notice May only be called by the client via system call, at the end of each epoch
-    function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external;
+    function applyIncentives(IncentiveInfo[] calldata incentives) external;
 
     /// @dev Used by rewardees to claim staking rewards
     function claimStakeRewards(address ecdaPubkey) external;
 
     /// @dev Returns previously staked funds in addition to accrued rewards, if any, to the staker
     /// @notice May only be called after fully exiting
-    /// @notice `StakeInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
+    /// @notice `IncentiveInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
     function unstake(address ecdsaPubkey) external;
 
     /// @dev Returns the current total supply of minted ConsensusNFTs
@@ -80,12 +82,12 @@ interface IStakeManager {
     function getRewards(address ecdsaPubkey) external view returns (uint240);
 
     /// @dev Returns staking information for the given address
-    function stakeInfo(address ecdsaPubkey) external view returns (StakeInfo memory);
+    function incentiveInfo(address ecdsaPubkey) external view returns (IncentiveInfo memory);
 
-    /// @dev Returns the current stake version
+    /// @dev Returns the current version
     function stakeVersion() external view returns (uint8);
 
-    /// @dev Returns the current stake configuration
+    /// @dev Returns the queried stake configuration
     function stakeConfig(uint8 version) external view returns (StakeConfig memory);
 
     /// @dev Permissioned function to upgrade stake, withdrawal, and consensus block reward configurations

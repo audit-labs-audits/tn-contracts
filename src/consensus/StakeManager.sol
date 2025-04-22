@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
 import { IRWTEL } from "../interfaces/IRWTEL.sol";
-import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { IncentiveInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 
 /**
  * @title StakeManager
@@ -43,7 +43,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         virtual;
 
     /// @inheritdoc IStakeManager
-    function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external virtual;
+    function applyIncentives(IncentiveInfo[] calldata incentives) external virtual;
 
     /// @inheritdoc IStakeManager
     function claimStakeRewards(address ecsdaPubkey) external virtual;
@@ -57,8 +57,8 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     }
 
     /// @inheritdoc IStakeManager
-    function stakeInfo(address ecdsaPubkey) public view virtual returns (StakeInfo memory) {
-        return _stakeManagerStorage().stakeInfo[ecdsaPubkey];
+    function incentiveInfo(address ecdsaPubkey) public view virtual returns (IncentiveInfo memory) {
+        return _stakeManagerStorage().incentiveInfo[ecdsaPubkey];
     }
 
     /// @inheritdoc IStakeManager
@@ -121,7 +121,6 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
      *   internals
      *
      */
-
     function _claimStakeRewards(
         StakeManagerStorage storage $,
         address ecdsaPubkey,
@@ -133,9 +132,8 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         returns (uint256 rewards)
     {
         rewards = _checkRewardsExceedMinWithdrawAmount($, ecdsaPubkey, validatorVersion);
-
         // wipe ledger to prevent reentrancy and send via the `RWTEL` module
-        $.stakeInfo[ecdsaPubkey].stakingRewards = 0;
+        $.incentiveInfo[ecdsaPubkey].stakingRewards = 0;
         IRWTEL($.rwTEL).distributeStakeReward(recipient, rewards);
     }
 
@@ -151,8 +149,8 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
-        // wipe existing stakeInfo and burn the token
-        StakeInfo storage info = $.stakeInfo[ecdsaPubkey];
+        // wipe existing incentiveInfo and burn the token
+        IncentiveInfo storage info = $.incentiveInfo[ecdsaPubkey];
         uint256 rewards = uint256(info.stakingRewards);
         info.stakingRewards = 0;
         info.tokenId = UNSTAKED;
@@ -175,7 +173,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         virtual
         returns (uint256 rewards)
     {
-        rewards = stakeInfo(ecdsaPubkey).stakingRewards;
+        rewards = incentiveInfo(ecdsaPubkey).stakingRewards;
         if (rewards < $.versions[validatorVersion].minWithdrawAmount) revert InsufficientRewards(rewards);
     }
 
@@ -192,11 +190,11 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         virtual
         returns (uint240 claimableRewards)
     {
-        return $.stakeInfo[ecdsaPubkey].stakingRewards;
+        return $.incentiveInfo[ecdsaPubkey].stakingRewards;
     }
 
     function _getTokenId(StakeManagerStorage storage $, address ecdsaPubkey) internal view returns (uint24) {
-        return $.stakeInfo[ecdsaPubkey].tokenId;
+        return $.incentiveInfo[ecdsaPubkey].tokenId;
     }
 
     function _exists(uint256 tokenId) internal view virtual returns (bool) {

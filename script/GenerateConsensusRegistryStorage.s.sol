@@ -22,7 +22,7 @@ contract GenerateConsensusRegistryStorage is Script, Test {
     address public rwTEL = address(0x7e1);
     uint256 public stakeAmount = 1_000_000 ether;
     uint256 public minWithdrawAmount = 10_000 ether;
-    uint256 public consensusBlockReward = 100_000 ether; //todo: math on this
+    uint256 public epochIssuance = 100_000 ether; //todo: math on this
     IConsensusRegistry.ValidatorInfo[] initialValidators;
     address public owner = address(0x42);
 
@@ -124,7 +124,7 @@ contract GenerateConsensusRegistryStorage is Script, Test {
         vm.startStateDiffRecording();
         recordedRegistry = ConsensusRegistry(payable(address(new ERC1967Proxy(address(consensusRegistryImpl), ""))));
         recordedRegistry.initialize(
-            address(rwTEL), stakeAmount, minWithdrawAmount, consensusBlockReward, initialValidators, owner
+            address(rwTEL), stakeAmount, minWithdrawAmount, epochIssuance, initialValidators, owner
         );
         Vm.AccountAccess[] memory records = vm.stopAndReturnStateDiff();
 

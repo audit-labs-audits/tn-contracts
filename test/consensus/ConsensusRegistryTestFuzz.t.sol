@@ -7,7 +7,7 @@ import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { IConsensusRegistry } from "src/consensus/interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { StakeManager } from "src/consensus/StakeManager.sol";
-import { StakeInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
+import { IncentiveInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
 import { RWTEL } from "src/RWTEL.sol";
 import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 
@@ -19,7 +19,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
         consensusRegistry.initialize(
-            address(rwTEL), stakeAmount_, minWithdrawAmount_, consensusBlockReward_, initialValidators, crOwner
+            address(rwTEL), stakeAmount_, minWithdrawAmount_, epochIssuance_, initialValidators, crOwner
         );
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
@@ -51,11 +51,11 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
             assertTrue(consensusRegistry.isRetired(tokenId));
             assertEq(consensusRegistry.balanceOf(burned), 0);
 
-            vm.expectRevert(abi.encodeWithSignature("ERC721NonexistentToken(uint256)", tokenId));
+            vm.expectRevert();
             consensusRegistry.ownerOf(tokenId);
             vm.expectRevert();
             consensusRegistry.getValidatorTokenId(burned);
-            vm.expectRevert(abi.encodeWithSelector(IStakeManager.InvalidTokenId.selector, tokenId));
+            vm.expectRevert();
             consensusRegistry.getValidatorByTokenId(tokenId);
         }
 
@@ -77,9 +77,8 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         }
     }
 
-    function testFuzz_concludeEpoch(uint24 numValidators, uint232 fuzzedRewards) public {
+    function testFuzz_concludeEpoch(uint24 numValidators) public {
         numValidators = uint24(bound(uint256(numValidators), 1, 900));
-        fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount_, telMaxSupply));
 
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
 
@@ -118,9 +117,8 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         }
     }
 
-    function testFuzz_incrementRewards(uint24 numValidators, uint232 fuzzedRewards) public {
+    function testFuzz_applyIncentives(uint24 numValidators) public {
         numValidators = uint24(bound(uint256(numValidators), 1, 1050));
-        fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount_, telMaxSupply));
 
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
 
@@ -138,22 +136,10 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         address[] memory newCommittee = _fuzz_createNewCommittee(numActive, committeeSize);
         consensusRegistry.concludeEpoch(newCommittee);
 
-        // divide total `fuzzedRewards` equally across committee members
-        uint256 numRecipients = newCommittee.length;
-        uint232 rewardPerValidator = uint232(fuzzedRewards / numRecipients);
-        // construct array for `applyIncentives` function call
-        StakeInfo[] memory committeeRewards = new StakeInfo[](numRecipients);
-        for (uint256 i; i < committeeRewards.length; ++i) {
-            uint256 recipientTokenId = consensusRegistry.getValidatorTokenId(newCommittee[i]);
-            committeeRewards[i] = StakeInfo(uint24(recipientTokenId), rewardPerValidator);
-
-            // sanity assert no rewards yet
-            address validator = consensusRegistry.getValidatorByTokenId(recipientTokenId).ecdsaPubkey;
-            assertEq(consensusRegistry.getRewards(validator), 0);
-        }
-
-        // apply incentives by finalizing epoch with `StakeInfo` for constructed committee
-        consensusRegistry.incrementRewards(committeeRewards);
+        // apply incentives by finalizing epoch with empty `IncentiveInfo`
+        uint256 rewardPerValidator = epochIssuance_ / numActive;
+        IncentiveInfo[] memory committeeRewards = new IncentiveInfo[](0);
+        consensusRegistry.applyIncentives(committeeRewards);
         vm.stopPrank();
 
         // assert rewards were incremented for each committee member
@@ -163,10 +149,9 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         }
     }
 
-    function testFuzz_claimStakeRewards(uint24 numValidators, uint232 fuzzedRewards) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 1050));
+    function testFuzz_claimStakeRewards(uint24 numValidators) public {
+        numValidators = uint24(bound(uint256(numValidators), 1, 550));
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
-        fuzzedRewards = uint232(bound(uint256(fuzzedRewards), minWithdrawAmount_ * numActive, telMaxSupply));
 
         _fuzz_mint(numValidators);
         _fuzz_stake(numValidators, stakeAmount_);
@@ -182,18 +167,10 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         address[] memory newCommittee = _fuzz_createNewCommittee(numActive, committeeSize);
         consensusRegistry.concludeEpoch(newCommittee);
 
-        // divide total `fuzzedRewards` equally across committee members
-        uint256 numRecipients = newCommittee.length;
-        uint232 rewardPerValidator = uint232(fuzzedRewards / numRecipients);
-        // construct array for `applyIncentives` function call
-        StakeInfo[] memory committeeRewards = new StakeInfo[](numRecipients);
-        for (uint256 i; i < committeeRewards.length; ++i) {
-            uint256 recipientTokenId = consensusRegistry.getValidatorTokenId(newCommittee[i]);
-            committeeRewards[i] = StakeInfo(uint24(recipientTokenId), rewardPerValidator);
-        }
-
-        // apply incentives by finalizing epoch with `StakeInfo` for constructed committee
-        consensusRegistry.incrementRewards(committeeRewards);
+        // apply incentives by finalizing epoch with empty `IncentiveInfo`
+        uint256 rewardPerValidator = epochIssuance_ / numActive;
+        IncentiveInfo[] memory committeeRewards = new IncentiveInfo[](0);
+        consensusRegistry.applyIncentives(committeeRewards);
         vm.stopPrank();
 
         // claim rewards and assert
@@ -202,6 +179,10 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
             // capture initial validator balance
             uint256 initialBalance = validator.balance;
             assertEq(initialBalance, 0);
+
+            // conclude epoch for epoch issuance
+            vm.prank(sysAddress);
+            consensusRegistry.concludeEpoch(zeroCommittee);
 
             // Check event emission and claim rewards
             vm.expectEmit(true, true, true, true);

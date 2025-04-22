@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
-import { StakeInfo } from "./IStakeManager.sol";
+import { IncentiveInfo } from "./IStakeManager.sol";
 
 /**
  * @title ConsensusRegistry Interface
@@ -28,7 +28,7 @@ interface IConsensusRegistry {
         uint32 exitEpoch;
         ValidatorStatus currentStatus;
         bool isRetired;
-        bool isDelegated; // todo: require validator.ecdsaPubkey sig for no DOS
+        bool isDelegated;
         uint8 stakeVersion;
     }
 
@@ -58,8 +58,7 @@ interface IConsensusRegistry {
     event NewEpoch(EpochInfo epoch);
     event RewardsClaimed(address claimant, uint256 rewards);
 
-
-    /// @notice Validators with `Active || PendingActivation || PendingExit` status are still 
+    /// @notice Validators with `Active || PendingActivation || PendingExit` status are still
     /// eligible for committees and thus mentally modelable as still `Active` while awaiting queues
     enum ValidatorStatus {
         Any,
@@ -73,7 +72,7 @@ interface IConsensusRegistry {
     /// @notice Voting Validator Committee changes at the end every epoch via syscall
     /// @dev Accepts the committee of voting validators for 2 epochs in the future
     /// @param newCommittee The future validator committee for `$.currentEpoch + 3`
-    function concludeEpoch(address[] calldata newCommittee) external returns (ValidatorInfo[] memory);
+    function concludeEpoch(address[] calldata newCommittee) external;
 
     /// @dev Self-activation function for validators, gaining `PendingActivation` status and setting
     /// next epoch as activation epoch to ensure rewards eligibility only after completing a full epoch
@@ -81,7 +80,7 @@ interface IConsensusRegistry {
     function activate() external;
 
     /// @dev Issues an exit request for a validator to be retired from the `Active` validator set
-    /// @notice Reverts if the exit queue is full, ie if active validator count would drop too low 
+    /// @notice Reverts if the exit queue is full, ie if active validator count would drop too low
     function beginExit() external;
 
     /// @dev Returns the current epoch
@@ -92,8 +91,8 @@ interface IConsensusRegistry {
     function getEpochInfo(uint32 epoch) external view returns (EpochInfo memory currentEpochInfo);
 
     /// @dev Returns an array of unretired validators matching the provided status
-    /// @param _ `Any` queries return all unretired validators where `status != Any`
-    /// @param _ `Active` queries also include validators pending activation or exit since all three
+    /// @param `Any` queries return all unretired validators where `status != Any`
+    /// @param `Active` queries also include validators pending activation or exit since all three
     /// remain eligible for committee service in the next epoch
     function getValidators(ValidatorStatus status) external view returns (ValidatorInfo[] memory);
 

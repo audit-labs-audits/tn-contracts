@@ -31,8 +31,8 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
 
     uint256 public telMaxSupply = 100_000_000_000 ether;
     uint256 public stakeAmount_ = 1_000_000 ether;
-    uint256 public minWithdrawAmount_ = 10_000 ether;
-    uint256 public consensusBlockReward_ = 100_000 ether;
+    uint256 public minWithdrawAmount_ = 1000 ether;
+    uint256 public epochIssuance_ = 20_000_000 ether;
     // `OZ::ERC721Upgradeable::mint()` supports up to ~14_300 fuzzed mint iterations
     uint256 public MAX_MINTABLE = 14_000;
 
@@ -97,7 +97,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
 
     function _fuzz_burn(uint24 numValidators, address[] memory committee) internal returns (uint256[] memory) {
         numValidators += 4; // include initial validators in burn list
-        
+
         // leave 2 committee members
         address skipper = committee[0];
         address skippy = committee[1];

@@ -5,7 +5,7 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
-import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { IncentiveInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
@@ -34,8 +34,8 @@ contract ConsensusRegistry is
     /// @dev Signals a validator's pending status until activation/exit to correctly apply incentives
     uint32 internal constant PENDING_EPOCH = type(uint32).max;
 
-    /// @dev Addresses precision loss for BFT check calculations; much higher than all MNOs
-    uint256 internal constant PRECISION_FACTOR = 1_000_000;
+    /// @dev Addresses precision loss for incentives calculations
+    uint256 internal constant PRECISION_FACTOR = 1e32;
 
     /**
      *
@@ -44,45 +44,43 @@ contract ConsensusRegistry is
      */
 
     /// @inheritdoc IConsensusRegistry
-    function concludeEpoch(address[] calldata newCommittee)
-        external
-        override
-        onlySystemCall
-        returns (ValidatorInfo[] memory)
-    {
+    function concludeEpoch(address[] calldata newCommittee) external override onlySystemCall {
         // update epoch ring buffer info, validator queue
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         uint32 newEpoch = _updateEpochInfo($, newCommittee);
         _updateValidatorQueue($, newCommittee, newEpoch);
 
         // assert new epoch committee is valid against total now eligible
-        ValidatorInfo[] memory newEligible = _getValidators($, ValidatorStatus.Active);
-        _checkCommitteeSize(newEligible.length, newCommittee.length);
+        uint256 newActive = _getValidators($, ValidatorStatus.Active).length;
+        _checkCommitteeSize(newActive, newCommittee.length);
 
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1)));
-
-        return newEligible;
     }
 
+    /// @notice Slashing is not live but scaffolding for it is included here. For the time being,
+    /// system calls to this function provide an empty calldata array
     /// @inheritdoc IStakeManager
-    function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external override onlySystemCall {
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
+    function applyIncentives(IncentiveInfo[] calldata /*slashes*/ ) external override onlySystemCall {
+        StakeManagerStorage storage $S = _stakeManagerStorage();
+        // _applySlashes($S, slashes);
 
-        // update each validator's claimable rewards with given amounts
-        uint32 currentEpoch = $.currentEpoch;
-        for (uint256 i; i < stakingRewardInfos.length; ++i) {
-            ValidatorInfo memory currentValidator = getValidatorByTokenId(stakingRewardInfos[i].tokenId);
+        uint8 currentVersion = stakeVersion();
+        StakeConfig memory currentConfig = stakeConfig(currentVersion);
+        (address[] memory recipients, uint256[] memory stakes, uint256 totalStake) =
+            _eligibleStakeParams($S, _consensusRegistryStorage(), currentVersion, currentConfig);
 
-            // ensure client provided rewards only to known validators that were active for a full epoch
-            uint24 tokenId = _checkKnownValidator(_stakeManagerStorage(), currentValidator.ecdsaPubkey);
-            if (tokenId != stakingRewardInfos[i].tokenId) revert InvalidTokenId(stakingRewardInfos[i].tokenId);
-            if (currentValidator.activationEpoch > currentEpoch) {
-                revert InvalidStatus(ValidatorStatus.PendingActivation); //todo
-            }
+        // calculate and apply proportional rewards
+        uint256 totalIssuance = currentConfig.epochIssuance;
+        for (uint256 i; i < recipients.length; ++i) {
+            uint256 stakeProportion = stakes[i] * PRECISION_FACTOR / totalStake;
+            uint256 reward = totalIssuance * stakeProportion / PRECISION_FACTOR;
 
-            uint232 epochReward = stakingRewardInfos[i].stakingRewards;
-            _stakeManagerStorage().stakeInfo[currentValidator.ecdsaPubkey].stakingRewards += epochReward;
+            // increment claimable amount
+            $S.incentiveInfo[recipients[i]].stakingRewards += uint232(reward);
         }
+
+        // todo: call base fee contract
+        // baseFeeAllocator.settleEpochFees();
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -285,7 +283,7 @@ contract ConsensusRegistry is
         }
 
         // set tokenId and increment supply
-        $.stakeInfo[ecdsaPubkey].tokenId = uint24(tokenId);
+        $.incentiveInfo[ecdsaPubkey].tokenId = uint24(tokenId);
         uint24 newSupply = ++$.totalSupply;
 
         // enforce `tokenId` does not exist, is valid, and in incrementing order if not retired
@@ -301,23 +299,7 @@ contract ConsensusRegistry is
         // require ecdsaPubkey is whitelisted, having been issued a ConsensusNFT by governance
         uint24 tokenId = _checkKnownValidator($S, ecdsaPubkey);
 
-        Delegation storage delegation = $S.delegations[ecdsaPubkey];
-        address recipient = delegation.delegator;
-        if (recipient == address(0x0) || delegation.tokenId != tokenId) recipient = ecdsaPubkey;
-
-        // mark `ecdsaPubkey` as spent using `UNSTAKED`
-        $S.stakeInfo[ecdsaPubkey].tokenId = UNSTAKED;
-
-        // reverts if decremented committee size after ejection reaches 0, preventing network halt
-        ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
-        uint256 numEligible = _getValidators($C, ValidatorStatus.Active).length;
-        _ejectFromCommittees($C, ecdsaPubkey, numEligible);
-
-        // exit, retire, and unstake + burn validator immediately
-        ValidatorInfo storage validator = $C.validators[tokenId];
-        _exit(validator, $C.currentEpoch);
-        _retire(validator);
-        _unstake(ecdsaPubkey, recipient, tokenId, validator.stakeVersion);
+        _consensusBurn($S, _consensusRegistryStorage(), tokenId, ecdsaPubkey);
     }
 
     /**
@@ -392,10 +374,10 @@ contract ConsensusRegistry is
     }
 
     /// @notice Performs activation and/or exit for validators pending in queue where applicable
-    /// @dev Validators self-activate `Active` status for predictability across epoch boundaries,
-    /// but are ineligible for rewards until completing a full epoch via future `activationEpoch`
+    /// @dev Validators initiate activation, gaining `PendingActivation` status which resolves to
+    /// `Active` at the end of the current epoch. Since they could time activation initiation
+    /// with the epoch boundary, they are ineligible for rewards until completing a full epoch
     /// @dev Protocol determines exit eligibility via voter committee assignments across 3 epochs
-    /// @dev Invoked via system call within `concludeEpoch()`
     function _updateValidatorQueue(
         ConsensusRegistryStorage storage $,
         address[] calldata futureCommittee,
@@ -432,7 +414,13 @@ contract ConsensusRegistry is
 
     /// @notice Forcibly eject a validator from the current, next, and subsequent committees
     /// @dev Intended for sparing use; only reverts if burning results in empty committee
-    function _ejectFromCommittees(ConsensusRegistryStorage storage $, address ecdsaPubkey, uint256 numEligible) internal {
+    function _ejectFromCommittees(
+        ConsensusRegistryStorage storage $,
+        address ecdsaPubkey,
+        uint256 numEligible
+    )
+        internal
+    {
         uint32 currentEpoch = $.currentEpoch;
         uint8 currentEpochPointer = $.epochPointer;
         address[] storage currentCommittee =
@@ -464,6 +452,29 @@ contract ConsensusRegistry is
         }
     }
 
+    function _consensusBurn(
+        StakeManagerStorage storage $S,
+        ConsensusRegistryStorage storage $C,
+        uint24 tokenId,
+        address ecdsaPubkey
+    )
+        internal
+    {
+        // mark `ecdsaPubkey` as spent using `UNSTAKED`
+        $S.incentiveInfo[ecdsaPubkey].tokenId = UNSTAKED;
+
+        // reverts if decremented committee size after ejection reaches 0, preventing network halt
+        uint256 numEligible = _getValidators($C, ValidatorStatus.Active).length;
+        _ejectFromCommittees($C, ecdsaPubkey, numEligible);
+
+        // exit, retire, and unstake + burn validator immediately
+        ValidatorInfo storage validator = $C.validators[tokenId];
+        _exit(validator, $C.currentEpoch);
+        _retire(validator);
+        address recipient = _getRecipient($S, ecdsaPubkey);
+        _unstake(ecdsaPubkey, recipient, tokenId, validator.stakeVersion);
+    }
+
     /// @dev Stores the number of blocks finalized in previous epoch and the voter committee for the new epoch
     function _updateEpochInfo(
         ConsensusRegistryStorage storage $,
@@ -487,6 +498,74 @@ contract ConsensusRegistry is
         $.futureEpochInfo[twoEpochsInFuturePointer].committee = newCommittee;
 
         return newEpoch;
+    }
+
+    /// @notice Slashing is not live but scaffolding for it is included here.
+    function _applySlashes(StakeManagerStorage storage $S, IncentiveInfo[] calldata slashes) internal {
+        for (uint256 i; i < slashes.length; ++i) {
+            IncentiveInfo calldata slash = slashes[i];
+            ValidatorInfo memory validator = getValidatorByTokenId(slash.tokenId);
+
+            uint24 tokenId = _checkKnownValidator($S, validator.ecdsaPubkey);
+            if (tokenId != slash.tokenId) revert InvalidTokenId(slash.tokenId);
+
+            uint232 slashAmount = slash.stakingRewards;
+            IncentiveInfo storage info = $S.incentiveInfo[validator.ecdsaPubkey];
+            if (info.stakingRewards >= slashAmount) {
+                info.stakingRewards -= slashAmount;
+            } else {
+                // in practice this would be early for forced retirement; decrement stake amount first
+                _consensusBurn($S, _consensusRegistryStorage(), tokenId, validator.ecdsaPubkey);
+            }
+        }
+    }
+
+    /// @dev Returns eligible recipients, their original stake amount, and the total eligible stake
+    /// @dev Eligibility is defined by `Activate` and `PendingExit` validator status and excludes
+    /// `PendingActivation` as those validators have not validated a full epoch
+    function _eligibleStakeParams(
+        StakeManagerStorage storage $S,
+        ConsensusRegistryStorage storage $C,
+        uint8 currentVersion,
+        StakeConfig memory currentConfig
+    )
+        internal
+        view
+        returns (address[] memory, uint256[] memory, uint256)
+    {
+        uint256 currentStakeAmount = currentConfig.stakeAmount;
+
+        ValidatorInfo[] memory activeAndPending = _getValidators($C, ValidatorStatus.Active);
+        uint256 numEligible;
+        address[] memory tmpRecipients = new address[](activeAndPending.length);
+        uint256[] memory tmpStakes = new uint256[](activeAndPending.length);
+        for (uint256 i; i < activeAndPending.length; ++i) {
+            ValidatorInfo memory validator = activeAndPending[i];
+            if (validator.currentStatus == ValidatorStatus.PendingActivation) continue;
+
+            // gather recipients and their stake amounts using stake their version
+            tmpRecipients[numEligible] = _getRecipient($S, validator.ecdsaPubkey);
+            uint256 recipientStake;
+            if (validator.stakeVersion == currentVersion) {
+                recipientStake = currentStakeAmount;
+            } else {
+                recipientStake = stakeConfig(validator.stakeVersion).stakeAmount;
+            }
+            tmpStakes[numEligible++] = recipientStake;
+        }
+
+        // sum total eligible stake and trim recipient & stake arrays
+        uint256 totalStake;
+        address[] memory recipients = new address[](activeAndPending.length);
+        uint256[] memory stakes = new uint256[](activeAndPending.length);
+        for (uint256 i; i < numEligible; ++i) {
+            totalStake += tmpStakes[i];
+
+            stakes[i] = tmpStakes[i];
+            recipients[i] = tmpRecipients[i];
+        }
+
+        return (recipients, stakes, totalStake);
     }
 
     /// @dev Fetch info for a future epoch; two epochs into future are stored
@@ -528,6 +607,16 @@ contract ConsensusRegistry is
         if (activeOrPending == 0 || committeeSize > activeOrPending) {
             revert InvalidCommitteeSize(activeOrPending, committeeSize);
         }
+    }
+
+    /// @dev Identifies the validator's rewards recipient, ie the stake originator
+    /// @return _ Returns the validator's delegator if one exists, else the validator itself
+    function _getRecipient(StakeManagerStorage storage $S, address ecdsaPubkey) internal view returns (address) {
+        Delegation storage delegation = $S.delegations[ecdsaPubkey];
+        address recipient = delegation.delegator;
+        if (recipient == address(0x0)) recipient = ecdsaPubkey;
+
+        return recipient;
     }
 
     /// @dev Reverts if provided claimant isn't the existing delegation entry keyed under `ecdsaPubkey`
@@ -608,15 +697,14 @@ contract ConsensusRegistry is
                 // include pending activation/exit due to committee service eligibility in next epoch
                 if (status == ValidatorStatus.Active) {
                     matchFound = (
-                        currentStatus == ValidatorStatus.Active || 
-                        currentStatus == ValidatorStatus.PendingExit ||
-                        currentStatus == ValidatorStatus.PendingActivation
+                        currentStatus == ValidatorStatus.Active || currentStatus == ValidatorStatus.PendingExit
+                            || currentStatus == ValidatorStatus.PendingActivation
                     );
                 } else {
                     // all other queries return only exact matches
                     matchFound = currentStatus == status;
                 }
-            } 
+            }
 
             if (matchFound) {
                 untrimmed[numMatches++] = current;
@@ -671,7 +759,7 @@ contract ConsensusRegistry is
         address rwTEL_,
         uint256 stakeAmount_,
         uint256 minWithdrawAmount_,
-        uint256 consensusBlockReward_,
+        uint256 epochIssuance_,
         ValidatorInfo[] memory initialValidators_,
         address owner_
     )
@@ -691,7 +779,7 @@ contract ConsensusRegistry is
         $S.rwTEL = rwTEL_;
         $S.versions[0].stakeAmount = stakeAmount_;
         $S.versions[0].minWithdrawAmount = minWithdrawAmount_;
-        $S.versions[0].consensusBlockReward = consensusBlockReward_;
+        $S.versions[0].epochIssuance = epochIssuance_;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
 
@@ -737,7 +825,7 @@ contract ConsensusRegistry is
             }
 
             $C.validators[tokenId] = currentValidator;
-            $S.stakeInfo[currentValidator.ecdsaPubkey].tokenId = tokenId;
+            $S.incentiveInfo[currentValidator.ecdsaPubkey].tokenId = tokenId;
             $S.totalSupply++;
             __ERC721_init("ConsensusNFT", "CNFT");
             _mint(currentValidator.ecdsaPubkey, tokenId);

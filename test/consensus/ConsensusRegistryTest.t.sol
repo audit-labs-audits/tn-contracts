@@ -7,7 +7,7 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { StakeManager } from "src/consensus/StakeManager.sol";
-import { StakeInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
+import { IncentiveInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
 import { RWTEL } from "src/RWTEL.sol";
 import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 
@@ -20,7 +20,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
 
         consensusRegistry.initialize(
-            address(rwTEL), stakeAmount_, minWithdrawAmount_, consensusBlockReward_, initialValidators, crOwner
+            address(rwTEL), stakeAmount_, minWithdrawAmount_, epochIssuance_, initialValidators, crOwner
         );
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
@@ -44,7 +44,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             EpochInfo memory info = consensusRegistry.getEpochInfo(uint32(i));
             for (uint256 j; j < 4; ++j) {
                 assertEq(info.committee[j], initialValidators[j].ecdsaPubkey);
-                assertEq(consensusRegistry.stakeInfo(initialValidators[j].ecdsaPubkey).tokenId, j + 1);
+                assertEq(consensusRegistry.incentiveInfo(initialValidators[j].ecdsaPubkey).tokenId, j + 1);
             }
         }
         assertEq(consensusRegistry.totalSupply(), 4);
@@ -167,7 +167,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         uint256 numActiveBefore = consensusRegistry.getValidators(ValidatorStatus.Active).length;
 
         vm.prank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](numActiveBefore)).length;
+        consensusRegistry.concludeEpoch(new address[](numActiveBefore));
 
         assertEq(consensusRegistry.getValidators(ValidatorStatus.PendingExit).length, 0);
 
@@ -268,7 +268,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         // conclude epoch twice with empty committee to simulate protocol-determined exit
         consensusRegistry.concludeEpoch(new address[](numActive));
         consensusRegistry.concludeEpoch(new address[](numActive));
-        
+
         // exit occurs on third epoch without validator5 in committee
         uint32 expectedExitEpoch = uint32(consensusRegistry.getCurrentEpoch() + 1);
         vm.expectEmit(true, true, true, true);
@@ -343,21 +343,9 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
     // Test for claim by a validator with insufficient rewards
     function testRevert_claimStakeRewards_insufficientRewards() public {
-        // earn too little rewards for withdrawal
-        uint232 notEnoughRewards = uint232(minWithdrawAmount_ - 1);
-        uint24 validator1TokenId = 1;
-        StakeInfo[] memory validator5Rewards = new StakeInfo[](1);
-        validator5Rewards[0] = StakeInfo(validator1TokenId, notEnoughRewards);
-
-        // finalize epoch to reach activation
-        vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](4));
-        consensusRegistry.incrementRewards(validator5Rewards);
-        vm.stopPrank();
-
-        // Attempt to claim rewards
+        // Attempt to claim rewards without applying incentives
         vm.prank(validator1);
-        vm.expectRevert(abi.encodeWithSelector(IStakeManager.InsufficientRewards.selector, notEnoughRewards));
+        vm.expectRevert(abi.encodeWithSelector(IStakeManager.InsufficientRewards.selector, 0));
         consensusRegistry.claimStakeRewards(validator1);
     }
 
