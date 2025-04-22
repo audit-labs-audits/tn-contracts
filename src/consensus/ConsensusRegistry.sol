@@ -105,6 +105,8 @@ contract ConsensusRegistry is
 
     /// @inheritdoc IConsensusRegistry
     function getValidators(ValidatorStatus status) public view returns (ValidatorInfo[] memory) {
+        if (status == ValidatorStatus.Undefined) revert InvalidStatus(status);
+
         return _getValidators(_consensusRegistryStorage(), status);
     }
 
@@ -165,7 +167,7 @@ contract ConsensusRegistry is
         _checkStakeValue(msg.value, $S.stakeVersion);
         uint24 tokenId = _checkKnownValidator($S, msg.sender);
         // require validator has not yet staked
-        _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Any);
+        _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Undefined);
 
         // enter validator in activation queue
         _recordStaked(blsPubkey, msg.sender, false, $S.stakeVersion, tokenId);
@@ -190,8 +192,8 @@ contract ConsensusRegistry is
         _checkStakeValue(msg.value, validatorVersion);
         uint24 tokenId = _checkKnownValidator($S, validatorAddress);
 
-        // require validator status is `Any`
-        _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Any);
+        // require validator status is `Undefined`
+        _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Undefined);
         uint64 nonce = $S.delegations[validatorAddress].nonce++;
         bytes32 blsPubkeyHash = keccak256(blsPubkey);
 

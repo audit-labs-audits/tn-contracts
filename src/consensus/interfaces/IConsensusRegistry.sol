@@ -21,6 +21,7 @@ interface IConsensusRegistry {
         mapping(uint24 => ValidatorInfo) validators;
     }
 
+    /// @dev Packed struct storing each validator's onchain info
     struct ValidatorInfo {
         bytes blsPubkey; // using uncompressed 96 byte BLS public keys
         address validatorAddress;
@@ -32,6 +33,8 @@ interface IConsensusRegistry {
         uint8 stakeVersion;
     }
 
+    /// @dev Stores each epoch's validator committee and starting block height
+    /// @dev Used in two parallel ring buffers offset 2 to store past & future epochs
     struct EpochInfo {
         address[] committee;
         uint64 blockHeight;
@@ -58,15 +61,25 @@ interface IConsensusRegistry {
     event NewEpoch(EpochInfo epoch);
     event RewardsClaimed(address claimant, uint256 rewards);
 
-    /// @notice Validators with `Active || PendingActivation || PendingExit` status are still
-    /// eligible for committees and thus mentally modelable as still `Active` while awaiting queues
+    /// @dev Validators marked `Active || PendingActivation || PendingExit` are still operational
+    /// and thus eligible for committees. Queriable via `getValidators(Active)` status
+    /// @param Staked Marks validators who have staked but have not yet entered activation queue
+    /// @param PendingActivation Marks staked and operational validators in the activation queue,
+    /// which automatically resolves to `Active` at the start of the next epoch
+    /// @param Active Marks validators who are indefinitely operational and not in activation/exit queue
+    /// @param PendingExit Marks validators in the exit queue. They are still eligible for committees,
+    /// remaining staked and operational while awaiting automatic exit initiated by the protocol
+    /// @param Exited Marks validators exited by the protocol client but have not yet unstaked
+    /// @param Any Marks permanently retired validators, which offer little reason to be queried
+    /// thus querying `getValidators(Any)` instead returns all unretired validators
     enum ValidatorStatus {
-        Any,
+        Undefined,
         Staked,
         PendingActivation,
         Active,
         PendingExit,
-        Exited
+        Exited,
+        Any
     }
 
     /// @notice Voting Validator Committee changes at the end every epoch via syscall
