@@ -25,6 +25,8 @@ interface IStakeManager {
         mapping(address => Delegation) delegations;
     }
 
+    /// @notice New StakeConfig versions take effect in the next epoch
+    /// ie they are set for each epoch at its start
     struct StakeConfig {
         uint256 stakeAmount;
         uint256 minWithdrawAmount;
