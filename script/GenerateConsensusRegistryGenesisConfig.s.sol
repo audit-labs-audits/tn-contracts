@@ -205,9 +205,7 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
         returns (ConsensusRegistry simulatedDeployment)
     {
         vm.startStateDiffRecording();
-        simulatedDeployment = ConsensusRegistry(
-            payable(address(new ERC1967Proxy(impl, initCall)))
-        );
+        simulatedDeployment = ConsensusRegistry(payable(address(new ERC1967Proxy(impl, initCall))));
         Vm.AccountAccess[] memory crRecords = vm.stopAndReturnStateDiff();
 
         bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), crRecords);

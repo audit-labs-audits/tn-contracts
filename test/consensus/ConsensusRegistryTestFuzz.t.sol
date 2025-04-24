@@ -157,8 +157,6 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     function testFuzz_claimStakeRewards(uint24 numValidators) public {
         numValidators = uint24(bound(uint256(numValidators), 1, 2000));
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
-        vm.deal(address(rwTEL), stakeAmount_ * (numActive + 10));
-        vm.deal(address(consensusRegistry), stakeAmount_ * (numActive + 10));
 
         _fuzz_mint(numValidators);
         _fuzz_stake(numValidators, stakeAmount_);
@@ -190,14 +188,24 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
 
             // Check event emission and claim rewards
             uint256 expectedReward = (i < initialValidators.length) ? rewardPerInitialValidator : rewardPerValidator;
-            vm.expectEmit(true, true, true, true);
-            emit IConsensusRegistry.RewardsClaimed(validator, expectedReward);
+            assertEq(consensusRegistry.getRewards(validator), expectedReward);
+
+            bool willRevert = expectedReward < minWithdrawAmount_;
+            if (willRevert) {
+                vm.expectRevert();
+            } else {
+                vm.expectEmit(true, true, true, true);
+                emit IConsensusRegistry.RewardsClaimed(validator, expectedReward);
+            }
             vm.prank(validator);
             consensusRegistry.claimStakeRewards(validator);
 
             // check balance after claiming
-            uint256 updatedBalance = validator.balance;
-            assertEq(updatedBalance, initialBalance + expectedReward);
+            if (willRevert) {
+                assertEq(validator.balance, initialBalance);
+            } else {
+                assertEq(validator.balance, initialBalance + expectedReward);
+            }
         }
     }
 }
