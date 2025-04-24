@@ -8,6 +8,7 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { IConsensusRegistry } from "src/consensus/interfaces/IConsensusRegistry.sol";
+import { IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
 import { Deployments } from "../deployments/Deployments.sol";
 import { StorageDiffRecorder } from "../deployments/genesis/StorageDiffRecorder.sol";
 
@@ -30,6 +31,7 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
     uint256 public stakeAmount = 1_000_000 ether;
     uint256 public minWithdrawAmount = 1000 ether;
     uint256 public epochIssuance = 714_285_714_285_714_285_714_285; // 20_000_000 TEL per month at 1 day epochs
+    uint32 public epochDuration = 24 hours;
     IConsensusRegistry.ValidatorInfo[] initialValidators;
     address public owner;
 
@@ -86,12 +88,16 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
         _setInitialValidators();
 
         owner = deployments.admin;
-        initData = abi.encodeWithSelector(
-            ConsensusRegistry.initialize.selector,
-            address(rwTEL),
+        IStakeManager.StakeConfig memory genesisConfig = IStakeManager.StakeConfig(
             stakeAmount,
             minWithdrawAmount,
             epochIssuance,
+            epochDuration
+        );
+        initData = abi.encodeWithSelector(
+            ConsensusRegistry.initialize.selector,
+            address(rwTEL),
+            genesisConfig,
             initialValidators,
             owner
         );
@@ -207,7 +213,9 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
         returns (ConsensusRegistry simulatedDeployment)
     {
         vm.startStateDiffRecording();
-        simulatedDeployment = ConsensusRegistry(payable(address(new ERC1967Proxy(impl, initCall))));
+        simulatedDeployment = ConsensusRegistry(
+            payable(address(new ERC1967Proxy{ value: stakeAmount * initialValidators.length }(impl, initCall)))
+        );
         Vm.AccountAccess[] memory crRecords = vm.stopAndReturnStateDiff();
 
         bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), crRecords);
