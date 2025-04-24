@@ -2,8 +2,9 @@
 pragma solidity 0.8.26;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import { EIP712 } from "solady/utils/EIP712.sol";
 import { IRWTEL } from "../interfaces/IRWTEL.sol";
-import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { IncentiveInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 
 /**
  * @title StakeManager
@@ -13,29 +14,80 @@ import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
  * @notice This abstract contract provides modular management of consensus validator stake
  * @dev Designed for inheritance by the ConsensusRegistry
  */
-abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
+abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.StakeManager")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant StakeManagerStorageSlot =
         0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7400;
 
-    /// @inheritdoc IStakeManager
-    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable virtual;
+    /// @dev Validators that unstake are permanently ejected by setting their index to `UNSTAKED`
+    /// @notice Rejoining requires re-onboarding with new validator address, tokenId, stake, & index
+    uint24 internal constant UNSTAKED = type(uint24).max;
+
+    /// @dev EIP-712 typed struct hash used to enable delegated proof of stake
+    bytes32 DELEGATION_TYPEHASH = keccak256(
+        "Delegation(bytes32 blsPubkeyHash,address delegator,uint24 tokenId,uint8 validatorVersion,uint64 nonce)"
+    );
 
     /// @inheritdoc IStakeManager
-    function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external virtual;
+    function stake(bytes calldata blsPubkey) external payable virtual;
 
     /// @inheritdoc IStakeManager
-    function claimStakeRewards() external virtual;
+    function delegateStake(
+        bytes calldata blsPubkey,
+        address validatorAddress,
+        bytes calldata validatorSig
+    )
+        external
+        payable
+        virtual;
 
     /// @inheritdoc IStakeManager
-    function unstake() external virtual;
+    function claimStakeRewards(address ecsdaPubkey) external virtual;
 
     /// @inheritdoc IStakeManager
-    function getRewards(address ecdsaPubkey) public view virtual returns (uint240 claimableRewards) {
-        StakeManagerStorage storage $ = _stakeManagerStorage();
-        claimableRewards = _getRewards($, ecdsaPubkey);
+    function unstake(address validatorAddress) external virtual;
+
+    /// @inheritdoc IStakeManager
+    function delegationDigest(
+        bytes memory blsPubkey,
+        address validatorAddress,
+        address delegator
+    )
+        external
+        view
+        virtual
+        override
+        returns (bytes32);
+
+    /// @inheritdoc IStakeManager
+    function getRewards(address validatorAddress) public view virtual returns (uint240) {
+        return _getRewards(_stakeManagerStorage(), validatorAddress);
     }
+
+    /// @inheritdoc IStakeManager
+    function incentiveInfo(address validatorAddress) public view virtual returns (IncentiveInfo memory) {
+        return _stakeManagerStorage().incentiveInfo[validatorAddress];
+    }
+
+    /// @inheritdoc IStakeManager
+    function stakeVersion() public view virtual returns (uint8) {
+        return _stakeManagerStorage().stakeVersion;
+    }
+
+    /// @inheritdoc IStakeManager
+    function stakeConfig(uint8 version) public view virtual returns (StakeConfig memory) {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        return $.versions[version];
+    }
+
+    /// @inheritdoc IStakeManager
+    function getCurrentStakeConfig() public view returns (StakeConfig memory) {
+        return stakeConfig(stakeVersion());
+    }
+
+    /// @inheritdoc IStakeManager
+    function upgradeStakeVersion(StakeConfig calldata config) external virtual returns (uint8);
 
     /**
      *
@@ -45,17 +97,17 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
 
     /// @dev The StakeManager's ERC721 ledger serves a permissioning role over validators, requiring
     /// Telcoin governance to approve each node operator and manually issue them a `ConsensusNFT`
-    /// @param to Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
-    /// @param tokenId Refers to the `ERC721::tokenId` which mirrors `ConsensusRegistry::validatorIndex`
-    /// @notice To match ConsensusRegistry's validator index, `tokenId` cannot exceed `type(uint24).max`
+    /// @param to Refers to the struct member `ValidatorInfo.validatorAddress` in `IConsensusRegistry`
+    /// @param tokenId Refers to the `ERC721::tokenId` which must be less than `UNSTAKED` and nonzero
+    /// tokenIds must be minted in order unless overwriting a retired validator for storage efficiency
     /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
     function mint(address to, uint256 tokenId) external virtual;
 
-    /// @dev In the case of malicious or erroneous node operator behavior, this function can be
-    /// used by Telcoin governance to eject a validator from consensus and burn their `ConsensusNFT`
-    /// @param from Refers to the struct member `ValidatorInfo.ecdsaPubkey` in `IConsensusRegistry`
-    /// @notice The ERC721 `tokenId` corresponds to ConsensusRegistry's validator index
-    /// @notice Access-gated in ConsensusRegistry to its owner, which is a Telcoin governance address
+    /// @dev In the case of malicious or erroneous node operator behavior, governance can use this function
+    /// to burn a validator's `ConsensusNFT` and immediately eject from consensus committees if applicable
+    /// @param from Refers to the struct member `ValidatorInfo.validatorAddress` in `IConsensusRegistry`
+    /// @notice `from` will be marked `UNSTAKED` so the validator address cannot be reused
+    /// @dev Intended for sparing use; only reverts if burning results in empty committee
     function burn(address from) external virtual;
 
     /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
@@ -73,18 +125,9 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
         revert NotTransferable();
     }
 
-    /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
-    function safeTransferFrom(
-        address, /* from */
-        address, /* to */
-        uint256, /* tokenId */
-        bytes memory /* data */
-    )
-        public
-        virtual
-        override
-    {
-        revert NotTransferable();
+    /// @inheritdoc IStakeManager
+    function totalSupply() public view virtual returns (uint256) {
+        return _stakeManagerStorage().totalSupply;
     }
 
     /**
@@ -92,69 +135,100 @@ abstract contract StakeManager is ERC721Upgradeable, IStakeManager {
      *   internals
      *
      */
-
-    /// @notice Sends staking rewards only and is not used for withdrawing initial stake
-    function _claimStakeRewards(StakeManagerStorage storage $) internal virtual returns (uint256 rewards) {
-        rewards = _checkRewardsExceedMinWithdrawAmount($, msg.sender);
-
-        // wipe ledger to prevent reentrancy and send via the `RWTEL` module
-        $.stakeInfo[msg.sender].stakingRewards = 0;
-        IRWTEL($.rwTEL).distributeStakeReward(msg.sender, rewards);
-    }
-
-    function _unstake() internal virtual returns (uint256 stakeAndRewards) {
-        StakeManagerStorage storage $ = _stakeManagerStorage();
-
-        // wipe ledger and send rewards, then send stake
-        uint256 rewards = uint256($.stakeInfo[msg.sender].stakingRewards);
-        $.stakeInfo[msg.sender].stakingRewards = 0;
-        IRWTEL($.rwTEL).distributeStakeReward(msg.sender, rewards);
-
-        uint256 stakeAmount = $.stakeAmount;
-        (bool r,) = msg.sender.call{ value: stakeAmount }("");
-        require(r);
-
-        return stakeAmount + rewards;
-    }
-
-    /// @notice Reverts if `validatorIndex` is not already minted as a `tokenId`
-    /// and is not owned by the given `caller` address
-    function _checkConsensusNFTOwnership(address caller, uint256 validatorIndex) internal virtual {
-        if (_ownerOf(validatorIndex) != caller) revert RequiresConsensusNFT();
-    }
-
-    function _checkRewardsExceedMinWithdrawAmount(
+    function _claimStakeRewards(
         StakeManagerStorage storage $,
-        address caller
+        address validatorAddress,
+        address recipient,
+        uint8 validatorVersion
     )
         internal
         virtual
         returns (uint256 rewards)
     {
-        rewards = $.stakeInfo[caller].stakingRewards;
-        if (rewards < $.minWithdrawAmount) revert InsufficientRewards(rewards);
+        rewards = _checkRewardsExceedMinWithdrawAmount($, validatorAddress, validatorVersion);
+        // wipe ledger to prevent reentrancy and send via the `RWTEL` module
+        $.incentiveInfo[validatorAddress].stakingRewards = 0;
+        IRWTEL($.rwTEL).distributeStakeReward(recipient, rewards);
     }
 
-    function _checkStakeValue(uint256 value) internal virtual {
+    function _unstake(
+        address validatorAddress,
+        address recipient,
+        uint256 tokenId,
+        uint8 validatorVersion
+    )
+        internal
+        virtual
+        returns (uint256 stakeAndRewards)
+    {
         StakeManagerStorage storage $ = _stakeManagerStorage();
-        if (value != $.stakeAmount) revert InvalidStakeAmount(msg.value);
+
+        // wipe existing incentiveInfo and burn the token
+        IncentiveInfo storage info = $.incentiveInfo[validatorAddress];
+        uint256 rewards = uint256(info.stakingRewards);
+        info.stakingRewards = 0;
+        info.tokenId = UNSTAKED;
+        $.totalSupply--;
+        _burn(tokenId);
+
+        // forward the stake amount and outstanding rewards through RWTEL module to caller
+        uint256 stakeAmt = $.versions[validatorVersion].stakeAmount;
+        IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmt }(recipient, rewards);
+
+        return stakeAmt + rewards;
+    }
+
+    function _checkRewardsExceedMinWithdrawAmount(
+        StakeManagerStorage storage $,
+        address validatorAddress,
+        uint8 validatorVersion
+    )
+        internal
+        virtual
+        returns (uint256 rewards)
+    {
+        rewards = incentiveInfo(validatorAddress).stakingRewards;
+        if (rewards < $.versions[validatorVersion].minWithdrawAmount) revert InsufficientRewards(rewards);
+    }
+
+    function _checkStakeValue(uint256 value, uint8 version) internal virtual {
+        if (value != _stakeManagerStorage().versions[version].stakeAmount) revert InvalidStakeAmount(msg.value);
     }
 
     function _getRewards(
         StakeManagerStorage storage $,
-        address ecdsaPubkey
+        address validatorAddress
     )
         internal
         view
         virtual
         returns (uint240 claimableRewards)
     {
-        return $.stakeInfo[ecdsaPubkey].stakingRewards;
+        return $.incentiveInfo[validatorAddress].stakingRewards;
+    }
+
+    function _getTokenId(StakeManagerStorage storage $, address validatorAddress) internal view returns (uint24) {
+        return $.incentiveInfo[validatorAddress].tokenId;
+    }
+
+    function _exists(uint256 tokenId) internal view virtual returns (bool) {
+        if (tokenId == 0 || tokenId >= UNSTAKED) revert InvalidTokenId(tokenId);
+        return _ownerOf(tokenId) != address(0);
     }
 
     function _stakeManagerStorage() internal pure virtual returns (StakeManagerStorage storage $) {
         assembly {
             $.slot := StakeManagerStorageSlot
         }
+    }
+
+    function _domainNameAndVersion()
+        internal
+        view
+        virtual
+        override
+        returns (string memory name, string memory version)
+    {
+        return ("Telcoin StakeManager", "1");
     }
 }

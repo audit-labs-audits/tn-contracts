@@ -5,6 +5,7 @@ pragma solidity ^0.8.26;
 /// therefore upper-case struct member names must come **BEFORE** lower-case ones!
 struct Deployments {
     address ArachnidDeterministicDeployFactory;
+    address ConsensusRegistryImpl;
     address ConsensusRegistry;
     address GitAttestationRegistry;
     address StablecoinImpl;

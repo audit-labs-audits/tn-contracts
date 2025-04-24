@@ -33,9 +33,6 @@ quote_style = "double"
 tab_width = 4
 wrap_comments = true
 ignore = [
-    "src/consensus/interfaces/IConsensusRegistry.sol",
-    "test/consensus/ConsensusRegistryTest.t.sol",
-    "script/GenerateConsensusRegistryStorage.s.sol",
     "src/interchain-token-service/TNTokenHandler.sol",
     "src/interchain-token-service/TokenHandler.sol",
 ]

@@ -57,10 +57,11 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
     Deployments deployments;
     string root;
     string dest;
+    string fileName = "/deployments/genesis/its-config.yaml";
 
     function setUp() public {
         root = vm.projectRoot();
-        dest = string.concat(root, "/deployments/genesis/its-config.yaml");
+        dest = string.concat(root, fileName);
         string memory path = string.concat(root, "/deployments/deployments.json");
         string memory json = vm.readFile(path);
         bytes memory data = vm.parseJson(json);

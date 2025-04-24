@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
-import {StakeInfo} from "./IStakeManager.sol";
+import { IncentiveInfo } from "./IStakeManager.sol";
 
 /**
  * @title ConsensusRegistry Interface
@@ -12,152 +12,128 @@ import {StakeInfo} from "./IStakeManager.sol";
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
 interface IConsensusRegistry {
-    /*
-ConsensusRegistry storage layout for genesis
-| Name               | Type                          | Slot                                                               | Offset | Bytes |
-|--------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| _paused            | bool                          | 0xcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f03300 | 0      | 1     |
-| _owner             | address                       | 0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300 | 12     | 20    |
-|--------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| rwTEL              | address                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7400 | 12     | 20    |
-| stakeAmount        | uint256                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7401 | 0      | 32    |
-| minWithdrawAmount  | uint256                       | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7402 | 0      | 32    |
-| stakeInfo          | mapping(address => StakeInfo) | 0x0636e6890fec58b60f710b53efa0ef8de81ca2fddce7e46303a60c9d416c7403 | 0      | s     |
-|--------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| _name              | string                        | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079300 | 0      | 31    |
-| _symbol            | string                        | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079301 | 0      | 31    |
-| _owners            | mapping(uint256 => address)   | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079302 | 0      | o     |
-| _balances          | mapping(address => uint256)   | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079303 | 0      | b     |
-| _tokenApprovals    | mapping(address => uint256)   | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079304 | 0      | ta    |
-| _operatorApprovals | mapping(address => uint256)   | 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079305 | 0      | oa    |
-|--------------------|-------------------------------|--------------------------------------------------------------------|--------|-------|
-| currentEpoch       | uint32                        | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 0      | 4     |
-| epochPointer       | uint8                         | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23100 | 4      | 1     |
-| epochInfo          | EpochInfo[0]                  | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23101 | 0      | x     |
-| futureEpochInfo    | FutureEpochInfo[0]            | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23102 | 0      | y     |
-| validators         | ValidatorInfo[]               | 0xaf33537d204b7c8488a91ad2a40f2c043712bad394401b7dd7bd4cb801f23103 | 0      | z     |
-
-Storage locations for dynamic variables
-- `stakeInfo` content (s) begins at slot `0x3b2018e21a7d1a934ee474879a6c46622c725c81fe1ab37a62fbdda1c85e54e4`
-- `_name` comprises the following in slot `0x3b2018e21a7d1a934ee474879a6c46622c725c81fe1ab37a62fbdda1c85e54e4`
-    - 31 bytes of content `"ConsensusNFT" == 0x436f6e73656e7375734e4654` and 1 byte for content length (12 == 0x0c)
-- `_symbol` comprises the following in slot `0x3b2018e21a7d1a934ee474879a6c46622c725c81fe1ab37a62fbdda1c85e54e4`
-    - 31 bytes of content `"CNFT" == 0x434e4654` and 1 byte for content length (4 == 0x04)
-- `_owners` content (o) begins at slot `0xc59ee7f367a669c2b95c44d4fc46cac58e831d2567849aee0be2ad13d39d52cf`
-- `_balances` content (b) begins at slot `0x16ba8a225c41cb03f9a77bfc5b418e9160dc43575312005d8c81f0bd330b3027`
-- `_tokenApprovals` content (ta) begins at slot `0xd885219e08c56b96b65bd58819c48ecf6d3dc77d238ea09abae06bf5e59c88fd`
-- `_operatorApprovals` content (oa) begins at slot `0xac257f7b51b503ba5377632679403cf33f043c21f94b6a842d6b049c3d330efb`
-// - `epochInfo` (x) begins at slot `0x52b83978e270fcd9af6931f8a7e99a1b79dc8a7aea355d6241834b19e0a0ec39` as contiguous static array
-// - `futureEpochInfo` (y) begins at slot `0x3e15a0612117eb21841fac9ea1ce6cd116a911fe4c91a9c367a82cd0c3d79718` as contiguous static array
-- `validators` (z) begins at slot `0x96a201c8a417846842c79be2cd1e33440471871a6cf94b34c8f286aaeb24ad6b` as abi-encoded
-representation
-*/
-
     /// @custom:storage-location erc7201:telcoin.storage.ConsensusRegistry
     struct ConsensusRegistryStorage {
-        uint32 currentEpoch;
+        uint32 currentEpoch; // uint32 provides 3.7e14 years for 24hr epochs
         uint8 epochPointer;
         EpochInfo[4] epochInfo;
-        FutureEpochInfo[4] futureEpochInfo;
-        ValidatorInfo[] validators;
-        uint256 numGenesisValidators;
+        EpochInfo[4] futureEpochInfo;
+        mapping(uint24 => ValidatorInfo) validators;
     }
 
+    /// @dev Packed struct storing each validator's onchain info
     struct ValidatorInfo {
-        bytes blsPubkey; // BLS public key is 48 bytes long; BLS proofs are 96 bytes
-        bytes32 ed25519Pubkey;
-        address ecdsaPubkey;
-        uint32 activationEpoch; // uint32 provides ~22000yr for 160s epochs (5s rounds)
+        bytes blsPubkey; // using uncompressed 96 byte BLS public keys
+        address validatorAddress;
+        uint32 activationEpoch;
         uint32 exitEpoch;
-        uint24 validatorIndex;
         ValidatorStatus currentStatus;
+        bool isRetired;
+        bool isDelegated;
+        uint8 stakeVersion;
     }
 
+    /// @dev Stores each epoch's validator committee and starting block height
+    /// @dev Used in two parallel ring buffers offset 2 to store past & future epochs
     struct EpochInfo {
         address[] committee;
         uint64 blockHeight;
-    }
-
-    /// @dev Used to populate a separate ring buffer to prevent overflow conditions when writing future state
-    struct FutureEpochInfo {
-        address[] committee;
+        uint32 epochDuration;
     }
 
     error LowLevelCallFailure();
     error InvalidBLSPubkey();
-    error InvalidEd25519Pubkey();
-    error InvalidECDSAPubkey();
+    error InvalidValidatorAddress();
     error InvalidProof();
     error InitializerArityMismatch();
-    error InvalidCommitteeSize(
-        uint256 minCommitteeSize,
-        uint256 providedCommitteeSize
-    );
-    error CommitteeRequirement(address ecdsaPubkey);
-    error NotValidator(address ecdsaPubkey);
-    error AlreadyDefined(address ecdsaPubkey);
-    error InvalidTokenId(uint256 tokenId);
+    error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
+    error CommitteeRequirement(address validatorAddress);
+    error NotValidator(address validatorAddress);
+    error AlreadyDefined(address validatorAddress);
     error InvalidStatus(ValidatorStatus status);
-    error InvalidIndex(uint24 validatorIndex);
     error InvalidEpoch(uint32 epoch);
 
+    event ValidatorStaked(ValidatorInfo validator);
     event ValidatorPendingActivation(ValidatorInfo validator);
     event ValidatorActivated(ValidatorInfo validator);
     event ValidatorPendingExit(ValidatorInfo validator);
     event ValidatorExited(ValidatorInfo validator);
+    event ValidatorRetired(ValidatorInfo validator);
     event NewEpoch(EpochInfo epoch);
     event RewardsClaimed(address claimant, uint256 rewards);
 
+    /// @dev Validators marked `Active || PendingActivation || PendingExit` are still operational
+    /// and thus eligible for committees. Queriable via `getValidators(Active)` status
+    /// @param Staked Marks validators who have staked but have not yet entered activation queue
+    /// @param PendingActivation Marks staked and operational validators in the activation queue,
+    /// which automatically resolves to `Active` at the start of the next epoch
+    /// @param Active Marks validators who are indefinitely operational and not in activation/exit queue
+    /// @param PendingExit Marks validators in the exit queue. They are still eligible for committees,
+    /// remaining staked and operational while awaiting automatic exit initiated by the protocol
+    /// @param Exited Marks validators exited by the protocol client but have not yet unstaked
+    /// @param Any Marks permanently retired validators, which offer little reason to be queried
+    /// thus querying `getValidators(Any)` instead returns all unretired validators
     enum ValidatorStatus {
         Undefined,
+        Staked,
         PendingActivation,
         Active,
         PendingExit,
-        Exited
+        Exited,
+        Any
     }
 
-    /// @notice Voting Validator Committee changes once every epoch (== 32 rounds)
-    /// @notice Can only be called in a `syscall` context, at the end of an epoch
+    /// @notice Voting Validator Committee changes at the end every epoch via syscall
     /// @dev Accepts the committee of voting validators for 2 epochs in the future
-    /// @param newCommittee The future validator committee for 2 epochs after
-    /// the current one is finalized; ie `$.currentEpoch + 3` (this func increments `currentEpoch`)
-    function concludeEpoch(address[] calldata newCommittee) external;
+    /// @param newCommittee The future validator committee for `$.currentEpoch + 3`
+    /// @param slashes Slashes to the validators in the ending epoch, applied after rollover
+    /// @notice Slashes are not currently used in TN mainnet alpha
+    function concludeEpoch(address[] calldata newCommittee, IncentiveInfo[] calldata slashes) external;
 
-    /// @dev Issues an exit request for a validator to be ejected from the active validator set
-    /// @notice Reverts if the caller would cause the network to lose BFT by exiting
-    /// @notice Caller must be a validator with `ValidatorStatus.Active` status
-    function exit() external;
+    /// @dev The network's epoch issuance distribution method, rewarding stake originators
+    /// proportionally to their share of total stake, tied to the validator's stake version
+    /// @notice Stake originators are either a delegator if one exists, or the validator itself
+    /// @notice Exited validators do not earn rewards for their exit epoch
+    function applyIncentives(
+        uint32 newEpoch,
+        ValidatorInfo[] memory active,
+        IncentiveInfo[] calldata incentives
+    )
+        external;
 
-    /// @dev Issues a rejoin request for an exited validator to reactivate
-    /// @notice Caller must be a validator with `ValidatorStatus.Exited` status
-    /// @param blsPubkey Callers may provide a new BLS key if they wish to update it
-    /// @param ed25519Pubkey Callers may provide a new ED25519 key if they wish to update it
-    function rejoin(bytes calldata blsPubkey, bytes32 ed25519Pubkey) external;
+    /// @dev Self-activation function for validators, gaining `PendingActivation` status and setting
+    /// next epoch as activation epoch to ensure rewards eligibility only after completing a full epoch
+    /// @notice Caller must own a ConsensusNFT and be `Staked` status, ie staked or delegated
+    function activate() external;
+
+    /// @dev Issues an exit request for a validator to be retired from the `Active` validator set
+    /// @notice Reverts if the exit queue is full, ie if active validator count would drop too low
+    function beginExit() external;
 
     /// @dev Returns the current epoch
     function getCurrentEpoch() external view returns (uint32);
 
+    /// @dev Returns the current epoch's committee and block height
+    function getCurrentEpochInfo() external view returns (EpochInfo memory currentEpochInfo);
+
     /// @dev Returns information about the provided epoch. Only four latest & two future epochs are stored
     /// @notice When querying for future epochs, `blockHeight` will be 0 as they are not yet known
-    function getEpochInfo(
-        uint32 epoch
-    ) external view returns (EpochInfo memory currentEpochInfo);
+    function getEpochInfo(uint32 epoch) external view returns (EpochInfo memory currentEpochInfo);
 
-    /// @dev Returns an array of `ValidatorInfo` structs that match the provided status for this epoch
-    function getValidators(
-        ValidatorStatus status
-    ) external view returns (ValidatorInfo[] memory);
+    /// @dev Returns an array of unretired validators matching the provided status
+    /// @param `Any` queries return all unretired validators where `status != Any`
+    /// @param `Active` queries also include validators pending activation or exit since all three
+    /// remain eligible for committee service in the next epoch
+    function getValidators(ValidatorStatus status) external view returns (ValidatorInfo[] memory);
 
-    /// @dev Fetches the `validatorIndex` for a given validator address
-    /// @notice A returned `validatorIndex` value of `0` is invalid and indicates
-    /// that the given address is not a known validator's ECDSA externalkey
-    function getValidatorIndex(
-        address ecdsaPubkey
-    ) external view returns (uint24 validatorIndex);
+    /// @dev Fetches the `tokenId` for a given validator validatorAddress
+    function getValidatorTokenId(address validatorAddress) external view returns (uint256);
 
-    /// @dev Fetches the `ValidatorInfo` for a given validator index
-    /// @notice To enable checks against storage slots initialized to zero by the EVM, `validatorIndex` cannot be `0`
-    function getValidatorByIndex(
-        uint24 validatorIndex
-    ) external view returns (ValidatorInfo memory validator);
+    /// @dev Fetches the `ValidatorInfo` for a given ConsensusNFT tokenId
+    /// @notice To enable checks against storage slots initialized to zero by the EVM, `tokenId` cannot be `0`
+    function getValidatorByTokenId(uint256 tokenId) external view returns (ValidatorInfo memory);
+
+    /// @dev Returns whether validator associated with `tokenId` is exited && unstaked, ie "retired"
+    /// @notice Retired validators' ConsensusNFTs are burned, so existing tokenIds are invalid
+    function isRetired(uint256 tokenId) external view returns (bool);
 }

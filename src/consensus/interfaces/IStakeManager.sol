@@ -9,45 +9,97 @@ pragma solidity 0.8.26;
  * @notice This interface declares the ConsensusRegistry's staking API and data structures
  * @dev Implemented within StakeManager.sol, which is inherited by the ConsensusRegistry
  */
-struct StakeInfo {
-    uint24 validatorIndex;
-    uint240 stakingRewards;
+struct IncentiveInfo {
+    uint24 tokenId;
+    uint232 stakingRewards;
 }
 
 interface IStakeManager {
     /// @custom:storage-location erc7201:telcoin.storage.StakeManager
     struct StakeManagerStorage {
         address rwTEL;
-        uint256 stakeAmount;
-        uint256 minWithdrawAmount;
-        mapping(address => StakeInfo) stakeInfo;
+        uint24 totalSupply;
+        uint8 stakeVersion;
+        mapping(uint8 => StakeConfig) versions;
+        mapping(address => IncentiveInfo) incentiveInfo;
+        mapping(address => Delegation) delegations;
     }
 
+    struct StakeConfig {
+        uint256 stakeAmount;
+        uint256 minWithdrawAmount;
+        uint256 epochIssuance;
+        uint32 epochDuration;
+    }
+
+    struct Delegation {
+        bytes32 blsPubkeyHash;
+        address delegator;
+        uint24 tokenId;
+        uint8 validatorVersion;
+        uint64 nonce;
+    }
+
+    error InvalidTokenId(uint256 tokenId);
     error InvalidStakeAmount(uint256 stakeAmount);
     error InsufficientRewards(uint256 withdrawAmount);
+    error NotDelegator(address notDelegator);
     error NotTransferable();
     error RequiresConsensusNFT();
 
-    /// @dev Accepts the stake amount of native TEL and issues an activation request for the caller (validator)
+    /// @dev Accepts the native TEL stake amount from the calling validator, enabling later self-activation
     /// @notice Caller must already have been issued a `ConsensusNFT` by Telcoin governance
-    function stake(bytes calldata blsPubkey, bytes calldata blsSig, bytes32 ed25519Pubkey) external payable;
+    function stake(bytes calldata blsPubkey) external payable;
 
-    /// @dev Increments the claimable rewards for each validator
-    /// @notice May only be called by the client via system call, at the start of a new epoch
-    /// @param stakingRewardInfos Staking reward info defining which validators to reward
-    /// and how much each rewardee earned for the current epoch
-    function incrementRewards(StakeInfo[] calldata stakingRewardInfos) external;
+    /// @dev Accepts delegated stake from a non-validator caller authorized by a validator's EIP712 signature
+    /// @notice `validatorAddress` must be a validator already in possession of a `ConsensusNFT`
+    function delegateStake(
+        bytes calldata blsPubkey,
+        address validatorAddress,
+        bytes calldata validatorSig
+    )
+        external
+        payable;
 
-    /// @dev Used for validators to claim their staking rewards for validating the network
-    /// @notice Rewards are incremented every epoch via syscall in `concludeEpoch()`
-    function claimStakeRewards() external;
+    /// @dev Used by rewardees to claim staking rewards
+    function claimStakeRewards(address ecdaPubkey) external;
 
-    /// @dev Returns previously staked funds and accrued rewards, if any, to the calling validator
+    /// @dev Returns previously staked funds in addition to accrued rewards, if any, to the staker
     /// @notice May only be called after fully exiting
-    function unstake() external;
+    /// @notice `IncentiveInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
+    function unstake(address validatorAddress) external;
+
+    /// @notice Returns the delegation digest that a validator should sign to accept a delegation
+    /// @return _ EIP-712 typed struct hash used to enable delegated proof of stake
+    function delegationDigest(
+        bytes memory blsPubkey,
+        address validatorAddress,
+        address delegator
+    )
+        external
+        view
+        returns (bytes32);
+
+    /// @dev Returns the current total supply of minted ConsensusNFTs
+    function totalSupply() external view returns (uint256);
 
     /// @dev Fetches the claimable rewards accrued for a given validator address
-    /// @notice Does not include the original stake amount and cannot be claimed until surpassing `minWithdrawAmount`
-    /// @return claimableRewards The validator's claimable rewards, not including the validator's stake
-    function getRewards(address ecdsaPubkey) external view returns (uint240 claimableRewards);
+    /// @return _ The validator's claimable rewards, not including the validator's stake
+    function getRewards(address validatorAddress) external view returns (uint240);
+
+    /// @dev Returns staking information for the given address
+    function incentiveInfo(address validatorAddress) external view returns (IncentiveInfo memory);
+
+    /// @dev Returns the current version
+    function stakeVersion() external view returns (uint8);
+
+    /// @dev Returns the queried stake configuration
+    function stakeConfig(uint8 version) external view returns (StakeConfig memory);
+
+    /// @dev Returns the current stake configuration
+    function getCurrentStakeConfig() external view returns (StakeConfig memory);
+
+    /// @dev Permissioned function to upgrade stake, withdrawal, and consensus block reward configurations
+    /// @notice The new version takes effect in the next epoch
+    function upgradeStakeVersion(StakeConfig calldata newVersion) external returns (uint8);
 }
