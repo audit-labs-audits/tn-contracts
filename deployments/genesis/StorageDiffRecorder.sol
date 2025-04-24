@@ -66,34 +66,40 @@ abstract contract StorageDiffRecorder is Test {
     /// @dev Appends a genesis config entry with bytecode & storage to given YAML file 
     /// @dev Uses current `writtenStorageSlots` values; simulation results must be populated correctly
     /// @notice Entries are formatted thusly:
-    /// `genesisTarget`: `simulatedDeployment.code`
-    ///   `writtenStorageSlotA`: `currentSlotAValueAfterSimulation`
-    ///   `writtenStorageSlotB`: `currentSlotBValueAfterSimulation`
+    /// `genesisTarget`: 
+    ///   `bytecode`: `simulatedDeployment.code`
+    ///   `storage:`: 
+    ///      `slotA: slotAValue`
+    ///      `slotB: slotBValue`
     /// @param simulatedDeployment The deployed contract with storage written by simulation
     /// @param genesisTarget The target address to write to at genesis
     function yamlAppendBytecodeWithStorage(string memory dest, address simulatedDeployment, address genesisTarget) public virtual {
-        yamlAppendBytecode(dest, simulatedDeployment, genesisTarget);
+    // Convert  genesisTarget to hex string (20 bytes, i.e. address) and write
+    string memory targetKey = LibString.toHexString(uint256(uint160(genesisTarget)), 20);
+    vm.writeLine(dest, string.concat(targetKey, ":"));
 
-        bytes32[] storage slots = writtenStorageSlots[simulatedDeployment];
-        require(slots.length != 0, "No storage diffs found");
-        // read all unique storage slots updated and fetch their final value
-        for (uint256 i; i < slots.length; ++i) {
-            // load slot value
-            bytes32 currentSlot = slots[i];
-            bytes32 slotValue = vm.load(simulatedDeployment, currentSlot);
+    // Get bytecode of the simulated deployment
+    bytes memory bytecode = simulatedDeployment.code;
+    string memory codeString = LibString.toHexString(bytecode);
 
-            // write slot and value to file
-            string memory slot = LibString.toHexString(
-                uint256(currentSlot),
-                32
-            );
-            string memory value = LibString.toHexString(uint256(slotValue), 32);
-            // prepend with 2 spaces to list current slot and value as object members under top level entry
-            string memory entry = string.concat("  ", slot, ": ", value);
+    // Write the bytecode & storage with 2-space indentation
+    vm.writeLine(dest, string.concat("  bytecode: ", codeString));
+    vm.writeLine(dest, "  storage:");
 
-            vm.writeLine(dest, entry);
-        }
+    bytes32[] storage slots = writtenStorageSlots[simulatedDeployment];
+    require(slots.length != 0, "No storage diffs found");
+
+    // Write each storage slot line with 4-space indentation
+    for (uint256 i; i < slots.length; ++i) {
+        bytes32 currentSlot = slots[i];
+        bytes32 slotValue = vm.load(simulatedDeployment, currentSlot);
+
+        string memory slot = LibString.toHexString(uint256(currentSlot), 32);
+        string memory value = LibString.toHexString(uint256(slotValue), 32);
+
+        vm.writeLine(dest, string.concat("    ", slot, ": ", value));
     }
+}
 
     /// @dev Appends a genesis config entry with bytecode only to the given YAML. Required for immutable vars
     /// @notice Entries are formatted thusly:
@@ -103,9 +109,11 @@ abstract contract StorageDiffRecorder is Test {
     function yamlAppendBytecode(string memory dest, address simulatedDeployment, address genesisTarget) public virtual {
         bytes memory bytecode = simulatedDeployment.code;
         require(bytecode.length != 0, "Contract is not deployed");
-        string memory runtimeCode = LibString.toHexString(bytecode);
         // write top level entry using the desired address and the simulated contract's bytecode
-        string memory addressToBytecode = string.concat(LibString.toHexString(genesisTarget), ": ", runtimeCode);
-        vm.writeLine(dest, addressToBytecode);
+        string memory key = string.concat(LibString.toHexString(genesisTarget), ":");
+        vm.writeLine(dest, key);
+        string memory codeString = LibString.toHexString(bytecode);
+        string memory bytecodeEntry = string.concat("  bytecode: ", codeString);
+        vm.writeLine(dest, bytecodeEntry);
     }
 }
