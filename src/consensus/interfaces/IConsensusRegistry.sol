@@ -86,7 +86,20 @@ interface IConsensusRegistry {
     /// @notice Voting Validator Committee changes at the end every epoch via syscall
     /// @dev Accepts the committee of voting validators for 2 epochs in the future
     /// @param newCommittee The future validator committee for `$.currentEpoch + 3`
-    function concludeEpoch(address[] calldata newCommittee) external;
+    /// @param slashes Slashes to the validators in the ending epoch, applied after rollover
+    /// @notice Slashes are not currently used in TN mainnet alpha
+    function concludeEpoch(address[] calldata newCommittee, IncentiveInfo[] calldata slashes) external;
+
+    /// @dev The network's epoch issuance distribution method, rewarding stake originators
+    /// proportionally to their share of total stake, tied to the validator's stake version
+    /// @notice Stake originators are either a delegator if one exists, or the validator itself
+    /// @notice Exited validators do not earn rewards for their exit epoch
+    function applyIncentives(
+        uint32 newEpoch,
+        ValidatorInfo[] memory active,
+        IncentiveInfo[] calldata incentives
+    )
+        external;
 
     /// @dev Self-activation function for validators, gaining `PendingActivation` status and setting
     /// next epoch as activation epoch to ensure rewards eligibility only after completing a full epoch

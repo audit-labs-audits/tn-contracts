@@ -61,12 +61,6 @@ interface IStakeManager {
         external
         payable;
 
-    /// @dev The network's epoch issuance distribution method, rewarding stake originators
-    /// proportionally to their share of total stake, tied to the validator's stake version
-    /// @notice Stake originators are either a delegator if one exists, or the validator itself
-    /// @notice May only be called by the client via system call, at the end of each epoch
-    function applyIncentives(IncentiveInfo[] calldata incentives) external;
-
     /// @dev Used by rewardees to claim staking rewards
     function claimStakeRewards(address ecdaPubkey) external;
 
@@ -106,5 +100,6 @@ interface IStakeManager {
     function getCurrentStakeConfig() external view returns (StakeConfig memory);
 
     /// @dev Permissioned function to upgrade stake, withdrawal, and consensus block reward configurations
+    /// @notice The new version takes effect in the next epoch
     function upgradeStakeVersion(StakeConfig calldata newVersion) external returns (uint8);
 }

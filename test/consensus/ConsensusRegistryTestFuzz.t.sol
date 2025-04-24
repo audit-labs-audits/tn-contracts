@@ -20,7 +20,9 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
 
         StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_);
-        consensusRegistry.initialize(address(rwTEL), stakeConfig_, initialValidators, crOwner);
+        consensusRegistry.initialize{ value: stakeAmount_ * initialValidators.length }(
+            address(rwTEL), stakeConfig_, initialValidators, crOwner
+        );
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
@@ -78,7 +80,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_concludeEpoch(uint24 numValidators) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 900));
+        numValidators = uint24(bound(uint256(numValidators), 1, 2000));
 
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
 
@@ -91,14 +93,14 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
         vm.startPrank(sysAddress);
         address[] memory zeroCommittee = new address[](committeeSize);
-        consensusRegistry.concludeEpoch(zeroCommittee);
+        consensusRegistry.concludeEpoch(zeroCommittee, new IncentiveInfo[](0));
         address[] memory newCommittee = _fuzz_createNewCommittee(numActive, committeeSize);
 
         // set the subsequent epoch committee by concluding epoch
         uint32 duration = consensusRegistry.getCurrentEpochInfo().epochDuration;
         vm.expectEmit(true, true, true, true);
         emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommittee, uint64(block.number + 1), duration));
-        consensusRegistry.concludeEpoch(newCommittee);
+        consensusRegistry.concludeEpoch(newCommittee, new IncentiveInfo[](0));
 
         // asserts
         uint256 numActiveAfter = consensusRegistry.getValidators(ValidatorStatus.Active).length;
@@ -119,7 +121,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_applyIncentives(uint24 numValidators) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 1050));
+        numValidators = uint24(bound(uint256(numValidators), 1, 2000));
 
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
 
@@ -132,68 +134,70 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
         vm.startPrank(sysAddress);
         address[] memory zeroCommittee = new address[](committeeSize);
-        consensusRegistry.concludeEpoch(zeroCommittee);
-        // set the subsequent epoch committee
-        address[] memory newCommittee = _fuzz_createNewCommittee(numActive, committeeSize);
-        consensusRegistry.concludeEpoch(newCommittee);
+        IncentiveInfo[] memory zeroSlashes = new IncentiveInfo[](0);
+        consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
 
         // apply incentives by finalizing epoch with empty `IncentiveInfo`
-        uint256 rewardPerValidator = epochIssuance_ / numActive;
-        IncentiveInfo[] memory committeeRewards = new IncentiveInfo[](0);
-        consensusRegistry.applyIncentives(committeeRewards);
+        consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
         vm.stopPrank();
 
         // assert rewards were incremented for each committee member
-        for (uint256 i; i < newCommittee.length; ++i) {
-            uint256 updatedRewards = consensusRegistry.getRewards(newCommittee[i]);
-            assertEq(updatedRewards, rewardPerValidator);
+        uint256 totalStaked = numActive * stakeAmount_;
+        uint256 proportion = PRECISION_FACTOR * stakeAmount_ / totalStaked;
+        uint256 rewardPerValidator = proportion * epochIssuance_ / PRECISION_FACTOR;
+        uint256 rewardPerInitialValidator = (epochIssuance_ / 4) + rewardPerValidator;
+        for (uint256 i; i < numActive; ++i) {
+            // recreate validator addr
+            address validator = _createRandomAddress(i + 1);
+            uint256 expectedReward = (i < initialValidators.length) ? rewardPerInitialValidator : rewardPerValidator;
+
+            uint256 updatedRewards = consensusRegistry.getRewards(validator);
+            assertEq(updatedRewards, expectedReward);
         }
     }
 
     function testFuzz_claimStakeRewards(uint24 numValidators) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 550));
+        numValidators = uint24(bound(uint256(numValidators), 1, 2000));
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
 
         _fuzz_mint(numValidators);
         _fuzz_stake(numValidators, stakeAmount_);
         _fuzz_activate(numValidators);
 
-        // identify committee size, conclude an epoch to reach activation epoch, then create a committee
+        // identify committee size
         uint256 committeeSize = _fuzz_computeCommitteeSize(numActive, numValidators);
-        // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
         vm.startPrank(sysAddress);
+        // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
+        IncentiveInfo[] memory zeroSlashes = new IncentiveInfo[](0);
         address[] memory zeroCommittee = new address[](committeeSize);
-        consensusRegistry.concludeEpoch(zeroCommittee);
-        // set the subsequent epoch committee
-        address[] memory newCommittee = _fuzz_createNewCommittee(numActive, committeeSize);
-        consensusRegistry.concludeEpoch(newCommittee);
+        consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
 
         // apply incentives by finalizing epoch with empty `IncentiveInfo`
-        uint256 rewardPerValidator = epochIssuance_ / numActive;
-        IncentiveInfo[] memory committeeRewards = new IncentiveInfo[](0);
-        consensusRegistry.applyIncentives(committeeRewards);
+        consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
         vm.stopPrank();
 
         // claim rewards and assert
-        for (uint256 i; i < newCommittee.length; ++i) {
-            address validator = newCommittee[i];
+        uint256 totalStaked = numActive * stakeAmount_;
+        uint256 proportion = PRECISION_FACTOR * stakeAmount_ / totalStaked;
+        uint256 rewardPerValidator = proportion * epochIssuance_ / PRECISION_FACTOR;
+        uint256 rewardPerInitialValidator = (epochIssuance_ / 4) + rewardPerValidator;
+        for (uint256 i; i < numActive; ++i) {
+            // recreate validator addr
+            address validator = _createRandomAddress(i + 1);
             // capture initial validator balance
             uint256 initialBalance = validator.balance;
             assertEq(initialBalance, 0);
 
-            // conclude epoch for epoch issuance
-            vm.prank(sysAddress);
-            consensusRegistry.concludeEpoch(zeroCommittee);
-
             // Check event emission and claim rewards
+            uint256 expectedReward = (i < initialValidators.length) ? rewardPerInitialValidator : rewardPerValidator;
             vm.expectEmit(true, true, true, true);
-            emit IConsensusRegistry.RewardsClaimed(validator, rewardPerValidator);
+            emit IConsensusRegistry.RewardsClaimed(validator, expectedReward);
             vm.prank(validator);
             consensusRegistry.claimStakeRewards(validator);
 
             // check balance after claiming
             uint256 updatedBalance = validator.balance;
-            assertEq(updatedBalance, initialBalance + rewardPerValidator);
+            assertEq(updatedBalance, initialBalance + expectedReward);
         }
     }
 }

@@ -44,30 +44,45 @@ contract ConsensusRegistry is
      */
 
     /// @inheritdoc IConsensusRegistry
-    function concludeEpoch(address[] calldata newCommittee) external override onlySystemCall {
+    function concludeEpoch(
+        address[] calldata newCommittee,
+        IncentiveInfo[] calldata slashes
+    )
+        external
+        override
+        onlySystemCall
+    {
         // update epoch ring buffer info, validator queue
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         (uint32 newEpoch, uint32 duration) = _updateEpochInfo($, newCommittee);
         _updateValidatorQueue($, newCommittee, newEpoch);
 
         // assert new epoch committee is valid against total now eligible
-        uint256 newActive = _getValidators($, ValidatorStatus.Active).length;
-        _checkCommitteeSize(newActive, newCommittee.length);
+        ValidatorInfo[] memory newActive = _getValidators($, ValidatorStatus.Active);
+        _checkCommitteeSize(newActive.length, newCommittee.length);
+
+        applyIncentives(newEpoch, newActive, slashes);
 
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), duration));
     }
 
     /// @notice Slashing is not live but scaffolding for it is included here. For the time being,
     /// system calls to this function provide an empty calldata array
-    /// @inheritdoc IStakeManager
-    function applyIncentives(IncentiveInfo[] calldata /*slashes*/ ) external override onlySystemCall {
+    /// @inheritdoc IConsensusRegistry
+    function applyIncentives(
+        uint32 newEpoch,
+        ValidatorInfo[] memory active,
+        IncentiveInfo[] calldata /*slashes*/
+    )
+        public
+        override
+        onlySystemCall
+    {
         StakeManagerStorage storage $S = _stakeManagerStorage();
-        // _applySlashes($S, slashes);
-
         uint8 currentVersion = stakeVersion();
         StakeConfig memory currentConfig = stakeConfig(currentVersion);
         (address[] memory recipients, uint256[] memory stakes, uint256 totalStake) =
-            _eligibleStakeParams($S, _consensusRegistryStorage(), currentVersion, currentConfig);
+            _eligibleStakerParams($S, active, newEpoch, currentVersion, currentConfig);
 
         // calculate and apply proportional rewards
         uint256 totalIssuance = currentConfig.epochIssuance;
@@ -78,6 +93,9 @@ contract ConsensusRegistry is
             // increment claimable amount
             $S.incentiveInfo[recipients[i]].stakingRewards += uint232(reward);
         }
+
+        // to be more lenient, slashing would happen after rewards are applied
+        // _applySlashes($S, slashes);
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -556,11 +574,13 @@ contract ConsensusRegistry is
     }
 
     /// @dev Returns eligible recipients, their original stake amount, and the total eligible stake
-    /// @dev Eligibility is defined by `Activate` and `PendingExit` validator status and excludes
-    /// `PendingActivation` as those validators have not validated a full epoch
-    function _eligibleStakeParams(
+    /// @dev Validators who were committee-eligible in the concluded epoch will receive rewards
+    /// @notice Invoked just after rolling over into a new epoch within `concludeEpoch()`, thus
+    /// `currentEpoch && currentVersion && currentConfig` all refer to the new epoch's info
+    function _eligibleStakerParams(
         StakeManagerStorage storage $S,
-        ConsensusRegistryStorage storage $C,
+        ValidatorInfo[] memory active,
+        uint32 currentEpoch,
         uint8 currentVersion,
         StakeConfig memory currentConfig
     )
@@ -569,14 +589,13 @@ contract ConsensusRegistry is
         returns (address[] memory, uint256[] memory, uint256)
     {
         uint256 currentStakeAmount = currentConfig.stakeAmount;
-
-        ValidatorInfo[] memory activeAndPending = _getValidators($C, ValidatorStatus.Active);
         uint256 numEligible;
-        address[] memory tmpRecipients = new address[](activeAndPending.length);
-        uint256[] memory tmpStakes = new uint256[](activeAndPending.length);
-        for (uint256 i; i < activeAndPending.length; ++i) {
-            ValidatorInfo memory validator = activeAndPending[i];
-            if (validator.currentStatus == ValidatorStatus.PendingActivation) continue;
+        address[] memory tmpRecipients = new address[](active.length);
+        uint256[] memory tmpStakes = new uint256[](active.length);
+        for (uint256 i; i < active.length; ++i) {
+            ValidatorInfo memory validator = active[i];
+            // skip validators who just activated and have not yet completed a full epoch
+            if (validator.activationEpoch == currentEpoch) continue;
 
             // gather recipients and their stake amounts using stake their version
             tmpRecipients[numEligible] = _getRecipient($S, validator.validatorAddress);
@@ -591,8 +610,8 @@ contract ConsensusRegistry is
 
         // sum total eligible stake and trim recipient & stake arrays
         uint256 totalStake;
-        address[] memory recipients = new address[](activeAndPending.length);
-        uint256[] memory stakes = new uint256[](activeAndPending.length);
+        address[] memory recipients = new address[](numEligible);
+        uint256[] memory stakes = new uint256[](numEligible);
         for (uint256 i; i < numEligible; ++i) {
             totalStake += tmpStakes[i];
 
@@ -804,9 +823,13 @@ contract ConsensusRegistry is
         address owner_
     )
         external
+        payable
         initializer
     {
-        if (initialValidators_.length == 0 || initialValidators_.length > type(uint24).max) {
+        if (
+            initialValidators_.length == 0 || initialValidators_.length > type(uint24).max
+                || msg.value != genesisConfig_.stakeAmount * initialValidators_.length
+        ) {
             revert InitializerArityMismatch();
         }
 

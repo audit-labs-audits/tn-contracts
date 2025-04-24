@@ -43,9 +43,6 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         virtual;
 
     /// @inheritdoc IStakeManager
-    function applyIncentives(IncentiveInfo[] calldata incentives) external virtual;
-
-    /// @inheritdoc IStakeManager
     function claimStakeRewards(address ecsdaPubkey) external virtual;
 
     /// @inheritdoc IStakeManager
