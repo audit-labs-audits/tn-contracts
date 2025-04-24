@@ -33,13 +33,13 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
     IConsensusRegistry.ValidatorInfo[] initialValidators;
     address public owner;
 
-    /// @dev Config: these will be overwritten into collision-resistant labels and replaced when known at genesis
     IConsensusRegistry.ValidatorInfo public validatorInfo1;
     IConsensusRegistry.ValidatorInfo public validatorInfo2;
     IConsensusRegistry.ValidatorInfo public validatorInfo3;
     IConsensusRegistry.ValidatorInfo public validatorInfo4;
     IConsensusRegistry.ValidatorInfo public validatorInfo5;
 
+    /// @dev These flags will be overwritten into collision-resistant labels and replaced when known at genesis
     bytes32 constant VALIDATOR_1_BLS_A = keccak256("VALIDATOR_1_BLS_A");
     bytes32 constant VALIDATOR_1_BLS_B = keccak256("VALIDATOR_1_BLS_B");
     bytes32 constant VALIDATOR_1_BLS_C = keccak256("VALIDATOR_1_BLS_C");
@@ -108,9 +108,8 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
         yamlAppendBytecode(dest, simulatedCRImpl, deployments.ConsensusRegistryImpl);
 
         address simulatedCR = address(instantiateConsensusRegistry(deployments.ConsensusRegistryImpl, initData));
+        overwriteWrittenStorageSlotsWithFlags(simulatedCR);
         yamlAppendBytecodeWithStorage(dest, simulatedCR, deployments.ConsensusRegistry);
-
-        overwriteFlags_ADDR(simulatedCR);
 
         vm.stopBroadcast();
     }
@@ -215,10 +214,9 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
         copyContractState(address(simulatedDeployment), address(consensusRegistry), slots);
     }
 
-    function overwriteFlags_ADDR(address simulatedCR) public {
+    function overwriteWrittenStorageSlotsWithFlags(address simulatedCR) public {
         // read all unique storage slots touched by `initialize()` and fetch their final value
         bytes32[] storage slots = writtenStorageSlots[simulatedCR];
-        console2.logUint(slots.length);
         for (uint256 i; i < slots.length; ++i) {
             // load slot value
             bytes32 currentSlot = slots[i];
