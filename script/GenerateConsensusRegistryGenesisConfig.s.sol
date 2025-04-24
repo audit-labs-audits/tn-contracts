@@ -88,18 +88,10 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
         _setInitialValidators();
 
         owner = deployments.admin;
-        IStakeManager.StakeConfig memory genesisConfig = IStakeManager.StakeConfig(
-            stakeAmount,
-            minWithdrawAmount,
-            epochIssuance,
-            epochDuration
-        );
+        IStakeManager.StakeConfig memory genesisConfig =
+            IStakeManager.StakeConfig(stakeAmount, minWithdrawAmount, epochIssuance, epochDuration);
         initData = abi.encodeWithSelector(
-            ConsensusRegistry.initialize.selector,
-            address(rwTEL),
-            genesisConfig,
-            initialValidators,
-            owner
+            ConsensusRegistry.initialize.selector, address(rwTEL), genesisConfig, initialValidators, owner
         );
     }
 
@@ -214,7 +206,7 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
     {
         vm.startStateDiffRecording();
         simulatedDeployment = ConsensusRegistry(
-            payable(address(new ERC1967Proxy{ value: stakeAmount * initialValidators.length }(impl, initCall)))
+            payable(address(new ERC1967Proxy(impl, initCall)))
         );
         Vm.AccountAccess[] memory crRecords = vm.stopAndReturnStateDiff();
 

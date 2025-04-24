@@ -815,6 +815,7 @@ contract ConsensusRegistry is
     /// It is left in the contract for readable information about the relevant storage slots at genesis
     /// @param initialValidators_ The initial validator set running Telcoin Network; these validators will
     /// comprise the voter committee for the first three epochs, ie `epochInfo[0:2]`
+    /// @dev ConsensusRegistry contract must be instantiated at genesis with stake for `initialValidators_`
     /// @dev Only governance delegation is enabled at genesis
     function initialize(
         address rwTEL_,
@@ -823,13 +824,9 @@ contract ConsensusRegistry is
         address owner_
     )
         external
-        payable
         initializer
     {
-        if (
-            initialValidators_.length == 0 || initialValidators_.length > type(uint24).max
-                || msg.value != genesisConfig_.stakeAmount * initialValidators_.length
-        ) {
+        if (initialValidators_.length == 0 || initialValidators_.length > type(uint24).max) {
             revert InitializerArityMismatch();
         }
 

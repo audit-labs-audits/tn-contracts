@@ -20,9 +20,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
 
         StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_);
-        consensusRegistry.initialize{ value: stakeAmount_ * initialValidators.length }(
-            address(rwTEL), stakeConfig_, initialValidators, crOwner
-        );
+        consensusRegistry.initialize(address(rwTEL), stakeConfig_, initialValidators, crOwner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
@@ -159,6 +157,8 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     function testFuzz_claimStakeRewards(uint24 numValidators) public {
         numValidators = uint24(bound(uint256(numValidators), 1, 2000));
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
+        vm.deal(address(rwTEL), stakeAmount_ * (numActive + 10));
+        vm.deal(address(consensusRegistry), stakeAmount_ * (numActive + 10));
 
         _fuzz_mint(numValidators);
         _fuzz_stake(numValidators, stakeAmount_);

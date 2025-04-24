@@ -20,9 +20,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
 
         StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_);
-        consensusRegistry.initialize{ value: stakeAmount_ * initialValidators.length }(
-            address(rwTEL), stakeConfig_, initialValidators, crOwner
-        );
+        consensusRegistry.initialize(address(rwTEL), stakeConfig_, initialValidators, crOwner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
@@ -289,6 +287,8 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length;
         address[] memory zeroCommittee = new address[](numActive);
         IncentiveInfo[] memory zeroSlashes = new IncentiveInfo[](0);
+
+        vm.deal(address(consensusRegistry), stakeAmount_ * numActive);
 
         // validator becomes `PendingExit` status which is still committee eligible
         vm.prank(validator1);
