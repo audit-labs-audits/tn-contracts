@@ -243,12 +243,8 @@ contract GenerateConsensusRegistryGenesisConfig is Script, StorageDiffRecorder {
                 slotValue = keccak256("VALIDATOR_5_ADDR");
             }
 
-            // write slot and value to file
-            string memory slot = LibString.toHexString(uint256(currentSlot), 32);
-            string memory value = LibString.toHexString(uint256(slotValue), 32);
-            string memory entry = string.concat(slot, ": ", value);
-
-            vm.writeLine(dest, entry);
+            // overwrite current storage slot
+            vm.store(simulatedCR, currentSlot, slotValue);
         }
     }
 }
