@@ -10,13 +10,24 @@ import {LibString} from "solady/utils/LibString.sol";
 /// @notice Used to generate genesis precompile configuration by simulating deployment
 /// to set nonce, balance, generate bytecode, and record storage slot/values
 
+/** @notice Precompile Yaml entries are formatted thusly:
+`targetAddress`: 
+    `genesisAccount`:
+      `nonce`: `nonce`
+      `balance`: `balance`
+      `code`: `runtimeCode`
+      `storage:`: 
+        `slotA: valueA`
+        `slotB: valueB`
+ */
+
 /// @dev Precompile configuration, written to yaml and consumed by protocol at genesis
 /// @notice Reth member `private_key` for testing purposes is not used
 struct GenesisAccount {
     uint64 nonce;
     uint256 balance;
     bytes code;
-    StorageEntry[] genesisConfig;
+    StorageEntry[] storageConfig;
 }
 
 /// @dev Storage key/value pair, used as Solidity equivalent to BTreeMap
@@ -25,21 +36,11 @@ struct StorageEntry {
     bytes32 value;
 }
 
-/** @notice Precompile Yaml entries are formatted thusly:
-`targetAddress`: 
-    `genesisAccount`:
-      `nonce`: `nonce`
-        `balance`: `balance`
-        `code`: `runtimeCode`
-        `storage:`: 
-          `slotA: valueA`
-          `slotB: valueB`
- */
 abstract contract GenesisPrecompiler is Test {
-    //todo: update implementation to achieve the above format
+    mapping (address => GenesisAccount) public genesisAccounts;
     mapping (address => bytes32[]) writtenStorageSlots;
 
-    /// @dev Populates `writtenStorageSlots` with written storage slots in `records`
+    /// @dev Populates `writtenStorageSlots` for `simulatedDeployment` with slots in `records`
     /// @param simulatedDeployment The deployed contract with storage written by simulation
     /// @param records The AccountAccesses recorded by foundry diff 
     function saveWrittenSlots(address simulatedDeployment, Vm.AccountAccess[] memory records) public virtual returns (bytes32[] memory) {
@@ -79,52 +80,46 @@ abstract contract GenesisPrecompiler is Test {
         return slots;
     }
 
-    /// @dev Appends a genesis config entry with bytecode & storage to given YAML file 
+    /// @dev Appends a genesis account entry to given YAML file 
     /// @dev Uses current `writtenStorageSlots` values; simulation results must be populated correctly
-    /// @param simulatedDeployment The deployed contract with storage written by simulation
-    /// @param genesisTarget The target address to write to at genesis
-    function yamlAppendBytecodeWithStorage(string memory dest, address simulatedDeployment, address genesisTarget) public virtual {
-        // Convert  genesisTarget to hex string (20 bytes, i.e. address) and write
+    /// @param simulatedDeployment The simulated contract deployment whose config to copy onto `genesisTarget`
+    /// @param genesisTarget The target precompile address to write to at genesis
+    function yamlAppendGenesisAccount(string memory dest, address simulatedDeployment, address genesisTarget, uint64 nonce, uint256 balance) public virtual returns (bool hasStorage) {
+        GenesisAccount storage account = genesisAccounts[simulatedDeployment];
+        require(account.code.length == 0, "Precompile already processed");
+        account.nonce = nonce;
+        account.balance = balance;
+        account.code = simulatedDeployment.code;
+        require(account.code.length != 0, "Contract is not deployed");
+
+        // Convert genesisTarget to hex string (20 bytes, i.e. address) and write
         string memory targetKey = LibString.toHexString(uint256(uint160(genesisTarget)), 20);
         vm.writeLine(dest, string.concat(targetKey, ":"));
 
-        // Get bytecode of the simulated deployment
-        bytes memory bytecode = simulatedDeployment.code;
-        string memory codeString = LibString.toHexString(bytecode);
+        // Write the genesisAccount entry with nonce, balance, and code
+        vm.writeLine(dest, "  genesisAccount:");
+        vm.writeLine(dest, string.concat("    nonce: ", LibString.toString(nonce)));
+        vm.writeLine(dest, string.concat("    balance: ", LibString.toString(balance)));
+        vm.writeLine(dest, string.concat("    code: ", LibString.toHexString(account.code)));
 
-        // Write the bytecode & storage with 2-space indentation
-        vm.writeLine(dest, string.concat("  bytecode: ", codeString));
-        vm.writeLine(dest, "  storage:");
-
+        // Write the storage entries if relevant
         bytes32[] storage slots = writtenStorageSlots[simulatedDeployment];
-        require(slots.length != 0, "No storage diffs found");
+        if (slots.length == 0) return false;
 
-        // Write each storage slot line with 4-space indentation
+        vm.writeLine(dest, "    storage:");
         for (uint256 i; i < slots.length; ++i) {
-            bytes32 currentSlot = slots[i];
-            bytes32 slotValue = vm.load(simulatedDeployment, currentSlot);
+            bytes32 slot = slots[i];
+            bytes32 slotValue = vm.load(simulatedDeployment, slot);
 
-            string memory slot = LibString.toHexString(uint256(currentSlot), 32);
-            string memory value = LibString.toHexString(uint256(slotValue), 32);
+            account.storageConfig.push(StorageEntry(slot, slotValue));
 
-            vm.writeLine(dest, string.concat("    ", slot, ": ", value));
+            // write to yaml
+            string memory slotStr = LibString.toHexString(uint256(slot), 32);
+            string memory valueStr = LibString.toHexString(uint256(slotValue), 32);
+            vm.writeLine(dest, string.concat("      ", slotStr, ": ", valueStr));
         }
-    }
 
-    /// @dev Appends a genesis config entry with bytecode only to the given YAML. Required for immutable vars
-    /// @notice Entries are formatted thusly:
-    /// `genesisTarget`: `simulatedDeployment.code`
-    /// @param simulatedDeployment The deployed contract with bytecode  by simulation
-    /// @param genesisTarget The target address to write to at genesis
-    function yamlAppendBytecode(string memory dest, address simulatedDeployment, address genesisTarget) public virtual {
-        bytes memory bytecode = simulatedDeployment.code;
-        require(bytecode.length != 0, "Contract is not deployed");
-        // write top level entry using the desired address and the simulated contract's bytecode
-        string memory key = string.concat(LibString.toHexString(genesisTarget), ":");
-        vm.writeLine(dest, key);
-        string memory codeString = LibString.toHexString(bytecode);
-        string memory bytecodeEntry = string.concat("  bytecode: ", codeString);
-        vm.writeLine(dest, bytecodeEntry);
+        return true;
     }
 
     /// @dev Copies runtime bytecode and the given storage slots from one address to another
