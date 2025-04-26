@@ -45,7 +45,7 @@ import { RWTEL } from "../src/RWTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Utils.sol";
 import { Deployments, ITS } from "../deployments/Deployments.sol";
 import { ITSConfig } from "../deployments/utils/ITSConfig.sol";
-import { StorageDiffRecorder } from "../deployments/genesis/StorageDiffRecorder.sol";
+import { GenesisPrecompiler } from "../deployments/genesis/GenesisPrecompiler.sol";
 import { ITSGenesis } from "../deployments/genesis/ITSGenesis.sol";
 
 /// @title Interchain Token Service Genesis Config Generator
