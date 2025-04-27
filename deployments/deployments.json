@@ -38,7 +38,6 @@
   "its": {
     "AxelarAmplifierGateway": "0xF128c84c3326727c3e155168daAa4C0156B87AD1",
     "AxelarAmplifierGatewayImpl": "0xD981b4a8D46b7b80dCbE245c615432c4DeF2e817",
-    "Create3Deployer": "0x6513Aedb4D1593BA12e50644401D976aebDc90d8",
     "GasService": "0x1179d44e69ba5252B7478a8602617d5EEeb2F377",
     "GasServiceImpl": "0xC75c1Dc33514db5c39a13b2e7fE82A05050535EF",
     "GatewayCaller": "0x7d6aBBb2a041D1bDEb7c45f233D09D75D9e0b17C",

@@ -104,43 +104,75 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         // rwTEL impl before ITS to fetch token id for TokenHandler::constructor
         address simulatedRWTELImpl = address(instantiateRWTELImpl(deployments.its.InterchainTokenService));
         // note rwTEL impl has storage changes due to RecoverableWrapper dep but they are not used in proxy setup
-        assertTrue(yamlAppendGenesisAccount(dest, simulatedRWTELImpl, deployments.rwTELImpl, sharedNonce, sharedBalance));
+        assertTrue(
+            yamlAppendGenesisAccount(dest, simulatedRWTELImpl, deployments.rwTELImpl, sharedNonce, sharedBalance)
+        );
         customLinkedTokenId = rwTELImpl.interchainTokenId();
 
         // gateway impl (no storage)
         address simulatedGatewayImpl = address(instantiateAxelarAmplifierGatewayImpl());
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedGatewayImpl, deployments.its.AxelarAmplifierGatewayImpl, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(
+                dest, simulatedGatewayImpl, deployments.its.AxelarAmplifierGatewayImpl, sharedNonce, sharedBalance
+            )
+        );
         // gateway (has storage)
         address simulatedGateway =
             address(instantiateAxelarAmplifierGateway(deployments.its.AxelarAmplifierGatewayImpl));
-        assertTrue(yamlAppendGenesisAccount(dest, simulatedGateway, deployments.its.AxelarAmplifierGateway, sharedNonce, sharedBalance));
+        assertTrue(
+            yamlAppendGenesisAccount(
+                dest, simulatedGateway, deployments.its.AxelarAmplifierGateway, sharedNonce, sharedBalance
+            )
+        );
         // token manager deployer (no storage)
         address simulatedTMD = address(instantiateTokenManagerDeployer());
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedTMD, deployments.its.TokenManagerDeployer, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(
+                dest, simulatedTMD, deployments.its.TokenManagerDeployer, sharedNonce, sharedBalance
+            )
+        );
         // it impl (no storage)
         address simulatedITImpl = address(instantiateInterchainTokenImpl(deployments.its.InterchainTokenService));
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedITImpl, deployments.its.InterchainTokenImpl, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(
+                dest, simulatedITImpl, deployments.its.InterchainTokenImpl, sharedNonce, sharedBalance
+            )
+        );
         // itd (no storage)
         address simulatedITD = address(instantiateInterchainTokenDeployer(deployments.its.InterchainTokenImpl));
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedITD, deployments.its.InterchainTokenDeployer, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(
+                dest, simulatedITD, deployments.its.InterchainTokenDeployer, sharedNonce, sharedBalance
+            )
+        );
         // tmImpl (no storage)
         address simulatedTMImpl = address(instantiateTokenManagerImpl(deployments.its.InterchainTokenService));
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedTMImpl, deployments.its.TokenManagerImpl, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(
+                dest, simulatedTMImpl, deployments.its.TokenManagerImpl, sharedNonce, sharedBalance
+            )
+        );
         // token handler (no storage)
         address simulatedTH = address(instantiateTokenHandler(customLinkedTokenId));
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedTH, deployments.its.TokenHandler, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(dest, simulatedTH, deployments.its.TokenHandler, sharedNonce, sharedBalance)
+        );
 
         // gas service (has storage)
         vm.startStateDiffRecording();
         address simulatedGSImpl = address(instantiateAxelarGasServiceImpl());
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedGSImpl, deployments.its.GasServiceImpl, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(dest, simulatedGSImpl, deployments.its.GasServiceImpl, sharedNonce, sharedBalance)
+        );
         address simulatedGS = address(instantiateAxelarGasService(deployments.its.GasServiceImpl));
         assertTrue(yamlAppendGenesisAccount(dest, simulatedGS, deployments.its.GasService, sharedNonce, sharedBalance));
 
         // gateway caller (no storage)
         address simulatedGC =
             address(instantiateGatewayCaller(deployments.its.AxelarAmplifierGateway, deployments.its.GasService));
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedGC, deployments.its.GatewayCaller, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(dest, simulatedGC, deployments.its.GatewayCaller, sharedNonce, sharedBalance)
+        );
 
         // its (has storage)
         address simulatedITSImpl = address(
@@ -155,20 +187,44 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
                 deployments.its.GatewayCaller
             )
         );
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedITSImpl, deployments.its.InterchainTokenServiceImpl, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(
+                dest, simulatedITSImpl, deployments.its.InterchainTokenServiceImpl, sharedNonce, sharedBalance
+            )
+        );
         address simulatedITS = address(instantiateITS(deployments.its.InterchainTokenServiceImpl));
-        assertTrue(yamlAppendGenesisAccount(dest, simulatedITS, deployments.its.InterchainTokenService, sharedNonce, sharedBalance));
+        assertTrue(
+            yamlAppendGenesisAccount(
+                dest, simulatedITS, deployments.its.InterchainTokenService, sharedNonce, sharedBalance
+            )
+        );
 
         // itf (has storage)
         address simulatedITFImpl = address(instantiateITFImpl(deployments.its.InterchainTokenService));
-        assertFalse(yamlAppendGenesisAccount(dest, simulatedITFImpl, deployments.its.InterchainTokenFactoryImpl, sharedNonce, sharedBalance));
+        assertFalse(
+            yamlAppendGenesisAccount(
+                dest, simulatedITFImpl, deployments.its.InterchainTokenFactoryImpl, sharedNonce, sharedBalance
+            )
+        );
         address simulatedITF = address(instantiateITF(deployments.its.InterchainTokenFactoryImpl));
-        assertTrue(yamlAppendGenesisAccount(dest, simulatedITF, deployments.its.InterchainTokenFactory, sharedNonce, sharedBalance));
+        assertTrue(
+            yamlAppendGenesisAccount(
+                dest, simulatedITF, deployments.its.InterchainTokenFactory, sharedNonce, sharedBalance
+            )
+        );
 
         // rwtel (note: requires both storage and the total supply of TEL at genesis)
         address simulatedRWTEL = address(instantiateRWTEL(deployments.rwTELImpl));
         assertTrue(yamlAppendGenesisAccount(dest, simulatedRWTEL, deployments.rwTEL, sharedNonce, rwTELBalance));
 
+        // rwtel token manager
+        address simulatedRWTELTokenManager =
+            address(instantiateRWTELTokenManager(deployments.its.InterchainTokenService, customLinkedTokenId));
+        assertTrue(
+            yamlAppendGenesisAccount(
+                dest, simulatedRWTELTokenManager, deployments.rwTELTokenManager, sharedNonce, sharedBalance
+            )
+        );
         vm.stopBroadcast();
     }
 }

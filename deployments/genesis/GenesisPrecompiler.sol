@@ -97,16 +97,16 @@ abstract contract GenesisPrecompiler is Test {
         vm.writeLine(dest, string.concat(targetKey, ":"));
 
         // Write the genesisAccount entry with nonce, balance, and code
-        vm.writeLine(dest, "  genesisAccount:");
-        vm.writeLine(dest, string.concat("    nonce: ", LibString.toString(nonce)));
-        vm.writeLine(dest, string.concat("    balance: ", LibString.toString(balance)));
-        vm.writeLine(dest, string.concat("    code: ", LibString.toHexString(account.code)));
+        // vm.writeLine(dest, "  genesisAccount:"); //todo
+        vm.writeLine(dest, string.concat("  nonce: ", LibString.toString(nonce)));
+        vm.writeLine(dest, string.concat("  balance: ", LibString.toString(balance)));
+        vm.writeLine(dest, string.concat("  code: ", LibString.toHexString(account.code)));
 
         // Write the storage entries if relevant
         bytes32[] storage slots = writtenStorageSlots[simulatedDeployment];
         if (slots.length == 0) return false;
 
-        vm.writeLine(dest, "    storage:");
+        vm.writeLine(dest, "  storage:");
         for (uint256 i; i < slots.length; ++i) {
             bytes32 slot = slots[i];
             bytes32 slotValue = vm.load(simulatedDeployment, slot);
@@ -116,7 +116,7 @@ abstract contract GenesisPrecompiler is Test {
             // write to yaml
             string memory slotStr = LibString.toHexString(uint256(slot), 32);
             string memory valueStr = LibString.toHexString(uint256(slotValue), 32);
-            vm.writeLine(dest, string.concat("      ", slotStr, ": ", valueStr));
+            vm.writeLine(dest, string.concat('    "', slotStr, '": "', valueStr, '"'));
         }
 
         return true;

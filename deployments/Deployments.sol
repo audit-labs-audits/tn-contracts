@@ -29,7 +29,6 @@ struct Deployments {
 struct ITS {
     address AxelarAmplifierGateway;
     address AxelarAmplifierGatewayImpl;
-    address Create3Deployer;
     address GasService;
     address GasServiceImpl;
     address GatewayCaller;
