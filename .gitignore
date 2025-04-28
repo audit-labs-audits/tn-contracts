@@ -12,6 +12,7 @@ dist/
 
 # Ignore script outputs
 log
+**/.DS_Store
 
 # Ignore incremental build info
 tsconfig.tsbuildinfo
