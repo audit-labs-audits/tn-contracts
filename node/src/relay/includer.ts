@@ -14,15 +14,16 @@ import {
   TransactionRequest,
   TransactionSerializable,
   Chain,
+  Address,
 } from "viem";
-import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
+import { sepolia } from "viem/chains";
 import * as dotenv from "dotenv";
+import { processCLIArgs, targetConfig } from "./utils.js";
 dotenv.config();
 
 /// @dev Usage example for including GMP API tasks as transactions to the Axelar sepolia gateway:
 /// `npm run includer -- --source-chain telcoin-network --destination-chain sepolia --target-contract 0xe432150cce91c13a887f7D836923d5597adD8E31`
 
-// todo:
 // Amplifier GMP API config
 const CRT_PATH: string | undefined = process.env.CRT_PATH;
 const KEY_PATH: string | undefined = process.env.KEY_PATH;
@@ -45,11 +46,8 @@ const CERT = readFileSync(CRT_PATH);
 const KEY = readFileSync(KEY_PATH);
 const httpsAgent = new https.Agent({ cert: CERT, key: KEY });
 
-let rpcUrl: string;
 let walletClient;
-let destinationChain: Chain;
-let relayerAccount: `0x${string}` = RELAYER as `0x${string}`;
-let targetContract: string = "";
+let relayerAccount: Address = RELAYER as `0x${string}`;
 let latestTask: string = ""; // optional CLI arg
 let pollInterval = 12000; // optional CLI arg, default to mainnet block time
 
@@ -75,10 +73,14 @@ async function main() {
   processIncluderCLIArgs(args);
 
   console.log(
-    `Includer submitting transactions of tasks bound for ${destinationChain.name}`
+    `Includer submitting transactions of tasks bound for ${
+      targetConfig.chain!.name
+    }`
   );
   console.log(`Using relayer address: ${relayerAccount}`);
-  console.log(`Including approval transactions bound for ${targetContract}`);
+  console.log(
+    `Including approval transactions bound for ${targetConfig.contract}`
+  );
 
   // poll amplifier Task API for new tasks
   setInterval(async () => {
@@ -87,7 +89,7 @@ async function main() {
 
     for (const task of tasks) {
       const sourceChain = task.task.message.sourceChain;
-      await processTask(sourceChain, destinationChain, task);
+      await processTask(sourceChain, targetConfig.chain!, task);
     }
   }, pollInterval);
 }
@@ -126,7 +128,7 @@ async function processTask(
 
   walletClient = createWalletClient({
     account: relayerAccount,
-    transport: http(rpcUrl),
+    transport: http(targetConfig.rpcUrl),
     chain: destinationChain,
   }).extend(publicActions);
 
@@ -139,7 +141,7 @@ async function processTask(
 
     // fetch tx params (gas, nonce, etc)
     const txRequest = await walletClient.prepareTransactionRequest({
-      to: getAddress(targetContract),
+      to: getAddress(targetConfig.contract!),
       data: executeData,
     });
     // sign tx using encrypted keystore
@@ -274,35 +276,11 @@ async function signViaEncryptedKeystore(txRequest: TransactionRequest) {
 }
 
 function processIncluderCLIArgs(args: string[]) {
+  processCLIArgs(args);
+
   args.forEach((arg, index) => {
     const valueIndex = index + 1;
 
-    // parse destination chain and set rpc url for onchain settlement
-    if (arg === "--destination-chain" && args[valueIndex]) {
-      if (args[valueIndex] === "sepolia") {
-        destinationChain = sepolia;
-        const sepoliaRpcUrl = process.env.SEPOLIA_RPC_URL;
-        if (!sepoliaRpcUrl) throw new Error("Sepolia RPC URL not in .env");
-        rpcUrl = sepoliaRpcUrl;
-      } else if (args[valueIndex] === "ethereum") {
-        destinationChain = mainnet;
-        const mainnetRpcUrl = process.env.MAINNET_RPC_URL;
-        if (!mainnetRpcUrl) throw new Error("Mainnet RPC URL not in .env");
-        rpcUrl = mainnetRpcUrl;
-      } else if (args[valueIndex] === "telcoin-network") {
-        destinationChain = telcoinTestnet;
-        const tnRpcUrl = process.env.TN_RPC_URL;
-        if (!tnRpcUrl) throw new Error("Sepolia RPC URL not in .env");
-        rpcUrl = tnRpcUrl;
-      }
-    }
-
-    // parse target contract (can be an external gateway or AxelarGMPExecutable)
-    if (arg === "--target-contract" && args[valueIndex]) {
-      targetContract = args[valueIndex];
-    }
-
-    // optional flags
     if (arg === "--latest-task" && args[valueIndex]) {
       latestTask = args[valueIndex];
     }
@@ -310,10 +288,6 @@ function processIncluderCLIArgs(args: string[]) {
       pollInterval = parseInt(args[valueIndex], 10);
     }
   });
-
-  if (!destinationChain) {
-    throw new Error("Must set --destination-chain and --target-contract");
-  }
 }
 
 main();

@@ -9,13 +9,14 @@ import {
   Log,
   PublicClient,
 } from "viem";
-import { mainnet, sepolia, telcoinTestnet } from "viem/chains";
+import { sepolia } from "viem/chains";
 import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGateway.json" with { type: "json" };
 import * as dotenv from "dotenv";
+import { processCLIArgs, targetConfig } from "./utils.js";
 dotenv.config();
 
-/// @dev Usage example for subscribing to the RWTEL contract on TN:
-/// `npm run subscriber -- --target-chain telcoin-network --target-contract 0xca568d148d23a4ca9b77bef783dca0d2f5962c12`
+/// @dev Usage example for subscribing to a target AxelarAmplifierGateway:
+/// `npm run subscriber -- --target-chain telcoin-network --target-contract 0xF128c84c3326727c3e155168daAa4C0156B87AD1`
 
 // env config
 const CRT_PATH: string | undefined = process.env.CRT_PATH;
@@ -30,11 +31,7 @@ const CERT = readFileSync(CRT_PATH);
 const KEY = readFileSync(KEY_PATH);
 const httpsAgent = new https.Agent({ cert: CERT, key: KEY });
 
-let rpcUrl: string;
 let client: PublicClient;
-let targetChain: Chain;
-let targetContract: string;
-
 let lastCheckedBlock: bigint;
 
 interface ExtendedLog extends Log {
@@ -52,14 +49,14 @@ async function main() {
   console.log("Starting up subscriber...");
 
   const args = process.argv.slice(2);
-  processSubscriberCLIArgs(args);
+  processCLIArgs(args);
 
-  console.log(`Subscriber running for ${targetChain.name}`);
-  console.log(`Subscribed to ${targetContract}`);
+  console.log(`Subscriber running for ${targetConfig.chain!.name}`);
+  console.log(`Subscribed to ${targetConfig.contract}`);
 
   client = createPublicClient({
-    chain: targetChain,
-    transport: http(rpcUrl),
+    chain: targetConfig.chain,
+    transport: http(targetConfig.rpcUrl),
   });
 
   try {
@@ -67,7 +64,7 @@ async function main() {
     console.log("Current block (saved as `lastCheckedBlock`): ", currentBlock);
 
     const terminateSubscriber = client.watchContractEvent({
-      address: getAddress(targetContract),
+      address: getAddress(targetConfig.contract!),
       abi: axelarAmplifierGatewayArtifact.abi,
       eventName: "ContractCall",
       fromBlock: currentBlock,
@@ -89,8 +86,8 @@ async function main() {
 
 async function processLogs(logs: Log[]) {
   // handle axelar's custom nomenclature for sepolia
-  let sourceChain = targetChain.name.toLowerCase();
-  if (targetChain === sepolia) sourceChain = `eth-${sourceChain}`;
+  let sourceChain = targetConfig.chain!.name.toLowerCase();
+  if (targetConfig.chain === sepolia) sourceChain = `eth-${sourceChain}`;
 
   const events = [];
   for (const log of logs) {
@@ -143,41 +140,6 @@ async function processLogs(logs: Log[]) {
     console.log("Success: ", response.data);
   } catch (err) {
     console.error("GMP API error: ", err);
-  }
-}
-
-function processSubscriberCLIArgs(args: string[]) {
-  args.forEach((arg, index) => {
-    const valueIndex = index + 1;
-
-    // parse target chain for subscription
-    if (arg === "--target-chain" && args[valueIndex]) {
-      if (args[valueIndex] === "sepolia") {
-        targetChain = sepolia;
-        const sepoliaRpcUrl = process.env.SEPOLIA_RPC_URL;
-        if (!sepoliaRpcUrl) throw new Error("Sepolia RPC URL not in .env");
-        rpcUrl = sepoliaRpcUrl;
-      } else if (args[valueIndex] === "ethereum") {
-        targetChain = mainnet;
-        const mainnetRpcUrl = process.env.MAINNET_RPC_URL;
-        if (!mainnetRpcUrl) throw new Error("Mainnet RPC URL not in .env");
-        rpcUrl = mainnetRpcUrl;
-      } else if (args[valueIndex] === "telcoin-network") {
-        targetChain = telcoinTestnet;
-        const tnRpcUrl = process.env.TN_RPC_URL;
-        if (!tnRpcUrl) throw new Error("Sepolia RPC URL not in .env");
-        rpcUrl = tnRpcUrl;
-      }
-    }
-
-    // parse target contract to watch
-    if (arg === "--target-contract" && args[valueIndex]) {
-      targetContract = args[valueIndex];
-    }
-  });
-
-  if (!targetChain || !targetContract) {
-    throw new Error("Must set --target-chain and --target-contract");
   }
 }
 

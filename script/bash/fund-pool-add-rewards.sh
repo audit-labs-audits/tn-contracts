@@ -3,7 +3,7 @@
 set -e
 set -u
 
-CHAIN_NAME="telcoin-network"
+CHAIN_NAME="telcoin-devnet"
 CHAIN_ID="devnet-amplifier"
 
 # fallback addresses are for devnet-amplifier
