@@ -2,10 +2,10 @@ import { exec } from "child_process";
 import { GMPMessage } from "../utils.js";
 
 /**
- * @dev Can be used via CLI or within typescript runtime when imported by another typescript file
- * @dev CLI Usage example for verifying GMP messages on an Axelar internal gateway:
+ * @dev Can be used via CLI or within the TypeScript runtime when imported by another TypeScript file.
+ * @dev CLI Usage example for routing GMP messages on an Axelar internal gateway:
  *
- * `npm run verify -- \
+ * `npm run route -- \
  *    --source-chain <source_chain> --source-address <source_address> \
  *    --destination-chain <destination_chain> --destination-address <destination_address> \
  *    --payload-hash <payload_hash> --tx-hash <tx_hash> --log-index <log_index>`
@@ -13,12 +13,12 @@ import { GMPMessage } from "../utils.js";
 
 // when migrating beyond devnet these can be initialized via CLI flag
 let rpc: string = "http://devnet-amplifier.axelar.dev:26657";
-let axelarWallet: string = "axelard-test-wallet"; //todo
+let axelarWallet: string = "axelard-test-wallet"; //todo change to devnet
 let axelarChainId: string = "devnet-amplifier";
-let axelarInternalGateway: string =
-  "axelar1ecyaz6vr4hj6qwnza8vh0xuer04jmwxnd4vpewtuju3404hvwv7sdj30zz";
+let sourceChainGateway: string =
+  "axelar1r2s8ye304vtyhfgajljdjj6pcpeya7jwdn9tgw8wful83uy2stnqk4x7ya";
 
-export async function verify({
+export async function route({
   txHash,
   logIndex,
   sourceChain,
@@ -28,7 +28,7 @@ export async function verify({
   payloadHash,
 }: GMPMessage): Promise<void> {
   console.log(
-    `Instructing ${sourceChain}'s internal gateway to commence verification on its paired voting verifier`
+    `Instructing ${sourceChain}'s internal gateway to route verified GMP message to ${destinationChain}'s multisig prover`
   );
 
   // axelard payloadHash must not be 0x prefixed
@@ -37,9 +37,9 @@ export async function verify({
     : payloadHash;
 
   // construct and exec axelard binary cmd
-  const axelardCommand = `axelard tx wasm execute ${axelarInternalGateway} \
+  const axelardCommand = `axelard tx wasm execute ${sourceChainGateway} \
     '{
-        "verify_messages":
+        "route_messages":
           [
             {
               "cc_id":
@@ -74,8 +74,8 @@ export async function verify({
   });
 }
 
-// returns values for `verify()`; only used if invoked via command line
-function processVerifyCLIArgs(args: string[]) {
+// returns values for `route()`; only used if invoked via command line
+function processRouteCLIArgs(args: string[]) {
   let sourceChain: string | undefined;
   let sourceAddress: `0x${string}` | undefined;
   let destinationChain: string | undefined;
@@ -138,8 +138,9 @@ function processVerifyCLIArgs(args: string[]) {
 
 function main() {
   const args = process.argv.slice(2);
-  verify(processVerifyCLIArgs(args));
+  route(processRouteCLIArgs(args));
 }
+
 // supports CLI invocation by checking if being run directly
 if (require.main === module) {
   main();

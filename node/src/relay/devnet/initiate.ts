@@ -8,30 +8,33 @@ import {
   parseAbi,
 } from "viem";
 import * as dotenv from "dotenv";
-import { processCLIArgs, targetConfig } from "../utils.js";
+import {
+  GMPMessage,
+  processTargetCLIArgs,
+  targetConfig,
+  validateEnvVar,
+} from "../utils.js";
 import { privateKeyToAccount } from "viem/accounts";
+
 dotenv.config();
+const privateKey: Address = validateEnvVar("PK") as `0x${string}`;
 
 /**
  * @dev This function can be used via CLI or within the TypeScript runtime when imported by another TypeScript file.
- * Usage example for initiating GMP message flow on a target AxelarAmplifierGateway:
+ * CLI Usage example for initiating GMP message flow on a target AxelarAmplifierGateway:
  *
  * `npm run initiate -- \
  *    --target-chain <target_chain> --target-contract <target_contract>`
+ *    --amount <amount> --destination-chain <destination_chain>
+ *    --destination-address <destination-address> --payload <payload>
  */
 
-const privateKey: Address = process.env.PK as `0x${string}`;
-if (!privateKey) {
-  throw new Error("Private key not set in .env");
-}
-let walletClient: WalletClient;
-
-let amount: bigint = 0n;
-let destinationChain: `0x${string}`;
-let destinationContract: `0x${string}`;
-let payload: `0x${string}`;
-
-async function main() {
+async function initiate({
+  amount,
+  destinationChain,
+  destinationAddress,
+  payload,
+}: GMPMessage): Promise<void> {
   console.log("Initiating interchain GMP message");
 
   const args = process.argv.slice(2);
@@ -44,7 +47,7 @@ async function main() {
   );
 
   const account = privateKeyToAccount(privateKey!);
-  walletClient = createWalletClient({
+  const walletClient = createWalletClient({
     account,
     chain: targetConfig.chain,
     transport: http(targetConfig.rpcUrl),
@@ -57,7 +60,7 @@ async function main() {
     const calldata = encodeFunctionData({
       abi: callContract,
       functionName: "callContract",
-      args: [destinationChain, destinationContract, payload],
+      args: [destinationChain!, destinationAddress!, payload!],
     });
     const txHash = await walletClient.sendTransaction({
       account: account,
@@ -79,7 +82,12 @@ async function main() {
 }
 
 function processInitiateCLIArgs(args: string[]) {
-  processCLIArgs(args);
+  processTargetCLIArgs(args);
+
+  let amount: bigint = 0n;
+  let destinationChain: `0x${string}` | undefined;
+  let destinationAddress: `0x${string}` | undefined;
+  let payload: `0x${string}` | undefined;
 
   args.forEach((arg, index) => {
     const valueIndex = index + 1;
@@ -91,7 +99,7 @@ function processInitiateCLIArgs(args: string[]) {
         destinationChain = args[valueIndex] as `0x${string}`;
         break;
       case "--destination-contract":
-        destinationContract = args[valueIndex] as `0x${string}`;
+        destinationAddress = args[valueIndex] as `0x${string}`;
         break;
       case "--payload":
         payload = args[valueIndex] as `0x${string}`;
@@ -99,11 +107,20 @@ function processInitiateCLIArgs(args: string[]) {
     }
   });
 
-  if (!destinationChain || !destinationContract || !payload) {
+  if (!destinationChain || !destinationAddress || !payload) {
     throw new Error(
       "Must set --destination-chain, --destination-contract, and --payload"
     );
   }
+
+  return { amount, destinationChain, destinationAddress, payload };
 }
 
-main();
+function main() {
+  const args = process.argv.slice(2);
+  initiate(processInitiateCLIArgs(args));
+}
+
+if (require.main === module) {
+  main();
+}

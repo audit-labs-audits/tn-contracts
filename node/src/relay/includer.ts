@@ -18,7 +18,7 @@ import {
 } from "viem";
 import { sepolia } from "viem/chains";
 import * as dotenv from "dotenv";
-import { processCLIArgs, targetConfig } from "./utils.js";
+import { processTargetCLIArgs, targetConfig } from "./utils.js";
 dotenv.config();
 
 /// @dev Usage example for including GMP API tasks as transactions to the Axelar sepolia gateway:
@@ -276,7 +276,7 @@ async function signViaEncryptedKeystore(txRequest: TransactionRequest) {
 }
 
 function processIncluderCLIArgs(args: string[]) {
-  processCLIArgs(args);
+  processTargetCLIArgs(args);
 
   args.forEach((arg, index) => {
     const valueIndex = index + 1;

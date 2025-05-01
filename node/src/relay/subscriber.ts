@@ -12,7 +12,7 @@ import {
 import { sepolia } from "viem/chains";
 import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGateway.json" with { type: "json" };
 import * as dotenv from "dotenv";
-import { processCLIArgs, targetConfig } from "./utils.js";
+import { processTargetCLIArgs, targetConfig } from "./utils.js";
 dotenv.config();
 
 /// @dev Usage example for subscribing to a target AxelarAmplifierGateway:
@@ -49,7 +49,7 @@ async function main() {
   console.log("Starting up subscriber...");
 
   const args = process.argv.slice(2);
-  processCLIArgs(args);
+  processTargetCLIArgs(args);
 
   console.log(`Subscriber running for ${targetConfig.chain!.name}`);
   console.log(`Subscribed to ${targetConfig.contract}`);
