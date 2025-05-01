@@ -54,6 +54,7 @@ export interface GMPMessage {
   payloadHash?: `0x${string}`;
   amount?: bigint;
   payload?: `0x${string}`;
+  destinationChainMultisigProver?: string;
 }
 
 export function setRpcUrl(envVarName: string) {

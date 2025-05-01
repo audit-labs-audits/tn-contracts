@@ -3,7 +3,7 @@ import { GMPMessage } from "../utils.js";
 
 /**
  * @dev Can be used via CLI or within the TypeScript runtime when imported by another TypeScript file.
- * @dev CLI Usage example for routing GMP messages on an Axelar internal gateway:
+ * @dev CLI Usage example for routing GMP messages on an Axelar internal gateway to its multisig prover
  *
  * `npm run route -- \
  *    --source-chain <source_chain> --source-address <source_address> \
