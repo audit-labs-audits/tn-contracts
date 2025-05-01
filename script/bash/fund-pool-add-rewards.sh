@@ -3,21 +3,15 @@
 set -e
 set -u
 
-CHAIN_NAME="telcoin-devnet"
+# devnet-amplifier config
+CHAIN_NAME="telcoin"
 CHAIN_ID="devnet-amplifier"
-
-# fallback addresses are for devnet-amplifier
-FALLBACK_REWARDS_CONTRACT_ADDR="axelar1vaj9sfzc3z0gpel90wu4ljutncutv0wuhvvwfsh30rqxq422z89qnd989l"
-FALLBACK_VOTING_VERIFIER="axelar1elaymnd2epmfr498h2x9p2nezc4eklv95uv92u9csfs8wl75w7yqdc0h67"
-FALLBACK_MULTISIG_ADDR="0x7eeE33A59Db27d762AA1Fa31b26efeE0dABa1132"
-FALLBACK_RPC_URL="http://devnet-amplifier.axelar.dev:26657" 
-FALLBACK_AMOUNT="1000uamplifier" # (1000000 = 1 AXL) 
-
-# initialize variables to fallback
-REWARDS_CONTRACT_ADDR="$FALLBACK_REWARDS_CONTRACT_ADDR"
+REWARDS_CONTRACT_ADDR="axelar1vaj9sfzc3z0gpel90wu4ljutncutv0wuhvvwfsh30rqxq422z89qnd989l"
 VOTING_VERIFIER_OR_MULTISIG_CONTRACT_ADDR=""
-RPC="$FALLBACK_RPC_URL"
-AMOUNT="$FALLBACK_AMOUNT"
+RPC="http://devnet-amplifier.axelar.dev:26657" 
+AMOUNT="1000uamplifier" # (1000000 = 1 AXL)
+# telcoin-specific devnet config
+AXELAR_WALLET="devnet"
 
 VERIFIER_FLAG=false
 MULTISIG_FLAG=false
@@ -28,25 +22,23 @@ while [[ "$#" -gt 0 ]]; do
         # specify --verifier to fund a verifier pool
         --verifier)
             VERIFIER_FLAG=true
-            # if a value is passed to --verifier, use it; else use default devnet value
             if [[ -n "${2:-}" && ! "$2" =~ ^-- ]]; then
                 VOTING_VERIFIER_OR_MULTISIG_CONTRACT_ADDR="$2"
                 shift
             else
-                echo "No value specified for verifier address, using devnet default"
-                VOTING_VERIFIER_OR_MULTISIG_CONTRACT_ADDR="$FALLBACK_VOTING_VERIFIER"
+                echo "Error: provide a value to --verifier"
+                exit 1
             fi
             ;;
         # specify --multisig to fund a multisig pool
         --multisig) 
             MULTISIG_FLAG=true
-            # if a value is passed to --multisig, use it; else use default devnet value
             if [[ -n "${2:-}" && ! "$2" =~ ^-- ]]; then
                 VOTING_VERIFIER_OR_MULTISIG_CONTRACT_ADDR="$2"
                 shift
             else
-                echo "No value specified for multisig address, using devnet default"
-                VOTING_VERIFIER_OR_MULTISIG_CONTRACT_ADDR="$FALLBACK_MULTISIG_ADDR"
+                echo "Error: provide a value to --multisig"
+                exit 1
             fi
             ;;
         --rpc-url)
@@ -101,8 +93,8 @@ axelard tx wasm execute $REWARDS_CONTRACT_ADDR \
             }
     }' \
     --amount $AMOUNT \
-    --keyring-backend test \
+    --keyring-backend file \
     --chain-id $CHAIN_ID \
-    --from wallet \
+    --from $AXELAR_WALLET \
     --gas auto --gas-adjustment 1.5 --gas-prices 0.007uamplifier \
     --node $RPC

@@ -6,18 +6,18 @@ set -u
 # devnet-amplifier config
 PROVER_CODE_ID=855
 CHAIN_ID="devnet-amplifier"
+SERVICE_NAME="validators"
 RPC="http://devnet-amplifier.axelar.dev:26657" 
 GOVERNANCE_ADDR="axelar1zlr7e5qf3sz7yf890rkh9tcnu87234k6k7ytd9"
 MULTISIG_ADDR="axelar19jxy26z0qnnspa45y5nru0l5rmy9d637z5km2ndjxthfxf5qaswst9290r"
 COORDINATOR_ADDR="axelar1m2498n4h2tskcsmssjnzswl5e6eflmqnh487ds47yxyu6y5h4zuqr9zk4g"
 SERVICE_REGISTRY_ADDR="axelar1c9fkszt5lq34vvvlat3fxj6yv7ejtqapz04e97vtc9m5z9cwnamq8zjlhz"
 
-# initialize to default values before parsing CLI args
+# telcoin-specific devnet config
 WALLET_ADDR="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
-SERVICE_NAME="devnet-tn"
-CHAIN_NAME="telcoin-devnet"
-VOTING_VERIFIER_ADDR="axelar1kdzmvkjtvu8cct0gzzqdj8jyd6yvlcswauu73ccmvcl0w429xcxqdqst4p"
-INTERNAL_GATEWAY_ADDR="axelar1ecyaz6vr4hj6qwnza8vh0xuer04jmwxnd4vpewtuju3404hvwv7sdj30zz"
+CHAIN_NAME="telcoin"
+VOTING_VERIFIER_ADDR="axelar1cl433j3k3d4syj7wwxm8d9tlu5zqkxjrtjhpzzztk80qh8reftks9h0set"
+INTERNAL_GATEWAY_ADDR="axelar1r2s8ye304vtyhfgajljdjj6pcpeya7jwdn9tgw8wful83uy2stnqk4x7ya"
 
 # parse CLI args if given
 while [[ "$#" -gt 0 ]]; do
@@ -68,7 +68,7 @@ done
 
 # using cast, derive domain separator from `${chainName}_${myWalletAddress}_${proverCodeId}`
 input_string="${CHAIN_NAME}_${WALLET_ADDR}_${PROVER_CODE_ID}"
-# will be `0x15b72bb6e752ec66a5f922de454da5933a832df977c77f66e8b1859115ed6bac`
+# will be `0x6d4588172fd6e74880710f7559d18e79e26e75c17f7bbf1b2307bda750a46671`
 domain_separator=$(cast keccak "$input_string")
 domain_separator_unprefixed=${domain_separator#0x}
 
@@ -98,11 +98,11 @@ axelard tx wasm instantiate $PROVER_CODE_ID \
         "domain_separator": "'"$domain_separator_unprefixed"'"
     }' \
     --keyring-backend file \
-    --from devnet \
-    --gas auto --gas-adjustment 1.5 --gas-prices 0.00005uamplifier\
+    --from $AXELAR_WALLET \
+    --gas auto --gas-adjustment 1.5 --gas-prices 0.00005uamplifier \
     --chain-id $CHAIN_ID \
     --node $RPC \
-    --label test-prover-tn  \
+    --label test-prover  \
     --admin $WALLET_ADDR
 
-# Resulting multisig-prover address: axelar1e3fr74wrnjfazhqzhq6aehcf8y3gjut9kgac2ufndaqpz32lq5sskln40l
+# Resulting multisig-prover address: axelar16pqdlnmmrvw4egnlf4nqw8ytvpzqwdec7hfl262yspayjyaxcuys8q2r3l
