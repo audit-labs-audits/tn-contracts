@@ -60,6 +60,7 @@ function processConstructProofCLIArgs(args: string[]) {
   let sourceChain: string | undefined;
   let txHash: `0x${string}` | undefined;
   let logIndex: number | undefined;
+  let destinationChainMultisigProver: string | undefined;
 
   args.forEach((arg, index) => {
     const valueIndex = index + 1;
@@ -73,17 +74,28 @@ function processConstructProofCLIArgs(args: string[]) {
       case "--log-index":
         logIndex = parseInt(args[valueIndex], 10);
         break;
+      case "--destination-chain-multisig-prover":
+        destinationChainMultisigProver = args[valueIndex];
+        break;
     }
   });
 
-  if (!sourceChain || !txHash || logIndex === undefined) {
-    throw new Error("Must set --source-chain, --tx-hash, and --log-index");
+  if (
+    !sourceChain ||
+    !txHash ||
+    logIndex === undefined ||
+    !destinationChainMultisigProver
+  ) {
+    throw new Error(
+      "Must set --source-chain, --tx-hash, --log-indexm --destination-chain-multisig-prover"
+    );
   }
 
   return {
     txHash,
     logIndex,
     sourceChain,
+    destinationChainMultisigProver,
   };
 }
 

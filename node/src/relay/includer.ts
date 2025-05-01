@@ -56,7 +56,6 @@ async function main() {
 
   getGMPEnv();
   getKeystoreAccount();
-
   httpsAgent = createHttpsAgent(gmpEnv.crtPath!, gmpEnv.keyPath!);
 
   console.log(

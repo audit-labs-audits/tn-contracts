@@ -67,6 +67,7 @@ export interface GMPMessage {
   amount?: bigint;
   payload?: `0x${string}`;
   destinationChainMultisigProver?: string;
+  multisigSessionId?: string;
 }
 
 export interface GMPEnv {
