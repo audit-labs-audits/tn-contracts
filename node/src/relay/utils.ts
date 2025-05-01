@@ -1,6 +1,8 @@
 import { Address, getAddress } from "viem";
 import { mainnet, sepolia, telcoinTestnet, Chain } from "viem/chains";
 
+/// Utils suited for single-chain components
+
 export interface TargetConfig {
   chain?: Chain;
   contract?: Address;

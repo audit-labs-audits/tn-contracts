@@ -1,24 +1,24 @@
 import {
   createWalletClient,
-  getAddress,
   http,
-  Chain,
-  PublicClient,
   WalletClient,
   Address,
   publicActions,
-  getAbiItem,
   encodeFunctionData,
   parseAbi,
 } from "viem";
 import * as dotenv from "dotenv";
 import { processCLIArgs, targetConfig } from "../utils.js";
 import { privateKeyToAccount } from "viem/accounts";
-
 dotenv.config();
 
-/// @dev Usage example for initiating GMP msgs on a target AxelarAmplifierGateway:
-/// `npm run initiate -- --target-chain sepolia --target-contract 0xF128c84c3326727c3e155168daAa4C0156B87AD1`
+/**
+ * @dev This function can be used via CLI or within the TypeScript runtime when imported by another TypeScript file.
+ * Usage example for initiating GMP message flow on a target AxelarAmplifierGateway:
+ *
+ * `npm run initiate -- \
+ *    --target-chain <target_chain> --target-contract <target_contract>`
+ */
 
 const privateKey: Address = process.env.PK as `0x${string}`;
 if (!privateKey) {
@@ -37,8 +37,11 @@ async function main() {
   const args = process.argv.slice(2);
   processInitiateCLIArgs(args);
 
-  console.log(`Initiating transaction on ${targetConfig.chain!.name}`);
-  console.log(`Target contract: ${targetConfig.contract}`);
+  console.log(
+    `Sending GMP message from ${
+      targetConfig.chain!.name
+    } to ${destinationChain}`
+  );
 
   const account = privateKeyToAccount(privateKey!);
   walletClient = createWalletClient({
@@ -78,34 +81,29 @@ async function main() {
 function processInitiateCLIArgs(args: string[]) {
   processCLIArgs(args);
 
-  let destChainSet = false;
-  let destContractSet = false;
-  let payloadSet = false;
   args.forEach((arg, index) => {
     const valueIndex = index + 1;
-
-    if (arg == "--amount" && args[valueIndex]) {
-      amount = BigInt(args[valueIndex]);
-    }
-    if (arg == "--destination-chain" && args[valueIndex]) {
-      destinationChain = args[valueIndex] as `0x${string}`;
-      destChainSet = true;
-    }
-    if (arg == "--destination-contract" && args[valueIndex]) {
-      destinationContract = args[valueIndex] as `0x${string}`;
-      destContractSet = true;
-    }
-    if (arg == "--payload" && args[valueIndex]) {
-      payload = args[valueIndex] as `0x${string}`;
-      payloadSet = true;
-    }
-
-    if (!destChainSet || !destContractSet || !payloadSet) {
-      throw new Error(
-        "Must set --destination-chain, --destination-contract, and --payload"
-      );
+    switch (arg) {
+      case "--amount":
+        amount = BigInt(args[valueIndex]);
+        break;
+      case "--destination-chain":
+        destinationChain = args[valueIndex] as `0x${string}`;
+        break;
+      case "--destination-contract":
+        destinationContract = args[valueIndex] as `0x${string}`;
+        break;
+      case "--payload":
+        payload = args[valueIndex] as `0x${string}`;
+        break;
     }
   });
+
+  if (!destinationChain || !destinationContract || !payload) {
+    throw new Error(
+      "Must set --destination-chain, --destination-contract, and --payload"
+    );
+  }
 }
 
 main();
