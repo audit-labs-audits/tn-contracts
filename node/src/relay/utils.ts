@@ -1,5 +1,16 @@
-import { Address, getAddress } from "viem";
+import { execSync } from "child_process";
+import { readFileSync } from "fs";
+import {
+  Address,
+  getAddress,
+  keccak256,
+  parseSignature,
+  serializeTransaction,
+  TransactionRequest,
+  TransactionSerializable,
+} from "viem";
 import { mainnet, sepolia, telcoinTestnet, Chain } from "viem/chains";
+import * as https from "https";
 
 /// Utils suited for single-chain components
 export interface TargetConfig {
@@ -43,7 +54,8 @@ export function processTargetCLIArgs(args: string[]) {
   }
 }
 
-/// utils suited for general GMP
+/// GMP utils
+
 export interface GMPMessage {
   txHash?: `0x${string}`;
   logIndex?: number;
@@ -55,6 +67,99 @@ export interface GMPMessage {
   amount?: bigint;
   payload?: `0x${string}`;
   destinationChainMultisigProver?: string;
+}
+
+export interface GMPEnv {
+  crtPath?: string;
+  keyPath?: string;
+  gmpApiUrl?: string;
+}
+export const gmpEnv: GMPEnv = {};
+
+export function getGMPEnv() {
+  const crtPath = process.env.CRT_PATH;
+  const keyPath = process.env.KEY_PATH;
+  const gmpApiUrl = process.env.GMP_API_URL;
+
+  if (!crtPath || !keyPath || !gmpApiUrl) {
+    throw new Error("Set all required ENV vars in .env");
+  }
+
+  gmpEnv.crtPath = crtPath;
+  gmpEnv.keyPath = keyPath;
+  gmpEnv.gmpApiUrl = gmpApiUrl;
+}
+
+export function createHttpsAgent(
+  crtPath: string,
+  keyPath: string
+): https.Agent {
+  const cert = readFileSync(crtPath);
+  const key = readFileSync(keyPath);
+  return new https.Agent({ cert, key });
+}
+
+/// TX utils
+export interface KeystoreAccount {
+  account?: Address;
+  ksPath?: string;
+  ksPw?: string;
+}
+export const keystoreAccount: KeystoreAccount = {};
+
+export function getKeystoreAccount() {
+  const accountStr = process.env.RELAYER;
+  const account = accountStr ? getAddress(accountStr) : undefined;
+  const ksPath = process.env.KEYSTORE_PATH;
+  const ksPw = process.env.KS_PW;
+
+  if (!ksPath || !ksPw || !account) {
+    throw new Error("Set all required ENV vars in .env");
+  }
+
+  keystoreAccount.account = account;
+  keystoreAccount.ksPath = ksPath;
+  keystoreAccount.ksPw = ksPw;
+}
+
+/// @dev Viem does not support signing via encrypted keystore so
+/// a context switch dipping into Foundry is required
+export async function signViaEncryptedKeystore(
+  txRequest: TransactionRequest,
+  ksPath: string,
+  ksPw: string
+) {
+  // convert tx to serializable format
+  const txSerializable: TransactionSerializable = {
+    chainId: 2017,
+    gas: txRequest.gas,
+    maxFeePerGas: txRequest.maxFeePerGas,
+    maxPriorityFeePerGas: txRequest.maxPriorityFeePerGas,
+    nonce: txRequest.nonce,
+    to: txRequest.to,
+    data: txRequest.data,
+  };
+  const serializedTx = serializeTransaction(txSerializable);
+
+  // pre-derive tx hash to be securely signed before submission
+  const txHash = keccak256(serializedTx);
+  const command = `cast wallet sign ${txHash} --keystore ${ksPath} --password ${ksPw} --no-hash`;
+  try {
+    const stdout = execSync(command, { encoding: "utf8" });
+    console.log(`stdout: ${stdout}`);
+
+    const signature = stdout.trim() as `0x${string}`;
+    // attach signature and re-serialize tx
+    const parsedSignature = parseSignature(signature);
+    txSerializable.r = parsedSignature.r;
+    txSerializable.s = parsedSignature.s;
+    txSerializable.v = parsedSignature.v;
+
+    return txSerializable;
+  } catch (err) {
+    console.error(`Error signing tx: ${err}`);
+    throw err;
+  }
 }
 
 export function setRpcUrl(envVarName: string) {

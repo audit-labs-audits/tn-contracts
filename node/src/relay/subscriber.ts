@@ -1,8 +1,6 @@
-import { readFileSync } from "fs";
 import * as https from "https";
 import axios from "axios";
 import {
-  Chain,
   createPublicClient,
   getAddress,
   http,
@@ -12,26 +10,15 @@ import {
 import { sepolia } from "viem/chains";
 import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGateway.json" with { type: "json" };
 import * as dotenv from "dotenv";
-import { processTargetCLIArgs, targetConfig } from "./utils.js";
+import { createHttpsAgent, getGMPEnv, getKeystoreAccount, gmpEnv, processTargetCLIArgs, targetConfig } from "./utils.js";
 dotenv.config();
 
 /// @dev Usage example for subscribing to a target AxelarAmplifierGateway:
 /// `npm run subscriber -- --target-chain telcoin-network --target-contract 0xF128c84c3326727c3e155168daAa4C0156B87AD1`
 
-// env config
-const CRT_PATH: string | undefined = process.env.CRT_PATH;
-const KEY_PATH: string | undefined = process.env.KEY_PATH;
-const GMP_API_URL: string | undefined = process.env.GMP_API_URL;
-
-if (!CRT_PATH || !KEY_PATH || !GMP_API_URL) {
-  throw new Error("Set all required ENV vars in .env");
-}
-
-const CERT = readFileSync(CRT_PATH);
-const KEY = readFileSync(KEY_PATH);
-const httpsAgent = new https.Agent({ cert: CERT, key: KEY });
-
 let client: PublicClient;
+let httpsAgent: https.Agent;
+
 let lastCheckedBlock: bigint;
 
 interface ExtendedLog extends Log {
@@ -51,6 +38,10 @@ async function main() {
   const args = process.argv.slice(2);
   processTargetCLIArgs(args);
 
+  getGMPEnv();
+  getKeystoreAccount();
+  httpsAgent = createHttpsAgent(gmpEnv.crtPath!, gmpEnv.keyPath!);
+  
   console.log(`Subscriber running for ${targetConfig.chain!.name}`);
   console.log(`Subscribed to ${targetConfig.contract}`);
 
@@ -127,7 +118,7 @@ async function processLogs(logs: Log[]) {
 
     // make post request
     const response = await axios.post(
-      `${GMP_API_URL}/chains/${sourceChain}/events`,
+      `${gmpEnv.gmpApiUrl}/chains/${sourceChain}/events`,
       request,
       {
         headers: {
