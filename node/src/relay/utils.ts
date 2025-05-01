@@ -2,9 +2,12 @@ import { execSync } from "child_process";
 import { readFileSync } from "fs";
 import {
   Address,
+  createWalletClient,
   getAddress,
+  http,
   keccak256,
   parseSignature,
+  publicActions,
   serializeTransaction,
   TransactionRequest,
   TransactionSerializable,
@@ -132,7 +135,7 @@ export async function signViaEncryptedKeystore(
 ) {
   // convert tx to serializable format
   const txSerializable: TransactionSerializable = {
-    chainId: 2017,
+    chainId: 2017, //todo
     gas: txRequest.gas,
     maxFeePerGas: txRequest.maxFeePerGas,
     maxPriorityFeePerGas: txRequest.maxPriorityFeePerGas,
@@ -160,6 +163,52 @@ export async function signViaEncryptedKeystore(
   } catch (err) {
     console.error(`Error signing tx: ${err}`);
     throw err;
+  }
+}
+
+export async function transactViaEncryptedKeystore(
+  chain: Chain,
+  rpcUrl: string,
+  from: Address,
+  to: Address,
+  value: bigint,
+  data: `0x${string}`,
+  ksPath: string,
+  ksPw: string
+): Promise<void> {
+  console.log("Submitting gateway approval as EVM transaction with proof data");
+
+  // fetch tx params (gas, nonce, etc)
+  const walletClient = createWalletClient({
+    account: from,
+    transport: http(rpcUrl),
+    chain: chain,
+  }).extend(publicActions);
+  try {
+    const txRequest = await walletClient.prepareTransactionRequest({
+      to: to,
+      data: data,
+      value: value,
+    });
+    // sign tx using encrypted keystore
+    const txSerializable = await signViaEncryptedKeystore(
+      txRequest,
+      ksPath!,
+      ksPw!
+    );
+
+    // send raw signed tx
+    const rawTx = serializeTransaction(txSerializable);
+    const txHash = await walletClient.sendRawTransaction({
+      serializedTransaction: rawTx,
+    });
+
+    const receipt = await walletClient.waitForTransactionReceipt({
+      hash: txHash,
+    });
+    console.log("Transaction receipt: ", receipt);
+  } catch (err) {
+    console.error("Error sending transaction: ", err);
   }
 }
 

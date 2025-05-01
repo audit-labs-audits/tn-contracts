@@ -110,8 +110,6 @@ async function processTask(
   destinationChain: Chain,
   taskItem: TaskItem
 ) {
-  // todo: check whether new tasks are already executed (ie by another includer)
-
   walletClient = createWalletClient({
     account: keystoreAccount.account,
     transport: http(targetConfig.rpcUrl),
@@ -143,7 +141,6 @@ async function processTask(
       serializedTransaction: rawTx,
     });
   } else if (taskItem.type == "EXECUTE") {
-    // must == RWTEL
     const destinationAddress = taskItem.task.message.destinationAddress;
     const payload: `0x${string}` = `0x${
       (Buffer.from(taskItem.task.payload), "base64")
@@ -249,9 +246,3 @@ function processIncluderCLIArgs(args: string[]) {
 }
 
 main();
-
-/* todo:
-    - check whether new tasks are already executed (ie by another includer)
-    - use aggregation via Multicall3
-    - monitor transaction & adjust gas params if necessary
-*/
