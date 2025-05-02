@@ -5,6 +5,7 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+import { ReentrancyGuard } from "solady/utils/ReentrancyGuard.sol";
 import { StakeInfo, Slash, IStakeManager } from "./interfaces/IStakeManager.sol";
 import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
@@ -23,6 +24,7 @@ contract ConsensusRegistry is
     UUPSUpgradeable,
     PausableUpgradeable,
     OwnableUpgradeable,
+    ReentrancyGuard,
     SystemCallable,
     IConsensusRegistry
 {
@@ -100,7 +102,6 @@ contract ConsensusRegistry is
     /// @inheritdoc IConsensusRegistry
     function getCurrentEpoch() public view returns (uint32) {
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
-
         return $.currentEpoch;
     }
 
@@ -135,7 +136,7 @@ contract ConsensusRegistry is
 
     /// @inheritdoc IConsensusRegistry
     function getValidatorTokenId(address validatorAddress) public view returns (uint256) {
-        return _checkKnownValidator(_stakeManagerStorage(), validatorAddress);
+        return _checkConsensusNFTOwner(_stakeManagerStorage(), validatorAddress);
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -155,24 +156,14 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc StakeManager
-    function delegationDigest(
-        bytes memory blsPubkey,
-        address validatorAddress,
-        address delegator
-    )
-        external
-        view
-        override
-        returns (bytes32)
-    {
-        StakeManagerStorage storage $S = _stakeManagerStorage();
-        uint24 tokenId = _checkKnownValidator($S, validatorAddress);
-        uint64 nonce = $S.delegations[validatorAddress].nonce;
-        bytes32 blsPubkeyHash = keccak256(blsPubkey);
-        bytes32 structHash =
-            keccak256(abi.encode(DELEGATION_TYPEHASH, blsPubkeyHash, delegator, tokenId, $S.stakeVersion, nonce));
+    function getRewards(address validatorAddress) public view virtual returns (uint256) {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        uint24 tokenId = _checkConsensusNFTOwner($, validatorAddress);
 
-        return _hashTypedData(structHash);
+        uint8 stakeVersion = _consensusRegistryStorage().validators[tokenId].stakeVersion;
+        uint256 initialStake = $.versions[stakeVersion].stakeAmount;
+
+        return _getRewards($, validatorAddress, initialStake);
     }
 
     /**
@@ -188,7 +179,7 @@ contract ConsensusRegistry is
         // require caller is known & whitelisted, having been issued a ConsensusNFT by governance
         StakeManagerStorage storage $S = _stakeManagerStorage();
         _checkStakeValue(msg.value, $S.stakeVersion);
-        uint24 tokenId = _checkKnownValidator($S, msg.sender);
+        uint24 tokenId = _checkConsensusNFTOwner($S, msg.sender);
         // require validator has not yet staked
         _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Undefined);
 
@@ -213,7 +204,7 @@ contract ConsensusRegistry is
         StakeManagerStorage storage $S = _stakeManagerStorage();
         uint8 validatorVersion = $S.stakeVersion;
         _checkStakeValue(msg.value, validatorVersion);
-        uint24 tokenId = _checkKnownValidator($S, validatorAddress);
+        uint24 tokenId = _checkConsensusNFTOwner($S, validatorAddress);
 
         // require validator status is `Undefined`
         _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Undefined);
@@ -237,7 +228,7 @@ contract ConsensusRegistry is
     /// @inheritdoc IConsensusRegistry
     function activate() external override whenNotPaused {
         // require caller is whitelisted, having been issued a ConsensusNFT by governance
-        uint24 tokenId = _checkKnownValidator(_stakeManagerStorage(), msg.sender);
+        uint24 tokenId = _checkConsensusNFTOwner(_stakeManagerStorage(), msg.sender);
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
         // require caller status is `Staked`
@@ -253,7 +244,7 @@ contract ConsensusRegistry is
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
         // require validator is whitelisted, having been issued a ConsensusNFT by governance
-        uint24 tokenId = _checkKnownValidator($, validatorAddress);
+        uint24 tokenId = _checkConsensusNFTOwner($, validatorAddress);
         uint8 validatorVersion = _consensusRegistryStorage().validators[tokenId].stakeVersion;
 
         // require caller is either the validator or its delegator
@@ -267,7 +258,7 @@ contract ConsensusRegistry is
     /// @inheritdoc IConsensusRegistry
     function beginExit() external whenNotPaused {
         // require caller is whitelisted, having been issued a ConsensusNFT by governance
-        uint24 tokenId = _checkKnownValidator(_stakeManagerStorage(), msg.sender);
+        uint24 tokenId = _checkConsensusNFTOwner(_stakeManagerStorage(), msg.sender);
 
         // disallow filling up the exit queue
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
@@ -291,7 +282,7 @@ contract ConsensusRegistry is
     function unstake(address validatorAddress) external override whenNotPaused nonReentrant {
         StakeManagerStorage storage $S = _stakeManagerStorage();
         // require validator is whitelisted, having been issued a ConsensusNFT by governance
-        uint24 tokenId = _checkKnownValidator($S, validatorAddress);
+        uint24 tokenId = _checkConsensusNFTOwner($S, validatorAddress);
 
         // require caller is either the validator or its delegator
         address recipient = validatorAddress;
@@ -340,7 +331,7 @@ contract ConsensusRegistry is
     function burn(address validatorAddress) external override onlyOwner {
         StakeManagerStorage storage $S = _stakeManagerStorage();
         // require validatorAddress is whitelisted, having been issued a ConsensusNFT by governance
-        uint24 tokenId = _checkKnownValidator($S, validatorAddress);
+        uint24 tokenId = _checkConsensusNFTOwner($S, validatorAddress);
 
         _consensusBurn($S, _consensusRegistryStorage(), tokenId, validatorAddress);
     }
@@ -555,18 +546,15 @@ contract ConsensusRegistry is
     /// @notice Slashing is not live but scaffolding for it is included here.
     function _applySlashes(StakeManagerStorage storage $S, Slash[] calldata slashes) internal {
         for (uint256 i; i < slashes.length; ++i) {
-            StakeInfo calldata slash = slashes[i];
-            ValidatorInfo memory validator = getValidatorByTokenId(slash.tokenId);
+            Slash calldata slash = slashes[i];
+            uint24 tokenId = _checkConsensusNFTOwner($S, slash.validatorAddress);
 
-            uint24 tokenId = _checkKnownValidator($S, validator.validatorAddress);
-            if (tokenId != slash.tokenId) revert InvalidTokenId(slash.tokenId);
-
-            StakeInfo storage info = $S.stakeInfo[validator.validatorAddress];
+            StakeInfo storage info = $S.stakeInfo[slash.validatorAddress];
             if (info.balance >= slash.amount) {
                 info.balance -= slash.amount;
             } else {
-                // eject validators whose balance reaches 0
-                _consensusBurn($S, _consensusRegistryStorage(), tokenId, validator.validatorAddress);
+                // eject validators whose balance would reach 0
+                _consensusBurn($S, _consensusRegistryStorage(), tokenId, slash.validatorAddress);
             }
         }
     }
@@ -659,48 +647,6 @@ contract ConsensusRegistry is
         if (activeOrPending == 0 || committeeSize > activeOrPending) {
             revert InvalidCommitteeSize(activeOrPending, committeeSize);
         }
-    }
-
-    /// @dev Identifies the validator's rewards recipient, ie the stake originator
-    /// @return _ Returns the validator's delegator if one exists, else the validator itself
-    function _getRecipient(StakeManagerStorage storage $S, address validatorAddress) internal view returns (address) {
-        Delegation storage delegation = $S.delegations[validatorAddress];
-        address recipient = delegation.delegator;
-        if (recipient == address(0x0)) recipient = validatorAddress;
-
-        return recipient;
-    }
-
-    /// @dev Reverts if provided claimant isn't the existing delegation entry keyed under `validatorAddress`
-    function _checkKnownDelegation(
-        StakeManagerStorage storage $,
-        address validatorAddress,
-        address claimant
-    )
-        internal
-        view
-        returns (address)
-    {
-        address delegator = $.delegations[validatorAddress].delegator;
-        if (claimant != delegator) revert NotDelegator(claimant);
-
-        return delegator;
-    }
-
-    /// @dev Reverts if the provided address doesn't correspond to an existing `tokenId` owned by `validatorAddress`
-    function _checkKnownValidator(
-        StakeManagerStorage storage $,
-        address validatorAddress
-    )
-        private
-        view
-        returns (uint24)
-    {
-        uint24 tokenId = _getTokenId($, validatorAddress);
-        if (!_exists(tokenId)) revert InvalidTokenId(tokenId);
-        if (ownerOf(tokenId) != validatorAddress) revert NotValidator(validatorAddress);
-
-        return tokenId;
     }
 
     /// @dev Reverts if the provided validator's status doesn't match the provided `requiredStatus`

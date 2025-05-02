@@ -49,24 +49,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     function unstake(address validatorAddress) external virtual;
 
     /// @inheritdoc IStakeManager
-    function delegationDigest(
-        bytes memory blsPubkey,
-        address validatorAddress,
-        address delegator
-    )
-        external
-        view
-        virtual
-        override
-        returns (bytes32);
-
-    /// @inheritdoc IStakeManager
-    function getRewards(address validatorAddress, uint8 validatorVersion) public view virtual returns (uint240) {
-        StakeManagerStorage storage $ = _stakeManagerStorage();
-        uint256 initialStake = $.versions[validatorVersion].stakeAmount;
-
-        return _getRewards($, validatorAddress, initialStake);
-    }
+    function getRewards(address validatorAddress) public view virtual returns (uint232);
 
     /// @inheritdoc IStakeManager
     function stakeInfo(address validatorAddress) public view virtual returns (StakeInfo memory) {
@@ -92,6 +75,27 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     /// @inheritdoc IStakeManager
     function upgradeStakeVersion(StakeConfig calldata config) external virtual returns (uint8);
 
+    /// @inheritdoc IStakeManager
+    function delegationDigest(
+        bytes memory blsPubkey,
+        address validatorAddress,
+        address delegator
+    )
+        external
+        view
+        override
+        returns (bytes32)
+    {
+        StakeManagerStorage storage $S = _stakeManagerStorage();
+        uint24 tokenId = _checkConsensusNFTOwner($S, validatorAddress);
+        uint64 nonce = $S.delegations[validatorAddress].nonce;
+        bytes32 blsPubkeyHash = keccak256(blsPubkey);
+        bytes32 structHash =
+            keccak256(abi.encode(DELEGATION_TYPEHASH, blsPubkeyHash, delegator, tokenId, $S.stakeVersion, nonce));
+
+        return _hashTypedData(structHash);
+    }
+
     /**
      *
      *   ERC721
@@ -113,7 +117,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     /// @dev Intended for sparing use; only reverts if burning results in empty committee
     function burn(address from) external virtual;
 
-    /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
+    /// @notice Consensus NFTs are soulbound to validators and cannot be transferred unless burned
     function transferFrom(
         address,
         /* from */
@@ -147,7 +151,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     )
         internal
         virtual
-        returns (uint256 rewards)
+        returns (uint232 rewards)
     {
         // check rewards are claimable and send via the `RWTEL` module
         rewards = _checkRewards($, validatorAddress, validatorVersion);
@@ -191,10 +195,10 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     )
         internal
         virtual
-        returns (uint256 rewards)
+        returns (uint232 rewards)
     {
-        uint256 initialStake = $.versions[validatorVersion].stakeAmount;
-        rewards = _getRewards(validatorAddress, initialStake);
+        uint232 initialStake = $.versions[validatorVersion].stakeAmount;
+        rewards = _getRewards($, validatorAddress, initialStake);
 
         if (rewards == 0 || rewards < $.versions[validatorVersion].minWithdrawAmount) {
             revert InsufficientRewards(rewards);
@@ -208,17 +212,59 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     function _getRewards(
         StakeManagerStorage storage $,
         address validatorAddress,
-        uint256 initialStake
+        uint232 initialStake
     )
         internal
         view
         virtual
-        returns (uint240)
+        returns (uint232)
     {
-        uint256 balance = $.stakeInfo[validatorAddress].balance;
-        uint240 rewards = balance > initialStake ? balance - initialStake : 0;
+        uint232 balance = $.stakeInfo[validatorAddress].balance;
+        uint232 rewards = balance > initialStake ? balance - initialStake : 0;
 
         return rewards;
+    }
+
+    /// @dev Identifies the validator's rewards recipient, ie the stake originator
+    /// @return _ Returns the validator's delegator if one exists, else the validator itself
+    function _getRecipient(StakeManagerStorage storage $S, address validatorAddress) internal view returns (address) {
+        Delegation storage delegation = $S.delegations[validatorAddress];
+        address recipient = delegation.delegator;
+        if (recipient == address(0x0)) recipient = validatorAddress;
+
+        return recipient;
+    }
+
+    /// @dev Reverts if provided claimant isn't the existing delegation entry keyed under `validatorAddress`
+    function _checkKnownDelegation(
+        StakeManagerStorage storage $,
+        address validatorAddress,
+        address claimant
+    )
+        internal
+        view
+        returns (address)
+    {
+        address delegator = $.delegations[validatorAddress].delegator;
+        if (claimant != delegator) revert NotDelegator(claimant);
+
+        return delegator;
+    }
+
+    /// @dev Reverts if the provided address doesn't correspond to an existing `tokenId` owned by `validatorAddress`
+    function _checkConsensusNFTOwner(
+        StakeManagerStorage storage $,
+        address validatorAddress
+    )
+        internal
+        view
+        returns (uint24)
+    {
+        uint24 tokenId = _getTokenId($, validatorAddress);
+        if (!_exists(tokenId)) revert InvalidTokenId(tokenId);
+        if (ownerOf(tokenId) != validatorAddress) revert RequiresConsensusNFT();
+
+        return tokenId;
     }
 
     function _getTokenId(StakeManagerStorage storage $, address validatorAddress) internal view returns (uint24) {

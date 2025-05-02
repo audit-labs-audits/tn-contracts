@@ -42,8 +42,8 @@ contract RWTEL is
 {
     using RecordsDequeLib for RecordsDeque;
 
-    /// @dev consensusRegistry system precompile assigned by protocol to a constant address
-    address public constant consensusRegistry = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
+    /// @dev ConsensusRegistry system precompile assigned by protocol to a constant address
+    address public constant stakeManager = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
 
     /// @dev The precompiled Axelar ITS TokenManager contract address for this token
     address public immutable tokenManager;
@@ -73,8 +73,8 @@ contract RWTEL is
         _;
     }
 
-    modifier onlyConsensusRegistry() {
-        if (msg.sender != consensusRegistry) revert OnlyManager(consensusRegistry);
+    modifier onlyStakeManager() {
+        if (msg.sender != stakeManager) revert OnlyManager(stakeManager);
         _;
     }
 
@@ -112,7 +112,7 @@ contract RWTEL is
      */
 
     /// @inheritdoc IRWTEL
-    function distributeStakeReward(address validator, uint256 rewardAmount) external payable virtual onlyConsensusRegistry {
+    function distributeStakeReward(address validator, uint256 rewardAmount) external payable virtual onlyStakeManager {
         uint256 totalAmount = rewardAmount + msg.value;
         (bool res,) = validator.call{ value: totalAmount }("");
         if (!res) revert RewardDistributionFailure(validator);

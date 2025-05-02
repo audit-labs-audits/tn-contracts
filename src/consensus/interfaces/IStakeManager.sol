@@ -21,8 +21,8 @@ struct StakeInfo {
 /// @notice Slash information for system calls to decrement outstanding validator balances
 /// @notice Not yet enabled
 struct Slash {
-    address validator;
-    uint256 amount;
+    address validatorAddress;
+    uint232 amount;
 }
 
 interface IStakeManager {
@@ -39,9 +39,9 @@ interface IStakeManager {
     /// @notice New StakeConfig versions take effect in the next epoch
     /// ie they are set for each epoch at its start
     struct StakeConfig {
-        uint256 stakeAmount;
-        uint256 minWithdrawAmount;
-        uint256 epochIssuance;
+        uint232 stakeAmount;
+        uint232 minWithdrawAmount;
+        uint232 epochIssuance;
         uint32 epochDuration;
     }
 
@@ -99,7 +99,7 @@ interface IStakeManager {
 
     /// @dev Fetches the claimable rewards accrued for a given validator address
     /// @return _ The validator's claimable rewards, not including the validator's stake
-    function getRewards(address validatorAddress) external view returns (uint240);
+    function getRewards(address validatorAddress) external view returns (uint232);
 
     /// @dev Returns staking information for the given address
     function stakeInfo(address validatorAddress) external view returns (StakeInfo memory);
