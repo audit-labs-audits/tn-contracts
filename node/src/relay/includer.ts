@@ -63,7 +63,7 @@ interface TaskItem {
       messageID: string;
       sourceChain: string;
       sourceAddress: `0x${string}`;
-      destinationAddress: `0x${string}`; // RWTEL module
+      destinationAddress: `0x${string}`; // InterchainTEL module
     };
     payload: string;
   };
@@ -151,7 +151,7 @@ async function processTask(
       serializedTransaction: rawTx,
     });
   } else if (taskItem.type == "EXECUTE") {
-    // must == RWTEL
+    // must == InterchainTEL
     const destinationAddress = taskItem.task.message.destinationAddress;
     const payload: `0x${string}` = `0x${
       (Buffer.from(taskItem.task.payload), "base64")

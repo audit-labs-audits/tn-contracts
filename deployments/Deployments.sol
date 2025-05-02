@@ -29,6 +29,9 @@ struct ITS {
     address GasService;
     address GasServiceImpl;
     address GatewayCaller;
+    address InterchainTEL;
+    address InterchainTELImpl;
+    address InterchainTELTokenManager;
     address InterchainTokenDeployer;
     address InterchainTokenFactory;
     address InterchainTokenFactoryImpl;
@@ -38,9 +41,6 @@ struct ITS {
     address TokenHandler;
     address TokenManagerDeployer;
     address TokenManagerImpl;
-    address rwTEL;
-    address rwTELImpl;
-    address rwTELTokenManager;
 }
 
 /// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering

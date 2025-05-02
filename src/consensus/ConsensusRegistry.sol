@@ -818,7 +818,7 @@ contract ConsensusRegistry is
     /// @dev ConsensusRegistry contract must be instantiated at genesis with stake for `initialValidators_`
     /// @dev Only governance delegation is enabled at genesis
     function initialize(
-        address rwTEL_,
+        address iTEL_,
         StakeConfig memory genesisConfig_,
         ValidatorInfo[] memory initialValidators_,
         address owner_
@@ -836,7 +836,7 @@ contract ConsensusRegistry is
         StakeManagerStorage storage $S = _stakeManagerStorage();
 
         // Set stake storage configs
-        $S.rwTEL = rwTEL_;
+        $S.iTEL = iTEL_;
         $S.versions[0] = genesisConfig_;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
