@@ -59,13 +59,13 @@ abstract contract ITSConfig is ITSUtils {
 
     /// @dev Create3 deployment of ITS requires some deterministic addresses before deployment
     /// @dev Prefetch target addrs for constructor args is also helpful for the config setups
-    function _precalculateCreate3ConstructorArgs(Create3Deployer create3Deploy, address sender) internal view returns (address precalculatedITS, address precalculatedWTEL, address precalculatedRWTEL) {
+    function _precalculateCreate3ConstructorArgs(Create3Deployer create3Deploy, address sender) internal view returns (address precalculatedITS, address precalculatedWTEL, address precalculatedInterchainTEL) {
         precalculatedITS = create3Deploy.deployedAddress("", sender, salts.itsSalt);
         precalculatedWTEL = create3Deploy.deployedAddress("", sender, salts.wtelSalt);
-        precalculatedRWTEL = create3Deploy.deployedAddress("", sender, salts.rwtelSalt);
+        precalculatedInterchainTEL = create3Deploy.deployedAddress("", sender, salts.itelSalt);
     }
 
-    function _setUpDevnetConfig(address admin, address devnetTEL, address wtel, address rwtel) internal virtual {
+    function _setUpDevnetConfig(address admin, address devnetTEL, address wtel, address itel) internal virtual {
         // devnet uses adminas linker and single verifier running tofnd + ampd
         linker = admin;
         address ampdVerifier = 0xCc9Cc353B765Fee36669Af494bDcdc8660402d32;
@@ -111,19 +111,19 @@ abstract contract ITSConfig is ITSUtils {
         // InterchainTokenFactory
         itfOwner = admin;
 
-        // rwTEL config
+        // iTEL config
         originTEL = devnetTEL;
         originChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
-        symbol_ = "rwTEL";
-        name_ = "Recoverable Wrapped Telcoin";
+        symbol_ = "iTEL";
+        name_ = "Interchain Telcoin";
         recoverableWindow_ = 60; // 1 minute for devnet
         governanceAddress_ = admin;
         maxToClean = uint16(300);
         baseERC20_ = wtel; 
 
-        // rwTELTokenManager config
+        // iTELTokenManager config
         tmOperator = AddressBytes.toBytes(governanceAddress_);
-        tokenAddress = rwtel;
+        tokenAddress = itel;
         params = abi.encode(tmOperator, tokenAddress);
 
         // stored for asserts
@@ -131,7 +131,7 @@ abstract contract ITSConfig is ITSUtils {
     }
 
     /// @notice Transition to testnet handled by updating deployments.json, deploying fresh `testnetTEL` clone of origin TEL
-    function _setUpTestnetConfig(address testnetTEL, address wtel, address rwtel, address[] memory /*ampdVerifiers*/) internal {
+    function _setUpTestnetConfig(address testnetTEL, address wtel, address itel, address[] memory /*ampdVerifiers*/) internal {
         // AxelarAmplifierGateway
         axelarId = TN_CHAIN_NAME;
         // routerAddress = ; //todo: testnet router
@@ -169,20 +169,20 @@ abstract contract ITSConfig is ITSUtils {
         // InterchainTokenFactory
         // itfOwner = ; // todo: dedicated factory owner
 
-        // rwTEL config
+        // iTEL config
         originTEL = testnetTEL;
         originChainName_ = TESTNET_SEPOLIA_CHAIN_NAME;
-        symbol_ = "rwTEL";
-        name_ = "Recoverable Wrapped Telcoin";
+        symbol_ = "iTEL";
+        name_ = "Interchain Telcoin";
         // recoverableWindow_ = 604_800; // todo: confirm 1 week
         // governanceAddress_ = ; // todo: multisig/council/DAO address in prod
         maxToClean = uint16(300);
         baseERC20_ = wtel;
 
-        // rwTELTokenManager config
-        rwtelTMType = ITokenManagerType.TokenManagerType.MINT_BURN;
+        // iTELTokenManager config
+        itelTMType = ITokenManagerType.TokenManagerType.MINT_BURN;
         tmOperator = AddressBytes.toBytes(governanceAddress_);
-        tokenAddress = rwtel;
+        tokenAddress = itel;
         params = abi.encode(tmOperator, tokenAddress);
 
         // stored for asserts

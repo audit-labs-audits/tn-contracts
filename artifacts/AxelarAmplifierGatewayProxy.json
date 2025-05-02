@@ -1,1 +1,211 @@
-{"abi":[{"type":"constructor","inputs":[{"name":"implementationAddress","type":"address","internalType":"address"},{"name":"owner","type":"address","internalType":"address"},{"name":"setupParams","type":"bytes","internalType":"bytes"}],"stateMutability":"nonpayable"},{"type":"fallback","stateMutability":"payable"},{"type":"receive","stateMutability":"payable"},{"type":"function","name":"CONTRACT_ID","inputs":[],"outputs":[{"name":"","type":"bytes32","internalType":"bytes32"}],"stateMutability":"view"},{"type":"function","name":"implementation","inputs":[],"outputs":[{"name":"implementation_","type":"address","internalType":"address"}],"stateMutability":"view"},{"type":"function","name":"setup","inputs":[{"name":"params","type":"bytes","internalType":"bytes"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"error","name":"AlreadyInitialized","inputs":[]},{"type":"error","name":"InvalidImplementation","inputs":[]},{"type":"error","name":"InvalidOwner","inputs":[]},{"type":"error","name":"NotOwner","inputs":[]},{"type":"error","name":"SetupFailed","inputs":[]}],"bytecode":{"object":"0x608060405234801561000f575f80fd5b5060405161055538038061055583398101604081905261002e91610266565b8282826001600160a01b038216610058576040516349e27cff60e01b815260040160405180910390fd5b7fd10cce6f0e3f6dc9eb8280c32952dc6e4759d0519c550c55d0f8747d13a64bfd80846001600160a01b0316638291286c6040518163ffffffff1660e01b8152600401602060405180830381865afa1580156100b6573d5f803e3d5ffd5b505050506040513d601f19601f820116820180604052508101906100da9190610336565b146100f85760405163340aafcd60e11b815260040160405180910390fd5b837f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc55827f02016836a56b71f0d02689e69e326f4f4c1b9057164ef592671cf0d37c8040c05581515f14610209575f846001600160a01b0316639ded06df60e01b8460405160240161016a919061034d565b60408051601f198184030181529181526020820180516001600160e01b03166001600160e01b03199094169390931790925290516101a8919061037f565b5f60405180830381855af49150503d805f81146101e0576040519150601f19603f3d011682016040523d82523d5f602084013e6101e5565b606091505b5050905080610207576040516397905dfb60e01b815260040160405180910390fd5b505b5050505050505061039a565b80516001600160a01b038116811461022b575f80fd5b919050565b634e487b7160e01b5f52604160045260245ffd5b5f5b8381101561025e578181015183820152602001610246565b50505f910152565b5f805f60608486031215610278575f80fd5b61028184610215565b925061028f60208501610215565b60408501519092506001600160401b038111156102aa575f80fd5b8401601f810186136102ba575f80fd5b80516001600160401b038111156102d3576102d3610230565b604051601f8201601f19908116603f011681016001600160401b038111828210171561030157610301610230565b604052818152828201602001881015610318575f80fd5b610329826020830160208601610244565b8093505050509250925092565b5f60208284031215610346575f80fd5b5051919050565b602081525f825180602084015261036b816040850160208701610244565b601f01601f19169190910160400192915050565b5f8251610390818460208701610244565b9190910192915050565b6101ae806103a75f395ff3fe608060405260043610610037575f3560e01c80633e35487c146100895780635c60da1b146100cf5780639ded06df146101155761003e565b3661003e57005b5f6100677f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc5490565b9050365f80375f80365f845af43d5f803e808015610083573d5ff35b3d5ffd5b005b348015610094575f80fd5b506100bc7fd10cce6f0e3f6dc9eb8280c32952dc6e4759d0519c550c55d0f8747d13a64bfd81565b6040519081526020015b60405180910390f35b3480156100da575f80fd5b507f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546040516001600160a01b0390911681526020016100c6565b348015610120575f80fd5b5061008761012f366004610133565b5050565b5f8060208385031215610144575f80fd5b823567ffffffffffffffff81111561015a575f80fd5b8301601f8101851361016a575f80fd5b803567ffffffffffffffff811115610180575f80fd5b856020828401011115610191575f80fd5b602091909101959094509250505056fea164736f6c634300081a000a","sourceMap":"108:405:21:-:0;;;242:165;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;362:21;385:5;392:11;-1:-1:-1;;;;;1373:19:57;;1369:46;;1401:14;;-1:-1:-1;;;1401:14:57;;;;;;;;;;;1369:46;198:37:21;1633:2:57;1594:21;-1:-1:-1;;;;;1574:53:57;;:55;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;:61;1550:129;;1656:23;;-1:-1:-1;;;1656:23:57;;;;;;;;;;;1550:129;1742:21;1720:20;1713:51;1797:5;1784:11;1777:26;1827:11;:18;1849:1;1827:23;1823:248;;1867:12;1885:21;-1:-1:-1;;;;;1885:34:57;1960:24;;;1986:11;1937:61;;;;;;;;:::i;:::-;;;;-1:-1:-1;;1937:61:57;;;;;;;;;;;;;;-1:-1:-1;;;;;1937:61:57;-1:-1:-1;;;;;;1937:61:57;;;;;;;;;;1885:127;;;;1937:61;1885:127;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1866:146;;;2031:7;2026:34;;2047:13;;-1:-1:-1;;;2047:13:57;;;;;;;;;;;2026:34;1852:219;1823:248;1359:718;1245:832;;;242:165:21;;;108:405;;14:177:171;93:13;;-1:-1:-1;;;;;135:31:171;;125:42;;115:70;;181:1;178;171:12;115:70;14:177;;;:::o;196:127::-;257:10;252:3;248:20;245:1;238:31;288:4;285:1;278:15;312:4;309:1;302:15;328:250;413:1;423:113;437:6;434:1;431:13;423:113;;;513:11;;;507:18;494:11;;;487:39;459:2;452:10;423:113;;;-1:-1:-1;;570:1:171;552:16;;545:27;328:250::o;583:1085::-;680:6;688;696;749:2;737:9;728:7;724:23;720:32;717:52;;;765:1;762;755:12;717:52;788:40;818:9;788:40;:::i;:::-;778:50;;847:49;892:2;881:9;877:18;847:49;:::i;:::-;940:2;925:18;;919:25;837:59;;-1:-1:-1;;;;;;956:30:171;;953:50;;;999:1;996;989:12;953:50;1022:22;;1075:4;1067:13;;1063:27;-1:-1:-1;1053:55:171;;1104:1;1101;1094:12;1053:55;1131:9;;-1:-1:-1;;;;;1152:30:171;;1149:56;;;1185:18;;:::i;:::-;1234:2;1228:9;1326:2;1288:17;;-1:-1:-1;;1284:31:171;;;1317:2;1280:40;1276:54;1264:67;;-1:-1:-1;;;;;1346:34:171;;1382:22;;;1343:62;1340:88;;;1408:18;;:::i;:::-;1444:2;1437:22;1468;;;1509:15;;;1526:2;1505:24;1502:37;-1:-1:-1;1499:57:171;;;1552:1;1549;1542:12;1499:57;1565:72;1630:6;1625:2;1617:6;1613:15;1608:2;1604;1600:11;1565:72;:::i;:::-;1656:6;1646:16;;;;;583:1085;;;;;:::o;1673:184::-;1743:6;1796:2;1784:9;1775:7;1771:23;1767:32;1764:52;;;1812:1;1809;1802:12;1764:52;-1:-1:-1;1835:16:171;;1673:184;-1:-1:-1;1673:184:171:o;1862:394::-;2009:2;1998:9;1991:21;1972:4;2041:6;2035:13;2084:6;2079:2;2068:9;2064:18;2057:34;2100:79;2172:6;2167:2;2156:9;2152:18;2147:2;2139:6;2135:15;2100:79;:::i;:::-;2240:2;2219:15;-1:-1:-1;;2215:29:171;2200:45;;;;2247:2;2196:54;;1862:394;-1:-1:-1;;1862:394:171:o;2261:287::-;2390:3;2428:6;2422:13;2444:66;2503:6;2498:3;2491:4;2483:6;2479:17;2444:66;:::i;:::-;2526:16;;;;;2261:287;-1:-1:-1;;2261:287:171:o;:::-;108:405:21;;;;;;","linkReferences":{}},"deployedBytecode":{"object":"0x608060405260043610610037575f3560e01c80633e35487c146100895780635c60da1b146100cf5780639ded06df146101155761003e565b3661003e57005b5f6100677f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc5490565b9050365f80375f80365f845af43d5f803e808015610083573d5ff35b3d5ffd5b005b348015610094575f80fd5b506100bc7fd10cce6f0e3f6dc9eb8280c32952dc6e4759d0519c550c55d0f8747d13a64bfd81565b6040519081526020015b60405180910390f35b3480156100da575f80fd5b507f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546040516001600160a01b0390911681526020016100c6565b348015610120575f80fd5b5061008761012f366004610133565b5050565b5f8060208385031215610144575f80fd5b823567ffffffffffffffff81111561015a575f80fd5b8301601f8101851361016a575f80fd5b803567ffffffffffffffff811115610180575f80fd5b856020828401011115610191575f80fd5b602091909101959094509250505056fea164736f6c634300081a000a","sourceMap":"108:405:21:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1744:23:55;1770:16;1038:20;1032:27;;900:175;1770:16;1744:42;;1838:14;1835:1;1832;1819:34;1940:1;1937;1921:14;1918:1;1901:15;1894:5;1881:61;1976:16;1973:1;1970;1955:38;2014:6;2033:66;;;;2148:16;2145:1;2138:27;2033:66;2068:16;2065:1;2058:27;2007:172;;160:75:21;;;;;;;;;;;;198:37;160:75;;;;;:25:171;;;148:2;133:18;160:75:21;;;;;;;;900:175:55;;;;;;;;;;-1:-1:-1;1038:20:55;1032:27;900:175;;-1:-1:-1;;;;;360:32:171;;;342:51;;330:2;315:18;900:175:55;196:203:171;1288:49:55;;;;;;;;;;-1:-1:-1;1288:49:55;;;;;:::i;:::-;;;;404:586:171;474:6;482;535:2;523:9;514:7;510:23;506:32;503:52;;;551:1;548;541:12;503:52;591:9;578:23;624:18;616:6;613:30;610:50;;;656:1;653;646:12;610:50;679:22;;732:4;724:13;;720:27;-1:-1:-1;710:55:171;;761:1;758;751:12;710:55;801:2;788:16;827:18;819:6;816:30;813:50;;;859:1;856;849:12;813:50;904:7;899:2;890:6;886:2;882:15;878:24;875:37;872:57;;;925:1;922;915:12;872:57;956:2;948:11;;;;;978:6;;-1:-1:-1;404:586:171;-1:-1:-1;;;404:586:171:o","linkReferences":{}},"methodIdentifiers":{"CONTRACT_ID()":"3e35487c","implementation()":"5c60da1b","setup(bytes)":"9ded06df"},"rawMetadata":"{\"compiler\":{\"version\":\"0.8.26+commit.8a97fa7a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"implementationAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"setupParams\",\"type\":\"bytes\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"AlreadyInitialized\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidImplementation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidOwner\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotOwner\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"SetupFailed\",\"type\":\"error\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"inputs\":[],\"name\":\"CONTRACT_ID\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"implementation\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"implementation_\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"params\",\"type\":\"bytes\"}],\"name\":\"setup\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"implementation()\":{\"details\":\"Returns the current implementation address.\",\"returns\":{\"implementation_\":\"The address of the current implementation contract\"}},\"setup(bytes)\":{\"details\":\"Shadows the setup function of the implementation contract so it can't be called directly via the proxy.\",\"params\":{\"params\":\"The setup parameters for the implementation contract.\"}}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol\":\"AxelarAmplifierGatewayProxy\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[\":@axelar-cgp-solidity/=node_modules/@axelar-network/axelar-cgp-solidity/\",\":@axelar-network/=node_modules/@axelar-network/\",\":@openzeppelin-contracts/=node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/\",\":@openzeppelin/=node_modules/@openzeppelin/\",\":@uniswap/=node_modules/@uniswap/\",\":ds-test/=node_modules/recoverable-wrapper/lib/forge-std/lib/ds-test/src/\",\":forge-std/=node_modules/forge-std/src/\",\":recoverable-wrapper/contracts/=node_modules/recoverable-wrapper/contracts/\",\":solady/=node_modules/solady/src/\",\":telcoin-contracts/=node_modules/telcoin-contracts/\"]},\"sources\":{\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol\":{\"keccak256\":\"0x18534551b78f10681e77b28366509362574fa43af6fc41ad40e625dcfbed9bca\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://66bf553de27e8b52d0242dabb95b11e170e95349471aef175c443dc46a0a1ed9\",\"dweb:/ipfs/QmQEGkehv3pC8pB8tGzsdQ9Mai3CqE1kfj9cFbBd8BVtM2\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IContractIdentifier.sol\":{\"keccak256\":\"0x21a94655f7f1ed3d7188bd38ce6187892c615b80f9a74e123cbc38113d855a35\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e7e1f30e159d40a9f8431c26955a584507bc23a30f19380c723acdb4182ba7c1\",\"dweb:/ipfs/QmXb965di5pU3m3W36k19ZX8m6qCDaEi1jEt6NocqrGPXj\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IProxy.sol\":{\"keccak256\":\"0x25dde363b441cedb4951d9dca6f29bcb4c6941362782a902c65f13f9abd103a2\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://495e8046e6ecf2cab8c71f4193373dfaaee02d029b27245da52cfa63c2f35066\",\"dweb:/ipfs/QmV6yEhrKLBpQPLetH36UrqFdwG3dr6dEzaSSGqQfbZ3oq\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/BaseProxy.sol\":{\"keccak256\":\"0x68330dcf8d6067aae6cabd4c4868236e9dc87d3f4de968006158363974e836a9\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c0ffadade074ba28927a561350041ab2e0505dc9148dee24543bfcdcf446b392\",\"dweb:/ipfs/QmfFQLrvhGEyWYirP3nLwd8RRiPJ47vTPDKjrda2mtX9ho\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/Proxy.sol\":{\"keccak256\":\"0x94add5bd0d033f331ed29ed2fcf40673a35315a1affc45cfaf98ed2e2bf7150e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://d20e527f6ca740e50e132d1789e15d60a2a1c7eb3babecbddaf99b38e35552f3\",\"dweb:/ipfs/QmcHvyYqZpiUFxSHsGsLvZ9TJxc5aZtSToUbm9THVLdCUf\"]}},\"version\":1}","metadata":{"compiler":{"version":"0.8.26+commit.8a97fa7a"},"language":"Solidity","output":{"abi":[{"inputs":[{"internalType":"address","name":"implementationAddress","type":"address"},{"internalType":"address","name":"owner","type":"address"},{"internalType":"bytes","name":"setupParams","type":"bytes"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"type":"error","name":"AlreadyInitialized"},{"inputs":[],"type":"error","name":"InvalidImplementation"},{"inputs":[],"type":"error","name":"InvalidOwner"},{"inputs":[],"type":"error","name":"NotOwner"},{"inputs":[],"type":"error","name":"SetupFailed"},{"inputs":[],"stateMutability":"payable","type":"fallback"},{"inputs":[],"stateMutability":"view","type":"function","name":"CONTRACT_ID","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}]},{"inputs":[],"stateMutability":"view","type":"function","name":"implementation","outputs":[{"internalType":"address","name":"implementation_","type":"address"}]},{"inputs":[{"internalType":"bytes","name":"params","type":"bytes"}],"stateMutability":"nonpayable","type":"function","name":"setup"},{"inputs":[],"stateMutability":"payable","type":"receive"}],"devdoc":{"kind":"dev","methods":{"implementation()":{"details":"Returns the current implementation address.","returns":{"implementation_":"The address of the current implementation contract"}},"setup(bytes)":{"details":"Shadows the setup function of the implementation contract so it can't be called directly via the proxy.","params":{"params":"The setup parameters for the implementation contract."}}},"version":1},"userdoc":{"kind":"user","methods":{},"version":1}},"settings":{"remappings":["@axelar-cgp-solidity/=node_modules/@axelar-network/axelar-cgp-solidity/","@axelar-network/=node_modules/@axelar-network/","@openzeppelin-contracts/=node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/","@openzeppelin/=node_modules/@openzeppelin/","@uniswap/=node_modules/@uniswap/","ds-test/=node_modules/recoverable-wrapper/lib/forge-std/lib/ds-test/src/","forge-std/=node_modules/forge-std/src/","recoverable-wrapper/contracts/=node_modules/recoverable-wrapper/contracts/","solady/=node_modules/solady/src/","telcoin-contracts/=node_modules/telcoin-contracts/"],"optimizer":{"enabled":true,"runs":200},"metadata":{"bytecodeHash":"none"},"compilationTarget":{"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol":"AxelarAmplifierGatewayProxy"},"evmVersion":"shanghai","libraries":{}},"sources":{"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol":{"keccak256":"0x18534551b78f10681e77b28366509362574fa43af6fc41ad40e625dcfbed9bca","urls":["bzz-raw://66bf553de27e8b52d0242dabb95b11e170e95349471aef175c443dc46a0a1ed9","dweb:/ipfs/QmQEGkehv3pC8pB8tGzsdQ9Mai3CqE1kfj9cFbBd8BVtM2"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IContractIdentifier.sol":{"keccak256":"0x21a94655f7f1ed3d7188bd38ce6187892c615b80f9a74e123cbc38113d855a35","urls":["bzz-raw://e7e1f30e159d40a9f8431c26955a584507bc23a30f19380c723acdb4182ba7c1","dweb:/ipfs/QmXb965di5pU3m3W36k19ZX8m6qCDaEi1jEt6NocqrGPXj"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IProxy.sol":{"keccak256":"0x25dde363b441cedb4951d9dca6f29bcb4c6941362782a902c65f13f9abd103a2","urls":["bzz-raw://495e8046e6ecf2cab8c71f4193373dfaaee02d029b27245da52cfa63c2f35066","dweb:/ipfs/QmV6yEhrKLBpQPLetH36UrqFdwG3dr6dEzaSSGqQfbZ3oq"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/BaseProxy.sol":{"keccak256":"0x68330dcf8d6067aae6cabd4c4868236e9dc87d3f4de968006158363974e836a9","urls":["bzz-raw://c0ffadade074ba28927a561350041ab2e0505dc9148dee24543bfcdcf446b392","dweb:/ipfs/QmfFQLrvhGEyWYirP3nLwd8RRiPJ47vTPDKjrda2mtX9ho"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/Proxy.sol":{"keccak256":"0x94add5bd0d033f331ed29ed2fcf40673a35315a1affc45cfaf98ed2e2bf7150e","urls":["bzz-raw://d20e527f6ca740e50e132d1789e15d60a2a1c7eb3babecbddaf99b38e35552f3","dweb:/ipfs/QmcHvyYqZpiUFxSHsGsLvZ9TJxc5aZtSToUbm9THVLdCUf"],"license":"MIT"}},"version":1},"id":21}
+{
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "implementationAddress",
+          "type": "address",
+          "internalType": "address"
+        },
+        { "name": "owner", "type": "address", "internalType": "address" },
+        { "name": "setupParams", "type": "bytes", "internalType": "bytes" }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    { "type": "fallback", "stateMutability": "payable" },
+    { "type": "receive", "stateMutability": "payable" },
+    {
+      "type": "function",
+      "name": "CONTRACT_ID",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "implementation",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "implementation_",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "setup",
+      "inputs": [
+        { "name": "params", "type": "bytes", "internalType": "bytes" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    { "type": "error", "name": "AlreadyInitialized", "inputs": [] },
+    { "type": "error", "name": "InvalidImplementation", "inputs": [] },
+    { "type": "error", "name": "InvalidOwner", "inputs": [] },
+    { "type": "error", "name": "NotOwner", "inputs": [] },
+    { "type": "error", "name": "SetupFailed", "inputs": [] }
+  ],
+  "bytecode": {
+    "object": "0x608060405234801561000f575f80fd5b5060405161055538038061055583398101604081905261002e91610266565b8282826001600160a01b038216610058576040516349e27cff60e01b815260040160405180910390fd5b7fd10cce6f0e3f6dc9eb8280c32952dc6e4759d0519c550c55d0f8747d13a64bfd80846001600160a01b0316638291286c6040518163ffffffff1660e01b8152600401602060405180830381865afa1580156100b6573d5f803e3d5ffd5b505050506040513d601f19601f820116820180604052508101906100da9190610336565b146100f85760405163340aafcd60e11b815260040160405180910390fd5b837f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc55827f02016836a56b71f0d02689e69e326f4f4c1b9057164ef592671cf0d37c8040c05581515f14610209575f846001600160a01b0316639ded06df60e01b8460405160240161016a919061034d565b60408051601f198184030181529181526020820180516001600160e01b03166001600160e01b03199094169390931790925290516101a8919061037f565b5f60405180830381855af49150503d805f81146101e0576040519150601f19603f3d011682016040523d82523d5f602084013e6101e5565b606091505b5050905080610207576040516397905dfb60e01b815260040160405180910390fd5b505b5050505050505061039a565b80516001600160a01b038116811461022b575f80fd5b919050565b634e487b7160e01b5f52604160045260245ffd5b5f5b8381101561025e578181015183820152602001610246565b50505f910152565b5f805f60608486031215610278575f80fd5b61028184610215565b925061028f60208501610215565b60408501519092506001600160401b038111156102aa575f80fd5b8401601f810186136102ba575f80fd5b80516001600160401b038111156102d3576102d3610230565b604051601f8201601f19908116603f011681016001600160401b038111828210171561030157610301610230565b604052818152828201602001881015610318575f80fd5b610329826020830160208601610244565b8093505050509250925092565b5f60208284031215610346575f80fd5b5051919050565b602081525f825180602084015261036b816040850160208701610244565b601f01601f19169190910160400192915050565b5f8251610390818460208701610244565b9190910192915050565b6101ae806103a75f395ff3fe608060405260043610610037575f3560e01c80633e35487c146100895780635c60da1b146100cf5780639ded06df146101155761003e565b3661003e57005b5f6100677f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc5490565b9050365f80375f80365f845af43d5f803e808015610083573d5ff35b3d5ffd5b005b348015610094575f80fd5b506100bc7fd10cce6f0e3f6dc9eb8280c32952dc6e4759d0519c550c55d0f8747d13a64bfd81565b6040519081526020015b60405180910390f35b3480156100da575f80fd5b507f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546040516001600160a01b0390911681526020016100c6565b348015610120575f80fd5b5061008761012f366004610133565b5050565b5f8060208385031215610144575f80fd5b823567ffffffffffffffff81111561015a575f80fd5b8301601f8101851361016a575f80fd5b803567ffffffffffffffff811115610180575f80fd5b856020828401011115610191575f80fd5b602091909101959094509250505056fea164736f6c634300081a000a",
+    "sourceMap": "108:405:21:-:0;;;242:165;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;362:21;385:5;392:11;-1:-1:-1;;;;;1373:19:57;;1369:46;;1401:14;;-1:-1:-1;;;1401:14:57;;;;;;;;;;;1369:46;198:37:21;1633:2:57;1594:21;-1:-1:-1;;;;;1574:53:57;;:55;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;:61;1550:129;;1656:23;;-1:-1:-1;;;1656:23:57;;;;;;;;;;;1550:129;1742:21;1720:20;1713:51;1797:5;1784:11;1777:26;1827:11;:18;1849:1;1827:23;1823:248;;1867:12;1885:21;-1:-1:-1;;;;;1885:34:57;1960:24;;;1986:11;1937:61;;;;;;;;:::i;:::-;;;;-1:-1:-1;;1937:61:57;;;;;;;;;;;;;;-1:-1:-1;;;;;1937:61:57;-1:-1:-1;;;;;;1937:61:57;;;;;;;;;;1885:127;;;;1937:61;1885:127;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1866:146;;;2031:7;2026:34;;2047:13;;-1:-1:-1;;;2047:13:57;;;;;;;;;;;2026:34;1852:219;1823:248;1359:718;1245:832;;;242:165:21;;;108:405;;14:177:171;93:13;;-1:-1:-1;;;;;135:31:171;;125:42;;115:70;;181:1;178;171:12;115:70;14:177;;;:::o;196:127::-;257:10;252:3;248:20;245:1;238:31;288:4;285:1;278:15;312:4;309:1;302:15;328:250;413:1;423:113;437:6;434:1;431:13;423:113;;;513:11;;;507:18;494:11;;;487:39;459:2;452:10;423:113;;;-1:-1:-1;;570:1:171;552:16;;545:27;328:250::o;583:1085::-;680:6;688;696;749:2;737:9;728:7;724:23;720:32;717:52;;;765:1;762;755:12;717:52;788:40;818:9;788:40;:::i;:::-;778:50;;847:49;892:2;881:9;877:18;847:49;:::i;:::-;940:2;925:18;;919:25;837:59;;-1:-1:-1;;;;;;956:30:171;;953:50;;;999:1;996;989:12;953:50;1022:22;;1075:4;1067:13;;1063:27;-1:-1:-1;1053:55:171;;1104:1;1101;1094:12;1053:55;1131:9;;-1:-1:-1;;;;;1152:30:171;;1149:56;;;1185:18;;:::i;:::-;1234:2;1228:9;1326:2;1288:17;;-1:-1:-1;;1284:31:171;;;1317:2;1280:40;1276:54;1264:67;;-1:-1:-1;;;;;1346:34:171;;1382:22;;;1343:62;1340:88;;;1408:18;;:::i;:::-;1444:2;1437:22;1468;;;1509:15;;;1526:2;1505:24;1502:37;-1:-1:-1;1499:57:171;;;1552:1;1549;1542:12;1499:57;1565:72;1630:6;1625:2;1617:6;1613:15;1608:2;1604;1600:11;1565:72;:::i;:::-;1656:6;1646:16;;;;;583:1085;;;;;:::o;1673:184::-;1743:6;1796:2;1784:9;1775:7;1771:23;1767:32;1764:52;;;1812:1;1809;1802:12;1764:52;-1:-1:-1;1835:16:171;;1673:184;-1:-1:-1;1673:184:171:o;1862:394::-;2009:2;1998:9;1991:21;1972:4;2041:6;2035:13;2084:6;2079:2;2068:9;2064:18;2057:34;2100:79;2172:6;2167:2;2156:9;2152:18;2147:2;2139:6;2135:15;2100:79;:::i;:::-;2240:2;2219:15;-1:-1:-1;;2215:29:171;2200:45;;;;2247:2;2196:54;;1862:394;-1:-1:-1;;1862:394:171:o;2261:287::-;2390:3;2428:6;2422:13;2444:66;2503:6;2498:3;2491:4;2483:6;2479:17;2444:66;:::i;:::-;2526:16;;;;;2261:287;-1:-1:-1;;2261:287:171:o;:::-;108:405:21;;;;;;",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x608060405260043610610037575f3560e01c80633e35487c146100895780635c60da1b146100cf5780639ded06df146101155761003e565b3661003e57005b5f6100677f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc5490565b9050365f80375f80365f845af43d5f803e808015610083573d5ff35b3d5ffd5b005b348015610094575f80fd5b506100bc7fd10cce6f0e3f6dc9eb8280c32952dc6e4759d0519c550c55d0f8747d13a64bfd81565b6040519081526020015b60405180910390f35b3480156100da575f80fd5b507f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc546040516001600160a01b0390911681526020016100c6565b348015610120575f80fd5b5061008761012f366004610133565b5050565b5f8060208385031215610144575f80fd5b823567ffffffffffffffff81111561015a575f80fd5b8301601f8101851361016a575f80fd5b803567ffffffffffffffff811115610180575f80fd5b856020828401011115610191575f80fd5b602091909101959094509250505056fea164736f6c634300081a000a",
+    "sourceMap": "108:405:21:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1744:23:55;1770:16;1038:20;1032:27;;900:175;1770:16;1744:42;;1838:14;1835:1;1832;1819:34;1940:1;1937;1921:14;1918:1;1901:15;1894:5;1881:61;1976:16;1973:1;1970;1955:38;2014:6;2033:66;;;;2148:16;2145:1;2138:27;2033:66;2068:16;2065:1;2058:27;2007:172;;160:75:21;;;;;;;;;;;;198:37;160:75;;;;;:25:171;;;148:2;133:18;160:75:21;;;;;;;;900:175:55;;;;;;;;;;-1:-1:-1;1038:20:55;1032:27;900:175;;-1:-1:-1;;;;;360:32:171;;;342:51;;330:2;315:18;900:175:55;196:203:171;1288:49:55;;;;;;;;;;-1:-1:-1;1288:49:55;;;;;:::i;:::-;;;;404:586:171;474:6;482;535:2;523:9;514:7;510:23;506:32;503:52;;;551:1;548;541:12;503:52;591:9;578:23;624:18;616:6;613:30;610:50;;;656:1;653;646:12;610:50;679:22;;732:4;724:13;;720:27;-1:-1:-1;710:55:171;;761:1;758;751:12;710:55;801:2;788:16;827:18;819:6;816:30;813:50;;;859:1;856;849:12;813:50;904:7;899:2;890:6;886:2;882:15;878:24;875:37;872:57;;;925:1;922;915:12;872:57;956:2;948:11;;;;;978:6;;-1:-1:-1;404:586:171;-1:-1:-1;;;404:586:171:o",
+    "linkReferences": {}
+  },
+  "methodIdentifiers": {
+    "CONTRACT_ID()": "3e35487c",
+    "implementation()": "5c60da1b",
+    "setup(bytes)": "9ded06df"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.26+commit.8a97fa7a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"implementationAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"setupParams\",\"type\":\"bytes\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"AlreadyInitialized\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidImplementation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidOwner\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotOwner\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"SetupFailed\",\"type\":\"error\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"inputs\":[],\"name\":\"CONTRACT_ID\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"implementation\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"implementation_\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"params\",\"type\":\"bytes\"}],\"name\":\"setup\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"implementation()\":{\"details\":\"Returns the current implementation address.\",\"returns\":{\"implementation_\":\"The address of the current implementation contract\"}},\"setup(bytes)\":{\"details\":\"Shadows the setup function of the implementation contract so it can't be called directly via the proxy.\",\"params\":{\"params\":\"The setup parameters for the implementation contract.\"}}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol\":\"AxelarAmplifierGatewayProxy\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[\":@axelar-cgp-solidity/=node_modules/@axelar-network/axelar-cgp-solidity/\",\":@axelar-network/=node_modules/@axelar-network/\",\":@openzeppelin-contracts/=node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/\",\":@openzeppelin/=node_modules/@openzeppelin/\",\":@uniswap/=node_modules/@uniswap/\",\":ds-test/=node_modules/recoverable-wrapper/lib/forge-std/lib/ds-test/src/\",\":forge-std/=node_modules/forge-std/src/\",\":recoverable-wrapper/contracts/=node_modules/recoverable-wrapper/contracts/\",\":solady/=node_modules/solady/src/\",\":telcoin-contracts/=node_modules/telcoin-contracts/\"]},\"sources\":{\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol\":{\"keccak256\":\"0x18534551b78f10681e77b28366509362574fa43af6fc41ad40e625dcfbed9bca\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://66bf553de27e8b52d0242dabb95b11e170e95349471aef175c443dc46a0a1ed9\",\"dweb:/ipfs/QmQEGkehv3pC8pB8tGzsdQ9Mai3CqE1kfj9cFbBd8BVtM2\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IContractIdentifier.sol\":{\"keccak256\":\"0x21a94655f7f1ed3d7188bd38ce6187892c615b80f9a74e123cbc38113d855a35\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e7e1f30e159d40a9f8431c26955a584507bc23a30f19380c723acdb4182ba7c1\",\"dweb:/ipfs/QmXb965di5pU3m3W36k19ZX8m6qCDaEi1jEt6NocqrGPXj\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IProxy.sol\":{\"keccak256\":\"0x25dde363b441cedb4951d9dca6f29bcb4c6941362782a902c65f13f9abd103a2\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://495e8046e6ecf2cab8c71f4193373dfaaee02d029b27245da52cfa63c2f35066\",\"dweb:/ipfs/QmV6yEhrKLBpQPLetH36UrqFdwG3dr6dEzaSSGqQfbZ3oq\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/BaseProxy.sol\":{\"keccak256\":\"0x68330dcf8d6067aae6cabd4c4868236e9dc87d3f4de968006158363974e836a9\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c0ffadade074ba28927a561350041ab2e0505dc9148dee24543bfcdcf446b392\",\"dweb:/ipfs/QmfFQLrvhGEyWYirP3nLwd8RRiPJ47vTPDKjrda2mtX9ho\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/Proxy.sol\":{\"keccak256\":\"0x94add5bd0d033f331ed29ed2fcf40673a35315a1affc45cfaf98ed2e2bf7150e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://d20e527f6ca740e50e132d1789e15d60a2a1c7eb3babecbddaf99b38e35552f3\",\"dweb:/ipfs/QmcHvyYqZpiUFxSHsGsLvZ9TJxc5aZtSToUbm9THVLdCUf\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": { "version": "0.8.26+commit.8a97fa7a" },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "implementationAddress",
+              "type": "address"
+            },
+            { "internalType": "address", "name": "owner", "type": "address" },
+            { "internalType": "bytes", "name": "setupParams", "type": "bytes" }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        { "inputs": [], "type": "error", "name": "AlreadyInitialized" },
+        { "inputs": [], "type": "error", "name": "InvalidImplementation" },
+        { "inputs": [], "type": "error", "name": "InvalidOwner" },
+        { "inputs": [], "type": "error", "name": "NotOwner" },
+        { "inputs": [], "type": "error", "name": "SetupFailed" },
+        { "inputs": [], "stateMutability": "payable", "type": "fallback" },
+        {
+          "inputs": [],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "CONTRACT_ID",
+          "outputs": [
+            { "internalType": "bytes32", "name": "", "type": "bytes32" }
+          ]
+        },
+        {
+          "inputs": [],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "implementation",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "implementation_",
+              "type": "address"
+            }
+          ]
+        },
+        {
+          "inputs": [
+            { "internalType": "bytes", "name": "params", "type": "bytes" }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function",
+          "name": "setup"
+        },
+        { "inputs": [], "stateMutability": "payable", "type": "receive" }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {
+          "implementation()": {
+            "details": "Returns the current implementation address.",
+            "returns": {
+              "implementation_": "The address of the current implementation contract"
+            }
+          },
+          "setup(bytes)": {
+            "details": "Shadows the setup function of the implementation contract so it can't be called directly via the proxy.",
+            "params": {
+              "params": "The setup parameters for the implementation contract."
+            }
+          }
+        },
+        "version": 1
+      },
+      "userdoc": { "kind": "user", "methods": {}, "version": 1 }
+    },
+    "settings": {
+      "remappings": [
+        "@axelar-cgp-solidity/=node_modules/@axelar-network/axelar-cgp-solidity/",
+        "@axelar-network/=node_modules/@axelar-network/",
+        "@openzeppelin-contracts/=node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/",
+        "@openzeppelin/=node_modules/@openzeppelin/",
+        "@uniswap/=node_modules/@uniswap/",
+        "ds-test/=node_modules/recoverable-wrapper/lib/forge-std/lib/ds-test/src/",
+        "forge-std/=node_modules/forge-std/src/",
+        "recoverable-wrapper/contracts/=node_modules/recoverable-wrapper/contracts/",
+        "solady/=node_modules/solady/src/",
+        "telcoin-contracts/=node_modules/telcoin-contracts/"
+      ],
+      "optimizer": { "enabled": true, "runs": 200 },
+      "metadata": { "bytecodeHash": "none" },
+      "compilationTarget": {
+        "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol": "AxelarAmplifierGatewayProxy"
+      },
+      "evmVersion": "shanghai",
+      "libraries": {}
+    },
+    "sources": {
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGatewayProxy.sol": {
+        "keccak256": "0x18534551b78f10681e77b28366509362574fa43af6fc41ad40e625dcfbed9bca",
+        "urls": [
+          "bzz-raw://66bf553de27e8b52d0242dabb95b11e170e95349471aef175c443dc46a0a1ed9",
+          "dweb:/ipfs/QmQEGkehv3pC8pB8tGzsdQ9Mai3CqE1kfj9cFbBd8BVtM2"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IContractIdentifier.sol": {
+        "keccak256": "0x21a94655f7f1ed3d7188bd38ce6187892c615b80f9a74e123cbc38113d855a35",
+        "urls": [
+          "bzz-raw://e7e1f30e159d40a9f8431c26955a584507bc23a30f19380c723acdb4182ba7c1",
+          "dweb:/ipfs/QmXb965di5pU3m3W36k19ZX8m6qCDaEi1jEt6NocqrGPXj"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IProxy.sol": {
+        "keccak256": "0x25dde363b441cedb4951d9dca6f29bcb4c6941362782a902c65f13f9abd103a2",
+        "urls": [
+          "bzz-raw://495e8046e6ecf2cab8c71f4193373dfaaee02d029b27245da52cfa63c2f35066",
+          "dweb:/ipfs/QmV6yEhrKLBpQPLetH36UrqFdwG3dr6dEzaSSGqQfbZ3oq"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/BaseProxy.sol": {
+        "keccak256": "0x68330dcf8d6067aae6cabd4c4868236e9dc87d3f4de968006158363974e836a9",
+        "urls": [
+          "bzz-raw://c0ffadade074ba28927a561350041ab2e0505dc9148dee24543bfcdcf446b392",
+          "dweb:/ipfs/QmfFQLrvhGEyWYirP3nLwd8RRiPJ47vTPDKjrda2mtX9ho"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/Proxy.sol": {
+        "keccak256": "0x94add5bd0d033f331ed29ed2fcf40673a35315a1affc45cfaf98ed2e2bf7150e",
+        "urls": [
+          "bzz-raw://d20e527f6ca740e50e132d1789e15d60a2a1c7eb3babecbddaf99b38e35552f3",
+          "dweb:/ipfs/QmcHvyYqZpiUFxSHsGsLvZ9TJxc5aZtSToUbm9THVLdCUf"
+        ],
+        "license": "MIT"
+      }
+    },
+    "version": 1
+  },
+  "id": 21
+}

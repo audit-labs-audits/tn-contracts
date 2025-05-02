@@ -23,16 +23,16 @@ import { WETH } from "solady/tokens/WETH.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
 
 import { SystemCallable } from "./consensus/SystemCallable.sol";
-import { IRWTEL } from "./interfaces/IRWTEL.sol";
+import { IInterchainTEL } from "./interfaces/IInterchainTEL.sol";
 
 /// @title Recoverable Wrapped Telcoin
-/// @notice The RWTEL module serves as an Axelar InterchainToken merging functionality of TEL
+/// @notice The InterchainTEL module serves as an Axelar InterchainToken merging functionality of TEL
 /// both as ITS ERC20 token and as native gas currency for TN
 /// @dev Inbound ERC20 TEL from other networks is delivered as native TEL through custom mint logic
-/// whereas outbound native TEL must first be double-wrapped to rwTEL & elapse the recoverable window
+/// whereas outbound native TEL must first be double-wrapped to iTEL & elapse the recoverable window
 /// @dev Pausability restricts all wrapping/unwrapping actions and execution of ITS bridge messages
-contract RWTEL is
-    IRWTEL,
+contract InterchainTEL is
+    IInterchainTEL,
     RecoverableWrapper,
     InterchainTokenStandard,
     UUPSUpgradeable,
@@ -63,8 +63,8 @@ contract RWTEL is
     address private constant TOKEN_FACTORY_DEPLOYER = address(0x0);
 
     /// @dev Overrides for `ERC20` storage since `RecoverableWrapper` dep restricts them
-    string internal constant _name_ = "Recoverable Wrapped Telcoin";
-    string internal constant _symbol_ = "rwTEL";
+    string internal constant _name_ = "Interchain Telcoin";
+    string internal constant _symbol_ = "iTEL";
 
     uint256 public constant DECIMALS_CONVERTER = 1e16;
 
@@ -107,18 +107,18 @@ contract RWTEL is
 
     /**
      *
-     *   RWTEL Core
+     *   InterchainTEL Core
      *
      */
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function distributeStakeReward(address validator, uint256 rewardAmount) external payable virtual onlyStakeManager {
         uint256 totalAmount = rewardAmount + msg.value;
         (bool res,) = validator.call{ value: totalAmount }("");
         if (!res) revert RewardDistributionFailure(validator);
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function doubleWrap() external payable virtual {
         address caller = msg.sender;
         uint256 amount = msg.value;
@@ -131,7 +131,7 @@ contract RWTEL is
         emit Wrap(caller, amount);
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function permitWrap(
         address owner,
         uint256 amount,
@@ -176,7 +176,7 @@ contract RWTEL is
         super._burn(account, amount);
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function unsettledRecords(address account) public view returns (Record[] memory) {
         RecordsDeque storage rd = _unsettledRecords[account];
         if (rd.isEmpty()) return new Record[](0);
@@ -220,7 +220,7 @@ contract RWTEL is
      *
      */
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function mint(
         address to,
         uint256 interchainAmount
@@ -240,11 +240,11 @@ contract RWTEL is
         return nativeAmount;
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function burn(address from, uint256 nativeAmount) external virtual override onlyTokenManager returns (uint256) {
         // burn from settled balance only, reverts if paused
         _burn(from, nativeAmount);
-        // reclaim native TEL to maintain integrity of rwTEL <> wTEL <> TEL ledgers
+        // reclaim native TEL to maintain integrity of iTEL <> wTEL <> TEL ledgers
         WETH(payable(address(baseERC20))).withdraw(nativeAmount);
 
         (uint256 interchainAmount, uint256 remainder) = toTwoDecimals(nativeAmount);
@@ -256,20 +256,20 @@ contract RWTEL is
         return interchainAmount;
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function isMinter(address addr) external view virtual returns (bool) {
         if (addr == tokenManagerAddress()) return true;
 
         return false;
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function toEighteenDecimals(uint256 interchainAmount) public pure returns (uint256) {
         uint256 nativeAmount = interchainAmount * DECIMALS_CONVERTER;
         return nativeAmount;
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function toTwoDecimals(uint256 nativeAmount) public pure returns (uint256, uint256) {
         if (nativeAmount < DECIMALS_CONVERTER) revert InvalidAmount(nativeAmount);
         uint256 interchainAmount = nativeAmount / DECIMALS_CONVERTER;
@@ -278,23 +278,23 @@ contract RWTEL is
         return (interchainAmount, remainder);
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function tokenManagerCreate3Salt() public view override returns (bytes32) {
         return interchainTokenId();
     }
 
-    /// @notice Returns the top-level ITS interchain token ID for RWTEL
+    /// @notice Returns the top-level ITS interchain token ID for InterchainTEL
     /// @dev The interchain token ID is *custom-linked*, ie based on Ethereum ERC20 TEL, and shared across chains
     function interchainTokenId() public view override returns (bytes32) {
         return keccak256(abi.encode(PREFIX_INTERCHAIN_TOKEN_ID, TOKEN_FACTORY_DEPLOYER, linkedTokenDeploySalt()));
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function linkedTokenDeploySalt() public view override returns (bytes32) {
         return keccak256(abi.encode(PREFIX_CUSTOM_TOKEN_SALT, originChainNameHash, originLinker, originSalt));
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function tokenManagerAddress() public view override returns (address) {
         address createDeploy = address(
             uint160(
@@ -334,7 +334,7 @@ contract RWTEL is
      *
      */
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function initialize(address governanceAddress_, uint16 maxToClean_, address owner_) public initializer {
         _initializeOwner(owner_);
         _setGovernanceAddress(governanceAddress_);
@@ -349,12 +349,12 @@ contract RWTEL is
         _unpause();
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function setGovernanceAddress(address newGovernanceAddress) public override onlyOwner {
         _setGovernanceAddress(newGovernanceAddress);
     }
 
-    /// @inheritdoc IRWTEL
+    /// @inheritdoc IInterchainTEL
     function setMaxToClean(uint16 newMaxToClean) public override onlyOwner {
         _setMaxToClean(newMaxToClean);
     }

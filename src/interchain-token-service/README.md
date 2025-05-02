@@ -35,11 +35,11 @@ Because Telcoin-Network uses Telcoin as native gas currency and Telcoin originat
 
 To handle the decimals conversion from ERC20 TEL on Ethereum to/from native TEL, the ITS TokenHandler and TokenManager contracts are minimally forked with specific branch logic for interchain TEL: [TNTokenHandler](../TNTokenHandler) and [TNTokenManager](./TNTokenManager)
 
-In addition to the ITS core precompiles, Telcoin-Network's interchain TEL contract, called RWTEL, and its corresponding token manager proxy are also incorporated to the protocol as genesis precompiles.
+In addition to the ITS core precompiles, Telcoin-Network's interchain TEL contract, called InterchainTEL, and its corresponding token manager proxy are also incorporated to the protocol as genesis precompiles.
 
-To comply with ITS, both RWTEL and its accompanying `MINT_BURN` TokenManagerProxy are deployed to the Interchain Token Service's expected `create3` addresses by using the same custom-linked interchain `linkedTokenDeploySalt` and `tokenId` derived by registering Ethereum TEL as a custom interchain token.
+To comply with ITS, both InterchainTEL and its accompanying `MINT_BURN` TokenManagerProxy are deployed to the Interchain Token Service's expected `create3` addresses by using the same custom-linked interchain `linkedTokenDeploySalt` and `tokenId` derived by registering Ethereum TEL as a custom interchain token.
 
-For more information about RWTEL, refer to the [root README](../../README.md).
+For more information about InterchainTEL, refer to the [root README](../../README.md).
 
 ### Token ID Specifics
 

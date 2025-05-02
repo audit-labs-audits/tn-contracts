@@ -6,7 +6,7 @@ At the very highest level, Telcoin Network utilizes four component categories to
 
 - Axelar [Interchain Token Service](../../src/interchain-token-service/README.md) and [GMP protocol](https://www.axelar.network/blog/general-message-passing-and-how-can-it-change-web3)
 - [offchain relayers](./relay/README.md)
-- [Telcoin Network's customized interchain TEL implementation, the RWTEL contract](../../README.md#rwtel-module)
+- [Telcoin Network's customized interchain TEL implementation, the InterchainTEL contract](../../README.md#itel-module)
 - [verifiers](./verifier-instructions.md) voting on event finality using the Telcoin Network Non-Voting Validator "NVV" node client
 
 ## In a (very abstract) nutshell
@@ -15,9 +15,9 @@ At the very highest level, Telcoin Network utilizes four component categories to
 
 Each chain that enables cross-chain GMP communication via Axelar Network integrates to the Axelar hub by deploying at minimum an external gateway smart contract. The Interchain Token Service is built on top of cross-chain GMP messages, protocolizing an interoperability standard for interchain ERC20 tokens with the use of `MINT_BURN` or `LOCK_RELEASE` delivery mechanisms.
 
-For Telcoin Network the AxelarAmplifierGateway, Interchain Token Service contracts, and the interchain TEL contract (RWTEL) as well as its `MINT_BURN` token manager are precompiled and instantiated at genesis.
+For Telcoin Network the AxelarAmplifierGateway, Interchain Token Service contracts, and the interchain TEL contract (InterchainTEL) as well as its `MINT_BURN` token manager are precompiled and instantiated at genesis.
 
-ITS handles calls to the external gateway, causing it to emit outgoing ITS messages and execute incoming ITS messages validated by the gateway. ITS instructs the RWTEL token manager to perform $TEL mints and burns by calling the respective RWTEL function.
+ITS handles calls to the external gateway, causing it to emit outgoing ITS messages and execute incoming ITS messages validated by the gateway. ITS instructs the InterchainTEL token manager to perform $TEL mints and burns by calling the respective InterchainTEL function.
 
 ### GMP API
 
@@ -45,11 +45,11 @@ From a user's perspective, two transactions are required to initiate the bridgin
 
 From a user's perspective, two transactions are required to initiate the bridging sequence from TN to a remote chain:
 
-1. Double wrap the native TEL balance on the RWTEL contract. This is necessary because ITS is designed for ERC20 tokens and so RWTEL's ERC20 ledger serves as the interchain representation of bridgeable outbound TEL on Telcoin-Network. It can be done using any one of the following RWTEL functions:
+1. Double wrap the native TEL balance on the InterchainTEL contract. This is necessary because ITS is designed for ERC20 tokens and so InterchainTEL's ERC20 ledger serves as the interchain representation of bridgeable outbound TEL on Telcoin-Network. It can be done using any one of the following InterchainTEL functions:
 
 - `doubleWrap()`: requires providing native TEL to the function call,
-- `permitWrap()`: requires user to hold wTEL and sign an ERC2612 permit to the RWTEL contract
-- `wrap()`: requires user to hold and approve their wTEL balance to the RWTEL contract
+- `permitWrap()`: requires user to hold wTEL and sign an ERC2612 permit to the InterchainTEL contract
+- `wrap()`: requires user to hold and approve their wTEL balance to the InterchainTEL contract
 
 ### Example
 
@@ -139,8 +139,8 @@ async function bridgeTNToSepolia(recipient, amount) {
   const destinationChain = "eth-sepolia";
   // native TEL uses 18 decimals
   const bridgeAmount = amount * 1e18;
-  // user must first double-wrap native TEL -> wTEL -> rwTEL
-  const rwtelDoubleWrapABI = [
+  // user must first double-wrap native TEL -> wTEL -> iTEL
+  const iTELDoubleWrapABI = [
     {
       type: "function",
       name: "doubleWrap",
@@ -149,12 +149,12 @@ async function bridgeTNToSepolia(recipient, amount) {
       stateMutability: "payable",
     },
   ];
-  const rwTEL = new ethers.Contract(
+  const iTEL = new ethers.Contract(
     0x28a51e729c8e420123332dcc7c76f865805214de,
-    rwtelDoubleWrapABI,
+    iTELDoubleWrapABI,
     tnProvider
   );
-  rwTEL.doubleWrap({ value: bridgeAmount });
+  iTEL.doubleWrap({ value: bridgeAmount });
   // then elapse recoverableWindow before bridging, 1 minute on devnet (will be 1 week on mainnet)
   await sleep(60000);
   // note that the recipient `destinationAddress` must be of `bytes` type, not `address`

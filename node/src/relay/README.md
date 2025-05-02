@@ -64,7 +64,7 @@ The Subscriber can be configured at runtime with the flags below.
 `--target-chain`: The chain at which to point the subscriber
 `--target-contract`: The specific contract to which to subscribe; may be an external gateway or AxelarGMPExecutable
 
-For example, to run the Subscriber set up to subscribe to `ContractCall` events from the RWTEL module on Telcoin Network:
+For example, to run the Subscriber set up to subscribe to `ContractCall` events from the InterchainTEL module on Telcoin Network:
 
 ```bash
 npm run subscriber -- --target-chain telcoin-network --target-contract 0x2e821cfe53C061239Ac20fEa4692D8D6767d8c6D
