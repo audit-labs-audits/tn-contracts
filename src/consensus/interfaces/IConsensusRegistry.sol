@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
-import { IncentiveInfo } from "./IStakeManager.sol";
+import { StakeInfo } from "./IStakeManager.sol";
 
 /**
  * @title ConsensusRegistry Interface
@@ -88,7 +88,7 @@ interface IConsensusRegistry {
     /// @param newCommittee The future validator committee for `$.currentEpoch + 3`
     /// @param slashes Slashes to the validators in the ending epoch, applied after rollover
     /// @notice Slashes are not currently used in TN mainnet alpha
-    function concludeEpoch(address[] calldata newCommittee, IncentiveInfo[] calldata slashes) external;
+    function concludeEpoch(address[] calldata newCommittee, StakeInfo[] calldata slashes) external;
 
     /// @dev The network's epoch issuance distribution method, rewarding stake originators
     /// proportionally to their share of total stake, tied to the validator's stake version
@@ -97,7 +97,7 @@ interface IConsensusRegistry {
     function applyIncentives(
         uint32 newEpoch,
         ValidatorInfo[] memory active,
-        IncentiveInfo[] calldata incentives
+        StakeInfo[] calldata incentives
     )
         external;
 

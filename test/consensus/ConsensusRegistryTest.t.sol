@@ -7,7 +7,7 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { StakeManager } from "src/consensus/StakeManager.sol";
-import { IncentiveInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
+import { StakeInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
 import { RWTEL } from "src/RWTEL.sol";
 import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 
@@ -45,7 +45,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             EpochInfo memory info = consensusRegistry.getEpochInfo(uint32(i));
             for (uint256 j; j < 4; ++j) {
                 assertEq(info.committee[j], initialValidators[j].validatorAddress);
-                assertEq(consensusRegistry.incentiveInfo(initialValidators[j].validatorAddress).tokenId, j + 1);
+                assertEq(consensusRegistry.stakeInfo(initialValidators[j].validatorAddress).tokenId, j + 1);
             }
         }
         assertEq(consensusRegistry.totalSupply(), 4);
@@ -169,7 +169,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             )
         );
         vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](activeValidators.length), new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](activeValidators.length), new StakeInfo[](0));
         vm.stopPrank();
 
         // Check validator information
@@ -214,7 +214,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         uint256 numActiveBefore = consensusRegistry.getValidators(ValidatorStatus.Active).length;
 
         vm.prank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](numActiveBefore), new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](numActiveBefore), new StakeInfo[](0));
 
         assertEq(consensusRegistry.getValidators(ValidatorStatus.PendingExit).length, 0);
 
@@ -244,8 +244,8 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
         // Finalize epoch twice to reach exit epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](4), new IncentiveInfo[](0));
-        consensusRegistry.concludeEpoch(new address[](4), new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4), new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4), new StakeInfo[](0));
         vm.stopPrank();
 
         assertEq(consensusRegistry.getValidators(ValidatorStatus.PendingExit).length, 0);
@@ -286,7 +286,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
     function test_unstake() public {
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length;
         address[] memory zeroCommittee = new address[](numActive);
-        IncentiveInfo[] memory zeroSlashes = new IncentiveInfo[](0);
+        StakeInfo[] memory zeroSlashes = new StakeInfo[](0);
 
         vm.deal(address(consensusRegistry), stakeAmount_ * numActive);
 
@@ -401,8 +401,8 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
         // Call the function
         vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(newCommittee, new IncentiveInfo[](0));
-        consensusRegistry.concludeEpoch(newCommittee, new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(newCommittee, new StakeInfo[](0));
+        consensusRegistry.concludeEpoch(newCommittee, new StakeInfo[](0));
         vm.stopPrank();
 
         // Fetch current epoch and verify it has incremented
@@ -420,6 +420,6 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
     // Attempt to call without sysAddress should revert
     function testRevert_concludeEpoch_OnlySystemCall() public {
         vm.expectRevert(abi.encodeWithSelector(SystemCallable.OnlySystemCall.selector, address(this)));
-        consensusRegistry.concludeEpoch(new address[](4), new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4), new StakeInfo[](0));
     }
 }

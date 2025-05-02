@@ -9,9 +9,20 @@ pragma solidity 0.8.26;
  * @notice This interface declares the ConsensusRegistry's staking API and data structures
  * @dev Implemented within StakeManager.sol, which is inherited by the ConsensusRegistry
  */
-struct IncentiveInfo {
+
+/// @notice Struct used by storage ledger to record outstanding validator balances
+/// @dev Links balances to ConsensusNFTs to enable DPoS & permanent validator retirement
+/// @dev Updated via rewards and slashes
+struct StakeInfo {
     uint24 tokenId;
-    uint232 stakingRewards;
+    uint232 balance;
+}
+
+/// @notice Slash information for system calls to decrement outstanding validator balances
+/// @notice Not yet enabled
+struct Slash {
+    address validator;
+    uint256 amount;
 }
 
 interface IStakeManager {
@@ -21,7 +32,7 @@ interface IStakeManager {
         uint24 totalSupply;
         uint8 stakeVersion;
         mapping(uint8 => StakeConfig) versions;
-        mapping(address => IncentiveInfo) incentiveInfo;
+        mapping(address => StakeInfo) stakeInfo;
         mapping(address => Delegation) delegations;
     }
 
@@ -48,6 +59,7 @@ interface IStakeManager {
     error NotDelegator(address notDelegator);
     error NotTransferable();
     error RequiresConsensusNFT();
+    error InvalidSupply();
 
     /// @dev Accepts the native TEL stake amount from the calling validator, enabling later self-activation
     /// @notice Caller must already have been issued a `ConsensusNFT` by Telcoin governance
@@ -68,7 +80,7 @@ interface IStakeManager {
 
     /// @dev Returns previously staked funds in addition to accrued rewards, if any, to the staker
     /// @notice May only be called after fully exiting
-    /// @notice `IncentiveInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
+    /// @notice `StakeInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
     function unstake(address validatorAddress) external;
 
     /// @notice Returns the delegation digest that a validator should sign to accept a delegation
@@ -90,7 +102,7 @@ interface IStakeManager {
     function getRewards(address validatorAddress) external view returns (uint240);
 
     /// @dev Returns staking information for the given address
-    function incentiveInfo(address validatorAddress) external view returns (IncentiveInfo memory);
+    function stakeInfo(address validatorAddress) external view returns (StakeInfo memory);
 
     /// @dev Returns the current version
     function stakeVersion() external view returns (uint8);

@@ -5,7 +5,7 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
-import { IncentiveInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeInfo, Slash, IStakeManager } from "./interfaces/IStakeManager.sol";
 import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
@@ -46,7 +46,7 @@ contract ConsensusRegistry is
     /// @inheritdoc IConsensusRegistry
     function concludeEpoch(
         address[] calldata newCommittee,
-        IncentiveInfo[] calldata slashes
+        Slash[] calldata slashes
     )
         external
         override
@@ -72,7 +72,7 @@ contract ConsensusRegistry is
     function applyIncentives(
         uint32 newEpoch,
         ValidatorInfo[] memory active,
-        IncentiveInfo[] calldata /*slashes*/
+        Slash[] calldata /*slashes*/
     )
         public
         override
@@ -90,8 +90,7 @@ contract ConsensusRegistry is
             uint256 stakeProportion = stakes[i] * PRECISION_FACTOR / totalStake;
             uint256 reward = totalIssuance * stakeProportion / PRECISION_FACTOR;
 
-            // increment claimable amount
-            $S.incentiveInfo[recipients[i]].stakingRewards += uint232(reward);
+            $S.stakeInfo[recipients[i]].balance += uint232(reward);
         }
 
         // to be more lenient, slashing would happen after rewards are applied
@@ -250,7 +249,7 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc StakeManager
-    function claimStakeRewards(address validatorAddress) external override whenNotPaused {
+    function claimStakeRewards(address validatorAddress) external override whenNotPaused nonReentrant {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
         // require validator is whitelisted, having been issued a ConsensusNFT by governance
@@ -289,7 +288,7 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc StakeManager
-    function unstake(address validatorAddress) external override whenNotPaused {
+    function unstake(address validatorAddress) external override whenNotPaused nonReentrant {
         StakeManagerStorage storage $S = _stakeManagerStorage();
         // require validator is whitelisted, having been issued a ConsensusNFT by governance
         uint24 tokenId = _checkKnownValidator($S, validatorAddress);
@@ -327,7 +326,7 @@ contract ConsensusRegistry is
         }
 
         // set tokenId and increment supply
-        $.incentiveInfo[validatorAddress].tokenId = uint24(tokenId);
+        $.stakeInfo[validatorAddress].tokenId = uint24(tokenId);
         uint24 newSupply = ++$.totalSupply;
 
         // enforce `tokenId` does not exist, is valid, and in incrementing order if not retired
@@ -513,7 +512,7 @@ contract ConsensusRegistry is
         internal
     {
         // mark `validatorAddress` as spent using `UNSTAKED`
-        $S.incentiveInfo[validatorAddress].tokenId = UNSTAKED;
+        $S.stakeInfo[validatorAddress].tokenId = UNSTAKED;
 
         // reverts if decremented committee size after ejection reaches 0, preventing network halt
         uint256 numEligible = _getValidators($C, ValidatorStatus.Active).length;
@@ -554,20 +553,19 @@ contract ConsensusRegistry is
     }
 
     /// @notice Slashing is not live but scaffolding for it is included here.
-    function _applySlashes(StakeManagerStorage storage $S, IncentiveInfo[] calldata slashes) internal {
+    function _applySlashes(StakeManagerStorage storage $S, Slash[] calldata slashes) internal {
         for (uint256 i; i < slashes.length; ++i) {
-            IncentiveInfo calldata slash = slashes[i];
+            StakeInfo calldata slash = slashes[i];
             ValidatorInfo memory validator = getValidatorByTokenId(slash.tokenId);
 
             uint24 tokenId = _checkKnownValidator($S, validator.validatorAddress);
             if (tokenId != slash.tokenId) revert InvalidTokenId(slash.tokenId);
 
-            uint232 slashAmount = slash.stakingRewards;
-            IncentiveInfo storage info = $S.incentiveInfo[validator.validatorAddress];
-            if (info.stakingRewards >= slashAmount) {
-                info.stakingRewards -= slashAmount;
+            StakeInfo storage info = $S.stakeInfo[validator.validatorAddress];
+            if (info.balance >= slash.amount) {
+                info.balance -= slash.amount;
             } else {
-                // in practice this would be early for forced retirement; decrement stake amount first
+                // eject validators whose balance reaches 0
                 _consensusBurn($S, _consensusRegistryStorage(), tokenId, validator.validatorAddress);
             }
         }
@@ -597,7 +595,7 @@ contract ConsensusRegistry is
             // skip validators who just activated and have not yet completed a full epoch
             if (validator.activationEpoch == currentEpoch) continue;
 
-            // gather recipients and their stake amounts using stake their version
+            // gather recipients and their stake amounts using their stake version
             tmpRecipients[numEligible] = _getRecipient($S, validator.validatorAddress);
             uint256 recipientStake;
             if (validator.stakeVersion == currentVersion) {
@@ -885,7 +883,7 @@ contract ConsensusRegistry is
             }
 
             $C.validators[tokenId] = currentValidator;
-            $S.incentiveInfo[currentValidator.validatorAddress].tokenId = tokenId;
+            $S.stakeInfo[currentValidator.validatorAddress].tokenId = tokenId;
             $S.totalSupply++;
             __ERC721_init("ConsensusNFT", "CNFT");
             _mint(currentValidator.validatorAddress, tokenId);

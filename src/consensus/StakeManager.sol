@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
 import { IRWTEL } from "../interfaces/IRWTEL.sol";
-import { IncentiveInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 
 /**
  * @title StakeManager
@@ -61,13 +61,16 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         returns (bytes32);
 
     /// @inheritdoc IStakeManager
-    function getRewards(address validatorAddress) public view virtual returns (uint240) {
-        return _getRewards(_stakeManagerStorage(), validatorAddress);
+    function getRewards(address validatorAddress, uint8 validatorVersion) public view virtual returns (uint240) {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        uint256 initialStake = $.versions[validatorVersion].stakeAmount;
+
+        return _getRewards($, validatorAddress, initialStake);
     }
 
     /// @inheritdoc IStakeManager
-    function incentiveInfo(address validatorAddress) public view virtual returns (IncentiveInfo memory) {
-        return _stakeManagerStorage().incentiveInfo[validatorAddress];
+    function stakeInfo(address validatorAddress) public view virtual returns (StakeInfo memory) {
+        return _stakeManagerStorage().stakeInfo[validatorAddress];
     }
 
     /// @inheritdoc IStakeManager
@@ -135,6 +138,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
      *   internals
      *
      */
+
     function _claimStakeRewards(
         StakeManagerStorage storage $,
         address validatorAddress,
@@ -145,9 +149,9 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         virtual
         returns (uint256 rewards)
     {
-        rewards = _checkRewardsExceedMinWithdrawAmount($, validatorAddress, validatorVersion);
-        // wipe ledger to prevent reentrancy and send via the `RWTEL` module
-        $.incentiveInfo[validatorAddress].stakingRewards = 0;
+        // check rewards are claimable and send via the `RWTEL` module
+        rewards = _checkRewards($, validatorAddress, validatorVersion);
+        $.stakeInfo[validatorAddress].balance -= rewards;
         IRWTEL($.rwTEL).distributeStakeReward(recipient, rewards);
     }
 
@@ -163,22 +167,24 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
-        // wipe existing incentiveInfo and burn the token
-        IncentiveInfo storage info = $.incentiveInfo[validatorAddress];
-        uint256 rewards = uint256(info.stakingRewards);
-        info.stakingRewards = 0;
+        // wipe existing stakeInfo and burn the token
+        StakeInfo storage info = $.stakeInfo[validatorAddress];
+        uint256 stakeAmt = $.versions[validatorVersion].stakeAmount;
+        uint256 rewards = uint256(info.balance) - stakeAmt;
+        info.balance = 0;
         info.tokenId = UNSTAKED;
-        $.totalSupply--;
+
+        uint256 supply = --$.totalSupply;
+        if (supply == 0) revert InvalidSupply();
         _burn(tokenId);
 
-        // forward the stake amount and outstanding rewards through RWTEL module to caller
-        uint256 stakeAmt = $.versions[validatorVersion].stakeAmount;
+        // forward all funds through RWTEL module to recipient
         IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmt }(recipient, rewards);
 
         return stakeAmt + rewards;
     }
 
-    function _checkRewardsExceedMinWithdrawAmount(
+    function _checkRewards(
         StakeManagerStorage storage $,
         address validatorAddress,
         uint8 validatorVersion
@@ -187,8 +193,12 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         virtual
         returns (uint256 rewards)
     {
-        rewards = incentiveInfo(validatorAddress).stakingRewards;
-        if (rewards < $.versions[validatorVersion].minWithdrawAmount) revert InsufficientRewards(rewards);
+        uint256 initialStake = $.versions[validatorVersion].stakeAmount;
+        rewards = _getRewards(validatorAddress, initialStake);
+
+        if (rewards == 0 || rewards < $.versions[validatorVersion].minWithdrawAmount) {
+            revert InsufficientRewards(rewards);
+        }
     }
 
     function _checkStakeValue(uint256 value, uint8 version) internal virtual {
@@ -197,18 +207,22 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
 
     function _getRewards(
         StakeManagerStorage storage $,
-        address validatorAddress
+        address validatorAddress,
+        uint256 initialStake
     )
         internal
         view
         virtual
-        returns (uint240 claimableRewards)
+        returns (uint240)
     {
-        return $.incentiveInfo[validatorAddress].stakingRewards;
+        uint256 balance = $.stakeInfo[validatorAddress].balance;
+        uint240 rewards = balance > initialStake ? balance - initialStake : 0;
+
+        return rewards;
     }
 
     function _getTokenId(StakeManagerStorage storage $, address validatorAddress) internal view returns (uint24) {
-        return $.incentiveInfo[validatorAddress].tokenId;
+        return $.stakeInfo[validatorAddress].tokenId;
     }
 
     function _exists(uint256 tokenId) internal view virtual returns (bool) {

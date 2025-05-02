@@ -7,7 +7,7 @@ import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { IConsensusRegistry } from "src/consensus/interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { StakeManager } from "src/consensus/StakeManager.sol";
-import { IncentiveInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
+import { StakeInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
 import { RWTEL } from "src/RWTEL.sol";
 import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 
@@ -91,14 +91,14 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
         vm.startPrank(sysAddress);
         address[] memory zeroCommittee = new address[](committeeSize);
-        consensusRegistry.concludeEpoch(zeroCommittee, new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(zeroCommittee, new StakeInfo[](0));
         address[] memory newCommittee = _fuzz_createNewCommittee(numActive, committeeSize);
 
         // set the subsequent epoch committee by concluding epoch
         uint32 duration = consensusRegistry.getCurrentEpochInfo().epochDuration;
         vm.expectEmit(true, true, true, true);
         emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommittee, uint64(block.number + 1), duration));
-        consensusRegistry.concludeEpoch(newCommittee, new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(newCommittee, new StakeInfo[](0));
 
         // asserts
         uint256 numActiveAfter = consensusRegistry.getValidators(ValidatorStatus.Active).length;
@@ -132,10 +132,10 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
         vm.startPrank(sysAddress);
         address[] memory zeroCommittee = new address[](committeeSize);
-        IncentiveInfo[] memory zeroSlashes = new IncentiveInfo[](0);
+        StakeInfo[] memory zeroSlashes = new StakeInfo[](0);
         consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
 
-        // apply incentives by finalizing epoch with empty `IncentiveInfo`
+        // apply incentives by finalizing epoch with empty `StakeInfo`
         consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
         vm.stopPrank();
 
@@ -166,11 +166,11 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         uint256 committeeSize = _fuzz_computeCommitteeSize(numActive, numValidators);
         vm.startPrank(sysAddress);
         // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
-        IncentiveInfo[] memory zeroSlashes = new IncentiveInfo[](0);
+        StakeInfo[] memory zeroSlashes = new StakeInfo[](0);
         address[] memory zeroCommittee = new address[](committeeSize);
         consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
 
-        // apply incentives by finalizing epoch with empty `IncentiveInfo`
+        // apply incentives by finalizing epoch with empty `StakeInfo`
         consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
         vm.stopPrank();
 
