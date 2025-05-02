@@ -102,10 +102,13 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         assertFalse(yamlAppendGenesisAccount(dest, simulatedWTEL, deployments.wTEL, sharedNonce, sharedBalance));
 
         // iTEL impl before ITS to fetch token id for TokenHandler::constructor
-        address simulatedInterchainTELImpl = address(instantiateInterchainTELImpl(deployments.its.InterchainTokenService));
+        address simulatedInterchainTELImpl =
+            address(instantiateInterchainTELImpl(deployments.its.InterchainTokenService));
         // note iTEL impl has storage changes due to RecoverableWrapper dep but they are not used in proxy setup
         assertTrue(
-            yamlAppendGenesisAccount(dest, simulatedInterchainTELImpl, deployments.its.InterchainTELImpl, sharedNonce, sharedBalance)
+            yamlAppendGenesisAccount(
+                dest, simulatedInterchainTELImpl, deployments.its.InterchainTELImpl, sharedNonce, sharedBalance
+            )
         );
         customLinkedTokenId = iTELImpl.interchainTokenId();
 
@@ -215,14 +218,22 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
 
         // itel (note: requires both storage and the total supply of TEL at genesis)
         address simulatedInterchainTEL = address(instantiateInterchainTEL(deployments.its.InterchainTELImpl));
-        assertTrue(yamlAppendGenesisAccount(dest, simulatedInterchainTEL, deployments.its.InterchainTEL, sharedNonce, iTELBalance));
+        assertTrue(
+            yamlAppendGenesisAccount(
+                dest, simulatedInterchainTEL, deployments.its.InterchainTEL, sharedNonce, iTELBalance
+            )
+        );
 
         // itel token manager
         address simulatedInterchainTELTokenManager =
             address(instantiateInterchainTELTokenManager(deployments.its.InterchainTokenService, customLinkedTokenId));
         assertTrue(
             yamlAppendGenesisAccount(
-                dest, simulatedInterchainTELTokenManager, deployments.its.InterchainTELTokenManager, sharedNonce, sharedBalance
+                dest,
+                simulatedInterchainTELTokenManager,
+                deployments.its.InterchainTELTokenManager,
+                sharedNonce,
+                sharedBalance
             )
         );
         vm.stopBroadcast();
