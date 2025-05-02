@@ -17,9 +17,6 @@ struct Deployments {
     address admin;
     EXYZs eXYZs;
     ITS its;
-    address rwTEL;
-    address rwTELImpl;
-    address rwTELTokenManager;
     address sepoliaTEL;
     UniswapV2 uniswapV2;
     address wTEL;
@@ -41,6 +38,9 @@ struct ITS {
     address TokenHandler;
     address TokenManagerDeployer;
     address TokenManagerImpl;
+    address rwTEL;
+    address rwTELImpl;
+    address rwTELTokenManager;
 }
 
 /// @notice Foundry decodes JSON data to Solidity structs using lexicographical ordering

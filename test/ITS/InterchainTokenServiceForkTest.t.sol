@@ -92,7 +92,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         sepoliaFork = vm.createSelectFork(SEPOLIA_RPC_URL);
         // send tokenManager sepolia TEL so it can unlock them
         vm.prank(user);
-        IERC20(deployments.sepoliaTEL).transfer(address(deployments.rwTELTokenManager), amount);
+        IERC20(deployments.sepoliaTEL).transfer(address(deployments.its.rwTELTokenManager), amount);
 
         tnFork = vm.createFork(TN_RPC_URL);
     }
@@ -116,7 +116,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.rwTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -206,7 +206,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.rwTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -253,7 +253,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.rwTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -303,7 +303,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.rwTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -374,9 +374,9 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.rwTELImpl,
+            deployments.its.rwTEL,
+            deployments.its.rwTELTokenManager
         );
 
         /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
@@ -435,9 +435,9 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.rwTELImpl,
+            deployments.its.rwTEL,
+            deployments.its.rwTELTokenManager
         );
 
         /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
@@ -502,9 +502,9 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.rwTELImpl,
+            deployments.its.rwTEL,
+            deployments.its.rwTELTokenManager
         );
 
         // give funds to user

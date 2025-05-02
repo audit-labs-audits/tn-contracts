@@ -76,14 +76,14 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         rwtelOwner = admin;
 
         /// @dev For testnet and mainnet genesis configs, use corresponding function
-        _setUpDevnetConfig(admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTEL);
+        _setUpDevnetConfig(admin, deployments.sepoliaTEL, deployments.wTEL, deployments.its.rwTEL);
 
         _setGenesisTargets(
             deployments.its,
             payable(deployments.wTEL),
-            payable(deployments.rwTELImpl),
-            payable(deployments.rwTEL),
-            deployments.rwTELTokenManager
+            payable(deployments.its.rwTELImpl),
+            payable(deployments.its.rwTEL),
+            deployments.its.rwTELTokenManager
         );
 
         // create3 contract only used for simulation; will not be instantiated at genesis
@@ -105,7 +105,7 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         address simulatedRWTELImpl = address(instantiateRWTELImpl(deployments.its.InterchainTokenService));
         // note rwTEL impl has storage changes due to RecoverableWrapper dep but they are not used in proxy setup
         assertTrue(
-            yamlAppendGenesisAccount(dest, simulatedRWTELImpl, deployments.rwTELImpl, sharedNonce, sharedBalance)
+            yamlAppendGenesisAccount(dest, simulatedRWTELImpl, deployments.its.rwTELImpl, sharedNonce, sharedBalance)
         );
         customLinkedTokenId = rwTELImpl.interchainTokenId();
 
@@ -214,15 +214,15 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         );
 
         // rwtel (note: requires both storage and the total supply of TEL at genesis)
-        address simulatedRWTEL = address(instantiateRWTEL(deployments.rwTELImpl));
-        assertTrue(yamlAppendGenesisAccount(dest, simulatedRWTEL, deployments.rwTEL, sharedNonce, rwTELBalance));
+        address simulatedRWTEL = address(instantiateRWTEL(deployments.its.rwTELImpl));
+        assertTrue(yamlAppendGenesisAccount(dest, simulatedRWTEL, deployments.its.rwTEL, sharedNonce, rwTELBalance));
 
         // rwtel token manager
         address simulatedRWTELTokenManager =
             address(instantiateRWTELTokenManager(deployments.its.InterchainTokenService, customLinkedTokenId));
         assertTrue(
             yamlAppendGenesisAccount(
-                dest, simulatedRWTELTokenManager, deployments.rwTELTokenManager, sharedNonce, sharedBalance
+                dest, simulatedRWTELTokenManager, deployments.its.rwTELTokenManager, sharedNonce, sharedBalance
             )
         );
         vm.stopBroadcast();

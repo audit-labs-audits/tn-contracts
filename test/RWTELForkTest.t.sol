@@ -97,7 +97,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
         sepoliaFork = vm.createSelectFork(SEPOLIA_RPC_URL);
         // send tokenManager sepolia TEL so it can unlock them
         vm.prank(user);
-        IERC20(deployments.sepoliaTEL).transfer(address(deployments.rwTELTokenManager), interchainAmount);
+        IERC20(deployments.sepoliaTEL).transfer(address(deployments.its.rwTELTokenManager), interchainAmount);
 
         tnFork = vm.createFork(TN_RPC_URL);
     }
@@ -109,9 +109,9 @@ contract RWTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.rwTELImpl,
+            deployments.its.rwTEL,
+            deployments.its.rwTELTokenManager
         );
 
         // give funds to user
@@ -158,9 +158,9 @@ contract RWTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.rwTELImpl,
+            deployments.its.rwTEL,
+            deployments.its.rwTELTokenManager
         );
 
         // give funds to user
@@ -221,7 +221,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.rwTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -230,7 +230,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
         vm.stopPrank();
 
         // sanity asserts for post origin registration
-        assertEq(address(returnedTELTokenManager), deployments.rwTELTokenManager);
+        assertEq(address(returnedTELTokenManager), deployments.its.rwTELTokenManager);
         bytes32 expectedTELTokenId = sepoliaITF.linkedTokenId(linker, salts.registerCustomTokenSalt);
         assertEq(expectedTELTokenId, sepoliaITS.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
 
@@ -240,7 +240,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
             returnedInterchainTokenId,
             rwtelTMType,
             AddressBytes.toBytes(originTEL),
-            AddressBytes.toBytes(deployments.rwTEL),
+            AddressBytes.toBytes(deployments.its.rwTEL),
             tmOperator
         );
 
@@ -253,9 +253,9 @@ contract RWTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.rwTELImpl,
+            deployments.its.rwTEL,
+            deployments.its.rwTELTokenManager
         );
 
         // assert returned ITS values match genesis expectations
@@ -303,11 +303,11 @@ contract RWTELForkTest is Test, ITSTestHelper {
         its.execute(commandId, sourceChain, sourceAddressString, wrappedPayload);
 
         // wipe genesis token manager to ensure link message would otherwise settle according to ITS protocol
-        vm.etch(deployments.rwTELTokenManager, "");
-        bytes memory deployTMParams = abi.encode(tmOperator, deployments.rwTEL);
+        vm.etch(deployments.its.rwTELTokenManager, "");
+        bytes memory deployTMParams = abi.encode(tmOperator, deployments.its.rwTEL);
         vm.expectEmit();
         emit IInterchainTokenService.TokenManagerDeployed(
-            expectedTELTokenId, deployments.rwTELTokenManager, rwtelTMType, deployTMParams
+            expectedTELTokenId, deployments.its.rwTELTokenManager, rwtelTMType, deployTMParams
         );
         its.execute(commandId, sourceChain, sourceAddressString, wrappedPayload);
     }
@@ -329,7 +329,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.rwTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -338,8 +338,8 @@ contract RWTELForkTest is Test, ITSTestHelper {
         vm.stopPrank();
 
         // sanity asserts for post origin registration
-        assertEq(sepoliaITS.interchainTokenAddress(returnedInterchainTokenId), deployments.rwTEL);
-        assertEq(address(returnedTELTokenManager), deployments.rwTELTokenManager);
+        assertEq(sepoliaITS.interchainTokenAddress(returnedInterchainTokenId), deployments.its.rwTEL);
+        assertEq(address(returnedTELTokenManager), deployments.its.rwTELTokenManager);
         bytes32 expectedTELTokenId = sepoliaITF.linkedTokenId(linker, salts.registerCustomTokenSalt);
         assertEq(expectedTELTokenId, sepoliaITS.interchainTokenId(address(0x0), returnedInterchainTokenSalt));
 
@@ -387,9 +387,9 @@ contract RWTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.rwTELImpl,
+            deployments.its.rwTEL,
+            deployments.its.rwTELTokenManager
         );
 
         /**
@@ -472,9 +472,9 @@ contract RWTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.rwTELImpl,
+            deployments.its.rwTEL,
+            deployments.its.rwTELTokenManager
         );
 
         uint256 startingNativeBal = nativeAmount + gasValue;
@@ -544,7 +544,7 @@ contract RWTELForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.rwTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
