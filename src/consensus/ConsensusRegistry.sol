@@ -552,7 +552,7 @@ contract ConsensusRegistry is
             uint24 tokenId = _checkConsensusNFTOwner($S, slash.validatorAddress);
 
             StakeInfo storage info = $S.stakeInfo[slash.validatorAddress];
-            if (info.balance >= slash.amount) {
+            if (info.balance > slash.amount) {
                 info.balance -= slash.amount;
             } else {
                 // eject validators whose balance would reach 0
