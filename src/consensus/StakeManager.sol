@@ -142,7 +142,6 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
      *   internals
      *
      */
-
     function _claimStakeRewards(
         StakeManagerStorage storage $,
         address validatorAddress,
@@ -175,7 +174,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         StakeInfo storage info = $.stakeInfo[validatorAddress];
         uint232 bal = info.balance;
         info.balance = 0;
-        info.tokenId = UNSTAKED;    
+        info.tokenId = UNSTAKED;
 
         uint256 supply = --$.totalSupply;
         if (supply == 0) revert InvalidSupply();
@@ -185,10 +184,11 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         uint232 stakeAmt = $.versions[validatorVersion].stakeAmount;
         uint256 rewards = _getRewards($, validatorAddress, stakeAmt);
         IInterchainTEL($.iTEL).distributeStakeReward{ value: bal }(recipient, rewards);
-        
+
         // if slashed, consolidate remainder on the InterchainTEL contract
         if (bal < stakeAmt) {
-            (bool r,) = $.iTEL.call{ value: stakeAmt - bal }("");r;
+            (bool r,) = $.iTEL.call{ value: stakeAmt - bal }("");
+            r;
         }
 
         return bal + rewards;
