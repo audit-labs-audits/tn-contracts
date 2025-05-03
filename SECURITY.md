@@ -29,7 +29,7 @@ From a security standpoint, Telcoin Network bridging is constituted of four comp
 
 ##### Security implications: CRITICAL
 
-To integrate with Axelar, Telcoin Network's execution layer uses an external gateway contract and executable contract: the AxelarAmplifierGateway and the RWTEL module, respectively.
+To integrate with Axelar, Telcoin Network's execution layer uses an external gateway contract and executable contract: the AxelarAmplifierGateway and the InterchainTEL module, respectively.
 
 #### External Gateway "AxelarAmplifierGateway.sol"
 
@@ -37,11 +37,11 @@ The external gateway serves as the EVM entrypoint and exit point for cross-chain
 
 To bolster this contract's security posture, Telcoin Network uses the canonical audited and battle-tested Axelar implementation without any changes.
 
-#### RWTEL Executable "AxelarGMPExecutable.sol"
+#### InterchainTEL Executable "AxelarGMPExecutable.sol"
 
 //todo: update this section
 
-The RWTEL executable contract communicates with the external gateway to lock and release native $TEL tokens. It is vital that this contract is secure to handle the movement of native $TEL as part of validated bridge messages.
+The InterchainTEL executable contract communicates with the external gateway to lock and release native $TEL tokens. It is vital that this contract is secure to handle the movement of native $TEL as part of validated bridge messages.
 
 To bolster this contract's security posture, the contract enforces strict invariant conditions under which $TEL may be released:
 
@@ -76,13 +76,13 @@ This flow is very important to TN bridging, however it is entirely implemented b
 
 To validate cross-chain messages within the Axelar chain, whitelisted services called `verifiers` check new messages against their source chain's finality via RPC to quorum-vote on whether the messages were indeed emitted by the source chain's gateway within a block that has reached finality. To do so, the TN verifiers themselves run a copy of a Telcoin Network Non-Voting Validator "NVV" client to track TN's execution and consensus.
 
-Because verifiers are the entities responsible for reaching quorum on whether bridge messages are valid and final, they possess a similar security implication to the RWTEL module. In short, the verifiers are responsible for validating bridge messages from a consensus-standpoint, whereas the RWTEL module is responsible for carrying out those validated bridge messages from the execution-standpoint.
+Because verifiers are the entities responsible for reaching quorum on whether bridge messages are valid and final, they possess a similar security implication to the InterchainTEL module. In short, the verifiers are responsible for validating bridge messages from a consensus-standpoint, whereas the InterchainTEL module is responsible for carrying out those validated bridge messages from the execution-standpoint.
 
 ## Telcoin Network System Contract Audit Scope
 
 | File                                | Logic Contracts                                     | Interfaces                            | nSLOC          |
 | ----------------------------------- | --------------------------------------------------- | ------------------------------------- | -------------- |
-| src/RWTEL.sol                       | 1 (RWTEL)                                           | 1 (IRWTEL)                            | 141            |
+| src/InterchainTEL.sol               | 1 (InterchainTEL)                                   | 1 (IInterchainTEL)                    | 141            |
 | src/consensus/ConsensusRegistry.sol | 3 (ConsensusRegistry, StakeManager, SystemCallable) | 2 (IConsensusRegistry, IStakeManager) | (600, 150, 21) |
 | node/src/relay/Includer.ts          | 0 (Offchain Relayer)                                | 0 (Offchain component)                | 300            |
 
@@ -95,7 +95,7 @@ The ConsensusRegistry smart contract, a system contract critical to the Telcoin-
 
 ### Dependencies (audited)
 
-RWTEL:
+InterchainTEL:
 
 - [RecoverableWrapper](./node_modules/recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol)
 - [AxelarGMPExecutable](./node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarGMPExecutable.sol)
@@ -111,7 +111,7 @@ ConsensusRegistry:
 
 ### Documentation
 
-##### For developers and auditors, please note that this codebase adheres to [the SolidityLang NatSpec guidelines](https://docs.soliditylang.org/en/latest/natspec-format.html), meaning documentation for each contract is best viewed in its interface file. For example, to learn about the RWTEL module you should consult the IRWTEL interface and likewise, for info about the ConsensusRegistry, see IConsensusRegistry.sol.
+##### For developers and auditors, please note that this codebase adheres to [the SolidityLang NatSpec guidelines](https://docs.soliditylang.org/en/latest/natspec-format.html), meaning documentation for each contract is best viewed in its interface file. For example, to learn about the InterchainTEL module you should consult the IInterchainTEL interface and likewise, for info about the ConsensusRegistry, see IConsensusRegistry.sol.
 
 ##### Please also note that while these contracts are still a work in progress, documentation is limited to the repo's READMEs and forum posts from developers. Once finalized but still preceding audit, tn-contracts system documentation will be hosted on a standard rust-lang/mdbook.
 
@@ -119,6 +119,6 @@ ConsensusRegistry:
 
 - ConsensusRegistry system design is documented in the [tn-contracts README](./README.md#consensusregistry) and there is some more system design discussion in [this Telcoin Forum post](https://forum.telcoin.org/t/validator-onboarding-staking-consensusregistry/364/2?u=robriks)
 
-- RWTEL system design is likewise documented in the [tn-contracts README](./README.md#rwtel-module)
+- InterchainTEL system design is likewise documented in the [tn-contracts README](./README.md#itel-module)
 
 - Offchain relayer system design is documented in the [tn-contracts NodeJS subdirectory's relay README](./node/src/relay/README.md)

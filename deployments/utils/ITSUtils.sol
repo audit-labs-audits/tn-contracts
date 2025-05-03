@@ -35,7 +35,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
-import { RWTEL } from "../../src/RWTEL.sol";
+import { InterchainTEL } from "../../src/InterchainTEL.sol";
 import { TNTokenManager } from "../../src/interchain-token-service/TNTokenManager.sol";
 import { TNTokenHandler } from "../../src/interchain-token-service/TNTokenHandler.sol";
 import { Create3Utils, Salts, ImplSalts } from "./Create3Utils.sol";
@@ -64,13 +64,13 @@ abstract contract ITSUtils is Create3Utils {
     InterchainTokenFactory itFactory; // InterchainProxy
     TNTokenHandler tnTokenHandler;
     TNTokenManager tokenManagerImpl;
-    TokenManager rwTELTokenManager;
+    TokenManager iTELTokenManager;
 
     // Telcoin Network contracts
     WTEL wTEL;
-    RWTEL rwTELImpl;
-    RWTEL rwTEL;
-    address rwtelOwner; // note: devnet only
+    InterchainTEL iTELImpl;
+    InterchainTEL iTEL;
+    address itelOwner; // note: devnet only
 
     // AxelarAmplifierGateway config
     string axelarId;
@@ -105,7 +105,7 @@ abstract contract ITSUtils is Create3Utils {
     // InterchainTokenFactory config
     address itfOwner;
 
-    // rwTEL config
+    // iTEL config
     address originTEL;
     string originChainName_;
     string symbol_;
@@ -115,8 +115,8 @@ abstract contract ITSUtils is Create3Utils {
     address baseERC20_; // wTEL
     uint16 maxToClean;
 
-    // rwTELTokenManager config
-    ITokenManagerType.TokenManagerType rwtelTMType = ITokenManagerType.TokenManagerType.MINT_BURN;
+    // iTELTokenManager config
+    ITokenManagerType.TokenManagerType itelTMType = ITokenManagerType.TokenManagerType.MINT_BURN;
     address tokenAddress;
     bytes tmOperator;
     bytes params;
@@ -301,8 +301,8 @@ abstract contract ITSUtils is Create3Utils {
         wtel = WTEL(payable(create3Deploy(create3, type(WTEL).creationCode, '', salts.wtelSalt)));
     }
 
-    function instantiateRWTELImpl(address its_) public virtual returns (RWTEL impl) {
-        bytes memory rwTELImplConstructorArgs = abi.encode(
+    function instantiateInterchainTELImpl(address its_) public virtual returns (InterchainTEL impl) {
+        bytes memory iTELImplConstructorArgs = abi.encode(
             originTEL,
             linker,
             salts.registerCustomTokenSalt,
@@ -315,22 +315,22 @@ abstract contract ITSUtils is Create3Utils {
             baseERC20_,
             maxToClean
         );
-        impl = RWTEL(
-            payable(create3Deploy(create3, type(RWTEL).creationCode, rwTELImplConstructorArgs, implSalts.rwtelImplSalt))
+        impl = InterchainTEL(
+            payable(create3Deploy(create3, type(InterchainTEL).creationCode, iTELImplConstructorArgs, implSalts.itelImplSalt))
         );
     }
 
-    function instantiateRWTEL(address impl) public virtual returns (RWTEL proxy) {
-        bytes memory rwTELConstructorArgs = abi.encode(impl, "");
-        proxy = RWTEL(
-            payable(create3Deploy(create3, type(ERC1967Proxy).creationCode, rwTELConstructorArgs, salts.rwtelSalt))
+    function instantiateInterchainTEL(address impl) public virtual returns (InterchainTEL proxy) {
+        bytes memory iTELConstructorArgs = abi.encode(impl, "");
+        proxy = InterchainTEL(
+            payable(create3Deploy(create3, type(ERC1967Proxy).creationCode, iTELConstructorArgs, salts.itelSalt))
         );
     }
 
-    function instantiateRWTELTokenManager(address its_, bytes32 customLinkedTokenId_) public virtual returns (TNTokenManager rwtelTM) {        
-        bytes memory rwtelTMConstructorArgs = abi.encode(its_, uint256(rwtelTMType), customLinkedTokenId_, params);
-        rwtelTM = TNTokenManager(
-            create3Deploy(create3, type(TokenManagerProxy).creationCode, rwtelTMConstructorArgs, salts.rwtelTMSalt)
+    function instantiateInterchainTELTokenManager(address its_, bytes32 customLinkedTokenId_) public virtual returns (TNTokenManager itelTM) {        
+        bytes memory itelTMConstructorArgs = abi.encode(its_, uint256(itelTMType), customLinkedTokenId_, params);
+        itelTM = TNTokenManager(
+            create3Deploy(create3, type(TokenManagerProxy).creationCode, itelTMConstructorArgs, salts.itelTMSalt)
         );
     }
 

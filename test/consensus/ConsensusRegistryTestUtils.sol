@@ -3,12 +3,12 @@ pragma solidity 0.8.26;
 
 import "forge-std/Test.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
-import { RWTEL } from "src/RWTEL.sol";
+import { InterchainTEL } from "src/InterchainTEL.sol";
 
 contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     ConsensusRegistry public consensusRegistryImpl;
     ConsensusRegistry public consensusRegistry;
-    RWTEL public rwTEL;
+    InterchainTEL public iTEL;
 
     address public crOwner = address(0xc0ffee);
     address public validator1 = _createRandomAddress(1);
@@ -38,8 +38,8 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     uint256 public MAX_MINTABLE = 14_000;
 
     constructor() {
-        // deploy an RWTEL module
-        rwTEL = new RWTEL(
+        // deploy an InterchainTEL module
+        iTEL = new InterchainTEL(
             address(0xbabe),
             address(0xdead),
             bytes32(0x0),

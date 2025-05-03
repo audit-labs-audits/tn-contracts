@@ -17,7 +17,7 @@ struct IncentiveInfo {
 interface IStakeManager {
     /// @custom:storage-location erc7201:telcoin.storage.StakeManager
     struct StakeManagerStorage {
-        address rwTEL;
+        address iTEL;
         uint24 totalSupply;
         uint8 stakeVersion;
         mapping(uint8 => StakeConfig) versions;

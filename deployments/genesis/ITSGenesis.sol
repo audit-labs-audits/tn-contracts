@@ -15,7 +15,7 @@ import { TokenHandler } from "@axelar-network/interchain-token-service/contracts
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
 import { WTEL } from "../../src/WTEL.sol";
-import { RWTEL } from "../../src/RWTEL.sol";
+import { InterchainTEL } from "../../src/InterchainTEL.sol";
 import { TNTokenManager } from "../../src/interchain-token-service/TNTokenManager.sol";
 import { TNTokenHandler } from "../../src/interchain-token-service/TNTokenHandler.sol";
 import { ITS } from "../Deployments.sol";
@@ -23,11 +23,11 @@ import { ITSConfig } from "../utils/ITSConfig.sol";
 import { GenesisPrecompiler } from "./GenesisPrecompiler.sol";
 
 /// @title ITSGenesis utility providing TN genesis-specific overrides of ITSUtils default instantiation fns
-/// @notice Genesis target addresses for ITS suite & RWTEL must first be stored via `_setGenesisTargets()`
+/// @notice Genesis target addresses for ITS suite & InterchainTEL must first be stored via `_setGenesisTargets()`
 /// @dev All genesis fns return simulated deployments, copying state changes to genesis targets in storage
 abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
     /// @dev Sets this contract's state using ITS fetched from a `deployments.json` file
-    function _setGenesisTargets(ITS memory genesisITSTargets, address payable wtel, address payable rwtelImpl, address payable rwtel, address rwtelTokenManager) internal {
+    function _setGenesisTargets(ITS memory genesisITSTargets, address payable wtel, address payable itelImpl, address payable itel, address itelTokenManager) internal {
         gatewayImpl = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGatewayImpl);
         gateway = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGateway);
         tokenManagerDeployer = TokenManagerDeployer(genesisITSTargets.TokenManagerDeployer);
@@ -43,9 +43,9 @@ abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
         itFactoryImpl = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactoryImpl);
         itFactory = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactory);
         wTEL = WTEL(wtel);
-        rwTELImpl = RWTEL(rwtelImpl);
-        rwTEL = RWTEL(rwtel);
-        rwTELTokenManager = TNTokenManager(rwtelTokenManager);
+        iTELImpl = InterchainTEL(itelImpl);
+        iTEL = InterchainTEL(itel);
+        iTELTokenManager = TNTokenManager(itelTokenManager);
     }
 
     function instantiateAxelarAmplifierGatewayImpl()
@@ -213,31 +213,31 @@ abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
         copyContractState(address(simulatedDeployment), address(wTEL), new bytes32[](0));
     }
 
-    function instantiateRWTELImpl(address its_) public virtual override returns (RWTEL simulatedDeployment) {
+    function instantiateInterchainTELImpl(address its_) public virtual override returns (InterchainTEL simulatedDeployment) {
         vm.startStateDiffRecording();
-        simulatedDeployment = super.instantiateRWTELImpl(its_);
-        Vm.AccountAccess[] memory rwtelImplRecords = vm.stopAndReturnStateDiff();
+        simulatedDeployment = super.instantiateInterchainTELImpl(its_);
+        Vm.AccountAccess[] memory itelImplRecords = vm.stopAndReturnStateDiff();
 
-        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), rwtelImplRecords);
-        copyContractState(address(simulatedDeployment), address(rwTELImpl), slots);
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), itelImplRecords);
+        copyContractState(address(simulatedDeployment), address(iTELImpl), slots);
     }
 
-    function instantiateRWTEL(address impl) public virtual override returns (RWTEL simulatedDeployment) {
+    function instantiateInterchainTEL(address impl) public virtual override returns (InterchainTEL simulatedDeployment) {
         vm.startStateDiffRecording();
-        simulatedDeployment = super.instantiateRWTEL(impl);
-        simulatedDeployment.initialize(governanceAddress_, maxToClean, rwtelOwner);
-        Vm.AccountAccess[] memory rwtelRecords = vm.stopAndReturnStateDiff();
+        simulatedDeployment = super.instantiateInterchainTEL(impl);
+        simulatedDeployment.initialize(governanceAddress_, maxToClean, itelOwner);
+        Vm.AccountAccess[] memory itelRecords = vm.stopAndReturnStateDiff();
 
-        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), rwtelRecords);
-        copyContractState(address(simulatedDeployment), address(rwTEL), slots);
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), itelRecords);
+        copyContractState(address(simulatedDeployment), address(iTEL), slots);
     }
 
-    function instantiateRWTELTokenManager(address its_, bytes32 customLinkedTokenId) public virtual override returns (TNTokenManager simulatedDeployment) {
+    function instantiateInterchainTELTokenManager(address its_, bytes32 customLinkedTokenId) public virtual override returns (TNTokenManager simulatedDeployment) {
         vm.startStateDiffRecording();
-        simulatedDeployment = super.instantiateRWTELTokenManager(its_, customLinkedTokenId);
-        Vm.AccountAccess[] memory rwtelTMRecords = vm.stopAndReturnStateDiff();
+        simulatedDeployment = super.instantiateInterchainTELTokenManager(its_, customLinkedTokenId);
+        Vm.AccountAccess[] memory itelTMRecords = vm.stopAndReturnStateDiff();
 
-        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), rwtelTMRecords);
-        copyContractState(address(simulatedDeployment), address(rwTELTokenManager), slots);
+        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), itelTMRecords);
+        copyContractState(address(simulatedDeployment), address(iTELTokenManager), slots);
     }
 }

@@ -37,7 +37,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
-import { RWTEL } from "../../src/RWTEL.sol";
+import { InterchainTEL } from "../../src/InterchainTEL.sol";
 import { Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
 import { ITSUtils } from "../../deployments/utils/ITSUtils.sol";
 import { ITS } from "../../deployments/Deployments.sol";
@@ -60,36 +60,36 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         sepoliaITS = InterchainTokenService(sepoliaIts);
         sepoliaITF = InterchainTokenFactory(sepoliaItf);
         sepoliaGateway = AxelarAmplifierGateway(DEVNET_SEPOLIA_GATEWAY);
-        // etch RWTEL impl bytecode for fetching origin linkedTokenId
+        // etch InterchainTEL impl bytecode for fetching origin linkedTokenId
         originTEL = address(sepoliaTEL);
         originChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
         governanceAddress_ = address(linker);
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        customLinkedTokenId = ITSUtils.instantiateRWTELImpl(sepoliaIts).interchainTokenId();
+        customLinkedTokenId = ITSUtils.instantiateInterchainTELImpl(sepoliaIts).interchainTokenId();
 
         // note that TN must be added as a trusted chain to the Ethereum ITS contract
         vm.prank(sepoliaITS.owner());
         sepoliaITS.setTrustedAddress(TN_CHAIN_NAME, ITS_HUB_ROUTING_IDENTIFIER);
     }
 
-    /// @notice Test utility for deploying ITS architecture, including RWTEL and its TokenManager, via create3
+    /// @notice Test utility for deploying ITS architecture, including InterchainTEL and its TokenManager, via create3
     /// @dev Used for tests only since live deployment is obviated by genesis precompiles
     function setUp_tnFork_devnetConfig_create3(address admin, address originTEL) internal {
         linker = admin;
         vm.deal(linker, 1 ether);
 
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        (address precalculatedITS, address precalculatedWTEL, address precalculatedRWTEL) =
+        (address precalculatedITS, address precalculatedWTEL, address precalculatedInterchainTEL) =
             _precalculateCreate3ConstructorArgs(create3, admin);
 
-        _setUpDevnetConfig(admin, originTEL, precalculatedWTEL, precalculatedRWTEL);
+        _setUpDevnetConfig(admin, originTEL, precalculatedWTEL, precalculatedInterchainTEL);
 
         vm.startPrank(admin);
 
-        // RWTEL impl's bytecode is used to fetch devnet tokenID for TNTokenHandler::constructor
+        // InterchainTEL impl's bytecode is used to fetch devnet tokenID for TNTokenHandler::constructor
         wTEL = ITSUtils.instantiateWTEL();
-        rwTELImpl = ITSUtils.instantiateRWTELImpl(precalculatedITS);
-        customLinkedTokenId = rwTELImpl.interchainTokenId();
+        iTELImpl = ITSUtils.instantiateInterchainTELImpl(precalculatedITS);
+        customLinkedTokenId = iTELImpl.interchainTokenId();
 
         gatewayImpl = ITSUtils.instantiateAxelarAmplifierGatewayImpl();
         gateway = ITSUtils.instantiateAxelarAmplifierGateway(address(gatewayImpl));
@@ -115,17 +115,17 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         itFactoryImpl = ITSUtils.instantiateITFImpl(address(its));
         itFactory = ITSUtils.instantiateITF(address(itFactoryImpl));
 
-        rwtelOwner = admin;
-        rwTEL = ITSUtils.instantiateRWTEL(address(rwTELImpl));
-        rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
-        // mock-seed rwTEL with TEL total supply as genesis precompile
-        vm.deal(address(rwTEL), telTotalSupply);
+        itelOwner = admin;
+        iTEL = ITSUtils.instantiateInterchainTEL(address(iTELImpl));
+        iTEL.initialize(governanceAddress_, maxToClean, itelOwner);
+        // mock-seed iTEL with TEL total supply as genesis precompile
+        vm.deal(address(iTEL), telTotalSupply);
 
-        rwTELTokenManager = ITSUtils.instantiateRWTELTokenManager(address(its), customLinkedTokenId);
+        iTELTokenManager = ITSUtils.instantiateInterchainTELTokenManager(address(its), customLinkedTokenId);
 
-        customLinkedTokenSalt = rwTEL.linkedTokenDeploySalt();
-        originTELTokenManager = TokenManager(rwTEL.tokenManagerAddress());
-        assertEq(customLinkedTokenId, rwTEL.interchainTokenId());
+        customLinkedTokenSalt = iTEL.linkedTokenDeploySalt();
+        originTELTokenManager = TokenManager(iTEL.tokenManagerAddress());
+        assertEq(customLinkedTokenId, iTEL.interchainTokenId());
 
         vm.stopPrank();
 
@@ -133,16 +133,16 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         assertEq(address(itFactory), create3.deployedAddress("", admin, salts.itfSalt));
     }
 
-    /// @notice Simulates genesis instantiation of ITS, RWTEL, and its TokenManager. Targets `deployments.json`
+    /// @notice Simulates genesis instantiation of ITS, InterchainTEL, and its TokenManager. Targets `deployments.json`
     /// @dev For devnet, a developer admin address serves all permissioned roles
     function setUp_tnFork_devnetConfig_genesis(
         ITS memory genesisITSTargets,
         address admin,
         address originTEL,
         address wtel,
-        address rwtelImpl,
-        address rwtel,
-        address rwtelTokenManager
+        address itelImpl,
+        address itel,
+        address itelTokenManager
     )
         internal
     {
@@ -150,11 +150,11 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         vm.deal(linker, 1 ether);
 
         // first set target genesis addresses in state (not yet deployed) for use with recording
-        _setGenesisTargets(genesisITSTargets, payable(wtel), payable(rwtelImpl), payable(rwtel), rwtelTokenManager);
+        _setGenesisTargets(genesisITSTargets, payable(wtel), payable(itelImpl), payable(itel), itelTokenManager);
 
         // instantiate deployer for state diff recording and set up config vars for devnet
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        _setUpDevnetConfig(admin, originTEL, wtel, rwtel);
+        _setUpDevnetConfig(admin, originTEL, wtel, itel);
 
         instantiateAxelarAmplifierGatewayImpl();
         instantiateAxelarAmplifierGateway(address(gatewayImpl));
@@ -180,21 +180,21 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         instantiateITF(address(itFactoryImpl));
 
         instantiateWTEL();
-        instantiateRWTELImpl(address(its));
-        rwtelOwner = admin;
-        instantiateRWTEL(address(rwTELImpl));
-        // mock-seed rwTEL with TEL total supply as genesis precompile
-        vm.deal(address(rwTEL), telTotalSupply);
+        instantiateInterchainTELImpl(address(its));
+        itelOwner = admin;
+        instantiateInterchainTEL(address(iTELImpl));
+        // mock-seed iTEL with TEL total supply as genesis precompile
+        vm.deal(address(iTEL), telTotalSupply);
 
-        customLinkedTokenSalt = rwTEL.linkedTokenDeploySalt();
-        originTELTokenManager = TokenManager(rwTEL.tokenManagerAddress());
-        customLinkedTokenId = rwTEL.interchainTokenId();
+        customLinkedTokenSalt = iTEL.linkedTokenDeploySalt();
+        originTELTokenManager = TokenManager(iTEL.tokenManagerAddress());
+        customLinkedTokenId = iTEL.interchainTokenId();
         instantiateTokenHandler(customLinkedTokenId);
-        instantiateRWTELTokenManager(address(its), customLinkedTokenId);
+        instantiateInterchainTELTokenManager(address(its), customLinkedTokenId);
     }
 
     /// @dev Assert correctness of origin ITS return values against TN contracts
-    function _devnetAsserts_rwTEL_rwTELTokenManager(
+    function _devnetAsserts_iTEL_iTELTokenManager(
         bytes32 expectedTELTokenId,
         bytes32 returnedTELSalt,
         bytes32 returnedTELTokenId,
@@ -209,16 +209,16 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         assertEq(returnedTELTokenId, customLinkedTokenId);
         assertEq(returnedTELTokenManager, address(originTELTokenManager));
 
-        // rwtel asserts, sanity first
-        assertEq(customLinkedTokenSalt, rwTEL.linkedTokenDeploySalt());
-        assertEq(customLinkedTokenId, rwTEL.interchainTokenId());
-        assertEq(address(originTELTokenManager), rwTEL.tokenManagerAddress());
-        assertEq(returnedTELSalt, rwTEL.linkedTokenDeploySalt());
-        assertEq(returnedTELTokenId, rwTEL.tokenManagerCreate3Salt());
-        assertEq(returnedTELTokenManager, rwTEL.tokenManagerAddress());
+        // itel asserts, sanity first
+        assertEq(customLinkedTokenSalt, iTEL.linkedTokenDeploySalt());
+        assertEq(customLinkedTokenId, iTEL.interchainTokenId());
+        assertEq(address(originTELTokenManager), iTEL.tokenManagerAddress());
+        assertEq(returnedTELSalt, iTEL.linkedTokenDeploySalt());
+        assertEq(returnedTELTokenId, iTEL.tokenManagerCreate3Salt());
+        assertEq(returnedTELTokenManager, iTEL.tokenManagerAddress());
 
         // its asserts
-        assertEq(address(rwTEL), its.interchainTokenAddress(returnedTELTokenId));
+        assertEq(address(iTEL), its.interchainTokenAddress(returnedTELTokenId));
         assertEq(customLinkedTokenId, its.interchainTokenId(address(0x0), returnedTELSalt));
         // ITF::linkedTokenIds are chain-specific so TN itFactory should return differently
         assertFalse(customLinkedTokenId == itFactory.linkedTokenId(linker, salts.registerCustomTokenSalt));

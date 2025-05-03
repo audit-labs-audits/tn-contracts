@@ -41,7 +41,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../src/WTEL.sol";
-import { RWTEL } from "../src/RWTEL.sol";
+import { InterchainTEL } from "../src/InterchainTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Utils.sol";
 import { Deployments, ITS } from "../deployments/Deployments.sol";
 import { ITSConfig } from "../deployments/utils/ITSConfig.sol";
@@ -62,7 +62,7 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
     uint64 sharedNonce = 0;
     uint256 sharedBalance = 0;
     // will be decremented at genesis by protocol based on initial validators stake
-    uint256 rwTELBalance = 100_000_000_000 ether;
+    uint256 iTELBalance = 100_000_000_000 ether;
 
     function setUp() public {
         root = vm.projectRoot();
@@ -73,17 +73,17 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         deployments = abi.decode(data, (Deployments));
 
         address admin = deployments.admin;
-        rwtelOwner = admin;
+        itelOwner = admin;
 
         /// @dev For testnet and mainnet genesis configs, use corresponding function
-        _setUpDevnetConfig(admin, deployments.sepoliaTEL, deployments.wTEL, deployments.rwTEL);
+        _setUpDevnetConfig(admin, deployments.sepoliaTEL, deployments.wTEL, deployments.its.InterchainTEL);
 
         _setGenesisTargets(
             deployments.its,
             payable(deployments.wTEL),
-            payable(deployments.rwTELImpl),
-            payable(deployments.rwTEL),
-            deployments.rwTELTokenManager
+            payable(deployments.its.InterchainTELImpl),
+            payable(deployments.its.InterchainTEL),
+            deployments.its.InterchainTELTokenManager
         );
 
         // create3 contract only used for simulation; will not be instantiated at genesis
@@ -101,13 +101,16 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         address simulatedWTEL = address(payable(instantiateWTEL()));
         assertFalse(yamlAppendGenesisAccount(dest, simulatedWTEL, deployments.wTEL, sharedNonce, sharedBalance));
 
-        // rwTEL impl before ITS to fetch token id for TokenHandler::constructor
-        address simulatedRWTELImpl = address(instantiateRWTELImpl(deployments.its.InterchainTokenService));
-        // note rwTEL impl has storage changes due to RecoverableWrapper dep but they are not used in proxy setup
+        // iTEL impl before ITS to fetch token id for TokenHandler::constructor
+        address simulatedInterchainTELImpl =
+            address(instantiateInterchainTELImpl(deployments.its.InterchainTokenService));
+        // note iTEL impl has storage changes due to RecoverableWrapper dep but they are not used in proxy setup
         assertTrue(
-            yamlAppendGenesisAccount(dest, simulatedRWTELImpl, deployments.rwTELImpl, sharedNonce, sharedBalance)
+            yamlAppendGenesisAccount(
+                dest, simulatedInterchainTELImpl, deployments.its.InterchainTELImpl, sharedNonce, sharedBalance
+            )
         );
-        customLinkedTokenId = rwTELImpl.interchainTokenId();
+        customLinkedTokenId = iTELImpl.interchainTokenId();
 
         // gateway impl (no storage)
         address simulatedGatewayImpl = address(instantiateAxelarAmplifierGatewayImpl());
@@ -213,16 +216,24 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
             )
         );
 
-        // rwtel (note: requires both storage and the total supply of TEL at genesis)
-        address simulatedRWTEL = address(instantiateRWTEL(deployments.rwTELImpl));
-        assertTrue(yamlAppendGenesisAccount(dest, simulatedRWTEL, deployments.rwTEL, sharedNonce, rwTELBalance));
-
-        // rwtel token manager
-        address simulatedRWTELTokenManager =
-            address(instantiateRWTELTokenManager(deployments.its.InterchainTokenService, customLinkedTokenId));
+        // itel (note: requires both storage and the total supply of TEL at genesis)
+        address simulatedInterchainTEL = address(instantiateInterchainTEL(deployments.its.InterchainTELImpl));
         assertTrue(
             yamlAppendGenesisAccount(
-                dest, simulatedRWTELTokenManager, deployments.rwTELTokenManager, sharedNonce, sharedBalance
+                dest, simulatedInterchainTEL, deployments.its.InterchainTEL, sharedNonce, iTELBalance
+            )
+        );
+
+        // itel token manager
+        address simulatedInterchainTELTokenManager =
+            address(instantiateInterchainTELTokenManager(deployments.its.InterchainTokenService, customLinkedTokenId));
+        assertTrue(
+            yamlAppendGenesisAccount(
+                dest,
+                simulatedInterchainTELTokenManager,
+                deployments.its.InterchainTELTokenManager,
+                sharedNonce,
+                sharedBalance
             )
         );
         vm.stopBroadcast();

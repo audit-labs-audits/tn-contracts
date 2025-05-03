@@ -22,8 +22,8 @@ struct Salts {
     bytes32 tmSalt;
     bytes32 tmdSalt;
     bytes32 wtelSalt;
-    bytes32 rwtelSalt;
-    bytes32 rwtelTMSalt;
+    bytes32 itelSalt;
+    bytes32 itelTMSalt;
     bytes32 registerCustomTokenSalt;
 }
 
@@ -35,7 +35,7 @@ struct ImplSalts {
     bytes32 itfImplSalt;
     bytes32 itsImplSalt;
     bytes32 tmImplSalt;
-    bytes32 rwtelImplSalt;
+    bytes32 itelImplSalt;
 }
 
 abstract contract Create3Utils {
@@ -54,8 +54,8 @@ abstract contract Create3Utils {
         tmSalt: keccak256("token-manager"),
         tmdSalt: keccak256("token-manager-deployer"),
         wtelSalt: keccak256("wrapped-telcoin"),
-        rwtelSalt: keccak256("recoverable-wrapped-telcoin"),
-        rwtelTMSalt: keccak256("rwtel-token-manager"),
+        itelSalt: keccak256("interchain-telcoin"),
+        itelTMSalt: keccak256("itel-token-manager"),
         registerCustomTokenSalt: keccak256("register-custom-token")
     });
 
@@ -66,7 +66,7 @@ abstract contract Create3Utils {
         itfImplSalt: keccak256("interchain-token-factory-impl"),
         itsImplSalt: keccak256("interchain-token-service-impl"),
         tmImplSalt: keccak256("token-manager-impl"),
-        rwtelImplSalt: keccak256("recoverable-wrapped-telcoin-impl")
+        itelImplSalt: keccak256("interchain-telcoin-impl")
     });
 
 

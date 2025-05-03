@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
-import { IRWTEL } from "../interfaces/IRWTEL.sol";
+import { IInterchainTEL } from "../interfaces/IInterchainTEL.sol";
 import { IncentiveInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 
 /**
@@ -146,9 +146,9 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         returns (uint256 rewards)
     {
         rewards = _checkRewardsExceedMinWithdrawAmount($, validatorAddress, validatorVersion);
-        // wipe ledger to prevent reentrancy and send via the `RWTEL` module
+        // wipe ledger to prevent reentrancy and send via the `InterchainTEL` module
         $.incentiveInfo[validatorAddress].stakingRewards = 0;
-        IRWTEL($.rwTEL).distributeStakeReward(recipient, rewards);
+        IInterchainTEL($.iTEL).distributeStakeReward(recipient, rewards);
     }
 
     function _unstake(
@@ -171,9 +171,9 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         $.totalSupply--;
         _burn(tokenId);
 
-        // forward the stake amount and outstanding rewards through RWTEL module to caller
+        // forward the stake amount and outstanding rewards through InterchainTEL module to caller
         uint256 stakeAmt = $.versions[validatorVersion].stakeAmount;
-        IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmt }(recipient, rewards);
+        IInterchainTEL($.iTEL).distributeStakeReward{ value: stakeAmt }(recipient, rewards);
 
         return stakeAmt + rewards;
     }

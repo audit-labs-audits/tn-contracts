@@ -40,7 +40,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { WTEL } from "../../src/WTEL.sol";
-import { RWTEL } from "../../src/RWTEL.sol";
+import { InterchainTEL } from "../../src/InterchainTEL.sol";
 import { Deployments } from "../../deployments/Deployments.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
 import { ITSConfig } from "../../deployments/utils/ITSConfig.sol";
@@ -92,7 +92,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         sepoliaFork = vm.createSelectFork(SEPOLIA_RPC_URL);
         // send tokenManager sepolia TEL so it can unlock them
         vm.prank(user);
-        IERC20(deployments.sepoliaTEL).transfer(address(deployments.rwTELTokenManager), amount);
+        IERC20(deployments.sepoliaTEL).transfer(address(deployments.its.InterchainTELTokenManager), amount);
 
         tnFork = vm.createFork(TN_RPC_URL);
     }
@@ -116,7 +116,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.InterchainTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -206,7 +206,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.InterchainTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -253,7 +253,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.InterchainTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -303,7 +303,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             originTEL,
             linker,
             destinationChain,
-            deployments.rwTEL,
+            deployments.its.InterchainTEL,
             originTMType,
             AddressBytes.toAddress(tmOperator),
             gasValue,
@@ -374,15 +374,15 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.InterchainTELImpl,
+            deployments.its.InterchainTEL,
+            deployments.its.InterchainTELTokenManager
         );
 
         /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
         payload = abi.encode(
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
-            rwTEL.interchainTokenId(),
+            iTEL.interchainTokenId(),
             AddressBytes.toBytes(user),
             AddressBytes.toBytes(recipient),
             amount,
@@ -435,15 +435,15 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.InterchainTELImpl,
+            deployments.its.InterchainTEL,
+            deployments.its.InterchainTELTokenManager
         );
 
         /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
         payload = abi.encode(
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
-            rwTEL.interchainTokenId(),
+            iTEL.interchainTokenId(),
             AddressBytes.toBytes(user),
             AddressBytes.toBytes(recipient),
             amount,
@@ -489,22 +489,22 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         its.execute(commandId, sourceChain, sourceAddressString, wrappedPayload);
 
         assertTrue(gateway.isMessageExecuted(sourceChain, messageId));
-        uint256 decimalConvertedAmt = rwTEL.toEighteenDecimals(amount);
+        uint256 decimalConvertedAmt = iTEL.toEighteenDecimals(amount);
         assertEq(user.balance, userBalBefore + decimalConvertedAmt);
     }
 
     /// @dev TN-outbound ITS bridge tests
 
-    function test_tnFork_itsInterchainTransfer_RWTEL() public {
+    function test_tnFork_itsInterchainTransfer_InterchainTEL() public {
         vm.selectFork(tnFork);
         setUp_tnFork_devnetConfig_genesis(
             deployments.its,
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.rwTELImpl,
-            deployments.rwTEL,
-            deployments.rwTELTokenManager
+            deployments.its.InterchainTELImpl,
+            deployments.its.InterchainTEL,
+            deployments.its.InterchainTELTokenManager
         );
 
         // give funds to user
@@ -512,37 +512,37 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         vm.deal(user, amount + gasValue);
         // user double wraps native TEL
         vm.prank(user);
-        rwTEL.doubleWrap{ value: amount }();
+        iTEL.doubleWrap{ value: amount }();
 
         destinationChain = DEVNET_SEPOLIA_CHAIN_NAME;
         bytes memory destAddressBytes = AddressBytes.toBytes(user);
-        uint256 unsettledBal = IERC20(address(rwTEL)).balanceOf(user);
+        uint256 unsettledBal = IERC20(address(iTEL)).balanceOf(user);
         uint256 srcBalBeforeTEL = user.balance;
-        uint256 rwtelBalBefore = address(rwTEL).balance;
+        uint256 itelBalBefore = address(iTEL).balance;
         assertEq(unsettledBal, 0);
         assertEq(srcBalBeforeTEL, gasValue);
-        assertEq(rwtelBalBefore, telTotalSupply);
+        assertEq(itelBalBefore, telTotalSupply);
 
         // attempt outbound transfer without elapsing recoverable window
         vm.startPrank(user);
         bytes memory nestedErr = abi.encodeWithSignature("Error(string)", "TEL mint failed");
         vm.expectRevert(abi.encodeWithSelector(IInterchainTokenService.TakeTokenFailed.selector, nestedErr));
-        rwTEL.interchainTransfer{ value: gasValue }(destinationChain, destAddressBytes, amount, "");
+        iTEL.interchainTransfer{ value: gasValue }(destinationChain, destAddressBytes, amount, "");
 
-        // outbound interchain bridge transfers *MUST* await recoverable window to settle RWTEL balance
-        uint256 recoverableEndBlock = block.timestamp + rwTEL.recoverableWindow() + 1;
+        // outbound interchain bridge transfers *MUST* await recoverable window to settle InterchainTEL balance
+        uint256 recoverableEndBlock = block.timestamp + iTEL.recoverableWindow() + 1;
         vm.warp(recoverableEndBlock);
-        uint256 settledBalBefore = IERC20(address(rwTEL)).balanceOf(user);
+        uint256 settledBalBefore = IERC20(address(iTEL)).balanceOf(user);
         assertEq(settledBalBefore, amount);
-        assertEq(IERC20(address(rwTEL)).totalSupply(), amount);
+        assertEq(IERC20(address(iTEL)).totalSupply(), amount);
         its.interchainTransfer{ value: gasValue }(
             customLinkedTokenId, destinationChain, destAddressBytes, amount, "", gasValue
         );
 
         uint256 expectedUserBalTEL = settledBalBefore - amount;
-        uint256 expectedRWTELBal = rwtelBalBefore + amount;
-        assertEq(IERC20(address(rwTEL)).balanceOf(user), expectedUserBalTEL);
-        assertEq(IERC20(address(rwTEL)).totalSupply(), 0);
-        assertEq(address(rwTEL).balance, expectedRWTELBal);
+        uint256 expectedInterchainTELBal = itelBalBefore + amount;
+        assertEq(IERC20(address(iTEL)).balanceOf(user), expectedUserBalTEL);
+        assertEq(IERC20(address(iTEL)).totalSupply(), 0);
+        assertEq(address(iTEL).balance, expectedInterchainTELBal);
     }
 }
