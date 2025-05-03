@@ -59,16 +59,10 @@ contract ConsensusRegistry is
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), duration));
     }
 
-    /// @notice Not yet enabled during pilot, but scaffolding is included here. 
+    /// @notice Not yet enabled during pilot, but scaffolding is included here.
     /// For the time being, system calls to this fn can provide empty calldata arrays
     /// @inheritdoc IConsensusRegistry
-    function applyIncentives(
-        RewardInfo[] calldata rewardInfos
-    )
-        public
-        override
-        onlySystemCall
-    {
+    function applyIncentives(RewardInfo[] calldata rewardInfos) public override onlySystemCall {
         StakeManagerStorage storage $S = _stakeManagerStorage();
 
         // identify total & individual weight factoring in stake & consensus headers
@@ -78,9 +72,8 @@ contract ConsensusRegistry is
             RewardInfo calldata reward = rewardInfos[i];
 
             // derive validator's weight using initial stake for stability
-            uint8 rewardeeVersion = _consensusRegistryStorage().validators[
-                _getTokenId($S, reward.validatorAddress)
-            ].stakeVersion;
+            uint8 rewardeeVersion =
+                _consensusRegistryStorage().validators[_getTokenId($S, reward.validatorAddress)].stakeVersion;
             uint232 stakeAmount = $S.versions[rewardeeVersion].stakeAmount;
             uint232 weight = stakeAmount * reward.consensusHeaderCount;
 
@@ -91,6 +84,8 @@ contract ConsensusRegistry is
         // derive and apply validator's weighted share of epoch issuance
         uint232 epochIssuance = getCurrentStakeConfig().epochIssuance;
         for (uint256 i; i < rewardInfos.length; ++i) {
+            if (totalWeight == 0) break;
+
             RewardInfo calldata reward = rewardInfos[i];
             uint232 weight = weights[i] * PRECISION_FACTOR / totalWeight;
             uint232 rewardAmount = (epochIssuance * weight) / PRECISION_FACTOR;
