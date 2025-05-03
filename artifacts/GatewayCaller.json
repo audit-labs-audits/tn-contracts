@@ -1,1 +1,315 @@
-{"abi":[{"type":"constructor","inputs":[{"name":"gateway_","type":"address","internalType":"address"},{"name":"gasService_","type":"address","internalType":"address"}],"stateMutability":"nonpayable"},{"type":"function","name":"callContract","inputs":[{"name":"destinationChain","type":"string","internalType":"string"},{"name":"destinationAddress","type":"string","internalType":"string"},{"name":"payload","type":"bytes","internalType":"bytes"},{"name":"metadataVersion","type":"uint8","internalType":"enum IGatewayCaller.MetadataVersion"},{"name":"gasValue","type":"uint256","internalType":"uint256"}],"outputs":[],"stateMutability":"payable"},{"type":"function","name":"gasService","inputs":[],"outputs":[{"name":"","type":"address","internalType":"contract IAxelarGasService"}],"stateMutability":"view"},{"type":"function","name":"gateway","inputs":[],"outputs":[{"name":"","type":"address","internalType":"contract IAxelarGateway"}],"stateMutability":"view"},{"type":"error","name":"InvalidMetadataVersion","inputs":[{"name":"metadataVersion","type":"uint32","internalType":"uint32"}]}],"bytecode":{"object":"0x60c0604052348015600e575f80fd5b5060405161056e38038061056e833981016040819052602b91605b565b6001600160a01b039182166080521660a0526087565b80516001600160a01b03811681146056575f80fd5b919050565b5f8060408385031215606b575f80fd5b6072836041565b9150607e602084016041565b90509250929050565b60805160a0516104b36100bb5f395f818160970152818161010301526101ab01525f81816048015261023f01526104b35ff3fe608060405260043610610033575f3560e01c8063116191b6146100375780636a22d8cc14610086578063bbf4f1bd146100b9575b5f80fd5b348015610042575f80fd5b5061006a7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b03909116815260200160405180910390f35b348015610091575f80fd5b5061006a7f000000000000000000000000000000000000000000000000000000000000000081565b6100cc6100c73660046102fa565b6100ce565b005b8015610228575f8260018111156100e7576100e76103b8565b0361017b57604051630c93e3bb60e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690630c93e3bb9083906101489030908d908d908d908d908d908d9032906004016103f4565b5f604051808303818588803b15801561015f575f80fd5b505af1158015610171573d5f803e3d5ffd5b5050505050610228565b600182600181111561018f5761018f6103b8565b036101f057604051631ec3da4360e31b81526001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000169063f61ed2189083906101489030908d908d908d908d908d908d9032906004016103f4565b816001811115610202576102026103b8565b60405163b47a9b4b60e01b815263ffffffff909116600482015260240160405180910390fd5b604051631c92115f60e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690631c92115f9061027e908b908b908b908b908b908b9060040161045e565b5f604051808303815f87803b158015610295575f80fd5b505af11580156102a7573d5f803e3d5ffd5b505050505050505050505050565b5f8083601f8401126102c5575f80fd5b50813567ffffffffffffffff8111156102dc575f80fd5b6020830191508360208285010111156102f3575f80fd5b9250929050565b5f805f805f805f8060a0898b031215610311575f80fd5b883567ffffffffffffffff811115610327575f80fd5b6103338b828c016102b5565b909950975050602089013567ffffffffffffffff811115610352575f80fd5b61035e8b828c016102b5565b909750955050604089013567ffffffffffffffff81111561037d575f80fd5b6103898b828c016102b5565b9095509350506060890135600281106103a0575f80fd5b80925050608089013590509295985092959890939650565b634e487b7160e01b5f52602160045260245ffd5b81835281816020850137505f828201602090810191909152601f909101601f19169091010190565b6001600160a01b038916815260a0602082018190525f90610418908301898b6103cc565b828103604084015261042b81888a6103cc565b905082810360608401526104408186886103cc565b91505060018060a01b03831660808301529998505050505050505050565b606081525f61047160608301888a6103cc565b82810360208401526104848187896103cc565b905082810360408401526104998185876103cc565b999850505050505050505056fea164736f6c634300081a000a","sourceMap":"487:2492:101:-:0;;;848:155;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;-1:-1:-1;;;;;909:34:101;;;;;953:43;;;487:2492;;14:177:171;93:13;;-1:-1:-1;;;;;135:31:171;;125:42;;115:70;;181:1;178;171:12;115:70;14:177;;;:::o;196:293::-;275:6;283;336:2;324:9;315:7;311:23;307:32;304:52;;;352:1;349;342:12;304:52;375:40;405:9;375:40;:::i;:::-;365:50;;434:49;479:2;468:9;464:18;434:49;:::i;:::-;424:59;;196:293;;;;;:::o;:::-;487:2492:101;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;","linkReferences":{}},"deployedBytecode":{"object":"0x608060405260043610610033575f3560e01c8063116191b6146100375780636a22d8cc14610086578063bbf4f1bd146100b9575b5f80fd5b348015610042575f80fd5b5061006a7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b03909116815260200160405180910390f35b348015610091575f80fd5b5061006a7f000000000000000000000000000000000000000000000000000000000000000081565b6100cc6100c73660046102fa565b6100ce565b005b8015610228575f8260018111156100e7576100e76103b8565b0361017b57604051630c93e3bb60e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690630c93e3bb9083906101489030908d908d908d908d908d908d9032906004016103f4565b5f604051808303818588803b15801561015f575f80fd5b505af1158015610171573d5f803e3d5ffd5b5050505050610228565b600182600181111561018f5761018f6103b8565b036101f057604051631ec3da4360e31b81526001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000169063f61ed2189083906101489030908d908d908d908d908d908d9032906004016103f4565b816001811115610202576102026103b8565b60405163b47a9b4b60e01b815263ffffffff909116600482015260240160405180910390fd5b604051631c92115f60e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690631c92115f9061027e908b908b908b908b908b908b9060040161045e565b5f604051808303815f87803b158015610295575f80fd5b505af11580156102a7573d5f803e3d5ffd5b505050505050505050505050565b5f8083601f8401126102c5575f80fd5b50813567ffffffffffffffff8111156102dc575f80fd5b6020830191508360208285010111156102f3575f80fd5b9250929050565b5f805f805f805f8060a0898b031215610311575f80fd5b883567ffffffffffffffff811115610327575f80fd5b6103338b828c016102b5565b909950975050602089013567ffffffffffffffff811115610352575f80fd5b61035e8b828c016102b5565b909750955050604089013567ffffffffffffffff81111561037d575f80fd5b6103898b828c016102b5565b9095509350506060890135600281106103a0575f80fd5b80925050608089013590509295985092959890939650565b634e487b7160e01b5f52602160045260245ffd5b81835281816020850137505f828201602090810191909152601f909101601f19169091010190565b6001600160a01b038916815260a0602082018190525f90610418908301898b6103cc565b828103604084015261042b81888a6103cc565b905082810360608401526104408186886103cc565b91505060018060a01b03831660808301529998505050505050505050565b606081525f61047160608301888a6103cc565b82810360208401526104848187896103cc565b905082810360408401526104998185876103cc565b999850505050505050505056fea164736f6c634300081a000a","sourceMap":"487:2492:101:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;534:39;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;201:32:171;;;183:51;;171:2;156:18;534:39:101;;;;;;;579:45;;;;;;;;;;;;;;;1577:1400;;;;;;:::i;:::-;;:::i;:::-;;;1830:12;;1826:1067;;1881:29;1862:15;:48;;;;;;;;:::i;:::-;;1858:1025;;1994:313;;-1:-1:-1;;;1994:313:101;;-1:-1:-1;;;;;1994:10:101;:38;;;;2041:8;;1994:313;;2081:4;;2108:16;;;;2146:18;;;;2186:7;;;;2280:9;;1994:313;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1858:1025;;;2351:28;2332:15;:47;;;;;;;;:::i;:::-;;2328:555;;2463:312;;-1:-1:-1;;;2463:312:101;;-1:-1:-1;;;;;2463:10:101;:37;;;;2509:8;;2463:312;;2549:4;;2576:16;;;;2614:18;;;;2654:7;;;;2748:9;;2463:312;;;:::i;2328:555::-;2851:15;2844:23;;;;;;;;:::i;:::-;2821:47;;-1:-1:-1;;;2821:47:101;;3497:10:171;3485:23;;;2821:47:101;;;3467:42:171;3440:18;;2821:47:101;;;;;;;2328:555;2903:67;;-1:-1:-1;;;2903:67:101;;-1:-1:-1;;;;;2903:7:101;:20;;;;:67;;2924:16;;;;2942:18;;;;2962:7;;;;2903:67;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1577:1400;;;;;;;;:::o;479:348:171:-;531:8;541:6;595:3;588:4;580:6;576:17;572:27;562:55;;613:1;610;603:12;562:55;-1:-1:-1;636:20:171;;679:18;668:30;;665:50;;;711:1;708;701:12;665:50;748:4;740:6;736:17;724:29;;800:3;793:4;784:6;776;772:19;768:30;765:39;762:59;;;817:1;814;807:12;762:59;479:348;;;;;:::o;832:1255::-;983:6;991;999;1007;1015;1023;1031;1039;1092:3;1080:9;1071:7;1067:23;1063:33;1060:53;;;1109:1;1106;1099:12;1060:53;1149:9;1136:23;1182:18;1174:6;1171:30;1168:50;;;1214:1;1211;1204:12;1168:50;1253:59;1304:7;1295:6;1284:9;1280:22;1253:59;:::i;:::-;1331:8;;-1:-1:-1;1227:85:171;-1:-1:-1;;1419:2:171;1404:18;;1391:32;1448:18;1435:32;;1432:52;;;1480:1;1477;1470:12;1432:52;1519:61;1572:7;1561:8;1550:9;1546:24;1519:61;:::i;:::-;1599:8;;-1:-1:-1;1493:87:171;-1:-1:-1;;1687:2:171;1672:18;;1659:32;1716:18;1703:32;;1700:52;;;1748:1;1745;1738:12;1700:52;1787:61;1840:7;1829:8;1818:9;1814:24;1787:61;:::i;:::-;1867:8;;-1:-1:-1;1761:87:171;-1:-1:-1;;1952:2:171;1937:18;;1924:32;1985:1;1975:12;;1965:40;;2001:1;1998;1991:12;1965:40;2024:5;2014:15;;;2076:3;2065:9;2061:19;2048:33;2038:43;;832:1255;;;;;;;;;;;:::o;2092:127::-;2153:10;2148:3;2144:20;2141:1;2134:31;2184:4;2181:1;2174:15;2208:4;2205:1;2198:15;2224:267;2313:6;2308:3;2301:19;2365:6;2358:5;2351:4;2346:3;2342:14;2329:43;-1:-1:-1;2417:1:171;2392:16;;;2410:4;2388:27;;;2381:38;;;;2473:2;2452:15;;;-1:-1:-1;;2448:29:171;2439:39;;;2435:50;;2224:267::o;2496:822::-;-1:-1:-1;;;;;2825:32:171;;2807:51;;2845:3;2889:2;2874:18;;2867:31;;;-1:-1:-1;;2921:63:171;;2964:19;;2956:6;2948;2921:63;:::i;:::-;3032:9;3024:6;3020:22;3015:2;3004:9;3000:18;2993:50;3066;3109:6;3101;3093;3066:50;:::i;:::-;3052:64;;3164:9;3156:6;3152:22;3147:2;3136:9;3132:18;3125:50;3192;3235:6;3227;3219;3192:50;:::i;:::-;3184:58;;;3308:1;3304;3299:3;3295:11;3291:19;3283:6;3279:32;3273:3;3262:9;3258:19;3251:61;2496:822;;;;;;;;;;;:::o;3520:625::-;3793:2;3782:9;3775:21;3756:4;3819:62;3877:2;3866:9;3862:18;3854:6;3846;3819:62;:::i;:::-;3929:9;3921:6;3917:22;3912:2;3901:9;3897:18;3890:50;3963;4006:6;3998;3990;3963:50;:::i;:::-;3949:64;;4061:9;4053:6;4049:22;4044:2;4033:9;4029:18;4022:50;4089;4132:6;4124;4116;4089:50;:::i;:::-;4081:58;3520:625;-1:-1:-1;;;;;;;;;3520:625:171:o","linkReferences":{},"immutableReferences":{"18596":[{"start":72,"length":32},{"start":575,"length":32}],"18599":[{"start":151,"length":32},{"start":259,"length":32},{"start":427,"length":32}]}},"methodIdentifiers":{"callContract(string,string,bytes,uint8,uint256)":"bbf4f1bd","gasService()":"6a22d8cc","gateway()":"116191b6"},"rawMetadata":"{\"compiler\":{\"version\":\"0.8.26+commit.8a97fa7a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"gateway_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"gasService_\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"metadataVersion\",\"type\":\"uint32\"}],\"name\":\"InvalidMetadataVersion\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"destinationChain\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"destinationAddress\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"},{\"internalType\":\"enum IGatewayCaller.MetadataVersion\",\"name\":\"metadataVersion\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"gasValue\",\"type\":\"uint256\"}],\"name\":\"callContract\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"gasService\",\"outputs\":[{\"internalType\":\"contract IAxelarGasService\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"gateway\",\"outputs\":[{\"internalType\":\"contract IAxelarGateway\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"This contract is used to handle cross-chain ITS calls via the Axelar gateway.\",\"errors\":{\"InvalidMetadataVersion(uint32)\":[{\"details\":\"Error thrown when an invalid metadata version is provided\"}]},\"kind\":\"dev\",\"methods\":{\"callContract(string,string,bytes,uint8,uint256)\":{\"details\":\"Calls a contract on a specific destination chain with the given payload\",\"params\":{\"destinationAddress\":\"The address of the contract to be called on the destination chain\",\"destinationChain\":\"The target chain where the contract will be called\",\"gasValue\":\"The amount of gas to be paid for the cross-chain message. If this is 0, then gas payment is skipped. `msg.value` must be at least gasValue.\",\"metadataVersion\":\"The version of metadata to be used\",\"payload\":\"The data payload for the transaction\"}},\"constructor\":{\"details\":\"Constructor to initialize the GatewayCaller contract\",\"params\":{\"gasService_\":\"The address of the AxelarGasService contract\",\"gateway_\":\"The address of the AxelarGateway contract\"}}},\"title\":\"GatewayCaller contract\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"node_modules/@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol\":\"GatewayCaller\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[\":@axelar-cgp-solidity/=node_modules/@axelar-network/axelar-cgp-solidity/\",\":@axelar-network/=node_modules/@axelar-network/\",\":@openzeppelin-contracts/=node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/\",\":@openzeppelin/=node_modules/@openzeppelin/\",\":@uniswap/=node_modules/@uniswap/\",\":ds-test/=node_modules/recoverable-wrapper/lib/forge-std/lib/ds-test/src/\",\":forge-std/=node_modules/forge-std/src/\",\":recoverable-wrapper/contracts/=node_modules/recoverable-wrapper/contracts/\",\":solady/=node_modules/solady/src/\",\":telcoin-contracts/=node_modules/telcoin-contracts/\"]},\"sources\":{\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGasService.sol\":{\"keccak256\":\"0x7ad77d3af41f342e9032889a7b5aa224ab0c6dfaf9ce9350fe403d4a596c5eae\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cc2358f1f1138cd742a7cfdfc83420c488c19c3b3e39d703482e124e453953ee\",\"dweb:/ipfs/QmYki4j2yWrixJVs955DyS1ZmLD5zcxe8ss52w6DLBLRi4\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol\":{\"keccak256\":\"0xbd92798eade563d8a663db59f6f04db5acdee5beda3a6d091e44a7d5c6b2f68e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://1519882aed7b6de2ee1e316e5188d2bda1e305fc18a96b3895831f49dc9f90b0\",\"dweb:/ipfs/QmYTLwLGwmDkyX6GSE6PU93TkWP5mFz8qhmFyBrWfj6gaB\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IContractIdentifier.sol\":{\"keccak256\":\"0x21a94655f7f1ed3d7188bd38ce6187892c615b80f9a74e123cbc38113d855a35\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e7e1f30e159d40a9f8431c26955a584507bc23a30f19380c723acdb4182ba7c1\",\"dweb:/ipfs/QmXb965di5pU3m3W36k19ZX8m6qCDaEi1jEt6NocqrGPXj\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IImplementation.sol\":{\"keccak256\":\"0xa7f275514d44bec3ab8ab8c768736329174d7cc6c5cd329c3509a66bce9cd468\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://983e8c97e4916b47244d71fa104fc368100991561fe8c28f1a6bae043763754d\",\"dweb:/ipfs/QmeFeJsCowShVsAe6RMiz3qjY2JTyRNYRRu1oYQcN9T6uV\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IInterchainGasEstimation.sol\":{\"keccak256\":\"0x5463c0d3632e53d3906796d4283a627bd7ebc63d0092685715d98340db9516ff\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://9cd73f4b82b70f3e93b23ac591696de14b1cc88e1e60a5f66b1ac8b0e2ecd2ec\",\"dweb:/ipfs/Qmd8psz6tmcmop1iD6fqX8vCRfrkVm7aGMZCXEbsiVjBV8\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IOwnable.sol\":{\"keccak256\":\"0x5cb5691c9293e3011e1b133485411e8933ca1e110f2436a663df12991d134bf7\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cdbeb0f7ec37155f976a3bdd9f13055c80f1b2d17043740d387403cb8d65a096\",\"dweb:/ipfs/QmXKLyWetJGgwUuEtexjPxfeZdgUywhrHS4898fQSFkC5y\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IUpgradable.sol\":{\"keccak256\":\"0x4e1f84c9711c3c15c77aee5fce8de99fcb49a902c7e6ff24626c924a60b8c22d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b2f36d8fb4b365e78663579bfd0d3252a6e290f6dd763d9275f4c6f5f51577d9\",\"dweb:/ipfs/QmZjhnPbjqnRztwbYYs1BdxRbSsAmSLkCfE9SNRk4jMFMe\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/types/GasEstimationTypes.sol\":{\"keccak256\":\"0x7da6d20700698dfae8f8252c442e4bebd29030ffcdac4fbbe986f1ddbcb6365c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://992662e49dbc87ab994d8b68c5183dcd5453c71d04f98816b68cb00589938058\",\"dweb:/ipfs/QmYiuEMnYZod1iRTaEcqbJcUp3LwdDPyt2M7KUaqECivau\"]},\"node_modules/@axelar-network/interchain-token-service/contracts/interfaces/IGatewayCaller.sol\":{\"keccak256\":\"0xc2daabd11df75f6a97ff8cd8ddba24ec841419424e26af0771026f8bdca0f351\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7c37b7cdc173c3730531c0b9398758163aec831d3cddc3eedeade2ea876e9dc3\",\"dweb:/ipfs/QmeSBNNCdAmff6vEQaTURAXJS1b4pHym8TyuoUckvBkSwU\"]},\"node_modules/@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol\":{\"keccak256\":\"0x8c5c01b1a9dd14e64ab248e2f8980d8ead70356c5a99f0798541ec50c3ba73be\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8894cb0d5756a0e5057c295df968737e033ed5d773f5dc1f47325e24af4b245a\",\"dweb:/ipfs/QmbPh3r25oRZ2p7XjrwQKnvaixt5keTLwc3fKxr6C4SoVQ\"]}},\"version\":1}","metadata":{"compiler":{"version":"0.8.26+commit.8a97fa7a"},"language":"Solidity","output":{"abi":[{"inputs":[{"internalType":"address","name":"gateway_","type":"address"},{"internalType":"address","name":"gasService_","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"uint32","name":"metadataVersion","type":"uint32"}],"type":"error","name":"InvalidMetadataVersion"},{"inputs":[{"internalType":"string","name":"destinationChain","type":"string"},{"internalType":"string","name":"destinationAddress","type":"string"},{"internalType":"bytes","name":"payload","type":"bytes"},{"internalType":"enum IGatewayCaller.MetadataVersion","name":"metadataVersion","type":"uint8"},{"internalType":"uint256","name":"gasValue","type":"uint256"}],"stateMutability":"payable","type":"function","name":"callContract"},{"inputs":[],"stateMutability":"view","type":"function","name":"gasService","outputs":[{"internalType":"contract IAxelarGasService","name":"","type":"address"}]},{"inputs":[],"stateMutability":"view","type":"function","name":"gateway","outputs":[{"internalType":"contract IAxelarGateway","name":"","type":"address"}]}],"devdoc":{"kind":"dev","methods":{"callContract(string,string,bytes,uint8,uint256)":{"details":"Calls a contract on a specific destination chain with the given payload","params":{"destinationAddress":"The address of the contract to be called on the destination chain","destinationChain":"The target chain where the contract will be called","gasValue":"The amount of gas to be paid for the cross-chain message. If this is 0, then gas payment is skipped. `msg.value` must be at least gasValue.","metadataVersion":"The version of metadata to be used","payload":"The data payload for the transaction"}},"constructor":{"details":"Constructor to initialize the GatewayCaller contract","params":{"gasService_":"The address of the AxelarGasService contract","gateway_":"The address of the AxelarGateway contract"}}},"version":1},"userdoc":{"kind":"user","methods":{},"version":1}},"settings":{"remappings":["@axelar-cgp-solidity/=node_modules/@axelar-network/axelar-cgp-solidity/","@axelar-network/=node_modules/@axelar-network/","@openzeppelin-contracts/=node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/","@openzeppelin/=node_modules/@openzeppelin/","@uniswap/=node_modules/@uniswap/","ds-test/=node_modules/recoverable-wrapper/lib/forge-std/lib/ds-test/src/","forge-std/=node_modules/forge-std/src/","recoverable-wrapper/contracts/=node_modules/recoverable-wrapper/contracts/","solady/=node_modules/solady/src/","telcoin-contracts/=node_modules/telcoin-contracts/"],"optimizer":{"enabled":true,"runs":200},"metadata":{"bytecodeHash":"none"},"compilationTarget":{"node_modules/@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol":"GatewayCaller"},"evmVersion":"shanghai","libraries":{}},"sources":{"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGasService.sol":{"keccak256":"0x7ad77d3af41f342e9032889a7b5aa224ab0c6dfaf9ce9350fe403d4a596c5eae","urls":["bzz-raw://cc2358f1f1138cd742a7cfdfc83420c488c19c3b3e39d703482e124e453953ee","dweb:/ipfs/QmYki4j2yWrixJVs955DyS1ZmLD5zcxe8ss52w6DLBLRi4"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol":{"keccak256":"0xbd92798eade563d8a663db59f6f04db5acdee5beda3a6d091e44a7d5c6b2f68e","urls":["bzz-raw://1519882aed7b6de2ee1e316e5188d2bda1e305fc18a96b3895831f49dc9f90b0","dweb:/ipfs/QmYTLwLGwmDkyX6GSE6PU93TkWP5mFz8qhmFyBrWfj6gaB"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IContractIdentifier.sol":{"keccak256":"0x21a94655f7f1ed3d7188bd38ce6187892c615b80f9a74e123cbc38113d855a35","urls":["bzz-raw://e7e1f30e159d40a9f8431c26955a584507bc23a30f19380c723acdb4182ba7c1","dweb:/ipfs/QmXb965di5pU3m3W36k19ZX8m6qCDaEi1jEt6NocqrGPXj"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IImplementation.sol":{"keccak256":"0xa7f275514d44bec3ab8ab8c768736329174d7cc6c5cd329c3509a66bce9cd468","urls":["bzz-raw://983e8c97e4916b47244d71fa104fc368100991561fe8c28f1a6bae043763754d","dweb:/ipfs/QmeFeJsCowShVsAe6RMiz3qjY2JTyRNYRRu1oYQcN9T6uV"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IInterchainGasEstimation.sol":{"keccak256":"0x5463c0d3632e53d3906796d4283a627bd7ebc63d0092685715d98340db9516ff","urls":["bzz-raw://9cd73f4b82b70f3e93b23ac591696de14b1cc88e1e60a5f66b1ac8b0e2ecd2ec","dweb:/ipfs/Qmd8psz6tmcmop1iD6fqX8vCRfrkVm7aGMZCXEbsiVjBV8"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IOwnable.sol":{"keccak256":"0x5cb5691c9293e3011e1b133485411e8933ca1e110f2436a663df12991d134bf7","urls":["bzz-raw://cdbeb0f7ec37155f976a3bdd9f13055c80f1b2d17043740d387403cb8d65a096","dweb:/ipfs/QmXKLyWetJGgwUuEtexjPxfeZdgUywhrHS4898fQSFkC5y"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IUpgradable.sol":{"keccak256":"0x4e1f84c9711c3c15c77aee5fce8de99fcb49a902c7e6ff24626c924a60b8c22d","urls":["bzz-raw://b2f36d8fb4b365e78663579bfd0d3252a6e290f6dd763d9275f4c6f5f51577d9","dweb:/ipfs/QmZjhnPbjqnRztwbYYs1BdxRbSsAmSLkCfE9SNRk4jMFMe"],"license":"MIT"},"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/types/GasEstimationTypes.sol":{"keccak256":"0x7da6d20700698dfae8f8252c442e4bebd29030ffcdac4fbbe986f1ddbcb6365c","urls":["bzz-raw://992662e49dbc87ab994d8b68c5183dcd5453c71d04f98816b68cb00589938058","dweb:/ipfs/QmYiuEMnYZod1iRTaEcqbJcUp3LwdDPyt2M7KUaqECivau"],"license":"MIT"},"node_modules/@axelar-network/interchain-token-service/contracts/interfaces/IGatewayCaller.sol":{"keccak256":"0xc2daabd11df75f6a97ff8cd8ddba24ec841419424e26af0771026f8bdca0f351","urls":["bzz-raw://7c37b7cdc173c3730531c0b9398758163aec831d3cddc3eedeade2ea876e9dc3","dweb:/ipfs/QmeSBNNCdAmff6vEQaTURAXJS1b4pHym8TyuoUckvBkSwU"],"license":"MIT"},"node_modules/@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol":{"keccak256":"0x8c5c01b1a9dd14e64ab248e2f8980d8ead70356c5a99f0798541ec50c3ba73be","urls":["bzz-raw://8894cb0d5756a0e5057c295df968737e033ed5d773f5dc1f47325e24af4b245a","dweb:/ipfs/QmbPh3r25oRZ2p7XjrwQKnvaixt5keTLwc3fKxr6C4SoVQ"],"license":"MIT"}},"version":1},"id":101}
+{
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        { "name": "gateway_", "type": "address", "internalType": "address" },
+        { "name": "gasService_", "type": "address", "internalType": "address" }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "callContract",
+      "inputs": [
+        {
+          "name": "destinationChain",
+          "type": "string",
+          "internalType": "string"
+        },
+        {
+          "name": "destinationAddress",
+          "type": "string",
+          "internalType": "string"
+        },
+        { "name": "payload", "type": "bytes", "internalType": "bytes" },
+        {
+          "name": "metadataVersion",
+          "type": "uint8",
+          "internalType": "enum IGatewayCaller.MetadataVersion"
+        },
+        { "name": "gasValue", "type": "uint256", "internalType": "uint256" }
+      ],
+      "outputs": [],
+      "stateMutability": "payable"
+    },
+    {
+      "type": "function",
+      "name": "gasService",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract IAxelarGasService"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "gateway",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract IAxelarGateway"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "error",
+      "name": "InvalidMetadataVersion",
+      "inputs": [
+        {
+          "name": "metadataVersion",
+          "type": "uint32",
+          "internalType": "uint32"
+        }
+      ]
+    }
+  ],
+  "bytecode": {
+    "object": "0x60c0604052348015600e575f80fd5b5060405161056e38038061056e833981016040819052602b91605b565b6001600160a01b039182166080521660a0526087565b80516001600160a01b03811681146056575f80fd5b919050565b5f8060408385031215606b575f80fd5b6072836041565b9150607e602084016041565b90509250929050565b60805160a0516104b36100bb5f395f818160970152818161010301526101ab01525f81816048015261023f01526104b35ff3fe608060405260043610610033575f3560e01c8063116191b6146100375780636a22d8cc14610086578063bbf4f1bd146100b9575b5f80fd5b348015610042575f80fd5b5061006a7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b03909116815260200160405180910390f35b348015610091575f80fd5b5061006a7f000000000000000000000000000000000000000000000000000000000000000081565b6100cc6100c73660046102fa565b6100ce565b005b8015610228575f8260018111156100e7576100e76103b8565b0361017b57604051630c93e3bb60e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690630c93e3bb9083906101489030908d908d908d908d908d908d9032906004016103f4565b5f604051808303818588803b15801561015f575f80fd5b505af1158015610171573d5f803e3d5ffd5b5050505050610228565b600182600181111561018f5761018f6103b8565b036101f057604051631ec3da4360e31b81526001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000169063f61ed2189083906101489030908d908d908d908d908d908d9032906004016103f4565b816001811115610202576102026103b8565b60405163b47a9b4b60e01b815263ffffffff909116600482015260240160405180910390fd5b604051631c92115f60e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690631c92115f9061027e908b908b908b908b908b908b9060040161045e565b5f604051808303815f87803b158015610295575f80fd5b505af11580156102a7573d5f803e3d5ffd5b505050505050505050505050565b5f8083601f8401126102c5575f80fd5b50813567ffffffffffffffff8111156102dc575f80fd5b6020830191508360208285010111156102f3575f80fd5b9250929050565b5f805f805f805f8060a0898b031215610311575f80fd5b883567ffffffffffffffff811115610327575f80fd5b6103338b828c016102b5565b909950975050602089013567ffffffffffffffff811115610352575f80fd5b61035e8b828c016102b5565b909750955050604089013567ffffffffffffffff81111561037d575f80fd5b6103898b828c016102b5565b9095509350506060890135600281106103a0575f80fd5b80925050608089013590509295985092959890939650565b634e487b7160e01b5f52602160045260245ffd5b81835281816020850137505f828201602090810191909152601f909101601f19169091010190565b6001600160a01b038916815260a0602082018190525f90610418908301898b6103cc565b828103604084015261042b81888a6103cc565b905082810360608401526104408186886103cc565b91505060018060a01b03831660808301529998505050505050505050565b606081525f61047160608301888a6103cc565b82810360208401526104848187896103cc565b905082810360408401526104998185876103cc565b999850505050505050505056fea164736f6c634300081a000a",
+    "sourceMap": "487:2492:101:-:0;;;848:155;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;-1:-1:-1;;;;;909:34:101;;;;;953:43;;;487:2492;;14:177:171;93:13;;-1:-1:-1;;;;;135:31:171;;125:42;;115:70;;181:1;178;171:12;115:70;14:177;;;:::o;196:293::-;275:6;283;336:2;324:9;315:7;311:23;307:32;304:52;;;352:1;349;342:12;304:52;375:40;405:9;375:40;:::i;:::-;365:50;;434:49;479:2;468:9;464:18;434:49;:::i;:::-;424:59;;196:293;;;;;:::o;:::-;487:2492:101;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x608060405260043610610033575f3560e01c8063116191b6146100375780636a22d8cc14610086578063bbf4f1bd146100b9575b5f80fd5b348015610042575f80fd5b5061006a7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b03909116815260200160405180910390f35b348015610091575f80fd5b5061006a7f000000000000000000000000000000000000000000000000000000000000000081565b6100cc6100c73660046102fa565b6100ce565b005b8015610228575f8260018111156100e7576100e76103b8565b0361017b57604051630c93e3bb60e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690630c93e3bb9083906101489030908d908d908d908d908d908d9032906004016103f4565b5f604051808303818588803b15801561015f575f80fd5b505af1158015610171573d5f803e3d5ffd5b5050505050610228565b600182600181111561018f5761018f6103b8565b036101f057604051631ec3da4360e31b81526001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000169063f61ed2189083906101489030908d908d908d908d908d908d9032906004016103f4565b816001811115610202576102026103b8565b60405163b47a9b4b60e01b815263ffffffff909116600482015260240160405180910390fd5b604051631c92115f60e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690631c92115f9061027e908b908b908b908b908b908b9060040161045e565b5f604051808303815f87803b158015610295575f80fd5b505af11580156102a7573d5f803e3d5ffd5b505050505050505050505050565b5f8083601f8401126102c5575f80fd5b50813567ffffffffffffffff8111156102dc575f80fd5b6020830191508360208285010111156102f3575f80fd5b9250929050565b5f805f805f805f8060a0898b031215610311575f80fd5b883567ffffffffffffffff811115610327575f80fd5b6103338b828c016102b5565b909950975050602089013567ffffffffffffffff811115610352575f80fd5b61035e8b828c016102b5565b909750955050604089013567ffffffffffffffff81111561037d575f80fd5b6103898b828c016102b5565b9095509350506060890135600281106103a0575f80fd5b80925050608089013590509295985092959890939650565b634e487b7160e01b5f52602160045260245ffd5b81835281816020850137505f828201602090810191909152601f909101601f19169091010190565b6001600160a01b038916815260a0602082018190525f90610418908301898b6103cc565b828103604084015261042b81888a6103cc565b905082810360608401526104408186886103cc565b91505060018060a01b03831660808301529998505050505050505050565b606081525f61047160608301888a6103cc565b82810360208401526104848187896103cc565b905082810360408401526104998185876103cc565b999850505050505050505056fea164736f6c634300081a000a",
+    "sourceMap": "487:2492:101:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;534:39;;;;;;;;;;;;;;;;;;-1:-1:-1;;;;;201:32:171;;;183:51;;171:2;156:18;534:39:101;;;;;;;579:45;;;;;;;;;;;;;;;1577:1400;;;;;;:::i;:::-;;:::i;:::-;;;1830:12;;1826:1067;;1881:29;1862:15;:48;;;;;;;;:::i;:::-;;1858:1025;;1994:313;;-1:-1:-1;;;1994:313:101;;-1:-1:-1;;;;;1994:10:101;:38;;;;2041:8;;1994:313;;2081:4;;2108:16;;;;2146:18;;;;2186:7;;;;2280:9;;1994:313;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1858:1025;;;2351:28;2332:15;:47;;;;;;;;:::i;:::-;;2328:555;;2463:312;;-1:-1:-1;;;2463:312:101;;-1:-1:-1;;;;;2463:10:101;:37;;;;2509:8;;2463:312;;2549:4;;2576:16;;;;2614:18;;;;2654:7;;;;2748:9;;2463:312;;;:::i;2328:555::-;2851:15;2844:23;;;;;;;;:::i;:::-;2821:47;;-1:-1:-1;;;2821:47:101;;3497:10:171;3485:23;;;2821:47:101;;;3467:42:171;3440:18;;2821:47:101;;;;;;;2328:555;2903:67;;-1:-1:-1;;;2903:67:101;;-1:-1:-1;;;;;2903:7:101;:20;;;;:67;;2924:16;;;;2942:18;;;;2962:7;;;;2903:67;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1577:1400;;;;;;;;:::o;479:348:171:-;531:8;541:6;595:3;588:4;580:6;576:17;572:27;562:55;;613:1;610;603:12;562:55;-1:-1:-1;636:20:171;;679:18;668:30;;665:50;;;711:1;708;701:12;665:50;748:4;740:6;736:17;724:29;;800:3;793:4;784:6;776;772:19;768:30;765:39;762:59;;;817:1;814;807:12;762:59;479:348;;;;;:::o;832:1255::-;983:6;991;999;1007;1015;1023;1031;1039;1092:3;1080:9;1071:7;1067:23;1063:33;1060:53;;;1109:1;1106;1099:12;1060:53;1149:9;1136:23;1182:18;1174:6;1171:30;1168:50;;;1214:1;1211;1204:12;1168:50;1253:59;1304:7;1295:6;1284:9;1280:22;1253:59;:::i;:::-;1331:8;;-1:-1:-1;1227:85:171;-1:-1:-1;;1419:2:171;1404:18;;1391:32;1448:18;1435:32;;1432:52;;;1480:1;1477;1470:12;1432:52;1519:61;1572:7;1561:8;1550:9;1546:24;1519:61;:::i;:::-;1599:8;;-1:-1:-1;1493:87:171;-1:-1:-1;;1687:2:171;1672:18;;1659:32;1716:18;1703:32;;1700:52;;;1748:1;1745;1738:12;1700:52;1787:61;1840:7;1829:8;1818:9;1814:24;1787:61;:::i;:::-;1867:8;;-1:-1:-1;1761:87:171;-1:-1:-1;;1952:2:171;1937:18;;1924:32;1985:1;1975:12;;1965:40;;2001:1;1998;1991:12;1965:40;2024:5;2014:15;;;2076:3;2065:9;2061:19;2048:33;2038:43;;832:1255;;;;;;;;;;;:::o;2092:127::-;2153:10;2148:3;2144:20;2141:1;2134:31;2184:4;2181:1;2174:15;2208:4;2205:1;2198:15;2224:267;2313:6;2308:3;2301:19;2365:6;2358:5;2351:4;2346:3;2342:14;2329:43;-1:-1:-1;2417:1:171;2392:16;;;2410:4;2388:27;;;2381:38;;;;2473:2;2452:15;;;-1:-1:-1;;2448:29:171;2439:39;;;2435:50;;2224:267::o;2496:822::-;-1:-1:-1;;;;;2825:32:171;;2807:51;;2845:3;2889:2;2874:18;;2867:31;;;-1:-1:-1;;2921:63:171;;2964:19;;2956:6;2948;2921:63;:::i;:::-;3032:9;3024:6;3020:22;3015:2;3004:9;3000:18;2993:50;3066;3109:6;3101;3093;3066:50;:::i;:::-;3052:64;;3164:9;3156:6;3152:22;3147:2;3136:9;3132:18;3125:50;3192;3235:6;3227;3219;3192:50;:::i;:::-;3184:58;;;3308:1;3304;3299:3;3295:11;3291:19;3283:6;3279:32;3273:3;3262:9;3258:19;3251:61;2496:822;;;;;;;;;;;:::o;3520:625::-;3793:2;3782:9;3775:21;3756:4;3819:62;3877:2;3866:9;3862:18;3854:6;3846;3819:62;:::i;:::-;3929:9;3921:6;3917:22;3912:2;3901:9;3897:18;3890:50;3963;4006:6;3998;3990;3963:50;:::i;:::-;3949:64;;4061:9;4053:6;4049:22;4044:2;4033:9;4029:18;4022:50;4089;4132:6;4124;4116;4089:50;:::i;:::-;4081:58;3520:625;-1:-1:-1;;;;;;;;;3520:625:171:o",
+    "linkReferences": {},
+    "immutableReferences": {
+      "18596": [
+        { "start": 72, "length": 32 },
+        { "start": 575, "length": 32 }
+      ],
+      "18599": [
+        { "start": 151, "length": 32 },
+        { "start": 259, "length": 32 },
+        { "start": 427, "length": 32 }
+      ]
+    }
+  },
+  "methodIdentifiers": {
+    "callContract(string,string,bytes,uint8,uint256)": "bbf4f1bd",
+    "gasService()": "6a22d8cc",
+    "gateway()": "116191b6"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.26+commit.8a97fa7a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"gateway_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"gasService_\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"metadataVersion\",\"type\":\"uint32\"}],\"name\":\"InvalidMetadataVersion\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"destinationChain\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"destinationAddress\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"},{\"internalType\":\"enum IGatewayCaller.MetadataVersion\",\"name\":\"metadataVersion\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"gasValue\",\"type\":\"uint256\"}],\"name\":\"callContract\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"gasService\",\"outputs\":[{\"internalType\":\"contract IAxelarGasService\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"gateway\",\"outputs\":[{\"internalType\":\"contract IAxelarGateway\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"This contract is used to handle cross-chain ITS calls via the Axelar gateway.\",\"errors\":{\"InvalidMetadataVersion(uint32)\":[{\"details\":\"Error thrown when an invalid metadata version is provided\"}]},\"kind\":\"dev\",\"methods\":{\"callContract(string,string,bytes,uint8,uint256)\":{\"details\":\"Calls a contract on a specific destination chain with the given payload\",\"params\":{\"destinationAddress\":\"The address of the contract to be called on the destination chain\",\"destinationChain\":\"The target chain where the contract will be called\",\"gasValue\":\"The amount of gas to be paid for the cross-chain message. If this is 0, then gas payment is skipped. `msg.value` must be at least gasValue.\",\"metadataVersion\":\"The version of metadata to be used\",\"payload\":\"The data payload for the transaction\"}},\"constructor\":{\"details\":\"Constructor to initialize the GatewayCaller contract\",\"params\":{\"gasService_\":\"The address of the AxelarGasService contract\",\"gateway_\":\"The address of the AxelarGateway contract\"}}},\"title\":\"GatewayCaller contract\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"node_modules/@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol\":\"GatewayCaller\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[\":@axelar-cgp-solidity/=node_modules/@axelar-network/axelar-cgp-solidity/\",\":@axelar-network/=node_modules/@axelar-network/\",\":@openzeppelin-contracts/=node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/\",\":@openzeppelin/=node_modules/@openzeppelin/\",\":@uniswap/=node_modules/@uniswap/\",\":ds-test/=node_modules/recoverable-wrapper/lib/forge-std/lib/ds-test/src/\",\":forge-std/=node_modules/forge-std/src/\",\":recoverable-wrapper/contracts/=node_modules/recoverable-wrapper/contracts/\",\":solady/=node_modules/solady/src/\",\":telcoin-contracts/=node_modules/telcoin-contracts/\"]},\"sources\":{\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGasService.sol\":{\"keccak256\":\"0x7ad77d3af41f342e9032889a7b5aa224ab0c6dfaf9ce9350fe403d4a596c5eae\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cc2358f1f1138cd742a7cfdfc83420c488c19c3b3e39d703482e124e453953ee\",\"dweb:/ipfs/QmYki4j2yWrixJVs955DyS1ZmLD5zcxe8ss52w6DLBLRi4\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol\":{\"keccak256\":\"0xbd92798eade563d8a663db59f6f04db5acdee5beda3a6d091e44a7d5c6b2f68e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://1519882aed7b6de2ee1e316e5188d2bda1e305fc18a96b3895831f49dc9f90b0\",\"dweb:/ipfs/QmYTLwLGwmDkyX6GSE6PU93TkWP5mFz8qhmFyBrWfj6gaB\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IContractIdentifier.sol\":{\"keccak256\":\"0x21a94655f7f1ed3d7188bd38ce6187892c615b80f9a74e123cbc38113d855a35\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e7e1f30e159d40a9f8431c26955a584507bc23a30f19380c723acdb4182ba7c1\",\"dweb:/ipfs/QmXb965di5pU3m3W36k19ZX8m6qCDaEi1jEt6NocqrGPXj\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IImplementation.sol\":{\"keccak256\":\"0xa7f275514d44bec3ab8ab8c768736329174d7cc6c5cd329c3509a66bce9cd468\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://983e8c97e4916b47244d71fa104fc368100991561fe8c28f1a6bae043763754d\",\"dweb:/ipfs/QmeFeJsCowShVsAe6RMiz3qjY2JTyRNYRRu1oYQcN9T6uV\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IInterchainGasEstimation.sol\":{\"keccak256\":\"0x5463c0d3632e53d3906796d4283a627bd7ebc63d0092685715d98340db9516ff\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://9cd73f4b82b70f3e93b23ac591696de14b1cc88e1e60a5f66b1ac8b0e2ecd2ec\",\"dweb:/ipfs/Qmd8psz6tmcmop1iD6fqX8vCRfrkVm7aGMZCXEbsiVjBV8\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IOwnable.sol\":{\"keccak256\":\"0x5cb5691c9293e3011e1b133485411e8933ca1e110f2436a663df12991d134bf7\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cdbeb0f7ec37155f976a3bdd9f13055c80f1b2d17043740d387403cb8d65a096\",\"dweb:/ipfs/QmXKLyWetJGgwUuEtexjPxfeZdgUywhrHS4898fQSFkC5y\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IUpgradable.sol\":{\"keccak256\":\"0x4e1f84c9711c3c15c77aee5fce8de99fcb49a902c7e6ff24626c924a60b8c22d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b2f36d8fb4b365e78663579bfd0d3252a6e290f6dd763d9275f4c6f5f51577d9\",\"dweb:/ipfs/QmZjhnPbjqnRztwbYYs1BdxRbSsAmSLkCfE9SNRk4jMFMe\"]},\"node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/types/GasEstimationTypes.sol\":{\"keccak256\":\"0x7da6d20700698dfae8f8252c442e4bebd29030ffcdac4fbbe986f1ddbcb6365c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://992662e49dbc87ab994d8b68c5183dcd5453c71d04f98816b68cb00589938058\",\"dweb:/ipfs/QmYiuEMnYZod1iRTaEcqbJcUp3LwdDPyt2M7KUaqECivau\"]},\"node_modules/@axelar-network/interchain-token-service/contracts/interfaces/IGatewayCaller.sol\":{\"keccak256\":\"0xc2daabd11df75f6a97ff8cd8ddba24ec841419424e26af0771026f8bdca0f351\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7c37b7cdc173c3730531c0b9398758163aec831d3cddc3eedeade2ea876e9dc3\",\"dweb:/ipfs/QmeSBNNCdAmff6vEQaTURAXJS1b4pHym8TyuoUckvBkSwU\"]},\"node_modules/@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol\":{\"keccak256\":\"0x8c5c01b1a9dd14e64ab248e2f8980d8ead70356c5a99f0798541ec50c3ba73be\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://8894cb0d5756a0e5057c295df968737e033ed5d773f5dc1f47325e24af4b245a\",\"dweb:/ipfs/QmbPh3r25oRZ2p7XjrwQKnvaixt5keTLwc3fKxr6C4SoVQ\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": { "version": "0.8.26+commit.8a97fa7a" },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "gateway_",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "gasService_",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint32",
+              "name": "metadataVersion",
+              "type": "uint32"
+            }
+          ],
+          "type": "error",
+          "name": "InvalidMetadataVersion"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "string",
+              "name": "destinationChain",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "destinationAddress",
+              "type": "string"
+            },
+            { "internalType": "bytes", "name": "payload", "type": "bytes" },
+            {
+              "internalType": "enum IGatewayCaller.MetadataVersion",
+              "name": "metadataVersion",
+              "type": "uint8"
+            },
+            { "internalType": "uint256", "name": "gasValue", "type": "uint256" }
+          ],
+          "stateMutability": "payable",
+          "type": "function",
+          "name": "callContract"
+        },
+        {
+          "inputs": [],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "gasService",
+          "outputs": [
+            {
+              "internalType": "contract IAxelarGasService",
+              "name": "",
+              "type": "address"
+            }
+          ]
+        },
+        {
+          "inputs": [],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "gateway",
+          "outputs": [
+            {
+              "internalType": "contract IAxelarGateway",
+              "name": "",
+              "type": "address"
+            }
+          ]
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {
+          "callContract(string,string,bytes,uint8,uint256)": {
+            "details": "Calls a contract on a specific destination chain with the given payload",
+            "params": {
+              "destinationAddress": "The address of the contract to be called on the destination chain",
+              "destinationChain": "The target chain where the contract will be called",
+              "gasValue": "The amount of gas to be paid for the cross-chain message. If this is 0, then gas payment is skipped. `msg.value` must be at least gasValue.",
+              "metadataVersion": "The version of metadata to be used",
+              "payload": "The data payload for the transaction"
+            }
+          },
+          "constructor": {
+            "details": "Constructor to initialize the GatewayCaller contract",
+            "params": {
+              "gasService_": "The address of the AxelarGasService contract",
+              "gateway_": "The address of the AxelarGateway contract"
+            }
+          }
+        },
+        "version": 1
+      },
+      "userdoc": { "kind": "user", "methods": {}, "version": 1 }
+    },
+    "settings": {
+      "remappings": [
+        "@axelar-cgp-solidity/=node_modules/@axelar-network/axelar-cgp-solidity/",
+        "@axelar-network/=node_modules/@axelar-network/",
+        "@openzeppelin-contracts/=node_modules/recoverable-wrapper/node_modules/@openzeppelin/contracts/",
+        "@openzeppelin/=node_modules/@openzeppelin/",
+        "@uniswap/=node_modules/@uniswap/",
+        "ds-test/=node_modules/recoverable-wrapper/lib/forge-std/lib/ds-test/src/",
+        "forge-std/=node_modules/forge-std/src/",
+        "recoverable-wrapper/contracts/=node_modules/recoverable-wrapper/contracts/",
+        "solady/=node_modules/solady/src/",
+        "telcoin-contracts/=node_modules/telcoin-contracts/"
+      ],
+      "optimizer": { "enabled": true, "runs": 200 },
+      "metadata": { "bytecodeHash": "none" },
+      "compilationTarget": {
+        "node_modules/@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol": "GatewayCaller"
+      },
+      "evmVersion": "shanghai",
+      "libraries": {}
+    },
+    "sources": {
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGasService.sol": {
+        "keccak256": "0x7ad77d3af41f342e9032889a7b5aa224ab0c6dfaf9ce9350fe403d4a596c5eae",
+        "urls": [
+          "bzz-raw://cc2358f1f1138cd742a7cfdfc83420c488c19c3b3e39d703482e124e453953ee",
+          "dweb:/ipfs/QmYki4j2yWrixJVs955DyS1ZmLD5zcxe8ss52w6DLBLRi4"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol": {
+        "keccak256": "0xbd92798eade563d8a663db59f6f04db5acdee5beda3a6d091e44a7d5c6b2f68e",
+        "urls": [
+          "bzz-raw://1519882aed7b6de2ee1e316e5188d2bda1e305fc18a96b3895831f49dc9f90b0",
+          "dweb:/ipfs/QmYTLwLGwmDkyX6GSE6PU93TkWP5mFz8qhmFyBrWfj6gaB"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IContractIdentifier.sol": {
+        "keccak256": "0x21a94655f7f1ed3d7188bd38ce6187892c615b80f9a74e123cbc38113d855a35",
+        "urls": [
+          "bzz-raw://e7e1f30e159d40a9f8431c26955a584507bc23a30f19380c723acdb4182ba7c1",
+          "dweb:/ipfs/QmXb965di5pU3m3W36k19ZX8m6qCDaEi1jEt6NocqrGPXj"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IImplementation.sol": {
+        "keccak256": "0xa7f275514d44bec3ab8ab8c768736329174d7cc6c5cd329c3509a66bce9cd468",
+        "urls": [
+          "bzz-raw://983e8c97e4916b47244d71fa104fc368100991561fe8c28f1a6bae043763754d",
+          "dweb:/ipfs/QmeFeJsCowShVsAe6RMiz3qjY2JTyRNYRRu1oYQcN9T6uV"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IInterchainGasEstimation.sol": {
+        "keccak256": "0x5463c0d3632e53d3906796d4283a627bd7ebc63d0092685715d98340db9516ff",
+        "urls": [
+          "bzz-raw://9cd73f4b82b70f3e93b23ac591696de14b1cc88e1e60a5f66b1ac8b0e2ecd2ec",
+          "dweb:/ipfs/Qmd8psz6tmcmop1iD6fqX8vCRfrkVm7aGMZCXEbsiVjBV8"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IOwnable.sol": {
+        "keccak256": "0x5cb5691c9293e3011e1b133485411e8933ca1e110f2436a663df12991d134bf7",
+        "urls": [
+          "bzz-raw://cdbeb0f7ec37155f976a3bdd9f13055c80f1b2d17043740d387403cb8d65a096",
+          "dweb:/ipfs/QmXKLyWetJGgwUuEtexjPxfeZdgUywhrHS4898fQSFkC5y"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IUpgradable.sol": {
+        "keccak256": "0x4e1f84c9711c3c15c77aee5fce8de99fcb49a902c7e6ff24626c924a60b8c22d",
+        "urls": [
+          "bzz-raw://b2f36d8fb4b365e78663579bfd0d3252a6e290f6dd763d9275f4c6f5f51577d9",
+          "dweb:/ipfs/QmZjhnPbjqnRztwbYYs1BdxRbSsAmSLkCfE9SNRk4jMFMe"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/axelar-gmp-sdk-solidity/contracts/types/GasEstimationTypes.sol": {
+        "keccak256": "0x7da6d20700698dfae8f8252c442e4bebd29030ffcdac4fbbe986f1ddbcb6365c",
+        "urls": [
+          "bzz-raw://992662e49dbc87ab994d8b68c5183dcd5453c71d04f98816b68cb00589938058",
+          "dweb:/ipfs/QmYiuEMnYZod1iRTaEcqbJcUp3LwdDPyt2M7KUaqECivau"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/interchain-token-service/contracts/interfaces/IGatewayCaller.sol": {
+        "keccak256": "0xc2daabd11df75f6a97ff8cd8ddba24ec841419424e26af0771026f8bdca0f351",
+        "urls": [
+          "bzz-raw://7c37b7cdc173c3730531c0b9398758163aec831d3cddc3eedeade2ea876e9dc3",
+          "dweb:/ipfs/QmeSBNNCdAmff6vEQaTURAXJS1b4pHym8TyuoUckvBkSwU"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol": {
+        "keccak256": "0x8c5c01b1a9dd14e64ab248e2f8980d8ead70356c5a99f0798541ec50c3ba73be",
+        "urls": [
+          "bzz-raw://8894cb0d5756a0e5057c295df968737e033ed5d773f5dc1f47325e24af4b245a",
+          "dweb:/ipfs/QmbPh3r25oRZ2p7XjrwQKnvaixt5keTLwc3fKxr6C4SoVQ"
+        ],
+        "license": "MIT"
+      }
+    },
+    "version": 1
+  },
+  "id": 101
+}

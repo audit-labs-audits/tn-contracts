@@ -4,7 +4,7 @@ import { TokenManager } from "@axelar-network/interchain-token-service/contracts
 import { IERC20MintableBurnable } from
     "@axelar-network/interchain-token-service/contracts/interfaces/IERC20MintableBurnable.sol";
 
-/// @notice TNTokenManager minimally extends TokenManager to accept return values for mints/burns made to RWTEL
+/// @notice TNTokenManager minimally extends TokenManager to accept return values for mints/burns made to InterchainTEL
 /// to convert decimals between custom-linked TEL ERC20s on remote chains & Telcoin-Network's native 18 decmals
 
 contract TNTokenManager is TokenManager {

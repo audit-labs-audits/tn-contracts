@@ -39,7 +39,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
-import { RWTEL } from "../../src/RWTEL.sol";
+import { InterchainTEL } from "../../src/InterchainTEL.sol";
 import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
 import { ITSUtils } from "../../deployments/utils/ITSUtils.sol";
 import { HarnessCreate3FixedAddressForITS, MockTEL, ITSTestHelper } from "./ITSTestHelper.sol";
@@ -55,15 +55,15 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         vm.etch(originTEL, address(mockTEL).code);
 
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        (address precalculatedITS, address precalculatedWTEL, address precalculatedRWTEL) =
+        (address precalculatedITS, address precalculatedWTEL, address precalculatedInterchainTEL) =
             _precalculateCreate3ConstructorArgs(create3, admin);
 
-        _setUpDevnetConfig(admin, originTEL, precalculatedWTEL, precalculatedRWTEL);
+        _setUpDevnetConfig(admin, originTEL, precalculatedWTEL, precalculatedInterchainTEL);
 
         vm.deal(linker, 1 ether);
 
         // add or overwrite configs outside of devnet setup in test context
-        rwtelOwner = admin;
+        itelOwner = admin;
         chainName_ = MAINNET_CHAIN_NAME;
         originChainName_ = MAINNET_CHAIN_NAME;
         itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
@@ -71,13 +71,13 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         // note: ITS deterministic create3 deployments depend on `sender` for devnet only
         vm.startPrank(admin);
 
-        // rwtel impl bytecode used for tokenId in TokenHandler constructor arg
+        // itel impl bytecode used for tokenId in TokenHandler constructor arg
         wTEL = ITSUtils.instantiateWTEL();
-        rwTELImpl = ITSUtils.instantiateRWTELImpl(precalculatedITS);
+        iTELImpl = ITSUtils.instantiateInterchainTELImpl(precalculatedITS);
 
-        customLinkedTokenSalt = rwTELImpl.linkedTokenDeploySalt();
-        customLinkedTokenId = rwTELImpl.interchainTokenId();
-        originTELTokenManager = TokenManager(rwTELImpl.tokenManagerAddress()); // TNTokenManager in forks
+        customLinkedTokenSalt = iTELImpl.linkedTokenDeploySalt();
+        customLinkedTokenId = iTELImpl.interchainTokenId();
+        originTELTokenManager = TokenManager(iTELImpl.tokenManagerAddress()); // TNTokenManager in forks
 
         // deploy ITS core suite; use config from storage
         gatewayImpl = ITSUtils.instantiateAxelarAmplifierGatewayImpl();
@@ -104,15 +104,15 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         itFactoryImpl = ITSUtils.instantiateITFImpl(address(its));
         itFactory = ITSUtils.instantiateITF(address(itFactoryImpl));
 
-        rwTEL = ITSUtils.instantiateRWTEL(address(rwTELImpl));
-        rwTEL.initialize(governanceAddress_, maxToClean, rwtelOwner);
+        iTEL = ITSUtils.instantiateInterchainTEL(address(iTELImpl));
+        iTEL.initialize(governanceAddress_, maxToClean, itelOwner);
 
         vm.stopPrank(); // `admin`
 
         // asserts
         assertEq(address(its), create3.deployedAddress("", admin, salts.itsSalt));
         assertEq(address(itFactory), create3.deployedAddress("", admin, salts.itfSalt));
-        assertEq(customLinkedTokenId, rwTEL.interchainTokenId());
+        assertEq(customLinkedTokenId, iTEL.interchainTokenId());
     }
 
     function test_setUp() public view {
@@ -161,28 +161,28 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         assertEq(its.tokenManagerImplementation(0), address(tokenManagerImpl));
         assertEq(
             its.getExpressExecutor(
-                bytes32(0x0), chainName_, Strings.toString(uint256(uint160(address(rwTEL)))), bytes32(0x0)
+                bytes32(0x0), chainName_, Strings.toString(uint256(uint160(address(iTEL)))), bytes32(0x0)
             ),
             address(0x0)
         );
 
-        // rwTEL sanity tests
-        assertEq(rwTEL.stakeManager(), 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
-        assertEq(address(rwTEL.interchainTokenService()), address(its));
-        assertEq(rwTEL.owner(), rwtelOwner);
-        assertTrue(address(rwTEL).code.length > 0);
-        assertEq(rwTEL.name(), name_);
-        assertEq(rwTEL.symbol(), symbol_);
-        assertEq(rwTEL.recoverableWindow(), recoverableWindow_);
-        assertEq(rwTEL.governanceAddress(), governanceAddress_);
-        assertEq(rwTEL.baseToken(), address(wTEL));
-        assertEq(rwTEL.decimals(), wTEL.decimals());
-        // note that rwTEL ITS salt and tokenId are based on originTEL
-        bytes32 rwtelDeploySalt = rwTEL.linkedTokenDeploySalt();
-        assertEq(rwtelDeploySalt, itFactory.linkedTokenDeploySalt(admin, salts.registerCustomTokenSalt));
-        assertEq(customLinkedTokenId, rwTEL.tokenManagerCreate3Salt());
+        // iTEL sanity tests
+        assertEq(iTEL.stakeManager(), 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
+        assertEq(address(iTEL.interchainTokenService()), address(its));
+        assertEq(iTEL.owner(), itelOwner);
+        assertTrue(address(iTEL).code.length > 0);
+        assertEq(iTEL.name(), name_);
+        assertEq(iTEL.symbol(), symbol_);
+        assertEq(iTEL.recoverableWindow(), recoverableWindow_);
+        assertEq(iTEL.governanceAddress(), governanceAddress_);
+        assertEq(iTEL.baseToken(), address(wTEL));
+        assertEq(iTEL.decimals(), wTEL.decimals());
+        // note that iTEL ITS salt and tokenId are based on originTEL
+        bytes32 itelDeploySalt = iTEL.linkedTokenDeploySalt();
+        assertEq(itelDeploySalt, itFactory.linkedTokenDeploySalt(admin, salts.registerCustomTokenSalt));
+        assertEq(customLinkedTokenId, iTEL.tokenManagerCreate3Salt());
         assertEq(customLinkedTokenId, itFactory.linkedTokenId(admin, salts.registerCustomTokenSalt));
-        assertEq(customLinkedTokenId, its.interchainTokenId(address(0x0), rwtelDeploySalt));
+        assertEq(customLinkedTokenId, its.interchainTokenId(address(0x0), itelDeploySalt));
     }
 
     function test_eth_linkToken() public {
@@ -190,7 +190,7 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         vm.startPrank(linker);
         (bytes32 returnedInterchainTokenSalt, bytes32 returnedInterchainTokenId, TokenManager returnedTELTokenManager) =
         eth_registerCustomTokenAndLinkToken(
-            originTEL, admin, TN_CHAIN_NAME, address(rwTEL), originTMType, admin, gasValue, itFactory
+            originTEL, admin, TN_CHAIN_NAME, address(iTEL), originTMType, admin, gasValue, itFactory
         );
         vm.stopPrank();
 
@@ -260,19 +260,19 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         assertEq(implementationType, uint256(ITokenManagerType.TokenManagerType.LOCK_UNLOCK));
         assertEq(tokenAddress, originTEL);
 
-        // rwtel asserts
+        // itel asserts
         assertEq(customLinkedTokenId, itFactory.linkedTokenId(admin, salts.registerCustomTokenSalt));
         assertEq(customLinkedTokenId, tmDeploySaltIsTELInterchainTokenId);
-        assertEq(rwTEL.tokenManagerCreate3Salt(), tmDeploySaltIsTELInterchainTokenId);
-        assertEq(rwTEL.linkedTokenDeploySalt(), itFactory.linkedTokenDeploySalt(admin, salts.registerCustomTokenSalt));
-        assertEq(rwTEL.tokenManagerAddress(), address(returnedTELTokenManager));
+        assertEq(iTEL.tokenManagerCreate3Salt(), tmDeploySaltIsTELInterchainTokenId);
+        assertEq(iTEL.linkedTokenDeploySalt(), itFactory.linkedTokenDeploySalt(admin, salts.registerCustomTokenSalt));
+        assertEq(iTEL.tokenManagerAddress(), address(returnedTELTokenManager));
     }
 
     function test_eth_interchainTransfer_TEL() public {
         // Register origin TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         vm.startPrank(linker);
         (, bytes32 returnedInterchainTokenId,) = eth_registerCustomTokenAndLinkToken(
-            originTEL, admin, TN_CHAIN_NAME, address(rwTEL), originTMType, admin, gasValue, itFactory
+            originTEL, admin, TN_CHAIN_NAME, address(iTEL), originTMType, admin, gasValue, itFactory
         );
         vm.stopPrank();
 
@@ -295,7 +295,7 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         // Register origin TEL metadata with Axelar chain's ITS hub, this step requires gas prepayment
         vm.startPrank(linker);
         (, bytes32 returnedInterchainTokenId,) = eth_registerCustomTokenAndLinkToken(
-            originTEL, admin, TN_CHAIN_NAME, address(rwTEL), originTMType, admin, gasValue, itFactory
+            originTEL, admin, TN_CHAIN_NAME, address(iTEL), originTMType, admin, gasValue, itFactory
         );
         vm.stopPrank();
 

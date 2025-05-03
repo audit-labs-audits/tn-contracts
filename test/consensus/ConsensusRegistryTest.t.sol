@@ -8,7 +8,7 @@ import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { StakeManager } from "src/consensus/StakeManager.sol";
 import { StakeInfo, Slash, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
-import { RWTEL } from "src/RWTEL.sol";
+import { InterchainTEL } from "src/InterchainTEL.sol";
 import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 
 contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
@@ -20,14 +20,14 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
 
         StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_);
-        consensusRegistry.initialize(address(rwTEL), stakeConfig_, initialValidators, crOwner);
+        consensusRegistry.initialize(address(iTEL), stakeConfig_, initialValidators, crOwner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
         vm.deal(validator5, 100_000_000 ether);
 
-        // deal RWTEL max TEL supply to test reward distribution
-        vm.deal(address(rwTEL), telMaxSupply);
+        // deal InterchainTEL max TEL supply to test reward distribution
+        vm.deal(address(iTEL), telMaxSupply);
     }
 
     function test_setUp() public {

@@ -17,9 +17,6 @@ struct Deployments {
     address admin;
     EXYZs eXYZs;
     ITS its;
-    address rwTEL;
-    address rwTELImpl;
-    address rwTELTokenManager;
     address sepoliaTEL;
     UniswapV2 uniswapV2;
     address wTEL;
@@ -32,6 +29,9 @@ struct ITS {
     address GasService;
     address GasServiceImpl;
     address GatewayCaller;
+    address InterchainTEL;
+    address InterchainTELImpl;
+    address InterchainTELTokenManager;
     address InterchainTokenDeployer;
     address InterchainTokenFactory;
     address InterchainTokenFactoryImpl;

@@ -8,7 +8,7 @@ import { IConsensusRegistry } from "src/consensus/interfaces/IConsensusRegistry.
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { StakeManager } from "src/consensus/StakeManager.sol";
 import { Slash, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
-import { RWTEL } from "src/RWTEL.sol";
+import { InterchainTEL } from "src/InterchainTEL.sol";
 import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 
 /// @dev Fuzz test module separated into new file with extra setup to avoid `OutOfGas`
@@ -20,12 +20,12 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
 
         StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_);
-        consensusRegistry.initialize(address(rwTEL), stakeConfig_, initialValidators, crOwner);
+        consensusRegistry.initialize(address(iTEL), stakeConfig_, initialValidators, crOwner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
-        // deal RWTEL max TEL supply to test reward distribution
-        vm.deal(address(rwTEL), telMaxSupply);
+        // deal InterchainTEL max TEL supply to test reward distribution
+        vm.deal(address(iTEL), telMaxSupply);
     }
 
     function testFuzz_mintBurn(uint24 numValidators) public {

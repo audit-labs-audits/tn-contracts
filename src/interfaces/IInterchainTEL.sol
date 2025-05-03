@@ -8,7 +8,7 @@ import { Record } from "recoverable-wrapper/contracts/util/RecordUtil.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Ownable } from "solady/auth/Ownable.sol";
 
-interface IRWTEL {
+interface IInterchainTEL {
     event RemainderTransferFailed(address indexed to, uint256 amount);
 
     error OnlyManager(address authority);
@@ -23,11 +23,11 @@ interface IRWTEL {
     /// @dev Sends `rewardAmount`, and if additionally provided as `msg.value`, forwards stake amount
     function distributeStakeReward(address validator, uint256 rewardAmount) external payable;
 
-    /// @notice Convenience function for users to wrap native TEL directly to rwTEL in one tx
-    /// @dev RWTEL performs WETH9 deposit on behalf of caller so they need not hold wTEL or make approval
+    /// @notice Convenience function for users to wrap native TEL directly to iTEL in one tx
+    /// @dev InterchainTEL performs WETH9 deposit on behalf of caller so they need not hold wTEL or make approval
     function doubleWrap() external payable;
 
-    /// @notice Convenience function for users to wrap wTEL to rwTEL in one tx without approval
+    /// @notice Convenience function for users to wrap wTEL to iTEL in one tx without approval
     /// @dev Explicitly allows malleable signatures for optionality. Malleability is handled
     /// by abstracting signature reusability away via stateful nonce within the EIP-712 structhash
     function permitWrap(
@@ -51,11 +51,11 @@ interface IRWTEL {
     /// @dev ITS uses `interchainTokenId()` as the create3 salt used to deploy TokenManagers
     function tokenManagerCreate3Salt() external view returns (bytes32);
 
-    /// @notice Returns the unique salt required for RWTEL ITS integration
+    /// @notice Returns the unique salt required for InterchainTEL ITS integration
     /// @dev Equivalent to `InterchainTokenFactory::linkedTokenDeploySalt()`
     function linkedTokenDeploySalt() external view returns (bytes32);
 
-    /// @notice Returns the ITS TokenManager address for RWTEL, derived via create3
+    /// @notice Returns the ITS TokenManager address for InterchainTEL, derived via create3
     /// @dev ITS uses `interchainTokenId()` as the create3 salt used to deploy TokenManagers
     function tokenManagerAddress() external view returns (address);
 

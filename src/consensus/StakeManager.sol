@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
-import { IRWTEL } from "../interfaces/IRWTEL.sol";
+import { IInterchainTEL } from "../interfaces/IInterchainTEL.sol";
 import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 
 /**
@@ -153,10 +153,10 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         virtual
         returns (uint232 rewards)
     {
-        // check rewards are claimable and send via the `RWTEL` module
+        // check rewards are claimable and send via the InterchainTEL contract
         rewards = _checkRewards($, validatorAddress, validatorVersion);
         $.stakeInfo[validatorAddress].balance -= rewards;
-        IRWTEL($.rwTEL).distributeStakeReward(recipient, rewards);
+        IInterchainTEL($.iTEL).distributeStakeReward(recipient, rewards);
     }
 
     function _unstake(
@@ -184,12 +184,11 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         // forward claimable funds to recipient through InterchainTEL
         uint232 stakeAmt = $.versions[validatorVersion].stakeAmount;
         uint256 rewards = _getRewards($, validatorAddress, stakeAmt);
-        IRWTEL($.rwTEL).distributeStakeReward{ value: bal }(recipient, rewards);
+        IInterchainTEL($.iTEL).distributeStakeReward{ value: bal }(recipient, rewards);
         
         // if slashed, consolidate remainder on the InterchainTEL contract
         if (bal < stakeAmt) {
-            (bool r,) = $.rwTEL.call{ value: stakeAmt - bal }("");
-            if (!r) revert RewardDistributionFailure(validatorAddress);
+            (bool r,) = $.iTEL.call{ value: stakeAmt - bal }("");r;
         }
 
         return bal + rewards;

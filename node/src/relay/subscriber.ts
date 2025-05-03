@@ -14,7 +14,7 @@ import axelarAmplifierGatewayArtifact from "../../../artifacts/AxelarAmplifierGa
 import * as dotenv from "dotenv";
 dotenv.config();
 
-/// @dev Usage example for subscribing to the RWTEL contract on TN:
+/// @dev Usage example for subscribing to the InterchainTEL contract on TN:
 /// `npm run subscriber -- --target-chain telcoin-network --target-contract 0xca568d148d23a4ca9b77bef783dca0d2f5962c12`
 
 // env config
