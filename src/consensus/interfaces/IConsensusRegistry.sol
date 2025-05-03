@@ -109,11 +109,11 @@ interface IConsensusRegistry {
     function getCurrentEpoch() external view returns (uint32);
 
     /// @dev Returns the current epoch's committee and block height
-    function getCurrentEpochInfo() external view returns (EpochInfo memory currentEpochInfo);
+    function getCurrentEpochInfo() external view returns (EpochInfo memory);
 
     /// @dev Returns information about the provided epoch. Only four latest & two future epochs are stored
     /// @notice When querying for future epochs, `blockHeight` will be 0 as they are not yet known
-    function getEpochInfo(uint32 epoch) external view returns (EpochInfo memory currentEpochInfo);
+    function getEpochInfo(uint32 epoch) external view returns (EpochInfo memory);
 
     /// @dev Returns an array of unretired validators matching the provided status
     /// @param `Any` queries return all unretired validators where `status != Any`

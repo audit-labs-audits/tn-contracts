@@ -257,7 +257,7 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc IConsensusRegistry
-    function beginExit() external whenNotPaused {
+    function beginExit() external override whenNotPaused {
         // require caller is whitelisted, having been issued a ConsensusNFT by governance
         uint24 tokenId = _checkConsensusNFTOwner(_stakeManagerStorage(), msg.sender);
 

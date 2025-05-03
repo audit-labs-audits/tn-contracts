@@ -133,7 +133,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     }
 
     /// @inheritdoc IStakeManager
-    function totalSupply() public view virtual returns (uint256) {
+    function totalSupply() public view virtual override returns (uint256) {
         return _stakeManagerStorage().totalSupply;
     }
 
@@ -150,12 +150,14 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     )
         internal
         virtual
-        returns (uint232 rewards)
+        returns (uint232)
     {
         // check rewards are claimable and send via the InterchainTEL contract
-        rewards = _checkRewards($, validatorAddress, validatorVersion);
+        uint232 rewards = _checkRewards($, validatorAddress, validatorVersion);
         $.stakeInfo[validatorAddress].balance -= rewards;
         IInterchainTEL($.iTEL).distributeStakeReward(recipient, rewards);
+
+        return rewards;
     }
 
     function _unstake(
@@ -166,7 +168,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     )
         internal
         virtual
-        returns (uint256 stakeAndRewards)
+        returns (uint256)
     {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
@@ -175,9 +177,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         uint232 bal = info.balance;
         info.balance = 0;
         info.tokenId = UNSTAKED;
-
-        uint256 supply = --$.totalSupply;
-        if (supply == 0) revert InvalidSupply();
+        if (--$.totalSupply == 0) revert InvalidSupply();
         _burn(tokenId);
 
         // forward claimable funds to recipient through InterchainTEL
@@ -201,18 +201,20 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     )
         internal
         virtual
-        returns (uint232 rewards)
+        returns (uint232)
     {
         uint232 initialStake = $.versions[validatorVersion].stakeAmount;
-        rewards = _getRewards($, validatorAddress, initialStake);
+        uint232 rewards = _getRewards($, validatorAddress, initialStake);
 
         if (rewards == 0 || rewards < $.versions[validatorVersion].minWithdrawAmount) {
             revert InsufficientRewards(rewards);
         }
+
+        return rewards;
     }
 
     function _checkStakeValue(uint256 value, uint8 version) internal virtual returns (uint232) {
-        if (value != _stakeManagerStorage().versions[version].stakeAmount) revert InvalidStakeAmount(msg.value);
+        if (value != _stakeManagerStorage().versions[version].stakeAmount) revert InvalidStakeAmount(value);
 
         return uint232(value);
     }
@@ -290,13 +292,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         }
     }
 
-    function _domainNameAndVersion()
-        internal
-        view
-        virtual
-        override
-        returns (string memory name, string memory version)
-    {
+    function _domainNameAndVersion() internal view virtual override returns (string memory, string memory) {
         return ("Telcoin StakeManager", "1");
     }
 }
