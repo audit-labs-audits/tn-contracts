@@ -112,10 +112,10 @@ contract RWTEL is
      */
 
     /// @inheritdoc IRWTEL
-    function distributeStakeReward(address validator, uint256 rewardAmount) external payable virtual onlyStakeManager {
+    function distributeStakeReward(address recipient, uint256 rewardAmount) external payable virtual onlyStakeManager {
         uint256 totalAmount = rewardAmount + msg.value;
-        (bool res,) = validator.call{ value: totalAmount }("");
-        if (!res) revert RewardDistributionFailure(validator);
+        (bool res,) = recipient.call{ value: totalAmount }("");
+        if (!res) revert RewardDistributionFailure(recipient);
     }
 
     /// @inheritdoc IRWTEL
@@ -373,6 +373,6 @@ contract RWTEL is
 
     receive() external payable {
         address wTEL = address(baseERC20);
-        if (msg.sender != wTEL) revert OnlyBaseToken(wTEL);
+        if (msg.sender != wTEL && msg.sender != stakeManager) revert OnlyManagerOrBaseToken(msg.sender);
     }
 }

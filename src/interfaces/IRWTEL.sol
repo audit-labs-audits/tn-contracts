@@ -12,7 +12,7 @@ interface IRWTEL {
     event RemainderTransferFailed(address indexed to, uint256 amount);
 
     error OnlyManager(address authority);
-    error OnlyBaseToken(address authority);
+    error OnlyManagerOrBaseToken(address caller);
     error RewardDistributionFailure(address validator);
     error PermitWrapFailed(address to, uint256 amount);
     error MintFailed(address to, uint256 amount);

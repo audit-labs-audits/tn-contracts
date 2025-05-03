@@ -173,19 +173,26 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
 
         // wipe existing stakeInfo and burn the token
         StakeInfo storage info = $.stakeInfo[validatorAddress];
-        uint256 stakeAmt = $.versions[validatorVersion].stakeAmount;
-        uint256 rewards = uint256(info.balance) - stakeAmt;
+        uint232 bal = info.balance;
         info.balance = 0;
-        info.tokenId = UNSTAKED;
+        info.tokenId = UNSTAKED;    
 
         uint256 supply = --$.totalSupply;
         if (supply == 0) revert InvalidSupply();
         _burn(tokenId);
 
-        // forward all funds through RWTEL module to recipient
-        IRWTEL($.rwTEL).distributeStakeReward{ value: stakeAmt }(recipient, rewards);
+        // forward claimable funds to recipient through InterchainTEL
+        uint232 stakeAmt = $.versions[validatorVersion].stakeAmount;
+        uint256 rewards = _getRewards($, validatorAddress, stakeAmt);
+        IRWTEL($.rwTEL).distributeStakeReward{ value: bal }(recipient, rewards);
+        
+        // if slashed, consolidate remainder on the InterchainTEL contract
+        if (bal < stakeAmt) {
+            (bool r,) = $.rwTEL.call{ value: stakeAmt - bal }("");
+            if (!r) revert RewardDistributionFailure(validatorAddress);
+        }
 
-        return stakeAmt + rewards;
+        return bal + rewards;
     }
 
     function _checkRewards(
@@ -205,8 +212,10 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         }
     }
 
-    function _checkStakeValue(uint256 value, uint8 version) internal virtual {
+    function _checkStakeValue(uint256 value, uint8 version) internal virtual returns (uint232) {
         if (value != _stakeManagerStorage().versions[version].stakeAmount) revert InvalidStakeAmount(msg.value);
+
+        return uint232(value);
     }
 
     function _getRewards(

@@ -156,12 +156,12 @@ contract ConsensusRegistry is
     }
 
     /// @inheritdoc StakeManager
-    function getRewards(address validatorAddress) public view virtual returns (uint256) {
+    function getRewards(address validatorAddress) public view override returns (uint232) {
         StakeManagerStorage storage $ = _stakeManagerStorage();
         uint24 tokenId = _checkConsensusNFTOwner($, validatorAddress);
 
         uint8 stakeVersion = _consensusRegistryStorage().validators[tokenId].stakeVersion;
-        uint256 initialStake = $.versions[stakeVersion].stakeAmount;
+        uint232 initialStake = $.versions[stakeVersion].stakeAmount;
 
         return _getRewards($, validatorAddress, initialStake);
     }
@@ -178,13 +178,14 @@ contract ConsensusRegistry is
 
         // require caller is known & whitelisted, having been issued a ConsensusNFT by governance
         StakeManagerStorage storage $S = _stakeManagerStorage();
-        _checkStakeValue(msg.value, $S.stakeVersion);
+        uint8 validatorVersion = $S.stakeVersion;
+        uint232 stakeAmt = _checkStakeValue(msg.value, validatorVersion);
         uint24 tokenId = _checkConsensusNFTOwner($S, msg.sender);
         // require validator has not yet staked
         _checkValidatorStatus(_consensusRegistryStorage(), tokenId, ValidatorStatus.Undefined);
 
         // enter validator in activation queue
-        _recordStaked(blsPubkey, msg.sender, false, $S.stakeVersion, tokenId);
+        _recordStaked(blsPubkey, msg.sender, false, validatorVersion, tokenId, stakeAmt);
     }
 
     /// @inheritdoc StakeManager
@@ -203,7 +204,7 @@ contract ConsensusRegistry is
         // require caller is known & whitelisted, having been issued a ConsensusNFT by governance
         StakeManagerStorage storage $S = _stakeManagerStorage();
         uint8 validatorVersion = $S.stakeVersion;
-        _checkStakeValue(msg.value, validatorVersion);
+        uint232 stakeAmt = _checkStakeValue(msg.value, validatorVersion);
         uint24 tokenId = _checkConsensusNFTOwner($S, validatorAddress);
 
         // require validator status is `Undefined`
@@ -222,7 +223,7 @@ contract ConsensusRegistry is
         }
 
         $S.delegations[validatorAddress] = Delegation(blsPubkeyHash, msg.sender, tokenId, validatorVersion, nonce);
-        _recordStaked(blsPubkey, validatorAddress, true, validatorVersion, tokenId);
+        _recordStaked(blsPubkey, validatorAddress, true, validatorVersion, tokenId, stakeAmt);
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -349,11 +350,11 @@ contract ConsensusRegistry is
         address validatorAddress,
         bool isDelegated,
         uint8 stakeVersion,
-        uint24 tokenId
+        uint24 tokenId,
+        uint232 stakeAmt
     )
         internal
     {
-        ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         ValidatorInfo memory newValidator = ValidatorInfo(
             blsPubkey,
             validatorAddress,
@@ -364,7 +365,8 @@ contract ConsensusRegistry is
             isDelegated,
             stakeVersion
         );
-        $.validators[tokenId] = newValidator;
+        _consensusRegistryStorage().validators[tokenId] = newValidator;
+        _stakeManagerStorage().stakeInfo[validatorAddress].balance = stakeAmt;
 
         emit ValidatorStaked(newValidator);
     }
@@ -755,8 +757,6 @@ contract ConsensusRegistry is
      *
      */
 
-    /// @notice Not actually used since this contract is precompiled and written to TN at genesis
-    /// It is left in the contract for readable information about the relevant storage slots at genesis
     /// @param initialValidators_ The initial validator set running Telcoin Network; these validators will
     /// comprise the voter committee for the first three epochs, ie `epochInfo[0:2]`
     /// @dev ConsensusRegistry contract must be instantiated at genesis with stake for `initialValidators_`
@@ -830,6 +830,7 @@ contract ConsensusRegistry is
 
             $C.validators[tokenId] = currentValidator;
             $S.stakeInfo[currentValidator.validatorAddress].tokenId = tokenId;
+            $S.stakeInfo[currentValidator.validatorAddress].balance = genesisConfig_.stakeAmount;
             $S.totalSupply++;
             __ERC721_init("ConsensusNFT", "CNFT");
             _mint(currentValidator.validatorAddress, tokenId);
