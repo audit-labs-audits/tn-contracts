@@ -75,7 +75,7 @@ export async function verify({
 }
 
 // returns values for `verify()`; only used if invoked via command line
-function processVerifyCLIArgs(args: string[]) {
+export function processInternalGatewayCLIArgs(args: string[]) {
   let sourceChain: string | undefined;
   let sourceAddress: `0x${string}` | undefined;
   let destinationChain: string | undefined;
@@ -138,7 +138,7 @@ function processVerifyCLIArgs(args: string[]) {
 
 function main() {
   const args = process.argv.slice(2);
-  verify(processVerifyCLIArgs(args));
+  verify(processInternalGatewayCLIArgs(args));
 }
 // supports CLI invocation by checking if being run directly
 if (require.main === module) {

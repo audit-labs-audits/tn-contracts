@@ -1,5 +1,6 @@
 import { exec } from "child_process";
 import { GMPMessage } from "../utils.js";
+import { processInternalGatewayCLIArgs } from "./verify.js";
 
 /**
  * @dev Can be used via CLI or within the TypeScript runtime when imported by another TypeScript file.
@@ -74,71 +75,9 @@ export async function route({
   });
 }
 
-// returns values for `route()`; only used if invoked via command line
-function processRouteCLIArgs(args: string[]) {
-  let sourceChain: string | undefined;
-  let sourceAddress: `0x${string}` | undefined;
-  let destinationChain: string | undefined;
-  let destinationAddress: `0x${string}` | undefined;
-  let payloadHash: `0x${string}` | undefined;
-  let txHash: `0x${string}` | undefined;
-  let logIndex: number | undefined;
-
-  args.forEach((arg, index) => {
-    const valueIndex = index + 1;
-    switch (arg) {
-      case "--source-chain":
-        sourceChain = args[valueIndex];
-        break;
-      case "--source-address":
-        sourceAddress = args[valueIndex] as `0x${string}`;
-        break;
-      case "--destination-chain":
-        destinationChain = args[valueIndex];
-        break;
-      case "--destination-address":
-        destinationAddress = args[valueIndex] as `0x${string}`;
-        break;
-      case "--payload-hash":
-        payloadHash = args[valueIndex] as `0x${string}`;
-        break;
-      case "--tx-hash":
-        txHash = args[valueIndex] as `0x${string}`;
-        break;
-      case "--log-index":
-        logIndex = parseInt(args[valueIndex], 10);
-        break;
-    }
-  });
-
-  if (
-    !sourceChain ||
-    !sourceAddress ||
-    !destinationChain ||
-    !destinationAddress ||
-    !payloadHash ||
-    !txHash ||
-    logIndex === undefined
-  ) {
-    throw new Error(
-      "Must set --source-chain, --source-address, --destination-chain, --destination-address, --payload-hash, --tx-hash, and --log-index"
-    );
-  }
-
-  return {
-    txHash,
-    logIndex,
-    sourceChain,
-    sourceAddress,
-    destinationChain,
-    destinationAddress,
-    payloadHash,
-  };
-}
-
 function main() {
   const args = process.argv.slice(2);
-  route(processRouteCLIArgs(args));
+  route(processInternalGatewayCLIArgs(args));
 }
 
 // supports CLI invocation by checking if being run directly
