@@ -18,8 +18,16 @@ struct StakeInfo {
     uint232 balance;
 }
 
+/// @notice Protocol info for system calls to split the epoch issuance amount
+/// between validators based on how many consensus headers they produced
+/// @notice Not enabled during MNO pilot
+struct RewardInfo {
+    address validatorAddress;
+    uint232 consensusHeaderCount;
+}
+
 /// @notice Slash information for system calls to decrement outstanding validator balances
-/// @notice Not yet enabled
+/// @notice Not enabled during MNO pilot
 struct Slash {
     address validatorAddress;
     uint232 amount;

@@ -6,7 +6,7 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ReentrancyGuard } from "solady/utils/ReentrancyGuard.sol";
-import { StakeInfo, Slash, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeInfo, RewardInfo, Slash, IStakeManager } from "./interfaces/IStakeManager.sol";
 import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
@@ -37,7 +37,7 @@ contract ConsensusRegistry is
     uint32 internal constant PENDING_EPOCH = type(uint32).max;
 
     /// @dev Addresses precision loss for incentives calculations
-    uint256 internal constant PRECISION_FACTOR = 1e32;
+    uint232 internal constant PRECISION_FACTOR = 1e32;
 
     /**
      *
@@ -46,14 +46,7 @@ contract ConsensusRegistry is
      */
 
     /// @inheritdoc IConsensusRegistry
-    function concludeEpoch(
-        address[] calldata newCommittee,
-        Slash[] calldata slashes
-    )
-        external
-        override
-        onlySystemCall
-    {
+    function concludeEpoch(address[] calldata newCommittee) external override onlySystemCall {
         // update epoch ring buffer info, validator queue
         ConsensusRegistryStorage storage $ = _consensusRegistryStorage();
         (uint32 newEpoch, uint32 duration) = _updateEpochInfo($, newCommittee);
@@ -63,40 +56,64 @@ contract ConsensusRegistry is
         ValidatorInfo[] memory newActive = _getValidators($, ValidatorStatus.Active);
         _checkCommitteeSize(newActive.length, newCommittee.length);
 
-        applyIncentives(newEpoch, newActive, slashes);
-
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), duration));
     }
 
-    /// @notice Slashing is not live but scaffolding for it is included here. For the time being,
-    /// system calls to this function provide an empty calldata array
+    /// @notice Not yet enabled during pilot, but scaffolding is included here. 
+    /// For the time being, system calls to this fn can provide empty calldata arrays
     /// @inheritdoc IConsensusRegistry
     function applyIncentives(
-        uint32 newEpoch,
-        ValidatorInfo[] memory active,
-        Slash[] calldata /*slashes*/
+        RewardInfo[] calldata rewardInfos
     )
         public
         override
         onlySystemCall
     {
         StakeManagerStorage storage $S = _stakeManagerStorage();
-        uint8 currentVersion = stakeVersion();
-        StakeConfig memory currentConfig = stakeConfig(currentVersion);
-        (address[] memory recipients, uint256[] memory stakes, uint256 totalStake) =
-            _eligibleStakerParams($S, active, newEpoch, currentVersion, currentConfig);
 
-        // calculate and apply proportional rewards
-        uint256 totalIssuance = currentConfig.epochIssuance;
-        for (uint256 i; i < recipients.length; ++i) {
-            uint256 stakeProportion = stakes[i] * PRECISION_FACTOR / totalStake;
-            uint256 reward = totalIssuance * stakeProportion / PRECISION_FACTOR;
+        // identify total & individual weight factoring in stake & consensus headers
+        uint232 totalWeight;
+        uint232[] memory weights = new uint232[](rewardInfos.length);
+        for (uint256 i; i < rewardInfos.length; ++i) {
+            RewardInfo calldata reward = rewardInfos[i];
 
-            $S.stakeInfo[recipients[i]].balance += uint232(reward);
+            // derive validator's weight using initial stake for stability
+            uint8 rewardeeVersion = _consensusRegistryStorage().validators[
+                _getTokenId($S, reward.validatorAddress)
+            ].stakeVersion;
+            uint232 stakeAmount = $S.versions[rewardeeVersion].stakeAmount;
+            uint232 weight = stakeAmount * reward.consensusHeaderCount;
+
+            totalWeight += weight;
+            weights[i] = weight;
         }
 
-        // to be more lenient, slashing would happen after rewards are applied
-        // _applySlashes($S, slashes);
+        // derive and apply validator's weighted share of epoch issuance
+        uint232 epochIssuance = getCurrentStakeConfig().epochIssuance;
+        for (uint256 i; i < rewardInfos.length; ++i) {
+            RewardInfo calldata reward = rewardInfos[i];
+            uint232 weight = weights[i] * PRECISION_FACTOR / totalWeight;
+            uint232 rewardAmount = (epochIssuance * weight) / PRECISION_FACTOR;
+
+            $S.stakeInfo[reward.validatorAddress].balance += rewardAmount;
+        }
+    }
+
+    /// @inheritdoc IConsensusRegistry
+    function applySlashes(Slash[] calldata slashes) external override onlySystemCall {
+        StakeManagerStorage storage $ = _stakeManagerStorage();
+        for (uint256 i; i < slashes.length; ++i) {
+            Slash calldata slash = slashes[i];
+            uint24 tokenId = _checkConsensusNFTOwner($, slash.validatorAddress);
+
+            StakeInfo storage info = $.stakeInfo[slash.validatorAddress];
+            if (info.balance > slash.amount) {
+                info.balance -= slash.amount;
+            } else {
+                // eject validators whose balance would reach 0
+                _consensusBurn($, _consensusRegistryStorage(), tokenId, slash.validatorAddress);
+            }
+        }
     }
 
     /// @inheritdoc IConsensusRegistry
@@ -543,71 +560,6 @@ contract ConsensusRegistry is
         $.futureEpochInfo[twoEpochsInFuturePointer].committee = newCommittee;
 
         return (newEpoch, newDuration);
-    }
-
-    /// @notice Slashing is not live but scaffolding for it is included here.
-    function _applySlashes(StakeManagerStorage storage $S, Slash[] calldata slashes) internal {
-        for (uint256 i; i < slashes.length; ++i) {
-            Slash calldata slash = slashes[i];
-            uint24 tokenId = _checkConsensusNFTOwner($S, slash.validatorAddress);
-
-            StakeInfo storage info = $S.stakeInfo[slash.validatorAddress];
-            if (info.balance > slash.amount) {
-                info.balance -= slash.amount;
-            } else {
-                // eject validators whose balance would reach 0
-                _consensusBurn($S, _consensusRegistryStorage(), tokenId, slash.validatorAddress);
-            }
-        }
-    }
-
-    /// @dev Returns eligible recipients, their original stake amount, and the total eligible stake
-    /// @dev Validators who were committee-eligible in the concluded epoch will receive rewards
-    /// @notice Invoked just after rolling over into a new epoch within `concludeEpoch()`, thus
-    /// `currentEpoch && currentVersion && currentConfig` all refer to the new epoch's info
-    function _eligibleStakerParams(
-        StakeManagerStorage storage $S,
-        ValidatorInfo[] memory active,
-        uint32 currentEpoch,
-        uint8 currentVersion,
-        StakeConfig memory currentConfig
-    )
-        internal
-        view
-        returns (address[] memory, uint256[] memory, uint256)
-    {
-        uint256 currentStakeAmount = currentConfig.stakeAmount;
-        uint256 numEligible;
-        address[] memory tmpRecipients = new address[](active.length);
-        uint256[] memory tmpStakes = new uint256[](active.length);
-        for (uint256 i; i < active.length; ++i) {
-            ValidatorInfo memory validator = active[i];
-            // skip validators who just activated and have not yet completed a full epoch
-            if (validator.activationEpoch == currentEpoch) continue;
-
-            // gather recipients and their stake amounts using their stake version
-            tmpRecipients[numEligible] = _getRecipient($S, validator.validatorAddress);
-            uint256 recipientStake;
-            if (validator.stakeVersion == currentVersion) {
-                recipientStake = currentStakeAmount;
-            } else {
-                recipientStake = stakeConfig(validator.stakeVersion).stakeAmount;
-            }
-            tmpStakes[numEligible++] = recipientStake;
-        }
-
-        // sum total eligible stake and trim recipient & stake arrays
-        uint256 totalStake;
-        address[] memory recipients = new address[](numEligible);
-        uint256[] memory stakes = new uint256[](numEligible);
-        for (uint256 i; i < numEligible; ++i) {
-            totalStake += tmpStakes[i];
-
-            stakes[i] = tmpStakes[i];
-            recipients[i] = tmpRecipients[i];
-        }
-
-        return (recipients, stakes, totalStake);
     }
 
     /// @dev Fetch info for a future epoch; two epochs into future are stored
