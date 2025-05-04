@@ -42,7 +42,6 @@
     "GasServiceImpl": "0xC75c1Dc33514db5c39a13b2e7fE82A05050535EF",
     "GatewayCaller": "0x7d6aBBb2a041D1bDEb7c45f233D09D75D9e0b17C",
     "InterchainTEL": "0x28A51E729C8e420123332dCc7c76f865805214DE",
-    "InterchainTELImpl": "0x92bc9f0D42A3194Df2C5AB55c3bbDD82e6Fb2F92",
     "InterchainTELTokenManager": "0x7c5317523C052922259D3F17cbfACf8d84A59AD4",
     "InterchainTokenDeployer": "0xd99464aF9D4040e1F657ca3Ee5472DAEbb4b1edd",
     "InterchainTokenFactory": "0xdB7d6A5B8d37a4f34BC1e7ce0d0B8a9DDA124871",

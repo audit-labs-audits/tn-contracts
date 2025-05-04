@@ -109,7 +109,6 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.its.InterchainTELImpl,
             deployments.its.InterchainTEL,
             deployments.its.InterchainTELTokenManager
         );
@@ -158,7 +157,6 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.its.InterchainTELImpl,
             deployments.its.InterchainTEL,
             deployments.its.InterchainTELTokenManager
         );
@@ -254,7 +252,6 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.its.InterchainTELImpl,
             deployments.its.InterchainTEL,
             deployments.its.InterchainTELTokenManager
         );
@@ -388,7 +385,6 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.its.InterchainTELImpl,
             deployments.its.InterchainTEL,
             deployments.its.InterchainTELTokenManager
         );
@@ -473,7 +469,6 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.its.InterchainTELImpl,
             deployments.its.InterchainTEL,
             deployments.its.InterchainTELTokenManager
         );

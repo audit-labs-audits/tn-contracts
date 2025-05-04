@@ -16,11 +16,9 @@ import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/Recoverabl
 import { RecordsDeque, RecordsDequeLib, Record } from "recoverable-wrapper/contracts/util/RecordUtil.sol";
 import { Pausable } from "@openzeppelin-contracts/security/Pausable.sol";
 import { ERC20 } from "@openzeppelin-contracts/token/ERC20/ERC20.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 import { WETH } from "solady/tokens/WETH.sol";
-import { Ownable } from "solady/auth/Ownable.sol";
 
 import { SystemCallable } from "./consensus/SystemCallable.sol";
 import { IInterchainTEL } from "./interfaces/IInterchainTEL.sol";
@@ -31,15 +29,7 @@ import { IInterchainTEL } from "./interfaces/IInterchainTEL.sol";
 /// @dev Inbound ERC20 TEL from other networks is delivered as native TEL through custom mint logic
 /// whereas outbound native TEL must first be double-wrapped to iTEL & elapse the recoverable window
 /// @dev Pausability restricts all wrapping/unwrapping actions and execution of ITS bridge messages
-contract InterchainTEL is
-    IInterchainTEL,
-    RecoverableWrapper,
-    InterchainTokenStandard,
-    UUPSUpgradeable,
-    Ownable,
-    SystemCallable,
-    Pausable
-{
+contract InterchainTEL is IInterchainTEL, RecoverableWrapper, InterchainTokenStandard, SystemCallable, Pausable {
     using RecordsDequeLib for RecordsDeque;
 
     /// @dev The precompiled Axelar ITS TokenManager contract address for this token
@@ -58,10 +48,6 @@ contract InterchainTEL is
         0xdb4bab1640a2602c9f66f33765d12be4af115accf74b24515702961e82a71327;
     /// @notice Token factory flag to be create3-agnostic; see `InterchainTokenService::TOKEN_FACTORY_DEPLOYER`
     address private constant TOKEN_FACTORY_DEPLOYER = address(0x0);
-
-    /// @dev Overrides for `ERC20` storage since `RecoverableWrapper` dep restricts them
-    string internal constant _name_ = "Interchain Telcoin";
-    string internal constant _symbol_ = "iTEL";
 
     uint256 public constant DECIMALS_CONVERTER = 1e16;
 
@@ -88,7 +74,6 @@ contract InterchainTEL is
     )
         RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
     {
-        _disableInitializers();
         _interchainTokenService = interchainTokenService_;
         originTEL = originTEL_;
         originLinker = originLinker_;
@@ -187,16 +172,6 @@ contract InterchainTEL is
         }
 
         return unsettled;
-    }
-
-    /// @notice Overrides `RecoverableWrapper::ERC20::name()` which accesses a private var
-    function name() public view virtual override returns (string memory) {
-        return _name_;
-    }
-
-    /// @notice Overrides `RecoverableWrapper::ERC20::name()` which accesses a private var
-    function symbol() public view virtual override returns (string memory) {
-        return _symbol_;
     }
 
     /**
@@ -301,6 +276,7 @@ contract InterchainTEL is
         return _interchainTokenService;
     }
 
+    /// @dev OZ 4.9 ERC20 required by RecoverableWrapper
     function _spendAllowance(
         address sender,
         address spender,
@@ -318,14 +294,6 @@ contract InterchainTEL is
      *   permissioned
      *
      */
-
-    /// @inheritdoc IInterchainTEL
-    function initialize(address governanceAddress_, uint16 maxToClean_, address owner_) public initializer {
-        _initializeOwner(owner_);
-        _setGovernanceAddress(governanceAddress_);
-        _setMaxToClean(maxToClean_);
-    }
-
     function pause() public whenNotPaused governanceOnly {
         _pause();
     }
@@ -335,26 +303,9 @@ contract InterchainTEL is
     }
 
     /// @inheritdoc IInterchainTEL
-    function setGovernanceAddress(address newGovernanceAddress) public override onlyOwner {
-        _setGovernanceAddress(newGovernanceAddress);
+    function transferGovernance(address newGovernanceAddress) public override governanceOnly {
+        // _setGovernanceAddress(newGovernanceAddress); //todo
     }
-
-    /// @inheritdoc IInterchainTEL
-    function setMaxToClean(uint16 newMaxToClean) public override onlyOwner {
-        _setMaxToClean(newMaxToClean);
-    }
-
-    function _setGovernanceAddress(address newGovernanceAddress) internal {
-        governanceAddress = newGovernanceAddress;
-    }
-
-    function _setMaxToClean(uint16 newMaxToClean) internal {
-        assembly {
-            sstore(11, newMaxToClean)
-        }
-    }
-
-    function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner { }
 
     receive() external payable {
         address wTEL = address(baseERC20);

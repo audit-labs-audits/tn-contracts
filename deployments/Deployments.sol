@@ -30,7 +30,6 @@ struct ITS {
     address GasServiceImpl;
     address GatewayCaller;
     address InterchainTEL;
-    address InterchainTELImpl;
     address InterchainTELTokenManager;
     address InterchainTokenDeployer;
     address InterchainTokenFactory;

@@ -35,7 +35,6 @@ struct ImplSalts {
     bytes32 itfImplSalt;
     bytes32 itsImplSalt;
     bytes32 tmImplSalt;
-    bytes32 itelImplSalt;
 }
 
 abstract contract Create3Utils {
@@ -65,8 +64,7 @@ abstract contract Create3Utils {
         itImplSalt: keccak256("interchain-token-impl"),
         itfImplSalt: keccak256("interchain-token-factory-impl"),
         itsImplSalt: keccak256("interchain-token-service-impl"),
-        tmImplSalt: keccak256("token-manager-impl"),
-        itelImplSalt: keccak256("interchain-telcoin-impl")
+        tmImplSalt: keccak256("token-manager-impl")
     });
 
 

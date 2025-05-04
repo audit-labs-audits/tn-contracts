@@ -27,7 +27,7 @@ import { GenesisPrecompiler } from "./GenesisPrecompiler.sol";
 /// @dev All genesis fns return simulated deployments, copying state changes to genesis targets in storage
 abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
     /// @dev Sets this contract's state using ITS fetched from a `deployments.json` file
-    function _setGenesisTargets(ITS memory genesisITSTargets, address payable wtel, address payable itelImpl, address payable itel, address itelTokenManager) internal {
+    function _setGenesisTargets(ITS memory genesisITSTargets, address payable wtel, address payable itel, address itelTokenManager) internal {
         gatewayImpl = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGatewayImpl);
         gateway = AxelarAmplifierGateway(genesisITSTargets.AxelarAmplifierGateway);
         tokenManagerDeployer = TokenManagerDeployer(genesisITSTargets.TokenManagerDeployer);
@@ -43,7 +43,6 @@ abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
         itFactoryImpl = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactoryImpl);
         itFactory = InterchainTokenFactory(genesisITSTargets.InterchainTokenFactory);
         wTEL = WTEL(wtel);
-        iTELImpl = InterchainTEL(itelImpl);
         iTEL = InterchainTEL(itel);
         iTELTokenManager = TNTokenManager(itelTokenManager);
     }
@@ -213,19 +212,9 @@ abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
         copyContractState(address(simulatedDeployment), address(wTEL), new bytes32[](0));
     }
 
-    function instantiateInterchainTELImpl(address its_) public virtual override returns (InterchainTEL simulatedDeployment) {
+    function instantiateInterchainTEL(address its_) public virtual override returns (InterchainTEL simulatedDeployment) {
         vm.startStateDiffRecording();
-        simulatedDeployment = super.instantiateInterchainTELImpl(its_);
-        Vm.AccountAccess[] memory itelImplRecords = vm.stopAndReturnStateDiff();
-
-        bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), itelImplRecords);
-        copyContractState(address(simulatedDeployment), address(iTELImpl), slots);
-    }
-
-    function instantiateInterchainTEL(address impl) public virtual override returns (InterchainTEL simulatedDeployment) {
-        vm.startStateDiffRecording();
-        simulatedDeployment = super.instantiateInterchainTEL(impl);
-        simulatedDeployment.initialize(governanceAddress_, maxToClean, itelOwner);
+        simulatedDeployment = super.instantiateInterchainTEL(its_);
         Vm.AccountAccess[] memory itelRecords = vm.stopAndReturnStateDiff();
 
         bytes32[] memory slots = saveWrittenSlots(address(simulatedDeployment), itelRecords);

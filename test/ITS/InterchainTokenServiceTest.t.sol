@@ -73,11 +73,11 @@ contract InterchainTokenServiceTest is ITSTestHelper {
 
         // itel impl bytecode used for tokenId in TokenHandler constructor arg
         wTEL = ITSUtils.instantiateWTEL();
-        iTELImpl = ITSUtils.instantiateInterchainTELImpl(precalculatedITS);
+        iTEL = ITSUtils.instantiateInterchainTEL(precalculatedITS);
 
-        customLinkedTokenSalt = iTELImpl.linkedTokenDeploySalt();
-        customLinkedTokenId = iTELImpl.interchainTokenId();
-        originTELTokenManager = TokenManager(iTELImpl.tokenManagerAddress()); // TNTokenManager in forks
+        customLinkedTokenSalt = iTEL.linkedTokenDeploySalt();
+        customLinkedTokenId = iTEL.interchainTokenId();
+        originTELTokenManager = TokenManager(iTEL.tokenManagerAddress()); // TNTokenManager in forks
 
         // deploy ITS core suite; use config from storage
         gatewayImpl = ITSUtils.instantiateAxelarAmplifierGatewayImpl();
@@ -103,9 +103,6 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         its = ITSUtils.instantiateITS(address(itsImpl));
         itFactoryImpl = ITSUtils.instantiateITFImpl(address(its));
         itFactory = ITSUtils.instantiateITF(address(itFactoryImpl));
-
-        iTEL = ITSUtils.instantiateInterchainTEL(address(iTELImpl));
-        iTEL.initialize(governanceAddress_, maxToClean, itelOwner);
 
         vm.stopPrank(); // `admin`
 
@@ -168,7 +165,6 @@ contract InterchainTokenServiceTest is ITSTestHelper {
 
         // iTEL sanity tests
         assertEq(address(iTEL.interchainTokenService()), address(its));
-        assertEq(iTEL.owner(), itelOwner);
         assertTrue(address(iTEL).code.length > 0);
         assertEq(iTEL.name(), name_);
         assertEq(iTEL.symbol(), symbol_);

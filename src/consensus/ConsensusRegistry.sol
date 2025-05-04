@@ -359,7 +359,8 @@ contract ConsensusRegistry is
 
     /// @inheritdoc StakeManager
     function allocateIssuance() external payable override onlyOwner {
-        issuance().call{ value: msg.value }("");
+        (bool r, ) = issuance().call{ value: msg.value }("");
+        require(r, "Impossible condition");
     }
 
     /**

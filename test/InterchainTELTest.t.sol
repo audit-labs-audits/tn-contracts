@@ -30,7 +30,6 @@ contract InterchainTELTest is Test, ITSTestHelper {
 
         // iTEL sanity tests
         assertEq(address(iTEL.interchainTokenService()), address(its));
-        assertEq(iTEL.owner(), admin);
         assertTrue(address(iTEL).code.length > 0);
         string memory rwName = iTEL.name();
         assertEq(rwName, "Interchain Telcoin");

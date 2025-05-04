@@ -374,7 +374,6 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.its.InterchainTELImpl,
             deployments.its.InterchainTEL,
             deployments.its.InterchainTELTokenManager
         );
@@ -435,7 +434,6 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.its.InterchainTELImpl,
             deployments.its.InterchainTEL,
             deployments.its.InterchainTELTokenManager
         );
@@ -502,7 +500,6 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.admin,
             deployments.sepoliaTEL,
             deployments.wTEL,
-            deployments.its.InterchainTELImpl,
             deployments.its.InterchainTEL,
             deployments.its.InterchainTELTokenManager
         );

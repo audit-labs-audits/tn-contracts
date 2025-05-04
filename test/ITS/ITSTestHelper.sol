@@ -65,7 +65,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         originChainName_ = DEVNET_SEPOLIA_CHAIN_NAME;
         governanceAddress_ = address(linker);
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
-        customLinkedTokenId = ITSUtils.instantiateInterchainTELImpl(sepoliaIts).interchainTokenId();
+        customLinkedTokenId = ITSUtils.instantiateInterchainTEL(sepoliaIts).interchainTokenId();
 
         // note that TN must be added as a trusted chain to the Ethereum ITS contract
         vm.prank(sepoliaITS.owner());
@@ -88,8 +88,10 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
 
         // InterchainTEL impl's bytecode is used to fetch devnet tokenID for TNTokenHandler::constructor
         wTEL = ITSUtils.instantiateWTEL();
-        iTELImpl = ITSUtils.instantiateInterchainTELImpl(precalculatedITS);
-        customLinkedTokenId = iTELImpl.interchainTokenId();
+        iTEL = ITSUtils.instantiateInterchainTEL(precalculatedITS);
+        customLinkedTokenId = iTEL.interchainTokenId();
+        // mock-seed iTEL with TEL total supply as genesis precompile
+        vm.deal(address(iTEL), telTotalSupply);
 
         gatewayImpl = ITSUtils.instantiateAxelarAmplifierGatewayImpl();
         gateway = ITSUtils.instantiateAxelarAmplifierGateway(address(gatewayImpl));
@@ -115,12 +117,6 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         itFactoryImpl = ITSUtils.instantiateITFImpl(address(its));
         itFactory = ITSUtils.instantiateITF(address(itFactoryImpl));
 
-        itelOwner = admin;
-        iTEL = ITSUtils.instantiateInterchainTEL(address(iTELImpl));
-        iTEL.initialize(governanceAddress_, maxToClean, itelOwner);
-        // mock-seed iTEL with TEL total supply as genesis precompile
-        vm.deal(address(iTEL), telTotalSupply);
-
         iTELTokenManager = ITSUtils.instantiateInterchainTELTokenManager(address(its), customLinkedTokenId);
 
         customLinkedTokenSalt = iTEL.linkedTokenDeploySalt();
@@ -140,7 +136,6 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         address admin,
         address originTEL,
         address wtel,
-        address itelImpl,
         address itel,
         address itelTokenManager
     )
@@ -150,7 +145,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         vm.deal(linker, 1 ether);
 
         // first set target genesis addresses in state (not yet deployed) for use with recording
-        _setGenesisTargets(genesisITSTargets, payable(wtel), payable(itelImpl), payable(itel), itelTokenManager);
+        _setGenesisTargets(genesisITSTargets, payable(wtel), payable(itel), itelTokenManager);
 
         // instantiate deployer for state diff recording and set up config vars for devnet
         create3 = new Create3Deployer{ salt: salts.Create3DeployerSalt }();
@@ -180,9 +175,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         instantiateITF(address(itFactoryImpl));
 
         instantiateWTEL();
-        instantiateInterchainTELImpl(address(its));
-        itelOwner = admin;
-        instantiateInterchainTEL(address(iTELImpl));
+        instantiateInterchainTEL(address(its));
         // mock-seed iTEL with TEL total supply as genesis precompile
         vm.deal(address(iTEL), telTotalSupply);
 
