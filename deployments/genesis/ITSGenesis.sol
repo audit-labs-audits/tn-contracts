@@ -11,13 +11,12 @@ import { InterchainTokenFactory } from "@axelar-network/interchain-token-service
 import { InterchainToken } from
     "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainToken.sol";
 import { TokenManagerDeployer } from "@axelar-network/interchain-token-service/contracts/utils/TokenManagerDeployer.sol";
+import { TokenManager } from "@axelar-network/interchain-token-service/contracts/token-manager/TokenManager.sol";
 import { TokenHandler } from "@axelar-network/interchain-token-service/contracts/TokenHandler.sol";
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { InterchainTEL } from "../../src/InterchainTEL.sol";
-import { TNTokenManager } from "../../src/interchain-token-service/TNTokenManager.sol";
-import { TNTokenHandler } from "../../src/interchain-token-service/TNTokenHandler.sol";
 import { ITS } from "../Deployments.sol";
 import { ITSConfig } from "../utils/ITSConfig.sol";
 import { GenesisPrecompiler } from "./GenesisPrecompiler.sol";
@@ -33,8 +32,8 @@ abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
         tokenManagerDeployer = TokenManagerDeployer(genesisITSTargets.TokenManagerDeployer);
         interchainTokenImpl = InterchainToken(genesisITSTargets.InterchainTokenImpl);
         itDeployer = InterchainTokenDeployer(genesisITSTargets.InterchainTokenDeployer);
-        tokenManagerImpl = TNTokenManager(genesisITSTargets.TokenManagerImpl);
-        tnTokenHandler = TNTokenHandler(genesisITSTargets.TokenHandler);
+        tokenManagerImpl = TokenManager(genesisITSTargets.TokenManagerImpl);
+        tokenHandler = TokenHandler(genesisITSTargets.TokenHandler);
         gasServiceImpl = AxelarGasService(genesisITSTargets.GasServiceImpl);
         gasService = AxelarGasService(genesisITSTargets.GasService);
         gatewayCaller = GatewayCaller(genesisITSTargets.GatewayCaller);
@@ -45,7 +44,7 @@ abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
         wTEL = WTEL(wtel);
         iTELImpl = InterchainTEL(itelImpl);
         iTEL = InterchainTEL(itel);
-        iTELTokenManager = TNTokenManager(itelTokenManager);
+        iTELTokenManager = TokenManager(itelTokenManager);
     }
 
     function instantiateAxelarAmplifierGatewayImpl()
@@ -96,16 +95,16 @@ abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
         copyContractState(address(simulatedDeployment), address(itDeployer), new bytes32[](0));
     }
 
-    function instantiateTokenManagerImpl(address its_) public virtual override returns (TNTokenManager simulatedDeployment) {
+    function instantiateTokenManagerImpl(address its_) public virtual override returns (TokenManager simulatedDeployment) {
         simulatedDeployment = super.instantiateTokenManagerImpl(its_);
         // copy simulated state changes to target address in storage
         copyContractState(address(simulatedDeployment), address(tokenManagerImpl), new bytes32[](0));
     }
 
-    function instantiateTokenHandler(bytes32 telInterchainTokenId_) public virtual override returns (TNTokenHandler simulatedDeployment) {
-        simulatedDeployment = super.instantiateTokenHandler(telInterchainTokenId_);
+    function instantiateTokenHandler() public virtual override returns (TokenHandler simulatedDeployment) {
+        simulatedDeployment = super.instantiateTokenHandler();
         // copy simulated state changes to target address in storage
-        copyContractState(address(simulatedDeployment), address(tnTokenHandler), new bytes32[](0));
+        copyContractState(address(simulatedDeployment), address(tokenHandler), new bytes32[](0));
     }
 
     function instantiateAxelarGasServiceImpl()
@@ -232,7 +231,7 @@ abstract contract ITSGenesis is ITSConfig, GenesisPrecompiler {
         copyContractState(address(simulatedDeployment), address(iTEL), slots);
     }
 
-    function instantiateInterchainTELTokenManager(address its_, bytes32 customLinkedTokenId) public virtual override returns (TNTokenManager simulatedDeployment) {
+    function instantiateInterchainTELTokenManager(address its_, bytes32 customLinkedTokenId) public virtual override returns (TokenManager simulatedDeployment) {
         vm.startStateDiffRecording();
         simulatedDeployment = super.instantiateInterchainTELTokenManager(its_, customLinkedTokenId);
         Vm.AccountAccess[] memory itelTMRecords = vm.stopAndReturnStateDiff();

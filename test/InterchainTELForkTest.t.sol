@@ -461,7 +461,7 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
         assertTrue(gateway.isMessageExecuted(sourceChain, messageId));
 
         // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
-        uint256 decimalConvertedAmt = iTEL.toEighteenDecimals(interchainAmount);
+        uint256 decimalConvertedAmt = toEighteenDecimals(interchainAmount);
         assertEq(user.balance, userBalBefore + decimalConvertedAmt);
         assertEq(address(iTEL).balance, itelBalBefore - decimalConvertedAmt);
     }
@@ -498,7 +498,7 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
         assertEq(settledBalBefore, nativeAmount);
         assertEq(IERC20(address(iTEL)).totalSupply(), nativeAmount);
 
-        (interchainAmount,) = iTEL.toTwoDecimals(nativeAmount);
+        (interchainAmount,) = toTwoDecimals(nativeAmount);
         destinationChain = DEVNET_SEPOLIA_CHAIN_NAME;
         originAddress = address(its);
         payload = abi.encode(

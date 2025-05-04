@@ -489,7 +489,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         its.execute(commandId, sourceChain, sourceAddressString, wrappedPayload);
 
         assertTrue(gateway.isMessageExecuted(sourceChain, messageId));
-        uint256 decimalConvertedAmt = iTEL.toEighteenDecimals(amount);
+        uint256 decimalConvertedAmt = toEighteenDecimals(amount);
         assertEq(user.balance, userBalBefore + decimalConvertedAmt);
     }
 

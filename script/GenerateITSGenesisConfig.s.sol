@@ -156,7 +156,7 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
             )
         );
         // token handler (no storage)
-        address simulatedTH = address(instantiateTokenHandler(customLinkedTokenId));
+        address simulatedTH = address(instantiateTokenHandler());
         assertFalse(
             yamlAppendGenesisAccount(dest, simulatedTH, deployments.its.TokenHandler, sharedNonce, sharedBalance)
         );

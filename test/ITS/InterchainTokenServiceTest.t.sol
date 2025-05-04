@@ -86,7 +86,7 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         interchainTokenImpl = ITSUtils.instantiateInterchainTokenImpl(create3.deployedAddress("", admin, salts.itsSalt));
         itDeployer = ITSUtils.instantiateInterchainTokenDeployer(address(interchainTokenImpl));
         tokenManagerImpl = ITSUtils.instantiateTokenManagerImpl(create3.deployedAddress("", admin, salts.itsSalt));
-        tnTokenHandler = ITSUtils.instantiateTokenHandler(customLinkedTokenId);
+        tokenHandler = ITSUtils.instantiateTokenHandler();
         gasServiceImpl = ITSUtils.instantiateAxelarGasServiceImpl();
         gasService = ITSUtils.instantiateAxelarGasService(address(gasServiceImpl));
         gatewayCaller = ITSUtils.instantiateGatewayCaller(address(gateway), address(gasService));
@@ -97,7 +97,7 @@ contract InterchainTokenServiceTest is ITSTestHelper {
             address(gasService),
             create3.deployedAddress("", admin, salts.itfSalt),
             address(tokenManagerImpl),
-            address(tnTokenHandler),
+            address(tokenHandler),
             address(gatewayCaller)
         );
         its = ITSUtils.instantiateITS(address(itsImpl));
@@ -154,7 +154,7 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         assertEq(itsImpl.interchainTokenFactory(), address(itFactory));
         assertEq(itsImpl.chainNameHash(), keccak256(bytes(chainName_)));
         assertEq(itsImpl.tokenManager(), address(tokenManagerImpl));
-        assertEq(itsImpl.tokenHandler(), address(tnTokenHandler));
+        assertEq(itsImpl.tokenHandler(), address(tokenHandler));
         assertEq(itsImpl.gatewayCaller(), address(gatewayCaller));
         assertEq(itsImpl.tokenManagerImplementation(0), address(tokenManagerImpl));
         // ITS proxy sanity tests
