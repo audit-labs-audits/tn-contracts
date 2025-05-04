@@ -11,17 +11,12 @@ import { Ownable } from "solady/auth/Ownable.sol";
 interface IInterchainTEL {
     event RemainderTransferFailed(address indexed to, uint256 amount);
 
-    error OnlyManager(address authority);
-    error OnlyBaseToken(address authority);
-    error RewardDistributionFailure(address validator);
+    error OnlyTokenManager(address manager);
+    error OnlyBaseToken(address wTEL);
     error PermitWrapFailed(address to, uint256 amount);
     error MintFailed(address to, uint256 amount);
     error BurnFailed(address from, uint256 amount);
     error InvalidAmount(uint256 nativeAmount);
-
-    /// @notice May only be called by StakeManager as part of `claimStakeRewards()` or `_unstake()`
-    /// @dev Sends `rewardAmount`, and if additionally provided as `msg.value`, forwards stake amount
-    function distributeStakeReward(address validator, uint256 rewardAmount) external payable;
 
     /// @notice Convenience function for users to wrap native TEL directly to iTEL in one tx
     /// @dev InterchainTEL performs WETH9 deposit on behalf of caller so they need not hold wTEL or make approval

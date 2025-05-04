@@ -167,7 +167,6 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         );
 
         // iTEL sanity tests
-        assertEq(iTEL.stakeManager(), 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
         assertEq(address(iTEL.interchainTokenService()), address(its));
         assertEq(iTEL.owner(), itelOwner);
         assertTrue(address(iTEL).code.length > 0);

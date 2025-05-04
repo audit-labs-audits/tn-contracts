@@ -42,9 +42,6 @@ contract InterchainTEL is
 {
     using RecordsDequeLib for RecordsDeque;
 
-    /// @dev StakeManager system precompile assigned by protocol to a constant address
-    address public constant stakeManager = 0x07E17e17E17e17E17e17E17E17E17e17e17E17e1;
-
     /// @dev The precompiled Axelar ITS TokenManager contract address for this token
     address public immutable tokenManager;
     /// @dev The precompiled Axelar ITS contract address for this chain
@@ -69,12 +66,7 @@ contract InterchainTEL is
     uint256 public constant DECIMALS_CONVERTER = 1e16;
 
     modifier onlyTokenManager() {
-        if (msg.sender != tokenManager) revert OnlyManager(tokenManager);
-        _;
-    }
-
-    modifier onlyStakeManager() {
-        if (msg.sender != stakeManager) revert OnlyManager(stakeManager);
+        if (msg.sender != tokenManager) revert OnlyTokenManager(tokenManager);
         _;
     }
 
@@ -110,13 +102,6 @@ contract InterchainTEL is
      *   InterchainTEL Core
      *
      */
-
-    /// @inheritdoc IInterchainTEL
-    function distributeStakeReward(address validator, uint256 rewardAmount) external payable virtual onlyStakeManager {
-        uint256 totalAmount = rewardAmount + msg.value;
-        (bool res,) = validator.call{ value: totalAmount }("");
-        if (!res) revert RewardDistributionFailure(validator);
-    }
 
     /// @inheritdoc IInterchainTEL
     function doubleWrap() external payable virtual {

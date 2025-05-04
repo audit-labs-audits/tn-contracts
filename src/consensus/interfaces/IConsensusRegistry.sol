@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
-import { IncentiveInfo } from "./IStakeManager.sol";
+import { StakeInfo, RewardInfo, Slash } from "./IStakeManager.sol";
 
 /**
  * @title ConsensusRegistry Interface
@@ -86,20 +86,21 @@ interface IConsensusRegistry {
     /// @notice Voting Validator Committee changes at the end every epoch via syscall
     /// @dev Accepts the committee of voting validators for 2 epochs in the future
     /// @param newCommittee The future validator committee for `$.currentEpoch + 3`
-    /// @param slashes Slashes to the validators in the ending epoch, applied after rollover
-    /// @notice Slashes are not currently used in TN mainnet alpha
-    function concludeEpoch(address[] calldata newCommittee, IncentiveInfo[] calldata slashes) external;
+    function concludeEpoch(address[] calldata newCommittee) external;
 
     /// @dev The network's epoch issuance distribution method, rewarding stake originators
-    /// proportionally to their share of total stake, tied to the validator's stake version
+    /// based on initial stake and on the validator's performance (consensus header count)
     /// @notice Stake originators are either a delegator if one exists, or the validator itself
-    /// @notice Exited validators do not earn rewards for their exit epoch
-    function applyIncentives(
-        uint32 newEpoch,
-        ValidatorInfo[] memory active,
-        IncentiveInfo[] calldata incentives
-    )
-        external;
+    /// @notice Called just before concluding the current epoch
+    /// @notice Not yet enabled during pilot, but scaffolding is included here.
+    /// For the time being, system calls to this fn can provide empty calldata arrays
+    function applyIncentives(RewardInfo[] calldata rewardInfos) external;
+
+    /// @dev The network's slashing mechanism, which penalizes validators for misbehaving
+    /// @notice Called just before concluding the current epoch
+    /// @notice Not yet enabled during pilot, but scaffolding is included here.
+    /// For the time being, system calls to this fn can provide empty calldata arrays
+    function applySlashes(Slash[] calldata slashes) external;
 
     /// @dev Self-activation function for validators, gaining `PendingActivation` status and setting
     /// next epoch as activation epoch to ensure rewards eligibility only after completing a full epoch
@@ -114,11 +115,11 @@ interface IConsensusRegistry {
     function getCurrentEpoch() external view returns (uint32);
 
     /// @dev Returns the current epoch's committee and block height
-    function getCurrentEpochInfo() external view returns (EpochInfo memory currentEpochInfo);
+    function getCurrentEpochInfo() external view returns (EpochInfo memory);
 
     /// @dev Returns information about the provided epoch. Only four latest & two future epochs are stored
     /// @notice When querying for future epochs, `blockHeight` will be 0 as they are not yet known
-    function getEpochInfo(uint32 epoch) external view returns (EpochInfo memory currentEpochInfo);
+    function getEpochInfo(uint32 epoch) external view returns (EpochInfo memory);
 
     /// @dev Returns an array of unretired validators matching the provided status
     /// @param `Any` queries return all unretired validators where `status != Any`

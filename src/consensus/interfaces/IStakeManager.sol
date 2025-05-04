@@ -9,28 +9,47 @@ pragma solidity 0.8.26;
  * @notice This interface declares the ConsensusRegistry's staking API and data structures
  * @dev Implemented within StakeManager.sol, which is inherited by the ConsensusRegistry
  */
-struct IncentiveInfo {
+
+/// @notice Struct used by storage ledger to record outstanding validator balances
+/// @dev Links balances to ConsensusNFTs to enable DPoS & permanent validator retirement
+/// @dev Updated via rewards and slashes
+struct StakeInfo {
     uint24 tokenId;
-    uint232 stakingRewards;
+    uint232 balance;
+}
+
+/// @notice Protocol info for system calls to split the epoch issuance amount
+/// between validators based on how many consensus headers they produced
+/// @notice Not enabled during MNO pilot
+struct RewardInfo {
+    address validatorAddress;
+    uint232 consensusHeaderCount;
+}
+
+/// @notice Slash information for system calls to decrement outstanding validator balances
+/// @notice Not enabled during MNO pilot
+struct Slash {
+    address validatorAddress;
+    uint232 amount;
 }
 
 interface IStakeManager {
     /// @custom:storage-location erc7201:telcoin.storage.StakeManager
     struct StakeManagerStorage {
-        address iTEL;
+        address payable issuance;
         uint24 totalSupply;
         uint8 stakeVersion;
         mapping(uint8 => StakeConfig) versions;
-        mapping(address => IncentiveInfo) incentiveInfo;
+        mapping(address => StakeInfo) stakeInfo;
         mapping(address => Delegation) delegations;
     }
 
     /// @notice New StakeConfig versions take effect in the next epoch
     /// ie they are set for each epoch at its start
     struct StakeConfig {
-        uint256 stakeAmount;
-        uint256 minWithdrawAmount;
-        uint256 epochIssuance;
+        uint232 stakeAmount;
+        uint232 minWithdrawAmount;
+        uint232 epochIssuance;
         uint32 epochDuration;
     }
 
@@ -48,6 +67,7 @@ interface IStakeManager {
     error NotDelegator(address notDelegator);
     error NotTransferable();
     error RequiresConsensusNFT();
+    error InvalidSupply();
 
     /// @dev Accepts the native TEL stake amount from the calling validator, enabling later self-activation
     /// @notice Caller must already have been issued a `ConsensusNFT` by Telcoin governance
@@ -68,7 +88,7 @@ interface IStakeManager {
 
     /// @dev Returns previously staked funds in addition to accrued rewards, if any, to the staker
     /// @notice May only be called after fully exiting
-    /// @notice `IncentiveInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
+    /// @notice `StakeInfo::tokenId` will be set to `UNSTAKED` so the validator address cannot be reused
     function unstake(address validatorAddress) external;
 
     /// @notice Returns the delegation digest that a validator should sign to accept a delegation
@@ -87,10 +107,13 @@ interface IStakeManager {
 
     /// @dev Fetches the claimable rewards accrued for a given validator address
     /// @return _ The validator's claimable rewards, not including the validator's stake
-    function getRewards(address validatorAddress) external view returns (uint240);
+    function getRewards(address validatorAddress) external view returns (uint232);
+
+    /// @dev Fetches the StakeManager's issuance contract address
+    function issuance() external view returns (address);
 
     /// @dev Returns staking information for the given address
-    function incentiveInfo(address validatorAddress) external view returns (IncentiveInfo memory);
+    function stakeInfo(address validatorAddress) external view returns (StakeInfo memory);
 
     /// @dev Returns the current version
     function stakeVersion() external view returns (uint8);
@@ -104,4 +127,10 @@ interface IStakeManager {
     /// @dev Permissioned function to upgrade stake, withdrawal, and consensus block reward configurations
     /// @notice The new version takes effect in the next epoch
     function upgradeStakeVersion(StakeConfig calldata newVersion) external returns (uint8);
+
+    /// @dev Permissioned function to allocate TEL for epoch issuance, ie consensus block rewards
+    /// @notice Allocated TEL cannot be recovered; it is effectively burned cryptographically
+    /// The only way received TEL can be re-minted is as staking issuance rewards
+    /// @notice Only governance may burn TEL in this manner
+    function allocateIssuance() external payable;
 }

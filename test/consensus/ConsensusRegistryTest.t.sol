@@ -7,7 +7,7 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { StakeManager } from "src/consensus/StakeManager.sol";
-import { IncentiveInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
+import { StakeInfo, Slash, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
 import { InterchainTEL } from "src/InterchainTEL.sol";
 import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 
@@ -20,14 +20,16 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
 
         StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_);
-        consensusRegistry.initialize(address(iTEL), stakeConfig_, initialValidators, crOwner);
+        consensusRegistry.initialize(stakeConfig_, initialValidators, crOwner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
         vm.deal(validator5, 100_000_000 ether);
 
-        // deal InterchainTEL max TEL supply to test reward distribution
-        vm.deal(address(iTEL), telMaxSupply);
+        // deal issuance contract max TEL supply to test reward distribution
+        vm.deal(crOwner, epochIssuance_);
+        vm.prank(crOwner);
+        consensusRegistry.allocateIssuance{ value: epochIssuance_ }();
     }
 
     function test_setUp() public {
@@ -45,7 +47,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             EpochInfo memory info = consensusRegistry.getEpochInfo(uint32(i));
             for (uint256 j; j < 4; ++j) {
                 assertEq(info.committee[j], initialValidators[j].validatorAddress);
-                assertEq(consensusRegistry.incentiveInfo(initialValidators[j].validatorAddress).tokenId, j + 1);
+                assertEq(consensusRegistry.stakeInfo(initialValidators[j].validatorAddress).tokenId, j + 1);
             }
         }
         assertEq(consensusRegistry.totalSupply(), 4);
@@ -169,7 +171,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             )
         );
         vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](activeValidators.length), new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](activeValidators.length));
         vm.stopPrank();
 
         // Check validator information
@@ -214,7 +216,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         uint256 numActiveBefore = consensusRegistry.getValidators(ValidatorStatus.Active).length;
 
         vm.prank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](numActiveBefore), new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](numActiveBefore));
 
         assertEq(consensusRegistry.getValidators(ValidatorStatus.PendingExit).length, 0);
 
@@ -244,8 +246,8 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
         // Finalize epoch twice to reach exit epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](4), new IncentiveInfo[](0));
-        consensusRegistry.concludeEpoch(new address[](4), new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(new address[](4));
         vm.stopPrank();
 
         assertEq(consensusRegistry.getValidators(ValidatorStatus.PendingExit).length, 0);
@@ -285,8 +287,6 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
     function test_unstake() public {
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length;
-        address[] memory zeroCommittee = new address[](numActive);
-        IncentiveInfo[] memory zeroSlashes = new IncentiveInfo[](0);
 
         vm.deal(address(consensusRegistry), stakeAmount_ * numActive);
 
@@ -299,10 +299,11 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         vm.startPrank(sysAddress);
         address[] memory makeValidator1Wait = new address[](numActive);
         makeValidator1Wait[0] = validator1;
-        consensusRegistry.concludeEpoch(makeValidator1Wait, zeroSlashes);
+        consensusRegistry.concludeEpoch(makeValidator1Wait);
         // conclude epoch twice with empty committee to simulate protocol-determined exit
-        consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
-        consensusRegistry.concludeEpoch(zeroCommittee, zeroSlashes);
+        address[] memory zeroCommittee = new address[](numActive);
+        consensusRegistry.concludeEpoch(zeroCommittee);
+        consensusRegistry.concludeEpoch(zeroCommittee);
 
         // exit occurs on third epoch without validator5 in committee
         uint32 expectedExitEpoch = uint32(consensusRegistry.getCurrentEpoch() + 1);
@@ -320,26 +321,22 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             )
         );
         uint256 activeAfterExit = numActive - 1;
-        consensusRegistry.concludeEpoch(new address[](activeAfterExit), zeroSlashes);
+        consensusRegistry.concludeEpoch(new address[](activeAfterExit));
         vm.stopPrank();
 
         uint256 initialBalance = validator1.balance;
         assertEq(initialBalance, 0);
-        // exited validators don't earn for their last epoch
-        uint256 expectedRewards = (epochIssuance_ * 3) / numActive;
-        assertEq(consensusRegistry.getRewards(validator1), expectedRewards);
 
         // Check event emission
-        uint256 stakeAndRewards = stakeAmount_ + expectedRewards;
         vm.expectEmit(true, true, true, true);
-        emit RewardsClaimed(validator1, stakeAndRewards);
+        emit RewardsClaimed(validator1, stakeAmount_);
         // Unstake
         vm.prank(validator1);
         consensusRegistry.unstake(validator1);
 
         // 4 epochs rewards split between 4 validators
         uint256 finalBalance = validator1.balance;
-        assertEq(finalBalance, stakeAndRewards);
+        assertEq(finalBalance, stakeAmount_);
     }
 
     // Test for unstake by a non-validator
@@ -401,8 +398,8 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
         // Call the function
         vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(newCommittee, new IncentiveInfo[](0));
-        consensusRegistry.concludeEpoch(newCommittee, new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(newCommittee);
+        consensusRegistry.concludeEpoch(newCommittee);
         vm.stopPrank();
 
         // Fetch current epoch and verify it has incremented
@@ -420,6 +417,6 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
     // Attempt to call without sysAddress should revert
     function testRevert_concludeEpoch_OnlySystemCall() public {
         vm.expectRevert(abi.encodeWithSelector(SystemCallable.OnlySystemCall.selector, address(this)));
-        consensusRegistry.concludeEpoch(new address[](4), new IncentiveInfo[](0));
+        consensusRegistry.concludeEpoch(new address[](4));
     }
 }

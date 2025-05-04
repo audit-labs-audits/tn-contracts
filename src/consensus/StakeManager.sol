@@ -3,8 +3,8 @@ pragma solidity 0.8.26;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
-import { IInterchainTEL } from "../interfaces/IInterchainTEL.sol";
-import { IncentiveInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { Issuance } from "./Issuance.sol";
 
 /**
  * @title StakeManager
@@ -49,25 +49,16 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     function unstake(address validatorAddress) external virtual;
 
     /// @inheritdoc IStakeManager
-    function delegationDigest(
-        bytes memory blsPubkey,
-        address validatorAddress,
-        address delegator
-    )
-        external
-        view
-        virtual
-        override
-        returns (bytes32);
+    function getRewards(address validatorAddress) public view virtual returns (uint232);
 
     /// @inheritdoc IStakeManager
-    function getRewards(address validatorAddress) public view virtual returns (uint240) {
-        return _getRewards(_stakeManagerStorage(), validatorAddress);
+    function issuance() public view returns (address) {
+        return _stakeManagerStorage().issuance;
     }
 
     /// @inheritdoc IStakeManager
-    function incentiveInfo(address validatorAddress) public view virtual returns (IncentiveInfo memory) {
-        return _stakeManagerStorage().incentiveInfo[validatorAddress];
+    function stakeInfo(address validatorAddress) public view virtual returns (StakeInfo memory) {
+        return _stakeManagerStorage().stakeInfo[validatorAddress];
     }
 
     /// @inheritdoc IStakeManager
@@ -88,6 +79,30 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
 
     /// @inheritdoc IStakeManager
     function upgradeStakeVersion(StakeConfig calldata config) external virtual returns (uint8);
+
+    /// @inheritdoc IStakeManager
+    function allocateIssuance() external payable virtual override;
+
+    /// @inheritdoc IStakeManager
+    function delegationDigest(
+        bytes memory blsPubkey,
+        address validatorAddress,
+        address delegator
+    )
+        external
+        view
+        override
+        returns (bytes32)
+    {
+        StakeManagerStorage storage $S = _stakeManagerStorage();
+        uint24 tokenId = _checkConsensusNFTOwner($S, validatorAddress);
+        uint64 nonce = $S.delegations[validatorAddress].nonce;
+        bytes32 blsPubkeyHash = keccak256(blsPubkey);
+        bytes32 structHash =
+            keccak256(abi.encode(DELEGATION_TYPEHASH, blsPubkeyHash, delegator, tokenId, $S.stakeVersion, nonce));
+
+        return _hashTypedData(structHash);
+    }
 
     /**
      *
@@ -110,7 +125,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     /// @dev Intended for sparing use; only reverts if burning results in empty committee
     function burn(address from) external virtual;
 
-    /// @notice Consensus NFTs are soulbound to validators that mint them and cannot be transfered
+    /// @notice Consensus NFTs are soulbound to validators and cannot be transferred unless burned
     function transferFrom(
         address,
         /* from */
@@ -126,7 +141,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     }
 
     /// @inheritdoc IStakeManager
-    function totalSupply() public view virtual returns (uint256) {
+    function totalSupply() public view virtual override returns (uint256) {
         return _stakeManagerStorage().totalSupply;
     }
 
@@ -143,12 +158,14 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     )
         internal
         virtual
-        returns (uint256 rewards)
+        returns (uint232)
     {
-        rewards = _checkRewardsExceedMinWithdrawAmount($, validatorAddress, validatorVersion);
-        // wipe ledger to prevent reentrancy and send via the `InterchainTEL` module
-        $.incentiveInfo[validatorAddress].stakingRewards = 0;
-        IInterchainTEL($.iTEL).distributeStakeReward(recipient, rewards);
+        // check rewards are claimable and send via the InterchainTEL contract
+        uint232 rewards = _checkRewards($, validatorAddress, validatorVersion);
+        $.stakeInfo[validatorAddress].balance -= rewards;
+        Issuance($.issuance).distributeStakeReward(recipient, rewards);
+
+        return rewards;
     }
 
     function _unstake(
@@ -159,56 +176,117 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     )
         internal
         virtual
-        returns (uint256 stakeAndRewards)
+        returns (uint256)
     {
         StakeManagerStorage storage $ = _stakeManagerStorage();
 
-        // wipe existing incentiveInfo and burn the token
-        IncentiveInfo storage info = $.incentiveInfo[validatorAddress];
-        uint256 rewards = uint256(info.stakingRewards);
-        info.stakingRewards = 0;
+        // wipe existing stakeInfo and burn the token
+        StakeInfo storage info = $.stakeInfo[validatorAddress];
+        uint232 bal = info.balance;
+        info.balance = 0;
         info.tokenId = UNSTAKED;
-        $.totalSupply--;
+        if (--$.totalSupply == 0) revert InvalidSupply();
         _burn(tokenId);
 
-        // forward the stake amount and outstanding rewards through InterchainTEL module to caller
-        uint256 stakeAmt = $.versions[validatorVersion].stakeAmount;
-        IInterchainTEL($.iTEL).distributeStakeReward{ value: stakeAmt }(recipient, rewards);
+        // forward stake to recipient through Issuance
+        uint232 stakeAmt = $.versions[validatorVersion].stakeAmount;
+        uint256 rewards = _getRewards($, validatorAddress, stakeAmt);
+        Issuance($.issuance).distributeStakeReward{ value: bal }(recipient, rewards);
 
-        return stakeAmt + rewards;
+        // if slashed, consolidate remainder on the Issuance contract
+        if (bal < stakeAmt) {
+            (bool r,) = $.issuance.call{ value: stakeAmt - bal }("");
+            r;
+        }
+
+        return bal + rewards;
     }
 
-    function _checkRewardsExceedMinWithdrawAmount(
+    function _checkRewards(
         StakeManagerStorage storage $,
         address validatorAddress,
         uint8 validatorVersion
     )
         internal
         virtual
-        returns (uint256 rewards)
+        returns (uint232)
     {
-        rewards = incentiveInfo(validatorAddress).stakingRewards;
-        if (rewards < $.versions[validatorVersion].minWithdrawAmount) revert InsufficientRewards(rewards);
+        uint232 initialStake = $.versions[validatorVersion].stakeAmount;
+        uint232 rewards = _getRewards($, validatorAddress, initialStake);
+
+        if (rewards == 0 || rewards < $.versions[validatorVersion].minWithdrawAmount) {
+            revert InsufficientRewards(rewards);
+        }
+
+        return rewards;
     }
 
-    function _checkStakeValue(uint256 value, uint8 version) internal virtual {
-        if (value != _stakeManagerStorage().versions[version].stakeAmount) revert InvalidStakeAmount(msg.value);
+    function _checkStakeValue(uint256 value, uint8 version) internal virtual returns (uint232) {
+        if (value != _stakeManagerStorage().versions[version].stakeAmount) revert InvalidStakeAmount(value);
+
+        return uint232(value);
     }
 
     function _getRewards(
+        StakeManagerStorage storage $,
+        address validatorAddress,
+        uint232 initialStake
+    )
+        internal
+        view
+        virtual
+        returns (uint232)
+    {
+        uint232 balance = $.stakeInfo[validatorAddress].balance;
+        uint232 rewards = balance > initialStake ? balance - initialStake : 0;
+
+        return rewards;
+    }
+
+    /// @dev Identifies the validator's rewards recipient, ie the stake originator
+    /// @return _ Returns the validator's delegator if one exists, else the validator itself
+    function _getRecipient(StakeManagerStorage storage $S, address validatorAddress) internal view returns (address) {
+        Delegation storage delegation = $S.delegations[validatorAddress];
+        address recipient = delegation.delegator;
+        if (recipient == address(0x0)) recipient = validatorAddress;
+
+        return recipient;
+    }
+
+    /// @dev Reverts if provided claimant isn't the existing delegation entry keyed under `validatorAddress`
+    function _checkKnownDelegation(
+        StakeManagerStorage storage $,
+        address validatorAddress,
+        address claimant
+    )
+        internal
+        view
+        returns (address)
+    {
+        address delegator = $.delegations[validatorAddress].delegator;
+        if (claimant != delegator) revert NotDelegator(claimant);
+
+        return delegator;
+    }
+
+    /// @dev Reverts if the provided address doesn't correspond to an existing `tokenId` owned by `validatorAddress`
+    function _checkConsensusNFTOwner(
         StakeManagerStorage storage $,
         address validatorAddress
     )
         internal
         view
-        virtual
-        returns (uint240 claimableRewards)
+        returns (uint24)
     {
-        return $.incentiveInfo[validatorAddress].stakingRewards;
+        uint24 tokenId = _getTokenId($, validatorAddress);
+        if (!_exists(tokenId)) revert InvalidTokenId(tokenId);
+        if (ownerOf(tokenId) != validatorAddress) revert RequiresConsensusNFT();
+
+        return tokenId;
     }
 
     function _getTokenId(StakeManagerStorage storage $, address validatorAddress) internal view returns (uint24) {
-        return $.incentiveInfo[validatorAddress].tokenId;
+        return $.stakeInfo[validatorAddress].tokenId;
     }
 
     function _exists(uint256 tokenId) internal view virtual returns (bool) {
@@ -222,13 +300,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         }
     }
 
-    function _domainNameAndVersion()
-        internal
-        view
-        virtual
-        override
-        returns (string memory name, string memory version)
-    {
+    function _domainNameAndVersion() internal view virtual override returns (string memory, string memory) {
         return ("Telcoin StakeManager", "1");
     }
 }
