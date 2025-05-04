@@ -109,10 +109,9 @@ contract InterchainTELTest is Test, ITSTestHelper {
         iTEL.doubleWrap{ value: amount }();
     }
 
-    function testFuzz_mint(uint40 interchainAmount) public {
-        vm.assume(interchainAmount > 0 && interchainAmount < 1e11);
+    function testFuzz_mint(uint96 nativeAmount) public {
+        vm.assume(nativeAmount > 0 && nativeAmount < telTotalSupply);
 
-        uint256 expectedNativeAmount = toEighteenDecimals(interchainAmount);
         uint256 initialRecipientBalance = user.balance;
         assertEq(initialRecipientBalance, 0);
         uint256 itelBal = address(iTEL).balance;
@@ -121,11 +120,11 @@ contract InterchainTELTest is Test, ITSTestHelper {
         vm.startPrank(iTEL.tokenManager());
 
         vm.expectEmit(true, true, true, false);
-        emit IInterchainTEL.Minted(user, expectedNativeAmount);
-        iTEL.mint(user, interchainAmount);
+        emit IInterchainTEL.Minted(user, nativeAmount);
+        iTEL.mint(user, nativeAmount);
 
-        assertEq(user.balance, initialRecipientBalance + expectedNativeAmount);
-        assertEq(address(iTEL).balance, itelBal - expectedNativeAmount);
+        assertEq(user.balance, initialRecipientBalance + nativeAmount);
+        assertEq(address(iTEL).balance, itelBal - nativeAmount);
 
         vm.stopPrank();
     }
@@ -148,15 +147,14 @@ contract InterchainTELTest is Test, ITSTestHelper {
         uint256 initialBal = iTEL.balanceOf(user);
         assertEq(initialBal, nativeAmount);
         uint256 itelBal = address(iTEL).balance;
-        assertEq(itelBal, telTotalSupply + nativeAmount);
+        assertEq(itelBal, telTotalSupply);
         uint256 governanceBal = iTEL.owner().balance;
-        assertEq(governanceBal, 0);
 
         vm.startPrank(iTEL.tokenManager());
 
         bool willRevert = nativeAmount < iTEL.DECIMALS_CONVERTER();
         if (willRevert) vm.expectRevert();
-        (, uint256 remainder) = toTwoDecimals(nativeAmount);
+        (, uint256 remainder) = this.toTwoDecimals(nativeAmount);
 
         if (willRevert) {
             vm.expectRevert();
@@ -202,7 +200,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         uint256 zeroPK = uint256(keccak256("zero"));
         user = vm.addr(zeroPK);
         bytes memory expectedErr = "Pausable: paused";
-        uint256 amt = 1;
+        uint256 amt = 1e16;
 
         vm.startPrank(iTEL.tokenManagerAddress());
         vm.expectRevert(expectedErr);

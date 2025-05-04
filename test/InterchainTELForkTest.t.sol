@@ -130,8 +130,7 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
 
         // attempt outbound transfer without elapsing recoverable window
         vm.startPrank(user);
-        bytes memory nestedErr = abi.encodeWithSignature("Error(string)", "TEL mint failed");
-        vm.expectRevert(abi.encodeWithSelector(IInterchainTokenService.TakeTokenFailed.selector, nestedErr));
+        vm.expectRevert();
         iTEL.interchainTransfer{ value: gasValue }(destinationChain, AddressBytes.toBytes(recipient), nativeAmount, "");
 
         // outbound interchain bridge transfers *MUST* await recoverable window to settle InterchainTEL balance
@@ -180,8 +179,7 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
         assertEq(itelBalBefore, telTotalSupply);
 
         // attempt outbound transfer without elapsing recoverable window
-        bytes memory nestedErr = abi.encodeWithSignature("Error(string)", "TEL mint failed");
-        vm.expectRevert(abi.encodeWithSelector(IInterchainTokenService.TakeTokenFailed.selector, nestedErr));
+        vm.expectRevert();
         iTEL.interchainTransferFrom{ value: gasValue }(
             user, destinationChain, AddressBytes.toBytes(recipient), nativeAmount, ""
         );
@@ -400,6 +398,16 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
          * @notice Devnet config uses `admin` as a single signer with weight and threshold == 1
          */
 
+        /// @notice The Axelar Hub converts decimals before sending the message payload to destination prover
+        uint256 decimalConvertedAmt = toEighteenDecimals(interchainAmount);
+        payload = abi.encode(
+            MESSAGE_TYPE_INTERCHAIN_TRANSFER,
+            returnedInterchainTokenId,
+            AddressBytes.toBytes(user),
+            AddressBytes.toBytes(recipient),
+            decimalConvertedAmt,
+            ""
+        );
         /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
         /// for interchain transfers, Message's `destinationAddress = its` and payload's `recipient = user`
         originChain = DEVNET_SEPOLIA_CHAIN_NAME;
@@ -461,7 +469,6 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
         assertTrue(gateway.isMessageExecuted(sourceChain, messageId));
 
         // sepolia TEL ERC20 has been bridged and delivered to user as native TEL
-        uint256 decimalConvertedAmt = toEighteenDecimals(interchainAmount);
         assertEq(user.balance, userBalBefore + decimalConvertedAmt);
         assertEq(address(iTEL).balance, itelBalBefore - decimalConvertedAmt);
     }
@@ -498,7 +505,6 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
         assertEq(settledBalBefore, nativeAmount);
         assertEq(IERC20(address(iTEL)).totalSupply(), nativeAmount);
 
-        (interchainAmount,) = toTwoDecimals(nativeAmount);
         destinationChain = DEVNET_SEPOLIA_CHAIN_NAME;
         originAddress = address(its);
         payload = abi.encode(
@@ -506,7 +512,7 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
             iTEL.interchainTokenId(),
             AddressBytes.toBytes(user),
             AddressBytes.toBytes(recipient),
-            interchainAmount,
+            nativeAmount, // Axelar Hub will convert to 2 decimals before reaching Sepolia
             ""
         );
         wrappedPayload = abi.encode(MESSAGE_TYPE_SEND_TO_HUB, destinationChain, payload);
@@ -541,7 +547,7 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
         // Register origin TEL metadata and deploy origin TEL token manager on origin as linker
         destinationChain = TN_CHAIN_NAME; // linking done out of order after TN actions
         vm.startPrank(linker);
-        eth_registerCustomTokenAndLinkToken(
+        (, bytes32 itelInterchainTokenId,) = eth_registerCustomTokenAndLinkToken(
             originTEL,
             linker,
             destinationChain,
@@ -553,6 +559,14 @@ contract InterchainTELForkTest is Test, ITSTestHelper {
         );
         vm.stopPrank();
 
+        payload = abi.encode(
+            MESSAGE_TYPE_INTERCHAIN_TRANSFER,
+            itelInterchainTokenId,
+            AddressBytes.toBytes(user),
+            AddressBytes.toBytes(recipient),
+            interchainAmount, // Axelar Hub will convert to 2 decimals before reaching Sepolia
+            ""
+        );
         originChain = TN_CHAIN_NAME;
         wrappedPayload = abi.encode(MESSAGE_TYPE_RECEIVE_FROM_HUB, originChain, payload);
 

@@ -75,14 +75,14 @@ interface IInterchainTEL {
 
     /// @notice InterchainTEL implementation for ITS Token Manager's mint API
     /// @dev Mints native TEL to `to` using converted native amount handled by Axelar Hub
-    /// @dev Axelar Hub decimal handling info can be found here: 
+    /// @dev Axelar Hub decimal handling info can be found here:
     /// https://github.com/axelarnetwork/axelar-amplifier/blob/aa956eed0bb48b3b14d20fdc6b93deb129c02bea/contracts/interchain-token-service/src/contract/execute/mod.rs#L260
     function mint(address to, uint256 originAmount) external;
 
     /// @notice InterchainTEL implementation for ITS Token Manager's burn API
     /// @dev Burns InterchainTEL out of `from`'s settled (recoverable) balance, collecting the unwrapped native TEL
     /// and forwarding unusable truncated remainders to the governance address before forwarding to Axelar
-    /// @dev Axelar Hub destination chain decimal truncation can be found here: 
+    /// @dev Axelar Hub destination chain decimal truncation can be found here:
     /// https://github.com/axelarnetwork/axelar-amplifier/blob/aa956eed0bb48b3b14d20fdc6b93deb129c02bea/contracts/interchain-token-service/src/contract/execute/interceptors.rs#L228
     function burn(address from, uint256 nativeAmount) external;
 }

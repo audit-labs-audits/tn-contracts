@@ -206,16 +206,7 @@ contract InterchainTEL is
      */
 
     /// @inheritdoc IInterchainTEL
-    function mint(
-        address to,
-        uint256 nativeAmount
-    )
-        external
-        virtual
-        override
-        whenNotPaused
-        onlyTokenManager
-    {
+    function mint(address to, uint256 nativeAmount) external virtual override whenNotPaused onlyTokenManager {
         (bool r,) = to.call{ value: nativeAmount }("");
         if (!r) revert MintFailed(to, nativeAmount);
 

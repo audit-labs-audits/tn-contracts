@@ -141,7 +141,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     }
 
     /// @notice Wouldn't do anything because transfers are disabled but explicitly disallow anyway
-    function approve(address /*to*/, uint256 /*tokenId*/) public virtual override {
+    function approve(address, /*to*/ uint256 /*tokenId*/ ) public virtual override {
         revert NotTransferable();
     }
 

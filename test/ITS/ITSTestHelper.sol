@@ -339,13 +339,13 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         return keccak256(bytes.concat(key, baseSlot));
     }
 
-    function toEighteenDecimals(uint256 interchainAmount) public view returns (uint256) {
-        uint256 nativeAmount = interchainAmount * iTEL.DECIMALS_CONVERTER();
+    function toEighteenDecimals(uint256 interchainAmount) public pure returns (uint256) {
+        uint256 nativeAmount = interchainAmount * 1e16;
         return nativeAmount;
     }
 
-    function toTwoDecimals(uint256 nativeAmount) public view returns (uint256, uint256) {
-        uint256 DECIMALS_CONVERTER = iTEL.DECIMALS_CONVERTER();
+    function toTwoDecimals(uint256 nativeAmount) public pure returns (uint256, uint256) {
+        uint256 DECIMALS_CONVERTER = 1e16;
         if (nativeAmount < DECIMALS_CONVERTER) revert IInterchainTEL.InvalidAmount(nativeAmount);
         uint256 interchainAmount = nativeAmount / DECIMALS_CONVERTER;
         uint256 remainder = nativeAmount % DECIMALS_CONVERTER;
