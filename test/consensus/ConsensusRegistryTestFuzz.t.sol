@@ -26,10 +26,8 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
 
         // deal issuance contract max TEL supply to test reward distribution
         vm.deal(crOwner, epochIssuance_);
-        vm.startPrank(crOwner);
-        (bool r,) = consensusRegistry.issuance().call{ value: epochIssuance_ }("");
-        require(r);
-        vm.stopPrank();
+        vm.prank(crOwner);
+        consensusRegistry.allocateIssuance{ value: epochIssuance_ }();
     }
 
     function testFuzz_mintBurn(uint24 numValidators) public {

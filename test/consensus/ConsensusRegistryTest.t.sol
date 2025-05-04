@@ -17,11 +17,9 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         consensusRegistry = ConsensusRegistry(0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
         vm.etch(address(consensusRegistry), type(ERC1967Proxy).runtimeCode);
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-        vm.store(address(consensusRegistry), implementationSlot,
-bytes32(abi.encode(address(consensusRegistryImpl))));
+        vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
 
-        StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_,
-epochDuration_);
+        StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_);
         consensusRegistry.initialize(stakeConfig_, initialValidators, crOwner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
@@ -30,10 +28,8 @@ epochDuration_);
 
         // deal issuance contract max TEL supply to test reward distribution
         vm.deal(crOwner, epochIssuance_);
-        vm.startPrank(crOwner);
-        (bool r,) = consensusRegistry.issuance().call{ value: epochIssuance_ }("");
-        require(r);
-        vm.stopPrank();
+        vm.prank(crOwner);
+        consensusRegistry.allocateIssuance{ value: epochIssuance_ }();
     }
 
     function test_setUp() public {
@@ -43,8 +39,7 @@ epochDuration_);
             assertEq(active[i].validatorAddress, initialValidators[i].validatorAddress);
             assertEq(consensusRegistry.getValidatorTokenId(initialValidators[i].validatorAddress), i + 1);
             assertEq(
-                consensusRegistry.getValidatorByTokenId(i + 1).validatorAddress,
-initialValidators[i].validatorAddress
+                consensusRegistry.getValidatorByTokenId(i + 1).validatorAddress, initialValidators[i].validatorAddress
             );
             vm.expectRevert();
             consensusRegistry.isRetired(i + 1);
@@ -341,7 +336,7 @@ initialValidators[i].validatorAddress
 
         // 4 epochs rewards split between 4 validators
         uint256 finalBalance = validator1.balance;
-        assertEq(finalBalance, stakeAndRewards);
+        assertEq(finalBalance, stakeAmount_);
     }
 
     // Test for unstake by a non-validator

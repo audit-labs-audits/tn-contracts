@@ -357,6 +357,11 @@ contract ConsensusRegistry is
         _consensusBurn($S, _consensusRegistryStorage(), tokenId, validatorAddress);
     }
 
+    /// @inheritdoc StakeManager
+    function allocateIssuance() external payable override onlyOwner {
+        issuance().call{ value: msg.value }("");
+    }
+
     /**
      *
      *   internals

@@ -12,23 +12,23 @@ pragma solidity 0.8.26;
 contract Issuance {
     error InsufficientBalance(uint256 available, uint256 required);
     error RewardDistributionFailure(address recipient);
-    error OnlyAuthority(address authority);
+    error OnlyStakeManager(address stakeManager);
 
     /// @dev ConsensusRegistry system precompile assigned by protocol to a constant address
     address private immutable stakeManager;
-    /// @dev ConsensusRegistry governance contract
-    address private immutable governance;
+
+    modifier onlyStakeManager() {
+        if (msg.sender != stakeManager) revert OnlyStakeManager(stakeManager);
+        _;
+    }
 
     constructor(address stakeManager_, address governance_) {
         stakeManager = stakeManager_;
-        governance = governance_;
     }
 
     /// @notice May only be called by StakeManager as part of claim, unstake or burn flow
     /// @dev Sends `rewardAmount` and forwards `msg.value` if stake amount is additionally provided
     function distributeStakeReward(address recipient, uint256 rewardAmount) external payable virtual {
-        if (msg.sender != stakeManager) revert OnlyAuthority(stakeManager);
-
         uint256 bal = address(this).balance;
         if (bal < rewardAmount) {
             revert InsufficientBalance(bal, rewardAmount);
@@ -40,9 +40,7 @@ contract Issuance {
     }
 
     /// @notice Received TEL cannot be recovered; it is effectively burned cryptographically
-    /// The only way received TEL can be re-issued is as staking issuance rewards
+    /// The only way received TEL can be re-minted is as staking issuance rewards
     /// @notice Only governance may burn TEL in this manner
-    receive() external payable {
-        if (msg.sender != governance) revert OnlyAuthority(governance);
-    }
+    receive() external payable onlyStakeManager { }
 }

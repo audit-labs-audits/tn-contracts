@@ -127,4 +127,10 @@ interface IStakeManager {
     /// @dev Permissioned function to upgrade stake, withdrawal, and consensus block reward configurations
     /// @notice The new version takes effect in the next epoch
     function upgradeStakeVersion(StakeConfig calldata newVersion) external returns (uint8);
+
+    /// @dev Permissioned function to allocate TEL for epoch issuance, ie consensus block rewards
+    /// @notice Allocated TEL cannot be recovered; it is effectively burned cryptographically
+    /// The only way received TEL can be re-minted is as staking issuance rewards
+    /// @notice Only governance may burn TEL in this manner
+    function allocateIssuance() external payable;
 }
