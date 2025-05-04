@@ -5,15 +5,14 @@ set -u
 
 # devnet-amplifier config
 VERIFIER_CODE_ID=854
+SERVICE_NAME="validators" # changes for testnet/mainnet
 CHAIN_ID="devnet-amplifier"
 RPC="http://devnet-amplifier.axelar.dev:26657"
 SERVICE_REGISTRY_ADDR="axelar1c9fkszt5lq34vvvlat3fxj6yv7ejtqapz04e97vtc9m5z9cwnamq8zjlhz"
 GOVERNANCE_ADDR="axelar1zlr7e5qf3sz7yf890rkh9tcnu87234k6k7ytd9"
-
-# initialize to default values before parsing CLI args
+AXELAR_WALLET="devnet"
 WALLET_ADDR="axelar12u9hneuufhrhqpyr9h352dhrdtnz8c0z3w8rsk"
-SERVICE_NAME="devnet-tn"
-CHAIN_NAME="telcoin-devnet"
+CHAIN_NAME="telcoin"
 SOURCE_GATEWAY_ADDR="0xF128c84c3326727c3e155168daAa4C0156B87AD1"
 
 # parse CLI args if given
@@ -70,16 +69,16 @@ axelard tx wasm instantiate $VERIFIER_CODE_ID \
         "block_expiry":"10",
         "confirmation_height":1,
         "source_chain":"'"$CHAIN_NAME"'",
-        "rewards_address":"'"$WALLET_ADDR"'",
+        "rewards_address":"axelar1vaj9sfzc3z0gpel90wu4ljutncutv0wuhvvwfsh30rqxq422z89qnd989l",
         "msg_id_format":"hex_tx_hash_and_event_index",
         "address_format": "eip55"
     }' \
     --keyring-backend file \
-    --from devnet \
+    --from $AXELAR_WALLET \
     --gas auto --gas-adjustment 1.5 --gas-prices 0.00005uamplifier\
     --chain-id $CHAIN_ID \
     --node $RPC \
-    --label test-voting-verifier-tn \
+    --label test-voting-verifier \
     --admin $WALLET_ADDR
     
-# Resulting voting-verifier address: axelar1kdzmvkjtvu8cct0gzzqdj8jyd6yvlcswauu73ccmvcl0w429xcxqdqst4p
+# Resulting voting-verifier address: axelar1cl433j3k3d4syj7wwxm8d9tlu5zqkxjrtjhpzzztk80qh8reftks9h0set
