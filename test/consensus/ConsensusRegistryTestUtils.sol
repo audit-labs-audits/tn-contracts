@@ -3,12 +3,11 @@ pragma solidity 0.8.26;
 
 import "forge-std/Test.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
-import { InterchainTEL } from "src/InterchainTEL.sol";
+import { RewardInfo } from "src/consensus/interfaces/IStakeManager.sol";
 
 contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     ConsensusRegistry public consensusRegistryImpl;
     ConsensusRegistry public consensusRegistry;
-    InterchainTEL public iTEL;
 
     address public crOwner = address(0xc0ffee);
     address public validator1 = _createRandomAddress(1);
@@ -38,21 +37,6 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     uint256 public MAX_MINTABLE = 14_000;
 
     constructor() {
-        // deploy an InterchainTEL module
-        iTEL = new InterchainTEL(
-            address(0xbabe),
-            address(0xdead),
-            bytes32(0x0),
-            "chain",
-            address(0xbeef),
-            "test",
-            "TEST",
-            0,
-            address(0x0),
-            address(0x0),
-            0
-        );
-
         // provide initial validator set as the network will launch with at least four validators
         validatorInfo1 = ValidatorInfo(
             _createRandomBlsPubkey(1), validator1, uint32(0), uint32(0), ValidatorStatus.Active, false, false, uint8(0)
@@ -215,5 +199,34 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         }
 
         return newCommittee;
+    }
+
+    function _fuzz_createRewardInfos(uint24 numRewardees)
+        internal
+        view
+        returns (RewardInfo[] memory, uint256[] memory)
+    {
+        RewardInfo[] memory rewardInfos = new RewardInfo[](numRewardees);
+        uint256 totalWeight;
+        for (uint256 i; i < numRewardees; ++i) {
+            address rewardee = _createRandomAddress(i + 1);
+            // 0-10000 is reasonable range of consensus blocks leaders can authorize per epoch
+            uint256 uniqueSeed = i + numRewardees;
+            uint232 consensusHeaderCount = uint232(uint256(keccak256(abi.encode(uniqueSeed))) % 10_000);
+
+            rewardInfos[i] = RewardInfo(rewardee, consensusHeaderCount);
+            totalWeight += stakeAmount_ * consensusHeaderCount;
+        }
+        uint256[] memory expectedRewards = new uint256[](numRewardees);
+        for (uint256 i; i < rewardInfos.length; ++i) {
+            if (rewardInfos[i].consensusHeaderCount == 0) {
+                expectedRewards[i] = 0;
+                continue;
+            }
+            uint256 scaledWeight = PRECISION_FACTOR * stakeAmount_ * rewardInfos[i].consensusHeaderCount;
+            expectedRewards[i] = scaledWeight / totalWeight * epochIssuance_ / PRECISION_FACTOR;
+        }
+
+        return (rewardInfos, expectedRewards);
     }
 }
