@@ -10,6 +10,7 @@ import { StakeInfo, RewardInfo, Slash, IStakeManager } from "./interfaces/IStake
 import { StakeManager } from "./StakeManager.sol";
 import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
+import { Issuance } from "./Issuance.sol";
 
 /**
  * @title ConsensusRegistry
@@ -63,18 +64,23 @@ contract ConsensusRegistry is
     /// For the time being, system calls to this fn can provide empty calldata arrays
     /// @inheritdoc IConsensusRegistry
     function applyIncentives(RewardInfo[] calldata rewardInfos) public override onlySystemCall {
-        StakeManagerStorage storage $S = _stakeManagerStorage();
+        StakeManagerStorage storage $ = _stakeManagerStorage();
 
         // identify total & individual weight factoring in stake & consensus headers
         uint232 totalWeight;
         uint232[] memory weights = new uint232[](rewardInfos.length);
         for (uint256 i; i < rewardInfos.length; ++i) {
             RewardInfo calldata reward = rewardInfos[i];
+            if (reward.consensusHeaderCount == 0) continue;
 
+            // signed consensus header means validator is whitelisted, staked, & active
+            uint24 tokenId = _getTokenId($, reward.validatorAddress);
+            // unless validator was forcibly retired & unstaked via burn: skip
+            if (tokenId == UNSTAKED) continue;
+
+            uint8 rewardeeVersion = _consensusRegistryStorage().validators[tokenId].stakeVersion;
             // derive validator's weight using initial stake for stability
-            uint8 rewardeeVersion =
-                _consensusRegistryStorage().validators[_getTokenId($S, reward.validatorAddress)].stakeVersion;
-            uint232 stakeAmount = $S.versions[rewardeeVersion].stakeAmount;
+            uint232 stakeAmount = $.versions[rewardeeVersion].stakeAmount;
             uint232 weight = stakeAmount * reward.consensusHeaderCount;
 
             totalWeight += weight;
@@ -86,11 +92,10 @@ contract ConsensusRegistry is
         for (uint256 i; i < rewardInfos.length; ++i) {
             if (totalWeight == 0) break;
 
-            RewardInfo calldata reward = rewardInfos[i];
-            uint232 weight = weights[i] * PRECISION_FACTOR / totalWeight;
+            uint232 weight = PRECISION_FACTOR * weights[i] / totalWeight;
             uint232 rewardAmount = (epochIssuance * weight) / PRECISION_FACTOR;
 
-            $S.stakeInfo[reward.validatorAddress].balance += rewardAmount;
+            $.stakeInfo[rewardInfos[i].validatorAddress].balance += rewardAmount;
         }
     }
 
@@ -99,7 +104,10 @@ contract ConsensusRegistry is
         StakeManagerStorage storage $ = _stakeManagerStorage();
         for (uint256 i; i < slashes.length; ++i) {
             Slash calldata slash = slashes[i];
-            uint24 tokenId = _checkConsensusNFTOwner($, slash.validatorAddress);
+            // signed consensus header means validator is whitelisted, staked, & active
+            uint24 tokenId = _getTokenId($, slash.validatorAddress);
+            // unless validator was forcibly retired & unstaked via burn: skip
+            if (tokenId == UNSTAKED) continue;
 
             StakeInfo storage info = $.stakeInfo[slash.validatorAddress];
             if (info.balance > slash.amount) {
@@ -687,13 +695,13 @@ contract ConsensusRegistry is
      */
 
     /// @dev Emergency function to pause validator and stake management
-    /// @notice Does not pause `concludeEpoch()`. Only accessible by `owner`
+    /// @notice Does not pause system callable or ConsensusNFT fns. Only accessible by `owner`
     function pause() external onlyOwner {
         _pause();
     }
 
     /// @dev Emergency function to unpause validator and stake management
-    /// @notice Does not affect `concludeEpoch()`. Only accessible by `owner`
+    /// @notice Does not affect system callable or ConsensusNFT fns. Only accessible by `owner`
     function unpause() external onlyOwner {
         _unpause();
     }
@@ -709,7 +717,6 @@ contract ConsensusRegistry is
     /// @dev ConsensusRegistry contract must be instantiated at genesis with stake for `initialValidators_`
     /// @dev Only governance delegation is enabled at genesis
     function initialize(
-        address iTEL_,
         StakeConfig memory genesisConfig_,
         ValidatorInfo[] memory initialValidators_,
         address owner_
@@ -726,8 +733,8 @@ contract ConsensusRegistry is
 
         StakeManagerStorage storage $S = _stakeManagerStorage();
 
-        // Set stake storage configs
-        $S.iTEL = iTEL_;
+        // deploy Issuance contract and set stake storage configs
+        $S.issuance = payable(new Issuance(address(this), owner_));
         $S.versions[0] = genesisConfig_;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();

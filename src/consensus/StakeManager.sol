@@ -3,8 +3,8 @@ pragma solidity 0.8.26;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
-import { IInterchainTEL } from "../interfaces/IInterchainTEL.sol";
 import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { Issuance } from "./Issuance.sol";
 
 /**
  * @title StakeManager
@@ -50,6 +50,11 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
 
     /// @inheritdoc IStakeManager
     function getRewards(address validatorAddress) public view virtual returns (uint232);
+
+    /// @inheritdoc IStakeManager
+    function issuance() public view returns (address) {
+        return _stakeManagerStorage().issuance;
+    }
 
     /// @inheritdoc IStakeManager
     function stakeInfo(address validatorAddress) public view virtual returns (StakeInfo memory) {
@@ -155,7 +160,7 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         // check rewards are claimable and send via the InterchainTEL contract
         uint232 rewards = _checkRewards($, validatorAddress, validatorVersion);
         $.stakeInfo[validatorAddress].balance -= rewards;
-        IInterchainTEL($.iTEL).distributeStakeReward(recipient, rewards);
+        Issuance($.issuance).distributeStakeReward(recipient, rewards);
 
         return rewards;
     }
@@ -180,14 +185,14 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         if (--$.totalSupply == 0) revert InvalidSupply();
         _burn(tokenId);
 
-        // forward claimable funds to recipient through InterchainTEL
+        // forward stake to recipient through Issuance
         uint232 stakeAmt = $.versions[validatorVersion].stakeAmount;
         uint256 rewards = _getRewards($, validatorAddress, stakeAmt);
-        IInterchainTEL($.iTEL).distributeStakeReward{ value: bal }(recipient, rewards);
+        Issuance($.issuance).distributeStakeReward{ value: bal }(recipient, rewards);
 
-        // if slashed, consolidate remainder on the InterchainTEL contract
+        // if slashed, consolidate remainder on the Issuance contract
         if (bal < stakeAmt) {
-            (bool r,) = $.iTEL.call{ value: stakeAmt - bal }("");
+            (bool r,) = $.issuance.call{ value: stakeAmt - bal }("");
             r;
         }
 

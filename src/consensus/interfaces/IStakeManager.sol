@@ -36,7 +36,7 @@ struct Slash {
 interface IStakeManager {
     /// @custom:storage-location erc7201:telcoin.storage.StakeManager
     struct StakeManagerStorage {
-        address iTEL;
+        address payable issuance;
         uint24 totalSupply;
         uint8 stakeVersion;
         mapping(uint8 => StakeConfig) versions;
@@ -108,6 +108,9 @@ interface IStakeManager {
     /// @dev Fetches the claimable rewards accrued for a given validator address
     /// @return _ The validator's claimable rewards, not including the validator's stake
     function getRewards(address validatorAddress) external view returns (uint232);
+
+    /// @dev Fetches the StakeManager's issuance contract address
+    function issuance() external view returns (address);
 
     /// @dev Returns staking information for the given address
     function stakeInfo(address validatorAddress) external view returns (StakeInfo memory);

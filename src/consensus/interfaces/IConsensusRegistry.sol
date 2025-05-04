@@ -91,11 +91,13 @@ interface IConsensusRegistry {
     /// @dev The network's epoch issuance distribution method, rewarding stake originators
     /// based on initial stake and on the validator's performance (consensus header count)
     /// @notice Stake originators are either a delegator if one exists, or the validator itself
+    /// @notice Called just before concluding the current epoch
     /// @notice Not yet enabled during pilot, but scaffolding is included here.
     /// For the time being, system calls to this fn can provide empty calldata arrays
     function applyIncentives(RewardInfo[] calldata rewardInfos) external;
 
     /// @dev The network's slashing mechanism, which penalizes validators for misbehaving
+    /// @notice Called just before concluding the current epoch
     /// @notice Not yet enabled during pilot, but scaffolding is included here.
     /// For the time being, system calls to this fn can provide empty calldata arrays
     function applySlashes(Slash[] calldata slashes) external;
