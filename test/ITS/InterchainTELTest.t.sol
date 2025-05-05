@@ -5,12 +5,12 @@ import { Test, console2 } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IRecoverableWrapper } from "recoverable-wrapper/contracts/interfaces/IRecoverableWrapper.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
-import { WTEL } from "../src/WTEL.sol";
-import { InterchainTEL } from "../src/InterchainTEL.sol";
-import { IInterchainTEL } from "../src/interfaces/IInterchainTEL.sol";
-import { Deployments } from "../deployments/Deployments.sol";
-import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Utils.sol";
-import { MockTEL, ITSTestHelper } from "./ITS/ITSTestHelper.sol";
+import { WTEL } from "../../src/WTEL.sol";
+import { InterchainTEL } from "../../src/InterchainTEL.sol";
+import { IInterchainTEL } from "../../src/interfaces/IInterchainTEL.sol";
+import { Deployments } from "../../deployments/Deployments.sol";
+import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
+import { MockTEL, ITSTestHelper } from "./ITSTestHelper.sol";
 
 contract InterchainTELTest is Test, ITSTestHelper {
     address admin = address(0xbeef);

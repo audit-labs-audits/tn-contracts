@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
-import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeInfo, IStakeManager } from "../interfaces/IStakeManager.sol";
 import { Issuance } from "./Issuance.sol";
 
 /**

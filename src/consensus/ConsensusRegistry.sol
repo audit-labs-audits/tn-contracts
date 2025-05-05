@@ -5,9 +5,9 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ReentrancyGuard } from "solady/utils/ReentrancyGuard.sol";
-import { StakeInfo, RewardInfo, Slash, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeInfo, RewardInfo, Slash, IStakeManager } from "../interfaces/IStakeManager.sol";
 import { StakeManager } from "./StakeManager.sol";
-import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
+import { IConsensusRegistry } from "../interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 import { Issuance } from "./Issuance.sol";
 
