@@ -25,7 +25,7 @@ contract InterchainTEL is IInterchainTEL, RecoverableWrapper, InterchainTokenSta
     using RecordsDequeLib for RecordsDeque;
 
     /// @dev The precompiled Axelar ITS TokenManager contract address for this token
-    address public immutable tokenManager;
+    address private immutable tokenManager;
     /// @dev The precompiled Axelar ITS contract address for this chain
     address private immutable _interchainTokenService;
 
@@ -40,7 +40,7 @@ contract InterchainTEL is IInterchainTEL, RecoverableWrapper, InterchainTokenSta
         0xdb4bab1640a2602c9f66f33765d12be4af115accf74b24515702961e82a71327;
     /// @notice Token factory flag to be create3-agnostic; see `InterchainTokenService::TOKEN_FACTORY_DEPLOYER`
     address private constant TOKEN_FACTORY_DEPLOYER = address(0x0);
-    uint256 public constant DECIMALS_CONVERTER = 1e16;
+    uint256 private constant DECIMALS_CONVERTER = 1e16;
 
     /// @notice Extends RecoverableWrapper with `OZ::Ownable2Step` for governance rotation without forking
     address private _pendingGovernance;

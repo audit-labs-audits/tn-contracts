@@ -45,6 +45,8 @@ import { ITS } from "../../deployments/Deployments.sol";
 import { ITSGenesis } from "../../deployments/genesis/ITSGenesis.sol";
 
 abstract contract ITSTestHelper is Test, ITSGenesis {
+    uint256 internal constant DECIMALS_CONVERTER = 1e16;
+
     function setUp_sepoliaFork_devnetConfig(
         address linker_,
         address sepoliaTel,
@@ -338,7 +340,6 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
     }
 
     function toTwoDecimals(uint256 nativeAmount) public pure returns (uint256, uint256) {
-        uint256 DECIMALS_CONVERTER = 1e16;
         if (nativeAmount < DECIMALS_CONVERTER) revert IInterchainTEL.InvalidAmount(nativeAmount);
         uint256 interchainAmount = nativeAmount / DECIMALS_CONVERTER;
         uint256 remainder = nativeAmount % DECIMALS_CONVERTER;

@@ -11,7 +11,7 @@ import { GMPMessage } from "../utils.js";
 
 // when migrating beyond devnet these can be initialized via CLI flag
 let rpc: string = "http://devnet-amplifier.axelar.dev:26657";
-let axelarWallet: string = "axelard-test-wallet"; //todo
+let axelarWallet: string = "axelard-test-wallet";
 let axelarChainId: string = "devnet-amplifier";
 
 export async function constructProof({

@@ -69,17 +69,17 @@ Examples for bypassing GMP API and manually performing each of the Axelar Networ
 
 The GMP API flow is crucial to TN bridging, but it is entirely implemented by Axelar. The security considerations are supported by Axelar's audits and security posture. By integrating with the GMP API, Telcoin-Network benefits from Axelar's existing work on internal security and provides developers with a simple interface to the Axelar Chain.
 
-More information about the GMP APIcan be found [in this readme](./node/src/relay/README.md)
+More information about the GMP API can be found [in this readme](./node/src/relay/README.md)
 
 ### Verifiers
 
 ##### Security implications: CRITICAL
 
-To validate cross-chain messages within the Axelar chain, whitelisted services called `verifiers` check new messages against their source chain's finality via RPC to quorum-vote on whether the messages were indeed emitted by the source chain's gateway within a block that has reached finality. To do so, the TN verifiers themselves run a copy of a Telcoin Network Non-Voting Validator "NVV" client to track TN's execution and consensus.
+To validate cross-chain messages within the Axelar chain, whitelisted services called `verifiers` check new messages against their source chain's finality via RPC to quorum-vote on whether the messages were indeed emitted by the source chain's gateway within a block that has reached finality. To do so, the TN verifiers themselves run a Telcoin Network Observer client to track TN's execution and consensus.
 
 Because verifiers are the entities responsible for reaching quorum on whether bridge messages are valid and final, they possess a similar security implication to the InterchainTEL module. In short, the verifiers are responsible for validating bridge messages from a consensus-standpoint, whereas the InterchainTEL module is responsible for carrying out those validated bridge messages from the execution-standpoint.
 
-For more information on the verifier client, refer to the Telcoin-Network protocol itself and the Axelar tofnd + ampd verifier repositories.
+For more information on the verifier client, refer to [the Telcoin-Network protocol itself](https://github.com/Telcoin-Association/telcoin-network) and the Axelar [tofnd](https://github.com/axelarnetwork/tofnd) + [ampd verifier](https://github.com/axelarnetwork/axelar-amplifier/tree/main/ampd) repositories.
 
 ## Telcoin Network System Contract Audit Scope
 
@@ -88,7 +88,7 @@ For more information on the verifier client, refer to the Telcoin-Network protoc
 | src/InterchainTEL.sol               | 1 (InterchainTEL)                                   | 1 (IInterchainTEL)                    | 393   |
 | src/WTEL.sol                        | 1 (WTEL)                                            | 0                                     | 17    |
 | src/consensus/ConsensusRegistry.sol | 3 (ConsensusRegistry, StakeManager, SystemCallable) | 2 (IConsensusRegistry, IStakeManager) | 1011  |
-| src//Issuance.sol                   | 1 (Issuance)                                        | 0                                     | 47    |
+| src/Issuance.sol                    | 1 (Issuance)                                        | 0                                     | 47    |
 
 ### Other auditor notes:
 

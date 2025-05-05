@@ -116,7 +116,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         uint256 itelBal = address(iTEL).balance;
         assertEq(itelBal, telTotalSupply);
 
-        vm.startPrank(iTEL.tokenManager());
+        vm.startPrank(iTEL.tokenManagerAddress());
 
         vm.expectEmit(true, true, true, false);
         emit IInterchainTEL.Minted(user, nativeAmount);
@@ -149,9 +149,9 @@ contract InterchainTELTest is Test, ITSTestHelper {
         assertEq(itelBal, telTotalSupply);
         uint256 governanceBal = iTEL.governanceAddress().balance;
 
-        vm.startPrank(iTEL.tokenManager());
+        vm.startPrank(iTEL.tokenManagerAddress());
 
-        bool willRevert = nativeAmount < iTEL.DECIMALS_CONVERTER();
+        bool willRevert = nativeAmount < DECIMALS_CONVERTER;
         if (willRevert) vm.expectRevert();
         (, uint256 remainder) = this.toTwoDecimals(nativeAmount);
 
@@ -173,7 +173,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
     }
 
     function test_burn_revertIfNotTokenManager(uint96 nativeAmount) public {
-        vm.assume(nativeAmount > 0 && nativeAmount >= iTEL.DECIMALS_CONVERTER());
+        vm.assume(nativeAmount > 0 && nativeAmount >= DECIMALS_CONVERTER);
 
         vm.expectRevert();
         iTEL.burn(user, nativeAmount);
