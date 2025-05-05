@@ -69,6 +69,8 @@ Examples for bypassing GMP API and manually performing each of the Axelar Networ
 
 The GMP API flow is crucial to TN bridging, but it is entirely implemented by Axelar. The security considerations are supported by Axelar's audits and security posture. By integrating with the GMP API, Telcoin-Network benefits from Axelar's existing work on internal security and provides developers with a simple interface to the Axelar Chain.
 
+More information about the GMP APIcan be found [in this readme](./node/src/relay/README.md)
+
 ### Verifiers
 
 ##### Security implications: CRITICAL

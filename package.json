@@ -12,7 +12,6 @@
     "start": "node node/dist/subscriber.js",
     "subscriber": "npm run build && node node/dist/relay/subscriber.js",
     "includer": "npm run build && node node/dist/relay/includer.js",
-    "bridge-local": "npm run build && node node/dist/bridgeLocal.js",
     "build-and-start": "npm run build && npm run start",
     "clean": "rm -rf node/dist",
     "watch": "tsc --watch",

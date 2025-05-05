@@ -4,6 +4,28 @@
 
 This Telcoin Network smart contracts repository contains various system and standard contracts that play crucial roles for the Telcoin Network, including the **InterchainTEL** token precompile and the **ConsensusRegistry** system contract.
 
+## Get Started
+
+This repository does not use Foundry git submodules due to dependencies that do not properly support them. Instead of the `lib` directory, all dependencies are kept in `node_modules`
+
+To install, use Node version >= 18.
+
+`nvm use 18`
+
+And then install using `npm`, note that `yarn` will throw an error because the yarn package manager has removed Circle Research's `RecoverableWrapper`.
+
+`npm install`
+
+To build the smart contracts:
+
+`forge b`
+
+To run the smart contract tests, which will run for a bit to fuzz thoroughly, use:
+
+`forge test`
+
+The fork tests will require you to add a Sepolia and Telcoin-Network RPC url to the .env file.
+
 ## ConsensusRegistry Contract
 
 ### Overview
