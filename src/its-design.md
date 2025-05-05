@@ -8,7 +8,7 @@ After an ITS message is issued from a source chain and relayed to the Axelar Net
 
 ## Interchain Token IDs
 
-ITS protocolizes interchain operability by assigning each token a standardized `interchainTokenId` which serves as a fixed UID across chains.
+ITS protocolizes interchain operability by assigning each token a standardized `interchainTokenId` which serves as a fixed UID across chains. `InterchainTEL` uses the custom-link interchain token id type.
 
 ITS leverages determinism to achieve statelessness, never storing any token IDs or addresses in contract storage. Instead, ITS core contracts are written to bytecode and peripheral contracts like supported tokens and their corresponding `TokenManagers` are recalculated in memory for each interchain call. This is achieved because of the following invariants:
 
@@ -28,16 +28,6 @@ The interchain token ID for a given token can be derived in one of three ways, e
 3. Custom-linked Interchain Tokens
 
 Telcoin-Network has selected option 3 to best suit our needs spanning interchain decimals conversion and minting/burning native gas currency.
-
-## Telcoin <> Axelar Interchain Token Service integration
-
-Because Telcoin-Network uses Telcoin as native gas currency and Telcoin originates from Ethereum mainnet as an ERC20, the Interchain Token Service suite of smart contracts are integrated to Telcoin-Network protocol as system precompiles.
-
-To handle the decimals conversion from ERC20 TEL on Ethereum to/from native TEL, the ITS TokenHandler and TokenManager contracts are minimally forked with specific branch logic for interchain TEL: [TNTokenHandler](../TNTokenHandler) and [TNTokenManager](./TNTokenManager)
-
-In addition to the ITS core precompiles, Telcoin-Network's interchain TEL contract, called InterchainTEL, and its corresponding token manager proxy are also incorporated to the protocol as genesis precompiles.
-
-To comply with ITS, both InterchainTEL and its accompanying `MINT_BURN` TokenManagerProxy are deployed to the Interchain Token Service's expected `create3` addresses by using the same custom-linked interchain `linkedTokenDeploySalt` and `tokenId` derived by registering Ethereum TEL as a custom interchain token.
 
 For more information about InterchainTEL, refer to the [root README](../../README.md).
 
@@ -68,8 +58,8 @@ canonicalTokenId = keccak256(abi.encode(PREFIX_INTERCHAIN_TOKEN_ID, address(0x0)
 - register and link any number of pre-existing tokens
 - no wrapping needed
 - interchain token ID derived from the first token registered
-- linked pre-existing tokens use `LOCK_UNLOCK` token managers
-- new corresponding interchain deployments on remote chains share the same address, specified token + token manager type, and can be upgradeable
+- linked pre-existing tokens use `LOCK_UNLOCK` token managers, new token deployments on new chains use `MINT_BURN` token managers
+- new corresponding interchain deployments on remote chains would undergo the same linking process and should be deployed with create2 to share the same address, specified token + token manager type
 
 ```solidity
 linkedTokenDeploySalt = keccak256(abi.encode(PREFIX_CUSTOM_TOKEN_SALT, chainNameHash, deployer, salt));
