@@ -95,7 +95,7 @@ For more information on the verifier client, refer to [the Telcoin-Network proto
 Two dependency contracts used required compiler version updates to be used namely:
 
 - `external/axelar-cgp-solidity/AxelarGasServiceProxy.sol` from 0.8.9 to ^0.8.0
-- [RecoverableWrapper](https://github.com/robriks/recoverable-wrapper) from 0.8.20 to ^0.8.20
+- [RecoverableWrapper](https://github.com/Telcoin-Association/recoverable-wrapper) from 0.8.20 to ^0.8.20 [in this commit](https://github.com/Telcoin-Association/recoverable-wrapper/commit/ebc07d96c8665051c51c90d7fbd9ef2bd65abdf3)
 
 Circle's RecoverableWrapper also uses OpenZeppelin 4.6, whereas we use 5.0. To avoid forking the RecoverableWrapper's 4.6 ERC20 is included alongside OZ 5.0 for everything else.
 
