@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity ^0.8.20;
 
-import { IInterchainTokenStandard } from
-    "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenStandard.sol";
-import { ITransmitInterchainToken } from
-    "@axelar-network/interchain-token-service/contracts/interfaces/ITransmitInterchainToken.sol";
-import { IInterchainTokenFactory } from
-    "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenFactory.sol";
-import { IInterchainTokenService } from
-    "@axelar-network/interchain-token-service/contracts/interfaces/IInterchainTokenService.sol";
 import { InterchainTokenStandard } from
     "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainTokenStandard.sol";
 

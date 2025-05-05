@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 import { Test, console2, Vm } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IAxelarGateway } from "@axelar-network/axelar-cgp-solidity/contracts/interfaces/IAxelarGateway.sol";
 import { IDeploy } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IDeploy.sol";
 import { AxelarAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
