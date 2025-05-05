@@ -48,8 +48,10 @@ contract InterchainTEL is IInterchainTEL, RecoverableWrapper, InterchainTokenSta
         0xdb4bab1640a2602c9f66f33765d12be4af115accf74b24515702961e82a71327;
     /// @notice Token factory flag to be create3-agnostic; see `InterchainTokenService::TOKEN_FACTORY_DEPLOYER`
     address private constant TOKEN_FACTORY_DEPLOYER = address(0x0);
-
     uint256 public constant DECIMALS_CONVERTER = 1e16;
+
+    /// @notice Extends RecoverableWrapper with `OZ::Ownable2Step` for governance rotation without forking
+    address private _pendingGovernance;
 
     modifier onlyTokenManager() {
         if (msg.sender != tokenManager) revert OnlyTokenManager(tokenManager);
@@ -302,9 +304,22 @@ contract InterchainTEL is IInterchainTEL, RecoverableWrapper, InterchainTokenSta
         _unpause();
     }
 
+
     /// @inheritdoc IInterchainTEL
-    function transferGovernance(address newGovernanceAddress) public override governanceOnly {
-        // _setGovernanceAddress(newGovernanceAddress); //todo
+    function transferGovernance(address newGovernance) external virtual override governanceOnly {
+        _pendingGovernance = newGovernance;
+        emit GovernanceTransferStarted(governanceAddress, newGovernance);
+    }
+
+    /// @inheritdoc IInterchainTEL
+    function acceptGovernance() external virtual override {
+        if (msg.sender != _pendingGovernance) revert CallerMustBeGovernance(msg.sender);
+
+        delete _pendingGovernance;
+        address oldGovernance = governanceAddress;
+        governanceAddress = msg.sender;
+
+        emit GovernanceTransferred(oldGovernance, msg.sender);
     }
 
     receive() external payable {

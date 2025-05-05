@@ -10,6 +10,8 @@ import { Ownable } from "solady/auth/Ownable.sol";
 
 interface IInterchainTEL {
     event RemainderTransferFailed(address indexed to, uint256 amount);
+    event GovernanceTransferStarted(address indexed currentGovernance, address indexed pendingGovernance);
+    event GovernanceTransferred(address indexed previousGovernance, address indexed newGovernance);
 
     error OnlyTokenManager(address manager);
     error OnlyBaseToken(address wTEL);
@@ -75,5 +77,12 @@ interface IInterchainTEL {
     /// @notice Excess native TEL remainder from truncating 16 decimals is refunded to the user for future gas usage
     function toTwoDecimals(uint256 nativeTELAmount) external pure returns (uint256, uint256);
 
-    function transferGovernance(address newGovernanceAddress) external; //todo
+    /// @dev Starts the Governance transfer of the contract to a new account. Replaces pending governance if one exists
+    /// @notice Setting `newGovernance` to the zero address is allowed; this cancels a pending governance transfer.
+    /// @notice Impl of OZ 5.1.0 `Ownable2Step` for `RecoverableWrapper::governanceAddress` to avoid forking
+    function transferGovernance(address newGovernanceAddress) external;
+
+    /// @dev Transfers RecoverableWrapper governance authority to `newGovernance`, deletes pending governance
+    /// @notice Impl of OZ 5.1.0 `Ownable2Step` for `RecoverableWrapper::governanceAddress` to avoid forking
+    function acceptGovernance() external;
 }
