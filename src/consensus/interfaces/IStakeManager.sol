@@ -34,15 +34,6 @@ struct Slash {
 }
 
 interface IStakeManager {
-    /// @custom:storage-location erc7201:telcoin.storage.StakeManager
-    struct StakeManagerStorage {
-        address payable issuance;
-        uint24 totalSupply;
-        uint8 stakeVersion;
-        mapping(uint8 => StakeConfig) versions;
-        mapping(address => StakeInfo) stakeInfo;
-        mapping(address => Delegation) delegations;
-    }
 
     /// @notice New StakeConfig versions take effect in the next epoch
     /// ie they are set for each epoch at its start
@@ -103,17 +94,17 @@ interface IStakeManager {
         returns (bytes32);
 
     /// @dev Returns the current total supply of minted ConsensusNFTs
-    function totalSupply() external view returns (uint256);
+    function totalSupply() external view returns (uint24);
 
     /// @dev Fetches the claimable rewards accrued for a given validator address
     /// @return _ The validator's claimable rewards, not including the validator's stake
     function getRewards(address validatorAddress) external view returns (uint232);
 
     /// @dev Fetches the StakeManager's issuance contract address
-    function issuance() external view returns (address);
+    function issuance() external view returns (address payable);
 
     /// @dev Returns staking information for the given address
-    function stakeInfo(address validatorAddress) external view returns (StakeInfo memory);
+    function getStakeInfo(address validatorAddress) external view returns (StakeInfo memory);
 
     /// @dev Returns the current version
     function stakeVersion() external view returns (uint8);

@@ -41,7 +41,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             EpochInfo memory info = consensusRegistry.getEpochInfo(uint32(i));
             for (uint256 j; j < 4; ++j) {
                 assertEq(info.committee[j], initialValidators[j].validatorAddress);
-                assertEq(consensusRegistry.stakeInfo(initialValidators[j].validatorAddress).tokenId, j + 1);
+                assertEq(consensusRegistry.getStakeInfo(initialValidators[j].validatorAddress).tokenId, j + 1);
             }
         }
         assertEq(consensusRegistry.totalSupply(), 4);
