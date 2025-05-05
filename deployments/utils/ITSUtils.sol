@@ -66,7 +66,6 @@ abstract contract ITSUtils is Create3Utils {
 
     // Telcoin Network contracts
     WTEL wTEL;
-    InterchainTEL iTELImpl;
     InterchainTEL iTEL;
     address itelOwner; // note: devnet only
 
@@ -298,8 +297,8 @@ abstract contract ITSUtils is Create3Utils {
         wtel = WTEL(payable(create3Deploy(create3, type(WTEL).creationCode, '', salts.wtelSalt)));
     }
 
-    function instantiateInterchainTELImpl(address its_) public virtual returns (InterchainTEL impl) {
-        bytes memory iTELImplConstructorArgs = abi.encode(
+    function instantiateInterchainTEL(address its_) public virtual returns (InterchainTEL impl) {
+        bytes memory iTELConstructorArgs = abi.encode(
             originTEL,
             linker,
             salts.registerCustomTokenSalt,
@@ -313,14 +312,7 @@ abstract contract ITSUtils is Create3Utils {
             maxToClean
         );
         impl = InterchainTEL(
-            payable(create3Deploy(create3, type(InterchainTEL).creationCode, iTELImplConstructorArgs, implSalts.itelImplSalt))
-        );
-    }
-
-    function instantiateInterchainTEL(address impl) public virtual returns (InterchainTEL proxy) {
-        bytes memory iTELConstructorArgs = abi.encode(impl, "");
-        proxy = InterchainTEL(
-            payable(create3Deploy(create3, type(ERC1967Proxy).creationCode, iTELConstructorArgs, salts.itelSalt))
+            payable(create3Deploy(create3, type(InterchainTEL).creationCode, iTELConstructorArgs, salts.itelSalt))
         );
     }
 

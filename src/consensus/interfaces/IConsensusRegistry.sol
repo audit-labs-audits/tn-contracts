@@ -12,15 +12,6 @@ import { StakeInfo, RewardInfo, Slash } from "./IStakeManager.sol";
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
 interface IConsensusRegistry {
-    /// @custom:storage-location erc7201:telcoin.storage.ConsensusRegistry
-    struct ConsensusRegistryStorage {
-        uint32 currentEpoch; // uint32 provides 3.7e14 years for 24hr epochs
-        uint8 epochPointer;
-        EpochInfo[4] epochInfo;
-        EpochInfo[4] futureEpochInfo;
-        mapping(uint24 => ValidatorInfo) validators;
-    }
-
     /// @dev Packed struct storing each validator's onchain info
     struct ValidatorInfo {
         bytes blsPubkey; // using uncompressed 96 byte BLS public keys
@@ -45,7 +36,7 @@ interface IConsensusRegistry {
     error InvalidBLSPubkey();
     error InvalidValidatorAddress();
     error InvalidProof();
-    error InitializerArityMismatch();
+    error GenesisArityMismatch();
     error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
     error CommitteeRequirement(address validatorAddress);
     error NotValidator(address validatorAddress);

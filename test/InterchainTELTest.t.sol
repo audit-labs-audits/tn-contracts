@@ -30,7 +30,6 @@ contract InterchainTELTest is Test, ITSTestHelper {
 
         // iTEL sanity tests
         assertEq(address(iTEL.interchainTokenService()), address(its));
-        assertEq(iTEL.owner(), admin);
         assertTrue(address(iTEL).code.length > 0);
         string memory rwName = iTEL.name();
         assertEq(rwName, "Interchain Telcoin");
@@ -148,7 +147,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         assertEq(initialBal, nativeAmount);
         uint256 itelBal = address(iTEL).balance;
         assertEq(itelBal, telTotalSupply);
-        uint256 governanceBal = iTEL.owner().balance;
+        uint256 governanceBal = iTEL.governanceAddress().balance;
 
         vm.startPrank(iTEL.tokenManager());
 
@@ -169,7 +168,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         if (!willRevert) {
             assertEq(iTEL.balanceOf(user), 0);
             assertEq(address(iTEL).balance, itelBal + nativeAmount - remainder);
-            assertEq(iTEL.owner().balance, governanceBal + remainder);
+            assertEq(iTEL.governanceAddress().balance, governanceBal + remainder);
         }
     }
 

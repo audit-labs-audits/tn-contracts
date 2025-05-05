@@ -12,6 +12,8 @@ interface IInterchainTEL {
     event Minted(address indexed to, uint256 indexed nativeAmount);
     event Burned(address indexed from, uint256 indexed nativeAmount);
     event RemainderTransferFailed(address indexed to, uint256 amount);
+    event GovernanceTransferStarted(address indexed currentGovernance, address indexed pendingGovernance);
+    event GovernanceTransferred(address indexed previousGovernance, address indexed newGovernance);
 
     error OnlyTokenManager(address manager);
     error OnlyBaseToken(address wTEL);
@@ -56,19 +58,6 @@ interface IInterchainTEL {
     /// @dev ITS uses `interchainTokenId()` as the create3 salt used to deploy TokenManagers
     function tokenManagerAddress() external view returns (address);
 
-    /// @notice Replaces `constructor` for use when deployed as a proxy implementation
-    /// @notice `RW::constructor()` accepts a `baseERC20_` parameter which is set as an immutable variable in bytecode
-    /// @dev This function and all functions invoked within are only available on devnet and testnet
-    /// Since it will never change, no assembly workaround function such as `setMaxToClean()` is implemented
-    function initialize(address governanceAddress_, uint16 maxToClean_, address owner_) external;
-
-    /// @dev Permissioned setter functions
-    function setGovernanceAddress(address newGovernanceAddress) external;
-    /// @notice Workaround function to alter `RecoverableWrapper::MAX_TO_CLEAN` without forking audited code
-    /// Provided because `MAX_TO_CLEAN` may require alteration in the future, as opposed to `baseERC20`,
-    /// @dev `MAX_TO_CLEAN` is stored in slot 11
-    function setMaxToClean(uint16 newMaxToClean) external;
-
     /// @notice Required by Axelar ITS to complete interchain transfers during payload processing
     /// of `MESSAGE_TYPE_INTERCHAIN_TRANSFER` headers, which delegatecalls `TokenHandler::giveToken()`
     function isMinter(address addr) external view returns (bool);
@@ -85,4 +74,13 @@ interface IInterchainTEL {
     /// @dev Axelar Hub destination chain decimal truncation can be found here:
     /// https://github.com/axelarnetwork/axelar-amplifier/blob/aa956eed0bb48b3b14d20fdc6b93deb129c02bea/contracts/interchain-token-service/src/contract/execute/interceptors.rs#L228
     function burn(address from, uint256 nativeAmount) external;
+
+    /// @dev Starts the Governance transfer of the contract to a new account. Replaces pending governance if one exists
+    /// @notice Setting `newGovernance` to the zero address is allowed; this cancels a pending governance transfer.
+    /// @notice Impl of OZ 5.1.0 `Ownable2Step` for `RecoverableWrapper::governanceAddress` to avoid forking
+    function transferGovernance(address newGovernanceAddress) external;
+
+    /// @dev Transfers RecoverableWrapper governance authority to `newGovernance`, deletes pending governance
+    /// @notice Impl of OZ 5.1.0 `Ownable2Step` for `RecoverableWrapper::governanceAddress` to avoid forking
+    function acceptGovernance() external;
 }

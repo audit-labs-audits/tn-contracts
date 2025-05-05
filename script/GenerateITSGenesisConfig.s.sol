@@ -81,7 +81,6 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         _setGenesisTargets(
             deployments.its,
             payable(deployments.wTEL),
-            payable(deployments.its.InterchainTELImpl),
             payable(deployments.its.InterchainTEL),
             deployments.its.InterchainTELTokenManager
         );
@@ -101,16 +100,14 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         address simulatedWTEL = address(payable(instantiateWTEL()));
         assertFalse(yamlAppendGenesisAccount(dest, simulatedWTEL, deployments.wTEL, sharedNonce, sharedBalance));
 
-        // iTEL impl before ITS to fetch token id for TokenHandler::constructor
-        address simulatedInterchainTELImpl =
-            address(instantiateInterchainTELImpl(deployments.its.InterchainTokenService));
-        // note iTEL impl has storage changes due to RecoverableWrapper dep but they are not used in proxy setup
+        // iTEL before ITS to fetch token id for TokenHandler::constructor
+        address simulatedInterchainTEL = address(instantiateInterchainTEL(deployments.its.InterchainTokenService));
         assertTrue(
             yamlAppendGenesisAccount(
-                dest, simulatedInterchainTELImpl, deployments.its.InterchainTELImpl, sharedNonce, sharedBalance
+                dest, simulatedInterchainTEL, deployments.its.InterchainTEL, sharedNonce, iTELBalance
             )
         );
-        customLinkedTokenId = iTELImpl.interchainTokenId();
+        customLinkedTokenId = iTEL.interchainTokenId();
 
         // gateway impl (no storage)
         address simulatedGatewayImpl = address(instantiateAxelarAmplifierGatewayImpl());
@@ -213,14 +210,6 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         assertTrue(
             yamlAppendGenesisAccount(
                 dest, simulatedITF, deployments.its.InterchainTokenFactory, sharedNonce, sharedBalance
-            )
-        );
-
-        // itel (note: requires both storage and the total supply of TEL at genesis)
-        address simulatedInterchainTEL = address(instantiateInterchainTEL(deployments.its.InterchainTELImpl));
-        assertTrue(
-            yamlAppendGenesisAccount(
-                dest, simulatedInterchainTEL, deployments.its.InterchainTEL, sharedNonce, iTELBalance
             )
         );
 

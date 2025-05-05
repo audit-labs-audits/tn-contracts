@@ -14,13 +14,8 @@ import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 /// @dev Fuzz test module separated into new file with extra setup to avoid `OutOfGas`
 contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     function setUp() public {
-        consensusRegistry = ConsensusRegistry(0x07E17e17E17e17E17e17E17E17E17e17e17E17e1);
-        vm.etch(address(consensusRegistry), type(ERC1967Proxy).runtimeCode);
-        bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-        vm.store(address(consensusRegistry), implementationSlot, bytes32(abi.encode(address(consensusRegistryImpl))));
-
         StakeConfig memory stakeConfig_ = StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_);
-        consensusRegistry.initialize(stakeConfig_, initialValidators, crOwner);
+        consensusRegistry = new ConsensusRegistry(stakeConfig_, initialValidators, crOwner);
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 

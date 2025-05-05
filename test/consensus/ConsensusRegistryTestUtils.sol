@@ -6,7 +6,6 @@ import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { RewardInfo } from "src/consensus/interfaces/IStakeManager.sol";
 
 contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
-    ConsensusRegistry public consensusRegistryImpl;
     ConsensusRegistry public consensusRegistry;
 
     address public crOwner = address(0xc0ffee);
@@ -36,7 +35,15 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     // `OZ::ERC721Upgradeable::mint()` supports up to ~14_300 fuzzed mint iterations
     uint256 public MAX_MINTABLE = 14_000;
 
-    constructor() {
+    constructor()
+        ConsensusRegistry(
+            StakeConfig(stakeAmount_, minWithdrawAmount_, epochIssuance_, epochDuration_),
+            _populateInitialValidators(),
+            crOwner
+        )
+    { }
+
+    function _populateInitialValidators() internal returns (ValidatorInfo[] memory) {
         // provide initial validator set as the network will launch with at least four validators
         validatorInfo1 = ValidatorInfo(
             _createRandomBlsPubkey(1), validator1, uint32(0), uint32(0), ValidatorStatus.Active, false, false, uint8(0)
@@ -55,7 +62,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         initialValidators.push(validatorInfo3);
         initialValidators.push(validatorInfo4);
 
-        consensusRegistryImpl = new ConsensusRegistry();
+        return initialValidators;
     }
 
     function _createRandomAddress(uint256 seed) internal pure returns (address) {
