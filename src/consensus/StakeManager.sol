@@ -15,7 +15,6 @@ import { Issuance } from "./Issuance.sol";
  * @dev Designed for inheritance by the ConsensusRegistry
  */
 abstract contract StakeManager is ERC721, EIP712, IStakeManager {
-
     address payable public issuance;
     uint24 public totalSupply;
     uint8 public stakeVersion;
@@ -203,14 +202,7 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
         return bal + rewards;
     }
 
-    function _checkRewards(
-        address validatorAddress,
-        uint8 validatorVersion
-    )
-        internal
-        virtual
-        returns (uint232)
-    {
+    function _checkRewards(address validatorAddress, uint8 validatorVersion) internal virtual returns (uint232) {
         uint232 initialStake = versions[validatorVersion].stakeAmount;
         uint232 rewards = _getRewards(validatorAddress, initialStake);
 
@@ -227,15 +219,7 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
         return uint232(value);
     }
 
-    function _getRewards(
-        address validatorAddress,
-        uint232 initialStake
-    )
-        internal
-        view
-        virtual
-        returns (uint232)
-    {
+    function _getRewards(address validatorAddress, uint232 initialStake) internal view virtual returns (uint232) {
         uint232 balance = stakeInfo[validatorAddress].balance;
         uint232 rewards = balance > initialStake ? balance - initialStake : 0;
 
@@ -253,14 +237,7 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
     }
 
     /// @dev Reverts if provided claimant isn't the existing delegation entry keyed under `validatorAddress`
-    function _checkKnownDelegation(
-        address validatorAddress,
-        address claimant
-    )
-        internal
-        view
-        returns (address)
-    {
+    function _checkKnownDelegation(address validatorAddress, address claimant) internal view returns (address) {
         address delegator = delegations[validatorAddress].delegator;
         if (claimant != delegator) revert NotDelegator(claimant);
 
@@ -268,13 +245,7 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
     }
 
     /// @dev Reverts if the provided address doesn't correspond to an existing `tokenId` owned by `validatorAddress`
-    function _checkConsensusNFTOwner(
-        address validatorAddress
-    )
-        internal
-        view
-        returns (uint24)
-    {
+    function _checkConsensusNFTOwner(address validatorAddress) internal view returns (uint24) {
         uint24 tokenId = _getTokenId(validatorAddress);
         if (!_exists(tokenId)) revert InvalidTokenId(tokenId);
         if (ownerOf(tokenId) != validatorAddress) revert RequiresConsensusNFT();

@@ -34,7 +34,6 @@ struct Slash {
 }
 
 interface IStakeManager {
-
     /// @notice New StakeConfig versions take effect in the next epoch
     /// ie they are set for each epoch at its start
     struct StakeConfig {

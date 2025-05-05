@@ -20,7 +20,6 @@ import { Issuance } from "./Issuance.sol";
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
 contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, SystemCallable, IConsensusRegistry {
-
     uint32 internal currentEpoch; // uint32 provides 3.7e14 years for 24hr epochs
     uint8 internal epochPointer;
     EpochInfo[4] public epochInfo;
@@ -421,12 +420,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     /// `Active` at the end of the current epoch. Since they could time activation initiation
     /// with the epoch boundary, they are ineligible for rewards until completing a full epoch
     /// @dev Protocol determines exit eligibility via voter committee assignments across 3 epochs
-    function _updateValidatorQueue(
-        address[] calldata futureCommittee,
-        uint32 current
-    )
-        internal
-    {
+    function _updateValidatorQueue(address[] calldata futureCommittee, uint32 current) internal {
         ValidatorInfo[] memory pendingActivation = _getValidators(ValidatorStatus.PendingActivation);
         for (uint256 i; i < pendingActivation.length; ++i) {
             uint24 tokenId = _getTokenId(pendingActivation[i].validatorAddress);
@@ -457,16 +451,10 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
 
     /// @notice Forcibly eject a validator from the current, next, and subsequent committees
     /// @dev Intended for sparing use; only reverts if burning results in empty committee
-    function _ejectFromCommittees(
-        address validatorAddress,
-        uint256 numEligible
-    )
-        internal
-    {
+    function _ejectFromCommittees(address validatorAddress, uint256 numEligible) internal {
         uint32 current = currentEpoch;
         uint8 currentEpochPointer = epochPointer;
-        address[] storage currentCommittee =
-            _getRecentEpochInfo(current, current, currentEpochPointer).committee;
+        address[] storage currentCommittee = _getRecentEpochInfo(current, current, currentEpochPointer).committee;
         _checkCommitteeSize(numEligible, currentCommittee.length - 1);
         _eject(currentCommittee, validatorAddress);
 
@@ -494,12 +482,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         }
     }
 
-    function _consensusBurn(
-        uint24 tokenId,
-        address validatorAddress
-    )
-        internal
-    {
+    function _consensusBurn(uint24 tokenId, address validatorAddress) internal {
         // mark `validatorAddress` as spent using `UNSTAKED`
         stakeInfo[validatorAddress].tokenId = UNSTAKED;
 
@@ -516,12 +499,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     }
 
     /// @dev Stores the number of blocks finalized in previous epoch and the voter committee for the new epoch
-    function _updateEpochInfo(
-        address[] memory newCommittee
-    )
-        internal
-        returns (uint32, uint32)
-    {
+    function _updateEpochInfo(address[] memory newCommittee) internal returns (uint32, uint32) {
         // cache epoch ring buffer's pointers in memory
         uint8 prevEpochPointer = epochPointer;
         uint8 newEpochPointer = (prevEpochPointer + 1) % 4;
@@ -580,13 +558,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     }
 
     /// @dev Reverts if the provided validator's status doesn't match the provided `requiredStatus`
-    function _checkValidatorStatus(
-        uint24 tokenId,
-        ValidatorStatus requiredStatus
-    )
-        private
-        view
-    {
+    function _checkValidatorStatus(uint24 tokenId, ValidatorStatus requiredStatus) private view {
         ValidatorStatus status = validators[tokenId].currentStatus;
         if (status != requiredStatus) revert InvalidStatus(status);
     }
@@ -607,13 +579,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     /// Because they are eligible for voter committee service in the next epoch
     /// @dev There are ~1000 total MNOs in the world so `SLOAD` loops should not run out of gas
     /// @dev Room for storage optimization (SSTORE2 etc) to hold more validators
-    function _getValidators(
-        ValidatorStatus status
-    )
-        internal
-        view
-        returns (ValidatorInfo[] memory)
-    {
+    function _getValidators(ValidatorStatus status) internal view returns (ValidatorInfo[] memory) {
         ValidatorInfo[] memory untrimmed = new ValidatorInfo[](totalSupply);
         uint256 numMatches;
 
