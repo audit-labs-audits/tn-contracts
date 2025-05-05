@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 import { Test, console2, Vm } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IAxelarGateway } from "@axelar-network/axelar-cgp-solidity/contracts/interfaces/IAxelarGateway.sol";
 import { IDeploy } from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IDeploy.sol";
 import { AxelarAmplifierGateway } from
     "@axelar-network/axelar-gmp-sdk-solidity/contracts/gateway/AxelarAmplifierGateway.sol";
@@ -36,17 +35,17 @@ import { TokenHandler } from "@axelar-network/interchain-token-service/contracts
 import { GatewayCaller } from "@axelar-network/interchain-token-service/contracts/utils/GatewayCaller.sol";
 import { AxelarGasService } from "@axelar-network/axelar-cgp-solidity/contracts/gas-service/AxelarGasService.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
-import { AxelarGasServiceProxy } from "../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
+import { AxelarGasServiceProxy } from "../../external/axelar-cgp-solidity/AxelarGasServiceProxy.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LibString } from "solady/utils/LibString.sol";
-import { WTEL } from "../src/WTEL.sol";
-import { InterchainTEL } from "../src/InterchainTEL.sol";
-import { Deployments } from "../deployments/Deployments.sol";
-import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Utils.sol";
-import { ITS } from "../deployments/Deployments.sol";
-import { HarnessCreate3FixedAddressForITS, ITSTestHelper } from "./ITS/ITSTestHelper.sol";
+import { WTEL } from "../../src/WTEL.sol";
+import { InterchainTEL } from "../../src/InterchainTEL.sol";
+import { Deployments } from "../../deployments/Deployments.sol";
+import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
+import { ITS } from "../../deployments/Deployments.sol";
+import { HarnessCreate3FixedAddressForITS, ITSTestHelper } from "./ITSTestHelper.sol";
 
 contract InterchainTELForkTest is Test, ITSTestHelper {
     Deployments deployments;

@@ -4,10 +4,10 @@ pragma solidity 0.8.26;
 import "forge-std/Test.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
-import { IConsensusRegistry } from "src/consensus/interfaces/IConsensusRegistry.sol";
+import { IConsensusRegistry } from "src/interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { StakeManager } from "src/consensus/StakeManager.sol";
-import { Slash, RewardInfo, IStakeManager } from "src/consensus/interfaces/IStakeManager.sol";
+import { Slash, RewardInfo, IStakeManager } from "src/interfaces/IStakeManager.sol";
 import { InterchainTEL } from "src/InterchainTEL.sol";
 import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 

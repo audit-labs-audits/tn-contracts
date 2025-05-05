@@ -6,7 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import { StablecoinHandler } from "telcoin-contracts/contracts/stablecoin/StablecoinHandler.sol";
 import { IStablecoin } from "external/telcoin-contracts/interfaces/IStablecoin.sol";
-import { TNFaucet } from "./faucet/TNFaucet.sol";
+import { TNFaucet } from "./TNFaucet.sol";
 
 /**
  * @title StablecoinManager

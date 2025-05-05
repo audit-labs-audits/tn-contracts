@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
-import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeInfo, IStakeManager } from "../interfaces/IStakeManager.sol";
 import { Issuance } from "./Issuance.sol";
 
 /**
@@ -31,7 +31,7 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
         "Delegation(bytes32 blsPubkeyHash,address delegator,uint24 tokenId,uint8 validatorVersion,uint64 nonce)"
     );
 
-    constructor(string memory name, string memory symbol) ERC721("ConsensusNFT", "CNFT") { }
+    constructor(string memory name, string memory symbol) ERC721(name, symbol) { }
 
     /// @inheritdoc IStakeManager
     function stake(bytes calldata blsPubkey) external payable virtual;
@@ -137,7 +137,7 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
         revert NotTransferable();
     }
 
-    /// @notice Read-only mechanism
+    /// @notice Read-only mechanism, not yet live
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         _requireOwned(tokenId);
 

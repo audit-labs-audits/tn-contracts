@@ -12,7 +12,6 @@
     "start": "node node/dist/subscriber.js",
     "subscriber": "npm run build && node node/dist/relay/subscriber.js",
     "includer": "npm run build && node node/dist/relay/includer.js",
-    "bridge-local": "npm run build && node node/dist/bridgeLocal.js",
     "build-and-start": "npm run build && npm run start",
     "clean": "rm -rf node/dist",
     "watch": "tsc --watch",
@@ -31,10 +30,12 @@
     "url": "https://github.com/Telcoin-Association/tn-contracts/issues"
   },
   "homepage": "https://github.com/Telcoin-Association/tn-contracts#readme",
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "@axelar-network/axelar-cgp-solidity": "^6.4.0",
     "@axelar-network/axelar-gmp-sdk-solidity": "^6.0.5",
-    "@axelar-network/axelar-local-dev": "^2.3.3",
     "@axelar-network/interchain-token-service": "^2.1.0",
     "@ethersproject/experimental": "^5.8.0",
     "@openzeppelin/contracts": "^5.2.0",
@@ -44,7 +45,7 @@
     "axios": "^1.7.7",
     "dotenv": "^16.4.5",
     "forge-std": "github:foundry-rs/forge-std",
-    "recoverable-wrapper": "git@github.com:robriks/recoverable-wrapper.git",
+    "recoverable-wrapper": "git@github.com:Telcoin-Association/recoverable-wrapper.git",
     "solady": "^0.0.227",
     "telcoin-contracts": "1.0.0",
     "viem": "^2.21.43"

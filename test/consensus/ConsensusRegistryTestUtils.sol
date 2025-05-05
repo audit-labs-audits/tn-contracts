@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import "forge-std/Test.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
-import { RewardInfo } from "src/consensus/interfaces/IStakeManager.sol";
+import { RewardInfo } from "src/interfaces/IStakeManager.sol";
 
 contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     ConsensusRegistry public consensusRegistry;

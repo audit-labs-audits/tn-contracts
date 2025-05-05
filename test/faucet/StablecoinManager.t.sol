@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { StablecoinHandler } from "telcoin-contracts/contracts/stablecoin/StablecoinHandler.sol";
 import { Stablecoin } from "telcoin-contracts/contracts/stablecoin/Stablecoin.sol";
-import "../src/StablecoinManager.sol";
+import "../../src/faucet/StablecoinManager.sol";
 
 contract StablecoinManagerTest is Test {
     StablecoinManager stablecoinManagerImpl;

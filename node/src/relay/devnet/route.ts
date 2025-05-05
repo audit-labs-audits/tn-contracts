@@ -14,7 +14,7 @@ import { processInternalGatewayCLIArgs } from "./verify.js";
 
 // when migrating beyond devnet these can be initialized via CLI flag
 let rpc: string = "http://devnet-amplifier.axelar.dev:26657";
-let axelarWallet: string = "axelard-test-wallet"; //todo change to devnet
+let axelarWallet: string = "axelard-test-wallet";
 let axelarChainId: string = "devnet-amplifier";
 let sourceChainGateway: string =
   "axelar1r2s8ye304vtyhfgajljdjj6pcpeya7jwdn9tgw8wful83uy2stnqk4x7ya";

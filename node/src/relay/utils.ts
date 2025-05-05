@@ -135,7 +135,7 @@ export async function signViaEncryptedKeystore(
 ) {
   // convert tx to serializable format
   const txSerializable: TransactionSerializable = {
-    chainId: 2017, //todo
+    chainId: 2017,
     gas: txRequest.gas,
     maxFeePerGas: txRequest.maxFeePerGas,
     maxPriorityFeePerGas: txRequest.maxPriorityFeePerGas,

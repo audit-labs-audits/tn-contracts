@@ -1,102 +1,98 @@
 # Telcoin Network Smart Contracts
 
-## ConsensusRegistry
+## Overview
 
-### Role
+This Telcoin Network smart contracts repository contains various system and standard contracts that play crucial roles for the Telcoin Network, including the **InterchainTEL** token precompile and the **ConsensusRegistry** system contract.
 
-The Telcoin Network ConsensusRegistry contract serves as a single onchain source of truth for consensus-related items which need to be easily accessible across all TN nodes.
+## Get Started
 
-These items include
+This repository does not use Foundry git submodules due to dependencies that do not properly support them. Instead of the `lib` directory, all dependencies are kept in `node_modules`
 
-1.  **ConsensusNFT Whitelist** To onboard, new validators must obtain a `ConsensusNFT` through Telcoin governance. The ConsensusRegistry contract manages this NFT ledger.
-2.  Managing TEL staking mechanisms, such as locking stake for governance-approved validators as well as tracking and distributing (pull-based) rewards for validation services
-3.  Managing the active validator set, autonomously bringing them through pending queues for activation and exit
-4.  Storing historical epoch information which includes epoch block heights and voting validator committees. Voter committees are predetermined by the protocol and stored two epochs in the future.
+Requires Node version >= 18, which can be installed like so:
 
-To keep this information up to date, the protocol maintains contract state via the use of a system call to `ConsensusRegistry::concludeEpoch()` at the end of each epoch. This action is what kickstarts the beginning of each new epoch.
+`nvm install 18`
 
-### Mechanisms
+And then install using `npm`, note that `yarn` will throw an error because the yarn package manager has removed Circle Research's `RecoverableWrapper`.
 
-#### The contract's most frequent entrypoint: `concludeEpoch()`
+`npm install`
 
-- **Finalize Epoch:** The `concludeEpoch` function is responsible for finalizing the previous epoch, updating the validator set, storing new epoch information, and incrementing staking rewards. Rewards may then be claimed by validators at their discretion.
-- **System Call Context** `concludeEpoch()` may only be called by the client via `system call`, which occurs every epoch. This logic is abstracted into the `SystemCallable` module.
+To build the smart contracts:
 
-#### ConsensusNFT Whitelist
+`forge b`
 
-To join Telcoin Network as a validator, node operators first must be approved by Telcoin governance. Once approved, validators will be issued a `ConsensusNFT` serving as a permissioned validator whitelist. Only the contract owner, an address managed by Telcoin governance, can issue these NFTs via `ConsensusRegistry::mint()`
+To run the smart contract tests, which will run for a bit to fuzz thoroughly, use:
 
-The ERC721 `tokenId` of each validator's token corresponds to their validator uid, termed `validatorIndex` in the registry's implementation.
+`forge test`
 
-#### Validator Registration and Staking
+The fork tests will require you to add a Sepolia and Telcoin-Network RPC url to the .env file.
 
-Once issued a `ConsensusNFT`, validators may enter the pending activation queue at their discretion by staking a fixed amount of native TEL and providing their public keys via `ConsensusRegistry::stake()`
+## ConsensusRegistry Contract
+
+### Overview
+
+The ConsensusRegistry system contract serves as a single onchain source of truth for consensus-related items which need to be easily accessible across all TN nodes.
+
+It plays a pivotal role in maintaining the integrity and functionality of the network by:
+
+1. **Managing the ConsensusNFT Whitelist**: Facilitating the onboarding of new validators who must obtain a `ConsensusNFT` through Telcoin governance.
+2. **Overseeing TEL Staking Mechanisms**: Handling the locking of stakes for governance-approved validators, as well as tracking, distributing, and slashing rewards for validation services.
+3. **Managing the Active Validator Set**: Processing validators through activation and exit queues.
+4. **Storing Historical Epoch Information**: Recording epoch block heights and voting validator committees, which are predetermined and stored for future epochs.
+
+### Key Features
+
+- **ConsensusNFT Whitelist**: Ensures only approved validators can participate in the network by issuing non-transferable NFTs.
+- **Validator Lifecycle Management**: Handles the activation, operation, and exit of validators in an efficient manner.
+- **Epoch Management**: Utilizes system calls to maintain up-to-date contract state at the end of each epoch through `concludeEpoch()`.
+- **Rewards and Slashing**: Implements mechanisms for distributing staking rewards and applying penalties.
+
+### Validator Onboarding
 
 Below, we follow the general lifecycle of a new validator in roughly chronological order.
 
-1. **Validator Registration**
+1. **Approval and Whitelisting**: Gain approval from Telcoin governance and receive a `ConsensusNFT`.
 
-   - **Stake:** Validators with a `ConsensusNFT` call the `stake()` function along with the required stake amount, providing their BLS public key and signature.
-   - **Pending Activation:** Upon successful staking, the validator's status is set to `PendingActivation`, and its activation epoch is recorded to be 2 epochs in the future. After awaiting the remainder of the current epoch and then one full epoch, its status will automatically be updated to `Active`
+2. **Staking**: After receiving a `ConsensusNFT`, validators must secure their participation by staking the required amount of TEL tokens. This can be done by calling the `stake()` function, where the validator or a delegator provides the validator BLS public key and address.
 
-2. **Activation**
+3. **Initiating Activation**: Once staked, validators can enter the pending activation queue by calling the `activate()` function. This sets their status to `PendingActivation`, with their activation epoch designated as the next epoch.
 
-   - **Epoch Advancement:** At the end of each epoch, the `concludeEpoch()` function is system called directly from the client. This function automatically processes the `PendingActivation` and `PendingExit` queues. Thus, validators in the `PendingActivation` (or `PendingExit`) state are set to `Active` (or `Exited`) state if their activation (or exit) epoch has been reached by advancing an epoch.
+4. **Activation**: At the end of each epoch, the protocol system calls `concludeEpoch()`, processing the `PendingActivation` queue. Validators with `PendingActivation` status are transitioned to the `Active` state, allowing them to begin their duties in the network.
 
-3. **Reversible Exit**
+5. **Exit Requests**: Active validators may choose to retire by calling the `exit()` function, which places them in the exit queue where they remain active and eligible for selection in voter committees until their exit is finalized.
 
-   - **Exit Requests** Once active, validators may call the `exit()` function to initiate an exit from the network. These exits are reversible and may be used for node maintenance or key rotation. To permanently forgoe validator status, exited validators must then reclaim their stake and burn their ConsensusNFT using `unstake()`
-   - **Pending Exit** Upon calling `exit()`, the validator's status is set to `PendingExit`, and their exit epoch is recorded to be 2 epochs in the future. The pending queue is handled identically to the `PendingActivation` process described above.
+6. - **Protocol-Determined Exit**: The protocol manages exit finalization. A validator is fully exited after being excluded from voter committees for two consecutive epochs.
 
-4. **Rejoining**
+7. **Unstaking**: Validators or their delegators must call the `unstake()` function in the `Exited` state to reclaim the original stake and any accrued rewards. This process burns the `ConsensusNFT`, releasing the stake and rewards. Once unstaked, the validator's address enters an `UNSTAKED` state, making the retirement irreversible. To rejoin the network, a new `ConsensusNFT` must be obtained, and a new validator address must be used.
 
-   - **Rejoin Requests** Once exited, validators may call the `rejoin()` function to initiate a rejoin request. They may provide new keys if desired.
-   - **Pending Activation** Upon calling `rejoin()`, the validator will be entered into the `PendingActivation` queue
+This detailed lifecycle ensures that validators are properly integrated into the Telcoin Network, maintaining the integrity and reliability of the network's consensus mechanism. For further technical details, refer to the [consensus/design.md](./design.md) file.
 
-5. **Unstaking**
-   - **Withdraw Stake:** Once in the `Exited` state, validators can call the `unstake` function to withdraw their original stake amount along with any accrued rewards.
-   - Once unstaked, a validator can no longer `rejoin()`, as their `ConsensusNFT` is burned and their validator is set to `UNSTAKED` state, which is unrecoverable. Should an unstaked validator want to resume validating the network, they must reapply to Telcoin governance and be re-issued a new `ConsensusNFT`
+## InterchainTEL
 
-### ConsensusRegistry storage layout for genesis
+### Overview
 
-The registry contract uses explicit namespaced storage to sandbox sensitive state by category and prevent potential overwrites during upgrades (it is an upgradeable proxy for testnet +devnet). Namespaced sections are separated by "---" blocks
+The InterchainTEL module is a crucial component of the Telcoin Network, facilitating the seamless conversion between Ethereum's ERC20 TEL and Telcoin Network's native TEL gas currency. This module is integral to the network's interchain bridging flow.
 
-Storage configuration at genesis is generated by recording the storage slots written by simulating deployment of the ConsensusRegistry proxy contract and simulating a call to its `ConsensusRegistry::initialize()` function.
+### Key Features
 
-These simulations are performed by the utility in `script/GenerateConsensusRegistryGenesisConfig.s.sol`, which outputs a yaml file at `deployments/genesis/consensus-registry-config.yaml`. The canonical yaml file is then read by the protocol to include its storage configurations at genesis.
+- **Axelar Interchain Token Service**: Utilizes Axelar's Interchain Token Service (ITS) to manage interchain conversions, integrated as system precompiles in the protocol.
+- **Custom Implementation**: The InterchainTEL token contract is a custom implementation that handles minting and burning of TEL as part of the interchain bridging process.
+- **Security Measures**: Implements Circle Research's recoverable wrapper utility to enforce a timelock on outbound TEL bridging, ensuring legitimate sourcing of TEL.
 
-## InterchainTEL Module
+### Interchain Bridging Process
 
-### Background
+- **Inbound Conversion**: Native TEL is minted on Telcoin Network when TEL is locked or burned on a remote chain.
+- **Outbound Bridging**: TEL is double-wrapped to iTEL for bridging to remote chains, with only settled balances being eligible for bridging.
 
-Because Telcoin-Network uses Telcoin as native gas currency and Telcoin originates from Ethereum mainnet as an ERC20, solutions for nuances specific to the TN protocol have been implemented:
+### Native TEL at Genesis
 
-- Conversion between remote ERC20 TEL and TN's native gas currency as part of interchain bridging flow
-- Decimals handling between remote ERC20 TEL's 2 decimals and native TEL's 18 decimals
-- Ensuring native TEL is available for gas at/after Telcoin-Network genesis to perform transactions
+At network genesis, the total supply of TEL, adjusted for the initial validator set's stake, is allocated to the InterchainTEL module.
 
-To address the above nuances, Telcoin Network utilizes the Axelar Interchain Token Service, integrated to the protocol as system precompiles.
+For more detailed information, please refer to the [design.md](./design.md) file.
 
-For the ITS precompiles to be enabled at genesis, the interchain TEL token contract and its corresponding token manager must also be system precompiles. The interchain TEL token on Telcoin-Network, called InterchainTEL, is a custom implementation handling the three points above, and its token manager, called InterchainTELTokenManager, is a standard ITS `TokenManagerProxy`.
+## Get Involved
 
-To comply with ITS, both InterchainTEL and its accompanying `MINT_BURN` TokenManagerProxy are deployed to the Interchain Token Service's expected `create3` addresses by using the same custom-linked interchain `linkedTokenDeploySalt` and `tokenId` derived by registering Ethereum TEL as a custom interchain token.
+We welcome contributions and feedback from the community. If you're interested in contributing to the Telcoin Network, please refer to our contribution guidelines and join our discussions on governance and protocol improvements.
 
-A general overview of ITS system design can be found [in this README](src/interchain-token-service/README.md) and in Axelar's documentation.
+## License
 
-### Design Decisions
-
-The Interchain Telcoin (iTEL) token contract serves as Telcoin-Network's custom-linked interchain token registered under the Ethereum ERC20 TEL's interchain token ID. InterchainTEL inherits `InterchainTokenStandard` for ITS compliance as well as Circle Research's recoverable wrapper utility to enforce a timelock on bridging outbound TEL to a remote chain.
-
-![Interchain Token Service & InterchainTEL](https://i.imgur.com/pymULlU.png)
-
-The only way to mint native TEL on Telcoin-Network is by locking/burning TEL on a remote chain which passes a valid bridge message through ITS. The reverse is also true: the only way to bridge to remote chains from TN is by wrapping native TEL through wTEL to iTEL which is the ERC20 registered under TEL's interchain token ID.
-
-Because InterchainTEL's token manager is of `MINT_BURN` type, delivery of inbound interchain TEL from a remote chain occurs via InterchainTEL's `mint()` function, and outbound exports of native TEL use its `burn()` function, handling decimal conversion in both cases. To understand InterchainTEL's decimals conversion between ERC20 TEL and native TEL, the ITS TokenHandler and TokenManager contracts are minimally forked to accept return parameters which are then fed to ITS: [TNTokenHandler](../TNTokenHandler) and [TNTokenManager](./TNTokenManager)
-
-In the outbound case, ie bridging native TEL off of Telcoin-Network, TEL must first be double-wrapped to wTEL and then iTEL. For security, the InterchainTEL module enforces that only settled `RecoverableWrapper` token balances may be bridged. Only InterchainTEL balances which have awaited the module's recoverable window are considered settled, which incentivizes usage of the network and provides time-based assurance that all outbound native TEL is sourced legitimately.
-
-#### Native TEL at Genesis
-
-The equivalent of TEL's total supply is provided to the InterchainTEL module as native TEL at network genesis.
-
-While the mirrored total supply of TEL native currency technically "exists" at the InterchainTEL address from network genesis, it is probabilistically inaccessible because the contract's private key cannot be brute forced and thus equivalent to being burned.
+This project is licensed under Apache or MIT License - see the LICENSE files for details.

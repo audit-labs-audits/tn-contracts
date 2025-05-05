@@ -5,9 +5,9 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ReentrancyGuard } from "solady/utils/ReentrancyGuard.sol";
-import { StakeInfo, RewardInfo, Slash, IStakeManager } from "./interfaces/IStakeManager.sol";
+import { StakeInfo, RewardInfo, Slash, IStakeManager } from "../interfaces/IStakeManager.sol";
 import { StakeManager } from "./StakeManager.sol";
-import { IConsensusRegistry } from "./interfaces/IConsensusRegistry.sol";
+import { IConsensusRegistry } from "../interfaces/IConsensusRegistry.sol";
 import { SystemCallable } from "./SystemCallable.sol";
 import { Issuance } from "./Issuance.sol";
 
@@ -20,7 +20,7 @@ import { Issuance } from "./Issuance.sol";
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
 contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, SystemCallable, IConsensusRegistry {
-    uint32 internal currentEpoch; // uint32 provides 3.7e14 years for 24hr epochs
+    uint32 internal currentEpoch;
     uint8 internal epochPointer;
     EpochInfo[4] public epochInfo;
     EpochInfo[4] public futureEpochInfo;
@@ -51,8 +51,6 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), duration));
     }
 
-    /// @notice Not yet enabled during pilot, but scaffolding is included here.
-    /// For the time being, system calls to this fn can provide empty calldata arrays
     /// @inheritdoc IConsensusRegistry
     function applyIncentives(RewardInfo[] calldata rewardInfos) public override onlySystemCall {
         // identify total & individual weight factoring in stake & consensus headers

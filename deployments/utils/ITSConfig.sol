@@ -54,7 +54,6 @@ abstract contract ITSConfig is ITSUtils {
     InterchainTokenFactory sepoliaITF;
     AxelarAmplifierGateway sepoliaGateway;
 
-    //todo: Ethereum
     uint256 public constant telTotalSupply = 100_000_000_000e18;
 
     /// @dev Create3 deployment of ITS requires some deterministic addresses before deployment
@@ -129,66 +128,4 @@ abstract contract ITSConfig is ITSUtils {
         // stored for asserts
         abiEncodedWeightedSigners = abi.encode(weightedSigners);
     }
-
-    /// @notice Transition to testnet handled by updating deployments.json, deploying fresh `testnetTEL` clone of origin TEL
-    function _setUpTestnetConfig(address testnetTEL, address wtel, address itel, address[] memory /*ampdVerifiers*/) internal {
-        // AxelarAmplifierGateway
-        axelarId = TN_CHAIN_NAME;
-        // routerAddress = ; //todo: testnet router
-        telChainId = 0x7e1;
-        domainSeparator = keccak256(abi.encodePacked(axelarId, routerAddress, telChainId));
-        // previousSignersRetention = 16; // todo: 16 signers seems high; 0 means only current signers valid (security)
-        minimumRotationDelay = 86_400;
-        // weight = ; // todo: for testnet handle additional signers
-        // threshold = ; // todo: for testnet increase threshold
-        nonce = bytes32(0x0);
-        // address signer = ; // todo: for testnet increase verifier instances (NVV)
-        // signerArray.push(WeightedSigner(signer, weight));
-        // in memory since nested arrays within custom Solidity structs cannot be copied to storage
-        WeightedSigners memory weightedSigners = WeightedSigners(signerArray, threshold, nonce);
-        WeightedSigners[] memory weightedSignersArray = new WeightedSigners[](1);
-        weightedSignersArray[0] = weightedSigners;
-        // gatewayOperator = ; //todo separate operator
-        gatewaySetupParams = abi.encode(gatewayOperator, weightedSignersArray);
-        // gatewayOwner = ; //todo
-
-        // AxelarGasService
-        // gasCollector = ; // todo: gas sponsorship key
-        // gasValue == ; // todo: measure expected gas
-        // gsOwner = ; //todo
-        gsSetupParams = ""; // note: unused
-
-        // "Ethereum" InterchainTokenService
-        // itsOwner = ; // todo
-        // itsOperator = ; // todo
-        chainName_ = TN_CHAIN_NAME;
-        trustedChainNames.push(ITS_HUB_CHAIN_NAME); // leverage ITS hub to support remote chains
-        trustedAddresses.push(ITS_HUB_ROUTING_IDENTIFIER);
-        itsSetupParams = abi.encode(itsOperator, chainName_, trustedChainNames, trustedAddresses);
-
-        // InterchainTokenFactory
-        // itfOwner = ; // todo: dedicated factory owner
-
-        // iTEL config
-        originTEL = testnetTEL;
-        originChainName_ = TESTNET_SEPOLIA_CHAIN_NAME;
-        symbol_ = "iTEL";
-        name_ = "Interchain Telcoin";
-        // recoverableWindow_ = 604_800; // todo: confirm 1 week
-        // governanceAddress_ = ; // todo: multisig/council/DAO address in prod
-        maxToClean = uint16(300);
-        baseERC20_ = wtel;
-
-        // iTELTokenManager config
-        itelTMType = ITokenManagerType.TokenManagerType.MINT_BURN;
-        tmOperator = AddressBytes.toBytes(governanceAddress_);
-        tokenAddress = itel;
-        params = abi.encode(tmOperator, tokenAddress);
-
-        // stored for asserts
-        abiEncodedWeightedSigners = abi.encode(weightedSigners);
-    }
-    
-    //todo:
-    // function _setUpMainnetConfig() internal {}
 }

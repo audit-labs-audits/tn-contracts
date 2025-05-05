@@ -5,12 +5,12 @@ import { Test, console2 } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IRecoverableWrapper } from "recoverable-wrapper/contracts/interfaces/IRecoverableWrapper.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
-import { WTEL } from "../src/WTEL.sol";
-import { InterchainTEL } from "../src/InterchainTEL.sol";
-import { IInterchainTEL } from "../src/interfaces/IInterchainTEL.sol";
-import { Deployments } from "../deployments/Deployments.sol";
-import { Create3Utils, Salts, ImplSalts } from "../deployments/utils/Create3Utils.sol";
-import { MockTEL, ITSTestHelper } from "./ITS/ITSTestHelper.sol";
+import { WTEL } from "../../src/WTEL.sol";
+import { InterchainTEL } from "../../src/InterchainTEL.sol";
+import { IInterchainTEL } from "../../src/interfaces/IInterchainTEL.sol";
+import { Deployments } from "../../deployments/Deployments.sol";
+import { Create3Utils, Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
+import { MockTEL, ITSTestHelper } from "./ITSTestHelper.sol";
 
 contract InterchainTELTest is Test, ITSTestHelper {
     address admin = address(0xbeef);
@@ -116,7 +116,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         uint256 itelBal = address(iTEL).balance;
         assertEq(itelBal, telTotalSupply);
 
-        vm.startPrank(iTEL.tokenManager());
+        vm.startPrank(iTEL.tokenManagerAddress());
 
         vm.expectEmit(true, true, true, false);
         emit IInterchainTEL.Minted(user, nativeAmount);
@@ -149,9 +149,9 @@ contract InterchainTELTest is Test, ITSTestHelper {
         assertEq(itelBal, telTotalSupply);
         uint256 governanceBal = iTEL.governanceAddress().balance;
 
-        vm.startPrank(iTEL.tokenManager());
+        vm.startPrank(iTEL.tokenManagerAddress());
 
-        bool willRevert = nativeAmount < iTEL.DECIMALS_CONVERTER();
+        bool willRevert = nativeAmount < DECIMALS_CONVERTER;
         if (willRevert) vm.expectRevert();
         (, uint256 remainder) = this.toTwoDecimals(nativeAmount);
 
@@ -173,7 +173,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
     }
 
     function test_burn_revertIfNotTokenManager(uint96 nativeAmount) public {
-        vm.assume(nativeAmount > 0 && nativeAmount >= iTEL.DECIMALS_CONVERTER());
+        vm.assume(nativeAmount > 0 && nativeAmount >= DECIMALS_CONVERTER);
 
         vm.expectRevert();
         iTEL.burn(user, nativeAmount);

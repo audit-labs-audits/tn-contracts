@@ -97,7 +97,6 @@ abstract contract GenesisPrecompiler is Test {
         vm.writeLine(dest, string.concat(targetKey, ":"));
 
         // Write the genesisAccount entry with nonce, balance, and code
-        // vm.writeLine(dest, "  genesisAccount:"); //todo
         vm.writeLine(dest, string.concat("  nonce: ", LibString.toString(nonce)));
         vm.writeLine(dest, string.concat("  balance: ", LibString.toString(balance)));
         vm.writeLine(dest, string.concat("  code: ", LibString.toHexString(account.code)));
