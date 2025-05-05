@@ -22,13 +22,13 @@ contract Issuance {
         _;
     }
 
-    constructor(address stakeManager_, address governance_) {
+    constructor(address stakeManager_) {
         stakeManager = stakeManager_;
     }
 
     /// @notice May only be called by StakeManager as part of claim, unstake or burn flow
     /// @dev Sends `rewardAmount` and forwards `msg.value` if stake amount is additionally provided
-    function distributeStakeReward(address recipient, uint256 rewardAmount) external payable virtual {
+    function distributeStakeReward(address recipient, uint256 rewardAmount) external payable virtual onlyStakeManager {
         uint256 bal = address(this).balance;
         if (bal < rewardAmount) {
             revert InsufficientBalance(bal, rewardAmount);

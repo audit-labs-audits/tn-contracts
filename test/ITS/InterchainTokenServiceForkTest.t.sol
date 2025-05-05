@@ -438,15 +438,17 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
             deployments.its.InterchainTELTokenManager
         );
 
-        /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
+        /// @notice Axelar Hub performs decimal conversion of interchain TEL to native TEL
+        uint256 decimalConvertedAmt = toEighteenDecimals(amount);
         payload = abi.encode(
             MESSAGE_TYPE_INTERCHAIN_TRANSFER,
             iTEL.interchainTokenId(),
             AddressBytes.toBytes(user),
             AddressBytes.toBytes(recipient),
-            amount,
+            decimalConvertedAmt,
             ""
         );
+        /// @notice Incoming messages routed via ITS hub are in wrapped `RECEIVE_FROM_HUB` format
         originChain = DEVNET_SEPOLIA_CHAIN_NAME;
         wrappedPayload = abi.encode(MESSAGE_TYPE_RECEIVE_FROM_HUB, originChain, payload);
 
@@ -487,7 +489,6 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
         its.execute(commandId, sourceChain, sourceAddressString, wrappedPayload);
 
         assertTrue(gateway.isMessageExecuted(sourceChain, messageId));
-        uint256 decimalConvertedAmt = iTEL.toEighteenDecimals(amount);
         assertEq(user.balance, userBalBefore + decimalConvertedAmt);
     }
 
@@ -522,8 +523,7 @@ contract InterchainTokenServiceForkTest is Test, ITSTestHelper {
 
         // attempt outbound transfer without elapsing recoverable window
         vm.startPrank(user);
-        bytes memory nestedErr = abi.encodeWithSignature("Error(string)", "TEL mint failed");
-        vm.expectRevert(abi.encodeWithSelector(IInterchainTokenService.TakeTokenFailed.selector, nestedErr));
+        vm.expectRevert();
         iTEL.interchainTransfer{ value: gasValue }(destinationChain, destAddressBytes, amount, "");
 
         // outbound interchain bridge transfers *MUST* await recoverable window to settle InterchainTEL balance

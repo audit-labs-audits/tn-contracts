@@ -108,18 +108,22 @@ contract InterchainTELTest is Test, ITSTestHelper {
         iTEL.doubleWrap{ value: amount }();
     }
 
-    function testFuzz_mint(uint40 interchainAmount) public {
-        vm.assume(interchainAmount > 0 && interchainAmount < 1e11);
+    function testFuzz_mint(uint96 nativeAmount) public {
+        vm.assume(nativeAmount > 0 && nativeAmount < telTotalSupply);
+
+        uint256 initialRecipientBalance = user.balance;
+        assertEq(initialRecipientBalance, 0);
+        uint256 itelBal = address(iTEL).balance;
+        assertEq(itelBal, telTotalSupply);
 
         vm.startPrank(iTEL.tokenManager());
 
-        uint256 expectedNativeAmount = iTEL.toEighteenDecimals(interchainAmount);
-        uint256 initialRecipientBalance = user.balance;
+        vm.expectEmit(true, true, true, false);
+        emit IInterchainTEL.Minted(user, nativeAmount);
+        iTEL.mint(user, nativeAmount);
 
-        uint256 result = iTEL.mint(user, interchainAmount);
-
-        assertEq(result, expectedNativeAmount);
-        assertEq(user.balance, initialRecipientBalance + expectedNativeAmount);
+        assertEq(user.balance, initialRecipientBalance + nativeAmount);
+        assertEq(address(iTEL).balance, itelBal - nativeAmount);
 
         vm.stopPrank();
     }
@@ -139,25 +143,32 @@ contract InterchainTELTest is Test, ITSTestHelper {
         iTEL.doubleWrap{ value: nativeAmount }();
         vm.warp(block.timestamp + recoverableWindow_);
 
-        vm.startPrank(iTEL.tokenManager());
         uint256 initialBal = iTEL.balanceOf(user);
         assertEq(initialBal, nativeAmount);
+        uint256 itelBal = address(iTEL).balance;
+        assertEq(itelBal, telTotalSupply);
+        uint256 governanceBal = iTEL.governanceAddress().balance;
+
+        vm.startPrank(iTEL.tokenManager());
 
         bool willRevert = nativeAmount < iTEL.DECIMALS_CONVERTER();
         if (willRevert) vm.expectRevert();
-        (uint256 interchainAmount, uint256 remainder) = iTEL.toTwoDecimals(nativeAmount);
+        (, uint256 remainder) = this.toTwoDecimals(nativeAmount);
 
-        if (willRevert) vm.expectRevert();
-        uint256 result = iTEL.burn(user, nativeAmount);
+        if (willRevert) {
+            vm.expectRevert();
+        } else {
+            vm.expectEmit(true, true, true, false);
+            emit IInterchainTEL.Burned(user, nativeAmount);
+        }
+        iTEL.burn(user, nativeAmount);
 
         vm.stopPrank();
 
         if (!willRevert) {
-            assertEq((result * iTEL.DECIMALS_CONVERTER()) + remainder, nativeAmount);
-            assertEq(result, nativeAmount / iTEL.DECIMALS_CONVERTER());
-            assertEq(remainder, nativeAmount % iTEL.DECIMALS_CONVERTER());
-            assertEq(result, interchainAmount);
             assertEq(iTEL.balanceOf(user), 0);
+            assertEq(address(iTEL).balance, itelBal + nativeAmount - remainder);
+            assertEq(iTEL.governanceAddress().balance, governanceBal + remainder);
         }
     }
 
@@ -166,23 +177,6 @@ contract InterchainTELTest is Test, ITSTestHelper {
 
         vm.expectRevert();
         iTEL.burn(user, nativeAmount);
-    }
-
-    function testFuzz_toEighteenDecimals(uint40 interchainAmount) public view {
-        uint256 expected = interchainAmount * iTEL.DECIMALS_CONVERTER();
-        assertEq(iTEL.toEighteenDecimals(interchainAmount), expected);
-    }
-
-    function testFuzz_toTwoDecimals(uint96 nativeAmount) public {
-        bool willRevert = nativeAmount < iTEL.DECIMALS_CONVERTER();
-        if (willRevert) vm.expectRevert();
-        (uint256 interchainAmount, uint256 remainder) = iTEL.toTwoDecimals(nativeAmount);
-
-        if (!willRevert) {
-            assertEq((interchainAmount * iTEL.DECIMALS_CONVERTER()) + remainder, nativeAmount);
-            assertEq(interchainAmount, nativeAmount / iTEL.DECIMALS_CONVERTER());
-            assertEq(remainder, nativeAmount % iTEL.DECIMALS_CONVERTER());
-        }
     }
 
     function test_transfer_zero() public {
@@ -205,7 +199,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         uint256 zeroPK = uint256(keccak256("zero"));
         user = vm.addr(zeroPK);
         bytes memory expectedErr = "Pausable: paused";
-        uint256 amt = 1;
+        uint256 amt = 1e16;
 
         vm.startPrank(iTEL.tokenManagerAddress());
         vm.expectRevert(expectedErr);

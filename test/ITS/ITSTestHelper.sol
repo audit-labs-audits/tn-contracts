@@ -38,6 +38,7 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { InterchainTEL } from "../../src/InterchainTEL.sol";
+import { IInterchainTEL } from "../../src/interfaces/IInterchainTEL.sol";
 import { Salts, ImplSalts } from "../../deployments/utils/Create3Utils.sol";
 import { ITSUtils } from "../../deployments/utils/ITSUtils.sol";
 import { ITS } from "../../deployments/Deployments.sol";
@@ -86,7 +87,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
 
         vm.startPrank(admin);
 
-        // InterchainTEL impl's bytecode is used to fetch devnet tokenID for TNTokenHandler::constructor
+        // InterchainTEL impl's bytecode is used to fetch devnet tokenID
         wTEL = ITSUtils.instantiateWTEL();
         iTEL = ITSUtils.instantiateInterchainTEL(precalculatedITS);
         customLinkedTokenId = iTEL.interchainTokenId();
@@ -99,7 +100,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         interchainTokenImpl = ITSUtils.instantiateInterchainTokenImpl(create3.deployedAddress("", admin, salts.itsSalt));
         itDeployer = ITSUtils.instantiateInterchainTokenDeployer(address(interchainTokenImpl));
         tokenManagerImpl = ITSUtils.instantiateTokenManagerImpl(create3.deployedAddress("", admin, salts.itsSalt));
-        tnTokenHandler = ITSUtils.instantiateTokenHandler(customLinkedTokenId);
+        tokenHandler = ITSUtils.instantiateTokenHandler();
         gasServiceImpl = ITSUtils.instantiateAxelarGasServiceImpl();
         gasService = ITSUtils.instantiateAxelarGasService(address(gasServiceImpl));
         gatewayCaller = ITSUtils.instantiateGatewayCaller(address(gateway), address(gasService));
@@ -110,7 +111,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
             address(gasService),
             create3.deployedAddress("", admin, salts.itfSalt),
             address(tokenManagerImpl),
-            address(tnTokenHandler),
+            address(tokenHandler),
             address(gatewayCaller)
         );
         its = ITSUtils.instantiateITS(address(itsImpl));
@@ -157,6 +158,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         instantiateInterchainTokenImpl(address(its));
         instantiateInterchainTokenDeployer(address(interchainTokenImpl));
         instantiateTokenManagerImpl(address(its));
+        instantiateTokenHandler();
         instantiateAxelarGasServiceImpl();
         instantiateAxelarGasService(address(gasServiceImpl));
         instantiateGatewayCaller(address(gateway), address(gasService));
@@ -167,7 +169,7 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
             address(gasService),
             address(itFactory),
             address(tokenManagerImpl),
-            address(tnTokenHandler),
+            address(tokenHandler),
             address(gatewayCaller)
         );
         instantiateITS(address(itsImpl));
@@ -182,7 +184,6 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
         customLinkedTokenSalt = iTEL.linkedTokenDeploySalt();
         originTELTokenManager = TokenManager(iTEL.tokenManagerAddress());
         customLinkedTokenId = iTEL.interchainTokenId();
-        instantiateTokenHandler(customLinkedTokenId);
         instantiateInterchainTELTokenManager(address(its), customLinkedTokenId);
     }
 
@@ -329,6 +330,20 @@ abstract contract ITSTestHelper is Test, ITSGenesis {
 
     function _getMappingSlot(bytes32 key, bytes32 baseSlot) internal pure returns (bytes32 valueSlot) {
         return keccak256(bytes.concat(key, baseSlot));
+    }
+
+    function toEighteenDecimals(uint256 interchainAmount) public pure returns (uint256) {
+        uint256 nativeAmount = interchainAmount * 1e16;
+        return nativeAmount;
+    }
+
+    function toTwoDecimals(uint256 nativeAmount) public pure returns (uint256, uint256) {
+        uint256 DECIMALS_CONVERTER = 1e16;
+        if (nativeAmount < DECIMALS_CONVERTER) revert IInterchainTEL.InvalidAmount(nativeAmount);
+        uint256 interchainAmount = nativeAmount / DECIMALS_CONVERTER;
+        uint256 remainder = nativeAmount % DECIMALS_CONVERTER;
+
+        return (interchainAmount, remainder);
     }
 
     /// @notice Redeclared event from `IAxelarGMPGateway` for asserts

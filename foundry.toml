@@ -32,9 +32,5 @@ number_underscore = "thousands"
 quote_style = "double"
 tab_width = 4
 wrap_comments = true
-ignore = [
-    "src/interchain-token-service/TNTokenHandler.sol",
-    "src/interchain-token-service/TokenHandler.sol",
-]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

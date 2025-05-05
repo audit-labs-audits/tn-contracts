@@ -9,6 +9,8 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { Ownable } from "solady/auth/Ownable.sol";
 
 interface IInterchainTEL {
+    event Minted(address indexed to, uint256 indexed nativeAmount);
+    event Burned(address indexed from, uint256 indexed nativeAmount);
     event RemainderTransferFailed(address indexed to, uint256 amount);
     event GovernanceTransferStarted(address indexed currentGovernance, address indexed pendingGovernance);
     event GovernanceTransferred(address indexed previousGovernance, address indexed newGovernance);
@@ -60,22 +62,18 @@ interface IInterchainTEL {
     /// of `MESSAGE_TYPE_INTERCHAIN_TRANSFER` headers, which delegatecalls `TokenHandler::giveToken()`
     function isMinter(address addr) external view returns (bool);
 
-    /// @notice TN equivalent of `IERC20MintableBurnable::burn()` handling cross chain `ERC20::decimals` and native TEL
-    /// @dev Mints native TEL to `to`, returning the converted native decimal amount
-    /// @return _ The native TEL amount converted to 18 decimals from the 2 of ERC20 TEL on remote chains
-    function mint(address to, uint256 originAmount) external returns (uint256);
+    /// @notice InterchainTEL implementation for ITS Token Manager's mint API
+    /// @dev Mints native TEL to `to` using converted native amount handled by Axelar Hub
+    /// @dev Axelar Hub decimal handling info can be found here:
+    /// https://github.com/axelarnetwork/axelar-amplifier/blob/aa956eed0bb48b3b14d20fdc6b93deb129c02bea/contracts/interchain-token-service/src/contract/execute/mod.rs#L260
+    function mint(address to, uint256 originAmount) external;
 
-    /// @notice TN equivalent of `IERC20MintableBurnable::burn()` handling cross chain `ERC20::decimals` and native TEL
-    /// @dev Burns & reclaims native TEL from settled (recoverable) balance, returning origin decimal amount
-    /// @return _ The origin TEL ERC20 amount converted to 2 decimals from the 18 of native & wTEL
-    function burn(address from, uint256 nativeAmount) external returns (uint256);
-
-    /// @notice Handles decimal conversion of remote ERC20 TEL to native TEL
-    function toEighteenDecimals(uint256 erc20TELAmount) external pure returns (uint256);
-
-    /// @notice Handles decimal conversion of native TEL to remote ERC20 TEL
-    /// @notice Excess native TEL remainder from truncating 16 decimals is refunded to the user for future gas usage
-    function toTwoDecimals(uint256 nativeTELAmount) external pure returns (uint256, uint256);
+    /// @notice InterchainTEL implementation for ITS Token Manager's burn API
+    /// @dev Burns InterchainTEL out of `from`'s settled (recoverable) balance, collecting the unwrapped native TEL
+    /// and forwarding unusable truncated remainders to the governance address before forwarding to Axelar
+    /// @dev Axelar Hub destination chain decimal truncation can be found here:
+    /// https://github.com/axelarnetwork/axelar-amplifier/blob/aa956eed0bb48b3b14d20fdc6b93deb129c02bea/contracts/interchain-token-service/src/contract/execute/interceptors.rs#L228
+    function burn(address from, uint256 nativeAmount) external;
 
     /// @dev Starts the Governance transfer of the contract to a new account. Replaces pending governance if one exists
     /// @notice Setting `newGovernance` to the zero address is allowed; this cancels a pending governance transfer.

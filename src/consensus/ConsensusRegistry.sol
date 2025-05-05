@@ -728,7 +728,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         StakeManagerStorage storage $S = _stakeManagerStorage();
 
         // deploy Issuance contract and set stake storage configs
-        $S.issuance = payable(new Issuance(address(this), owner_));
+        $S.issuance = payable(new Issuance(address(this)));
         $S.versions[0] = genesisConfig_;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
