@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
-import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ReentrancyGuard } from "solady/utils/ReentrancyGuard.sol";
 import { StakeInfo, RewardInfo, Slash, IStakeManager } from "./interfaces/IStakeManager.sol";
@@ -20,15 +19,7 @@ import { Issuance } from "./Issuance.sol";
  * @notice This contract manages consensus validator external keys, staking, and committees
  * @dev This contract should be deployed to a predefined system address for use with system calls
  */
-contract ConsensusRegistry is
-    StakeManager,
-    UUPSUpgradeable,
-    PausableUpgradeable,
-    OwnableUpgradeable,
-    ReentrancyGuard,
-    SystemCallable,
-    IConsensusRegistry
-{
+contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, SystemCallable, IConsensusRegistry {
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.ConsensusRegistry")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant ConsensusRegistryStorageSlot =
@@ -359,7 +350,7 @@ contract ConsensusRegistry is
 
     /// @inheritdoc StakeManager
     function allocateIssuance() external payable override onlyOwner {
-        (bool r, ) = issuance().call{ value: msg.value }("");
+        (bool r,) = issuance().call{ value: msg.value }("");
         require(r, "Impossible condition");
     }
 
@@ -714,7 +705,7 @@ contract ConsensusRegistry is
 
     /**
      *
-     *   upgradeability (devnet, testnet)
+     *   configuration
      *
      */
 
@@ -722,20 +713,17 @@ contract ConsensusRegistry is
     /// comprise the voter committee for the first three epochs, ie `epochInfo[0:2]`
     /// @dev ConsensusRegistry contract must be instantiated at genesis with stake for `initialValidators_`
     /// @dev Only governance delegation is enabled at genesis
-    function initialize(
+    constructor(
         StakeConfig memory genesisConfig_,
         ValidatorInfo[] memory initialValidators_,
         address owner_
     )
-        external
-        initializer
+        Ownable(owner_)
+        StakeManager("ConsensusNFT", "CNFT")
     {
         if (initialValidators_.length == 0 || initialValidators_.length > type(uint24).max) {
-            revert InitializerArityMismatch();
+            revert GenesisArityMismatch();
         }
-
-        __Ownable_init(owner_);
-        __Pausable_init();
 
         StakeManagerStorage storage $S = _stakeManagerStorage();
 
@@ -792,7 +780,6 @@ contract ConsensusRegistry is
             $S.stakeInfo[currentValidator.validatorAddress].tokenId = tokenId;
             $S.stakeInfo[currentValidator.validatorAddress].balance = genesisConfig_.stakeAmount;
             $S.totalSupply++;
-            __ERC721_init("ConsensusNFT", "CNFT");
             _mint(currentValidator.validatorAddress, tokenId);
 
             emit ValidatorActivated(currentValidator);
@@ -813,7 +800,4 @@ contract ConsensusRegistry is
 
         return newVersion;
     }
-
-    /// @notice Only the owner may perform an upgrade
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 }

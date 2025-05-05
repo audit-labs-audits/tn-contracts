@@ -45,7 +45,7 @@ interface IConsensusRegistry {
     error InvalidBLSPubkey();
     error InvalidValidatorAddress();
     error InvalidProof();
-    error InitializerArityMismatch();
+    error GenesisArityMismatch();
     error InvalidCommitteeSize(uint256 minCommitteeSize, uint256 providedCommitteeSize);
     error CommitteeRequirement(address validatorAddress);
     error NotValidator(address validatorAddress);

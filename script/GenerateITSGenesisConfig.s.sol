@@ -101,8 +101,7 @@ contract GenerateITSGenesisConfig is ITSGenesis, Script {
         assertFalse(yamlAppendGenesisAccount(dest, simulatedWTEL, deployments.wTEL, sharedNonce, sharedBalance));
 
         // iTEL before ITS to fetch token id for TokenHandler::constructor
-        address simulatedInterchainTEL =
-            address(instantiateInterchainTEL(deployments.its.InterchainTokenService));
+        address simulatedInterchainTEL = address(instantiateInterchainTEL(deployments.its.InterchainTokenService));
         assertTrue(
             yamlAppendGenesisAccount(
                 dest, simulatedInterchainTEL, deployments.its.InterchainTEL, sharedNonce, iTELBalance

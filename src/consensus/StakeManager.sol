@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
-import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
 import { StakeInfo, IStakeManager } from "./interfaces/IStakeManager.sol";
 import { Issuance } from "./Issuance.sol";
@@ -14,7 +14,7 @@ import { Issuance } from "./Issuance.sol";
  * @notice This abstract contract provides modular management of consensus validator stake
  * @dev Designed for inheritance by the ConsensusRegistry
  */
-abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
+abstract contract StakeManager is ERC721, EIP712, IStakeManager {
     // keccak256(abi.encode(uint256(keccak256("erc7201.telcoin.storage.StakeManager")) - 1))
     //   & ~bytes32(uint256(0xff))
     bytes32 internal constant StakeManagerStorageSlot =
@@ -28,6 +28,8 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
     bytes32 DELEGATION_TYPEHASH = keccak256(
         "Delegation(bytes32 blsPubkeyHash,address delegator,uint24 tokenId,uint8 validatorVersion,uint64 nonce)"
     );
+
+    constructor(string memory name, string memory symbol) ERC721("ConsensusNFT", "CNFT") { }
 
     /// @inheritdoc IStakeManager
     function stake(bytes calldata blsPubkey) external payable virtual;

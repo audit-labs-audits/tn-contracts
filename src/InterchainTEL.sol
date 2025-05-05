@@ -304,7 +304,6 @@ contract InterchainTEL is IInterchainTEL, RecoverableWrapper, InterchainTokenSta
         _unpause();
     }
 
-
     /// @inheritdoc IInterchainTEL
     function transferGovernance(address newGovernance) external virtual override governanceOnly {
         _pendingGovernance = newGovernance;
