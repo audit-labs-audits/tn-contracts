@@ -8,9 +8,9 @@ This Telcoin Network smart contracts repository contains various system and stan
 
 This repository does not use Foundry git submodules due to dependencies that do not properly support them. Instead of the `lib` directory, all dependencies are kept in `node_modules`
 
-To install, use Node version >= 18.
+Requires Node version >= 18, which can be installed like so:
 
-`nvm use 18`
+`nvm install 18`
 
 And then install using `npm`, note that `yarn` will throw an error because the yarn package manager has removed Circle Research's `RecoverableWrapper`.
 
