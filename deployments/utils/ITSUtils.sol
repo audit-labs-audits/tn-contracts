@@ -36,8 +36,6 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ERC20 } from "solady/tokens/ERC20.sol";
 import { WTEL } from "../../src/WTEL.sol";
 import { InterchainTEL } from "../../src/InterchainTEL.sol";
-import { TNTokenManager } from "../../src/interchain-token-service/TNTokenManager.sol";
-import { TNTokenHandler } from "../../src/interchain-token-service/TNTokenHandler.sol";
 import { Create3Utils, Salts, ImplSalts } from "./Create3Utils.sol";
 
 abstract contract ITSUtils is Create3Utils {
@@ -62,8 +60,8 @@ abstract contract ITSUtils is Create3Utils {
     InterchainTokenService its; // InterchainProxy
     InterchainTokenFactory itFactoryImpl;
     InterchainTokenFactory itFactory; // InterchainProxy
-    TNTokenHandler tnTokenHandler;
-    TNTokenManager tokenManagerImpl;
+    TokenHandler tokenHandler;
+    TokenManager tokenManagerImpl;
     TokenManager iTELTokenManager;
 
     // Telcoin Network contracts
@@ -184,16 +182,15 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function instantiateTokenManagerImpl(address its_) public virtual returns (TNTokenManager tmImpl) {
+    function instantiateTokenManagerImpl(address its_) public virtual returns (TokenManager tmImpl) {
         bytes memory tmConstructorArgs = abi.encode(its_);
-        tmImpl = TNTokenManager(
-            create3Deploy(create3, type(TNTokenManager).creationCode, tmConstructorArgs, implSalts.tmImplSalt)
+        tmImpl = TokenManager(
+            create3Deploy(create3, type(TokenManager).creationCode, tmConstructorArgs, implSalts.tmImplSalt)
         );
     }
 
-    function instantiateTokenHandler(bytes32 linkedTokenId_) public virtual returns (TNTokenHandler th) {
-        bytes memory thConstructorArgs = abi.encode(linkedTokenId_);
-        th = TNTokenHandler(create3Deploy(create3, type(TNTokenHandler).creationCode, thConstructorArgs, salts.thSalt));
+    function instantiateTokenHandler() public virtual returns (TokenHandler th) {
+        th = TokenHandler(create3Deploy(create3, type(TokenHandler).creationCode, "", salts.thSalt));
     }
 
     function instantiateAxelarGasServiceImpl()
@@ -327,9 +324,9 @@ abstract contract ITSUtils is Create3Utils {
         );
     }
 
-    function instantiateInterchainTELTokenManager(address its_, bytes32 customLinkedTokenId_) public virtual returns (TNTokenManager itelTM) {        
+    function instantiateInterchainTELTokenManager(address its_, bytes32 customLinkedTokenId_) public virtual returns (TokenManager itelTM) {        
         bytes memory itelTMConstructorArgs = abi.encode(its_, uint256(itelTMType), customLinkedTokenId_, params);
-        itelTM = TNTokenManager(
+        itelTM = TokenManager(
             create3Deploy(create3, type(TokenManagerProxy).creationCode, itelTMConstructorArgs, salts.itelTMSalt)
         );
     }

@@ -206,39 +206,31 @@ contract InterchainTEL is
      */
 
     /// @inheritdoc IInterchainTEL
-    function mint(
-        address to,
-        uint256 interchainAmount
-    )
-        external
-        virtual
-        override
-        whenNotPaused
-        onlyTokenManager
-        returns (uint256)
-    {
-        uint256 nativeAmount = toEighteenDecimals(interchainAmount);
-
+    function mint(address to, uint256 nativeAmount) external virtual override whenNotPaused onlyTokenManager {
         (bool r,) = to.call{ value: nativeAmount }("");
         if (!r) revert MintFailed(to, nativeAmount);
 
-        return nativeAmount;
+        emit Minted(to, nativeAmount);
     }
 
     /// @inheritdoc IInterchainTEL
-    function burn(address from, uint256 nativeAmount) external virtual override onlyTokenManager returns (uint256) {
+    function burn(address from, uint256 nativeAmount) external virtual override onlyTokenManager {
+        // cannot bridge an amount that will be less than 0 TEL on remote chains
+        if (nativeAmount < DECIMALS_CONVERTER) revert InvalidAmount(nativeAmount);
         // burn from settled balance only, reverts if paused
         _burn(from, nativeAmount);
         // reclaim native TEL to maintain integrity of iTEL <> wTEL <> TEL ledgers
         WETH(payable(address(baseERC20))).withdraw(nativeAmount);
 
-        (uint256 interchainAmount, uint256 remainder) = toTwoDecimals(nativeAmount);
+        // pre-truncate before leaving TN even though Axelar Hub does it to avoid destroying remainder
+        uint256 remainder = nativeAmount % DECIMALS_CONVERTER;
+        if (remainder != 0) {
+            // do not revert bridging if forwarding truncated unbridgeable amount fails
+            (bool r,) = governanceAddress.call{ value: remainder }("");
+            if (!r) emit RemainderTransferFailed(from, remainder);
+        }
 
-        // do not revert bridging if forwarding truncated unbridgeable amount fails
-        (bool r,) = governanceAddress.call{ value: remainder }("");
-        if (!r) emit RemainderTransferFailed(from, remainder);
-
-        return interchainAmount;
+        emit Burned(from, nativeAmount);
     }
 
     /// @inheritdoc IInterchainTEL
@@ -246,21 +238,6 @@ contract InterchainTEL is
         if (addr == tokenManagerAddress()) return true;
 
         return false;
-    }
-
-    /// @inheritdoc IInterchainTEL
-    function toEighteenDecimals(uint256 interchainAmount) public pure returns (uint256) {
-        uint256 nativeAmount = interchainAmount * DECIMALS_CONVERTER;
-        return nativeAmount;
-    }
-
-    /// @inheritdoc IInterchainTEL
-    function toTwoDecimals(uint256 nativeAmount) public pure returns (uint256, uint256) {
-        if (nativeAmount < DECIMALS_CONVERTER) revert InvalidAmount(nativeAmount);
-        uint256 interchainAmount = nativeAmount / DECIMALS_CONVERTER;
-        uint256 remainder = nativeAmount % DECIMALS_CONVERTER;
-
-        return (interchainAmount, remainder);
     }
 
     /// @inheritdoc IInterchainTEL

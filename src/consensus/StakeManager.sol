@@ -140,6 +140,22 @@ abstract contract StakeManager is ERC721Upgradeable, EIP712, IStakeManager {
         revert NotTransferable();
     }
 
+    /// @notice Wouldn't do anything because transfers are disabled but explicitly disallow anyway
+    function approve(address, /*to*/ uint256 /*tokenId*/ ) public virtual override {
+        revert NotTransferable();
+    }
+
+    /// @notice Read-only mechanism
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        _requireOwned(tokenId);
+
+        return _baseURI();
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return ""; // TEL svg
+    }
+
     /// @inheritdoc IStakeManager
     function totalSupply() public view virtual override returns (uint256) {
         return _stakeManagerStorage().totalSupply;

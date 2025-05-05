@@ -359,7 +359,8 @@ contract ConsensusRegistry is
 
     /// @inheritdoc StakeManager
     function allocateIssuance() external payable override onlyOwner {
-        issuance().call{ value: msg.value }("");
+        (bool r,) = issuance().call{ value: msg.value }("");
+        r;
     }
 
     /**
@@ -739,7 +740,7 @@ contract ConsensusRegistry is
         StakeManagerStorage storage $S = _stakeManagerStorage();
 
         // deploy Issuance contract and set stake storage configs
-        $S.issuance = payable(new Issuance(address(this), owner_));
+        $S.issuance = payable(new Issuance(address(this)));
         $S.versions[0] = genesisConfig_;
 
         ConsensusRegistryStorage storage $C = _consensusRegistryStorage();
