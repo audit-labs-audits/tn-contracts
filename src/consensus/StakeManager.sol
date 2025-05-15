@@ -236,14 +236,6 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
         return recipient;
     }
 
-    /// @dev Reverts if provided claimant isn't the existing delegation entry keyed under `validatorAddress`
-    function _checkKnownDelegation(address validatorAddress, address claimant) internal view returns (address) {
-        address delegator = delegations[validatorAddress].delegator;
-        if (claimant != delegator) revert NotDelegator(claimant);
-
-        return delegator;
-    }
-
     /// @dev Reverts if the provided address doesn't correspond to an existing `tokenId` owned by `validatorAddress`
     function _checkConsensusNFTOwner(address validatorAddress) internal view returns (uint24) {
         uint24 tokenId = _getTokenId(validatorAddress);

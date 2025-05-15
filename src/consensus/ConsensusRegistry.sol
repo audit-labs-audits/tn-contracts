@@ -245,8 +245,8 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         uint8 validatorVersion = validators[tokenId].stakeVersion;
 
         // require caller is either the validator or its delegator
-        address recipient = validatorAddress;
-        if (msg.sender != validatorAddress) recipient = _checkKnownDelegation(validatorAddress, msg.sender);
+        address recipient = _getRecipient(validatorAddress);
+        if (msg.sender != validatorAddress && msg.sender != recipient) revert NotRecipient(recipient);
         uint256 rewards = _claimStakeRewards(validatorAddress, recipient, validatorVersion);
 
         emit RewardsClaimed(recipient, rewards);
@@ -280,9 +280,8 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         uint24 tokenId = _checkConsensusNFTOwner(validatorAddress);
 
         // require caller is either the validator or its delegator
-        address recipient = validatorAddress;
-        if (msg.sender != validatorAddress) recipient = _checkKnownDelegation(validatorAddress, msg.sender);
-
+        address recipient = _getRecipient(validatorAddress);
+        if (msg.sender != validatorAddress && msg.sender != recipient) revert NotRecipient(recipient);
         // require validator status is `Exited`
         _checkValidatorStatus(tokenId, ValidatorStatus.Exited);
 
