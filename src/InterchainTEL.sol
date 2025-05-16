@@ -105,7 +105,6 @@ contract InterchainTEL is IInterchainTEL, RecoverableWrapper, InterchainTokenSta
         bytes32 s
     )
         external
-        payable
         virtual
     {
         if (amount == 0) revert MintFailed(owner, amount);
