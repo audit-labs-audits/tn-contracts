@@ -103,6 +103,8 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
                 // eject validators whose balance would reach 0
                 _consensusBurn(tokenId, slash.validatorAddress);
             }
+
+            emit ValidatorSlashed(slash);
         }
     }
 

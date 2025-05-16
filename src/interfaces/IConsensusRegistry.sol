@@ -51,6 +51,7 @@ interface IConsensusRegistry {
     event ValidatorPendingExit(ValidatorInfo validator);
     event ValidatorExited(ValidatorInfo validator);
     event ValidatorRetired(ValidatorInfo validator);
+    event ValidatorSlashed(Slash slash);
     event NewEpoch(EpochInfo epoch);
     event RewardsClaimed(address claimant, uint256 rewards);
 
