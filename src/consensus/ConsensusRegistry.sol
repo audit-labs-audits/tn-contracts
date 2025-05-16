@@ -25,6 +25,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     EpochInfo[4] public epochInfo;
     EpochInfo[4] public futureEpochInfo;
     mapping(uint24 => ValidatorInfo) public validators;
+    mapping(bytes32 => bool) private usedBLSPubkeys;
 
     /// @dev Signals a validator's pending status until activation/exit to correctly apply incentives
     uint32 internal constant PENDING_EPOCH = type(uint32).max;
@@ -351,6 +352,10 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     )
         internal
     {
+        bytes32 blsPubkeyHash = keccak256(blsPubkey);
+        if (usedBLSPubkeys[blsPubkeyHash]) revert DuplicateBLSPubkey();
+        usedBLSPubkeys[blsPubkeyHash] = true;
+
         ValidatorInfo memory newValidator = ValidatorInfo(
             blsPubkey,
             validatorAddress,
