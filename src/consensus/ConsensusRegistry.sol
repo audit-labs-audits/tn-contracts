@@ -40,14 +40,14 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
      */
 
     /// @inheritdoc IConsensusRegistry
-    function concludeEpoch(address[] calldata newCommittee) external override onlySystemCall {
+    function concludeEpoch(address[] calldata futureCommittee) external override onlySystemCall {
         // update epoch ring buffer info, validator queue
-        (uint32 newEpoch, uint32 duration) = _updateEpochInfo(newCommittee);
-        _updateValidatorQueue(newCommittee, newEpoch);
+        (uint32 newEpoch, uint32 duration, address[] memory newCommittee) = _updateEpochInfo(futureCommittee);
+        _updateValidatorQueue(futureCommittee, newEpoch);
 
         // assert new epoch committee is valid against total now eligible
         ValidatorInfo[] memory newActive = _getValidators(ValidatorStatus.Active);
-        _checkCommitteeSize(newActive.length, newCommittee.length);
+        _checkCommitteeSize(newActive.length, futureCommittee.length);
 
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), duration));
     }
@@ -506,23 +506,23 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     }
 
     /// @dev Stores the number of blocks finalized in previous epoch and the voter committee for the new epoch
-    function _updateEpochInfo(address[] memory newCommittee) internal returns (uint32, uint32) {
+    function _updateEpochInfo(address[] memory futureCommittee) internal returns (uint32, uint32, address[] memory) {
         // cache epoch ring buffer's pointers in memory
         uint8 prevEpochPointer = epochPointer;
         uint8 newEpochPointer = (prevEpochPointer + 1) % 4;
 
         // update new current epoch info
-        address[] storage currentCommittee = futureEpochInfo[newEpochPointer].committee;
+        address[] storage newCommittee = futureEpochInfo[newEpochPointer].committee;
         uint32 newDuration = getCurrentStakeConfig().epochDuration;
-        epochInfo[newEpochPointer] = EpochInfo(currentCommittee, uint64(block.number) + 1, newDuration);
+        epochInfo[newEpochPointer] = EpochInfo(newCommittee, uint64(block.number) + 1, newDuration);
         epochPointer = newEpochPointer;
         uint32 newEpoch = ++currentEpoch;
 
         // update future epoch info
         uint8 twoEpochsInFuturePointer = (newEpochPointer + 2) % 4;
-        futureEpochInfo[twoEpochsInFuturePointer].committee = newCommittee;
+        futureEpochInfo[twoEpochsInFuturePointer].committee = futureCommittee;
 
-        return (newEpoch, newDuration);
+        return (newEpoch, newDuration, newCommittee);
     }
 
     /// @dev Fetch info for a future epoch; two epochs into future are stored

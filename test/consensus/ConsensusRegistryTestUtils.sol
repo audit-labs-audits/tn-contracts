@@ -181,7 +181,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         return committeeSize;
     }
 
-    function _fuzz_createNewCommittee(
+    function _fuzz_createFutureCommittee(
         uint256 numActive,
         uint256 committeeSize
     )
@@ -189,23 +189,23 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         pure
         returns (address[] memory)
     {
-        // reloop to construct `newCommittee` array
-        address[] memory newCommittee = new address[](committeeSize);
+        // reloop to construct `futureCommittee` array
+        address[] memory futureCommittee = new address[](committeeSize);
         uint256 committeeCounter;
         // `tokenId` is 1-indexed
         uint256 index = 1 + uint256(keccak256(abi.encode(committeeSize))) % committeeSize;
         // handle index overflow by wrapping around to first index
         uint256 nonOverflowIndex = 1 + numActive - committeeSize;
         index = index > nonOverflowIndex ? nonOverflowIndex : index;
-        while (committeeCounter < newCommittee.length) {
+        while (committeeCounter < futureCommittee.length) {
             // recreate `validator` address with ConsensusNFT in `setUp()` loop
             address validator = _createRandomAddress(index);
-            newCommittee[committeeCounter] = validator;
+            futureCommittee[committeeCounter] = validator;
             committeeCounter++;
             index++;
         }
 
-        return newCommittee;
+        return futureCommittee;
     }
 
     function _fuzz_createRewardInfos(uint24 numRewardees)

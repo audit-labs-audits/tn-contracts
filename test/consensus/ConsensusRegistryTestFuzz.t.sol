@@ -89,18 +89,21 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         vm.startPrank(sysAddress);
         address[] memory zeroCommittee = new address[](committeeSize);
         consensusRegistry.concludeEpoch(zeroCommittee);
-        address[] memory newCommittee = _fuzz_createNewCommittee(numActive, committeeSize);
+        address[] memory futureCommittee = _fuzz_createFutureCommittee(numActive, committeeSize);
 
         // set the subsequent epoch committee by concluding epoch
         uint32 duration = consensusRegistry.getCurrentEpochInfo().epochDuration;
+        uint32 newEpoch = consensusRegistry.getCurrentEpoch() + 1;
+        address[] memory newCommittee = consensusRegistry.getEpochInfo(newEpoch).committee;
         vm.expectEmit(true, true, true, true);
         emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommittee, uint64(block.number + 1), duration));
-        consensusRegistry.concludeEpoch(newCommittee);
+        consensusRegistry.concludeEpoch(futureCommittee);
 
         // asserts
         uint256 numActiveAfter = consensusRegistry.getValidators(ValidatorStatus.Active).length;
         assertEq(numActiveAfter, numActive);
-        uint32 newEpoch = consensusRegistry.getCurrentEpoch();
+        uint32 returnedEpoch = consensusRegistry.getCurrentEpoch();
+        assertEq(returnedEpoch, newEpoch);
         address[] memory currentCommittee = consensusRegistry.getEpochInfo(newEpoch).committee;
         for (uint256 i; i < currentCommittee.length; ++i) {
             assertEq(currentCommittee[i], initialValidators[i].validatorAddress);
@@ -111,7 +114,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         }
         address[] memory subsequentCommittee = consensusRegistry.getEpochInfo(newEpoch + 2).committee;
         for (uint256 i; i < subsequentCommittee.length; ++i) {
-            assertEq(subsequentCommittee[i], newCommittee[i]);
+            assertEq(subsequentCommittee[i], futureCommittee[i]);
         }
     }
 
