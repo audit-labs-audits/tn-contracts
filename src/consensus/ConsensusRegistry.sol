@@ -514,7 +514,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         // update new current epoch info
         address[] storage currentCommittee = futureEpochInfo[newEpochPointer].committee;
         uint32 newDuration = getCurrentStakeConfig().epochDuration;
-        epochInfo[newEpochPointer] = EpochInfo(currentCommittee, uint64(block.number), newDuration);
+        epochInfo[newEpochPointer] = EpochInfo(currentCommittee, uint64(block.number) + 1, newDuration);
         epochPointer = newEpochPointer;
         uint32 newEpoch = ++currentEpoch;
 
