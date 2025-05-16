@@ -132,11 +132,15 @@ contract InterchainTEL is IInterchainTEL, RecoverableWrapper, InterchainTokenSta
         _totalSupply += amount;
         _accountState[account].nonce++;
         _accountState[account].balance += bytes16Amount;
+
+        emit Transfer(address(0), account, amount);
     }
 
     /// @dev Includes pausability for unwrapping, incl outbound bridging
     function _burn(address account, uint256 amount) internal virtual override whenNotPaused {
         super._burn(account, amount);
+
+        emit Transfer(account, address(0), amount);
     }
 
     /// @inheritdoc IInterchainTEL
