@@ -283,8 +283,10 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         // require caller is either the validator or its delegator
         address recipient = _getRecipient(validatorAddress);
         if (msg.sender != validatorAddress && msg.sender != recipient) revert NotRecipient(recipient);
-        // require validator status is `Exited`
-        _checkValidatorStatus(tokenId, ValidatorStatus.Exited);
+
+        // stake originator can only reclaim stake pre-activation or after exiting
+        ValidatorStatus status = validators[tokenId].currentStatus;
+        if (status != ValidatorStatus.Staked && status != ValidatorStatus.Exited) revert InvalidStatus(status);
 
         // permanently retire the validator and burn the ConsensusNFT
         ValidatorInfo storage validator = validators[tokenId];
@@ -485,8 +487,9 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     }
 
     function _consensusBurn(uint24 tokenId, address validatorAddress) internal {
-        // mark `validatorAddress` as spent using `UNSTAKED`
+        // mark `validatorAddress` as spent using `UNSTAKED` and wipe balance
         stakeInfo[validatorAddress].tokenId = UNSTAKED;
+        stakeInfo[validatorAddress].balance = 0;
 
         // reverts if decremented committee size after ejection reaches 0, preventing network halt
         uint256 numEligible = _getValidators(ValidatorStatus.Active).length;

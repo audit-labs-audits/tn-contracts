@@ -18,7 +18,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
         sysAddress = consensusRegistry.SYSTEM_ADDRESS();
 
-        vm.deal(validator5, 100_000_000 ether);
+        vm.deal(validator5, stakeAmount_);
 
         // deal issuance contract max TEL supply to test reward distribution
         vm.deal(crOwner, epochIssuance_);
@@ -279,7 +279,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         consensusRegistry.beginExit();
     }
 
-    function test_unstake() public {
+    function test_unstake_exited() public {
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length;
 
         vm.deal(address(consensusRegistry), stakeAmount_ * numActive);
@@ -333,6 +333,30 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         assertEq(finalBalance, stakeAmount_);
     }
 
+    function test_unstake_staked() public {
+        vm.prank(crOwner);
+        uint256 tokenId = 5;
+        consensusRegistry.mint(validator5, tokenId);
+
+        // stake stake but never activate
+        vm.startPrank(validator5);
+        consensusRegistry.stake{ value: stakeAmount_ }(validator5BlsPubkey);
+
+        uint256 initialBalance = validator5.balance;
+        assertEq(initialBalance, 0);
+
+        // unstake to abort activation
+        vm.expectEmit(true, true, true, true);
+        emit RewardsClaimed(validator5, stakeAmount_);
+        consensusRegistry.unstake(validator5);
+
+        vm.stopPrank();
+
+        // validator5 should have reclaimed their stake
+        uint256 finalBalance = validator5.balance;
+        assertEq(finalBalance, stakeAmount_);
+    }
+
     // Test for unstake by a non-validator
     function testRevert_unstake_nonValidator() public {
         address nonValidator = address(0x3);
@@ -346,19 +370,21 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
     }
 
     // Test for unstake by a validator who has not exited
-    function testRevert_unstake_notExited() public {
+    function testRevert_unstake_notStakedOrExited() public {
         vm.prank(crOwner);
         uint256 tokenId = 5;
         consensusRegistry.mint(validator5, tokenId);
 
-        // First stake
-        vm.prank(validator5);
+        // stake and activate
+        vm.startPrank(validator5);
         consensusRegistry.stake{ value: stakeAmount_ }(validator5BlsPubkey);
+        consensusRegistry.activate();
 
         // Attempt to unstake without exiting
-        vm.prank(validator5);
-        vm.expectRevert(abi.encodeWithSelector(InvalidStatus.selector, ValidatorStatus.Staked));
+        vm.expectRevert(abi.encodeWithSelector(InvalidStatus.selector, ValidatorStatus.PendingActivation));
         consensusRegistry.unstake(validator5);
+
+        vm.stopPrank();
     }
 
     // Test for claim by a non-validator
