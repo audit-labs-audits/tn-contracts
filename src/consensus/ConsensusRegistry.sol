@@ -211,7 +211,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
 
         // require validator status is `Undefined`
         _checkValidatorStatus(tokenId, ValidatorStatus.Undefined);
-        uint64 nonce = delegations[validatorAddress].nonce++;
+        uint64 nonce = delegations[validatorAddress].nonce;
         bytes32 blsPubkeyHash = keccak256(blsPubkey);
 
         // governance may utilize white-glove onboarding or offchain agreements
@@ -224,7 +224,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
             }
         }
 
-        delegations[validatorAddress] = Delegation(blsPubkeyHash, msg.sender, tokenId, validatorVersion, nonce);
+        delegations[validatorAddress] = Delegation(blsPubkeyHash, msg.sender, tokenId, validatorVersion, nonce + 1);
         _recordStaked(blsPubkey, validatorAddress, true, validatorVersion, tokenId, stakeAmt);
     }
 
