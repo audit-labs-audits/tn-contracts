@@ -180,26 +180,33 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
         virtual
         returns (uint256)
     {
+        uint232 stakeAmt = versions[validatorVersion].stakeAmount;
+        uint256 rewards = _getRewards(validatorAddress, stakeAmt);
+
         // wipe existing stakeInfo and burn the token
         StakeInfo storage info = stakeInfo[validatorAddress];
         uint232 bal = info.balance;
         info.balance = 0;
-        info.tokenId = UNSTAKED;
         if (--totalSupply == 0) revert InvalidSupply();
         _burn(tokenId);
 
-        // forward stake to recipient through Issuance
-        uint232 stakeAmt = versions[validatorVersion].stakeAmount;
-        uint256 rewards = _getRewards(validatorAddress, stakeAmt);
-        Issuance(issuance).distributeStakeReward{ value: bal }(recipient, rewards);
-
-        // if slashed, consolidate remainder on the Issuance contract
-        if (bal < stakeAmt) {
+        // forward outstanding stake balance to recipient through Issuance
+        uint256 unstakeAmt;
+        if (bal >= stakeAmt) {
+            // recipient is entitled to full initial stake amount and any outstanding rewards
+            unstakeAmt = stakeAmt;
+        } else {
+            // recipient has been slashed below initial stake; only outstanding bal will be sent
+            unstakeAmt = bal;
+            // consolidate remainder on the Issuance contract
             (bool r,) = issuance.call{ value: stakeAmt - bal }("");
             r;
         }
 
-        return bal + rewards;
+        // send `bal` if `rewards == 0`, or `stakeAmt` with nonzero `rewards` added from Issuance's balance
+        Issuance(issuance).distributeStakeReward{ value: unstakeAmt }(recipient, rewards);
+
+        return unstakeAmt + rewards;
     }
 
     function _checkRewards(address validatorAddress, uint8 validatorVersion) internal virtual returns (uint232) {
