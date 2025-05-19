@@ -41,15 +41,24 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
 
     /// @inheritdoc IConsensusRegistry
     function concludeEpoch(address[] calldata futureCommittee) external override onlySystemCall {
+        // ensure future committee is sorted
+        _enforceSorting(futureCommittee);
+
         // update epoch ring buffer info, validator queue
         (uint32 newEpoch, uint32 duration, address[] memory newCommittee) = _updateEpochInfo(futureCommittee);
         _updateValidatorQueue(futureCommittee, newEpoch);
 
-        // assert new epoch committee is valid against total now eligible
+        // assert future epoch committee is valid against total now eligible
         ValidatorInfo[] memory newActive = _getValidators(ValidatorStatus.Active);
         _checkCommitteeSize(newActive.length, futureCommittee.length);
 
         emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), duration));
+    }
+
+    function _enforceSorting(address[] calldata futureCommittee) internal pure {
+        for (uint256 i; i < futureCommittee.length - 1; ++i) {
+            if (futureCommittee[i] >= futureCommittee[i + 1]) revert CommitteeRequirement(futureCommittee[i]);
+        }
     }
 
     /// @inheritdoc IConsensusRegistry

@@ -9,10 +9,10 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     ConsensusRegistry public consensusRegistry;
 
     address public crOwner = address(0xc0ffee);
-    address public validator1 = _createRandomAddress(1);
-    address public validator2 = _createRandomAddress(2);
-    address public validator3 = _createRandomAddress(3);
-    address public validator4 = _createRandomAddress(4);
+    address public validator1 = _addressFromSeed(1);
+    address public validator2 = _addressFromSeed(2);
+    address public validator3 = _addressFromSeed(3);
+    address public validator4 = _addressFromSeed(4);
 
     ValidatorInfo validatorInfo1;
     ValidatorInfo validatorInfo2;
@@ -24,7 +24,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     address public sysAddress;
 
     // non-genesis validator for testing
-    address public validator5 = _createRandomAddress(5);
+    address public validator5 = _addressFromSeed(5);
     bytes public validator5BlsPubkey = _createRandomBlsPubkey(5);
 
     uint256 public telMaxSupply = 100_000_000_000 ether;
@@ -65,7 +65,20 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         return initialValidators;
     }
 
-    function _createRandomAddress(uint256 seed) internal pure returns (address) {
+    function _sortAddresses(address[] memory arr) internal pure {
+        uint256 length = arr.length;
+        for (uint256 i; i < length; i++) {
+            for (uint256 j; j < length - 1; j++) {
+                if (arr[j] > arr[j + 1]) {
+                    address temp = arr[j];
+                    arr[j] = arr[j + 1];
+                    arr[j + 1] = temp;
+                }
+            }
+        }
+    }
+
+    function _addressFromSeed(uint256 seed) internal pure returns (address) {
         return address(uint160(uint256(keccak256(abi.encode(seed)))));
     }
 
@@ -78,7 +91,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         for (uint256 i; i < numValidators; ++i) {
             // account for initial validators
             uint256 tokenId = i + 5;
-            address newValidator = _createRandomAddress(tokenId);
+            address newValidator = _addressFromSeed(tokenId);
 
             // deal `stakeAmount` funds and prank governance NFT mint to `newValidator`
             vm.deal(newValidator, stakeAmount_);
@@ -113,7 +126,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         uint256 counter;
         for (uint256 i; i < numValidators; ++i) {
             uint256 tokenId = tokenIds[i];
-            address validatorToBurn = _createRandomAddress(tokenId);
+            address validatorToBurn = _addressFromSeed(tokenId);
 
             // skip burning two committee members
             if (validatorToBurn == skipper || validatorToBurn == skippy) {
@@ -138,7 +151,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         for (uint256 i; i < numValidators; ++i) {
             // recreate `newValidator`, accounting for initial validators
             uint256 tokenId = i + 5;
-            address newValidator = _createRandomAddress(tokenId);
+            address newValidator = _addressFromSeed(tokenId);
 
             // create random new validator keys
             bytes memory newBLSPubkey = _createRandomBlsPubkey(tokenId);
@@ -154,7 +167,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         for (uint256 i; i < numValidators; ++i) {
             // recreate `newValidator`, accounting for initial validators
             uint256 tokenId = i + 5;
-            address newValidator = _createRandomAddress(tokenId);
+            address newValidator = _addressFromSeed(tokenId);
 
             vm.prank(newValidator);
             consensusRegistry.activate();
@@ -199,13 +212,27 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         index = index > nonOverflowIndex ? nonOverflowIndex : index;
         while (committeeCounter < futureCommittee.length) {
             // recreate `validator` address with ConsensusNFT in `setUp()` loop
-            address validator = _createRandomAddress(index);
+            address validator = _addressFromSeed(index);
             futureCommittee[committeeCounter] = validator;
             committeeCounter++;
             index++;
         }
 
+        _sortAddresses(futureCommittee);
+
         return futureCommittee;
+    }
+
+    function _createTokenIdCommittee(uint256 committeeSize) internal pure returns (address[] memory) {
+        address[] memory committee = new address[](committeeSize);
+        for (uint256 i; i < committee.length; ++i) {
+            // create dummy `validator` address equivalent to their `tokenId`
+            uint256 tokenId = i + 1;
+            address validator = address(uint160(tokenId));
+            committee[i] = validator;
+        }
+
+        return committee;
     }
 
     function _fuzz_createRewardInfos(uint24 numRewardees)
@@ -216,7 +243,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
         RewardInfo[] memory rewardInfos = new RewardInfo[](numRewardees);
         uint256 totalWeight;
         for (uint256 i; i < numRewardees; ++i) {
-            address rewardee = _createRandomAddress(i + 1);
+            address rewardee = _addressFromSeed(i + 1);
             // 0-10000 is reasonable range of consensus blocks leaders can authorize per epoch
             uint256 uniqueSeed = i + numRewardees;
             uint232 consensusHeaderCount = uint232(uint256(keccak256(abi.encode(uniqueSeed))) % 10_000);

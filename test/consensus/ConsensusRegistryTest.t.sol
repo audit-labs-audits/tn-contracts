@@ -93,7 +93,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         uint256 tokenId = 5;
         uint256 validator5PrivateKey = 5;
         validator5 = vm.addr(validator5PrivateKey);
-        address delegator = _createRandomAddress(42);
+        address delegator = _addressFromSeed(42);
         vm.deal(delegator, stakeAmount_);
 
         consensusRegistry.mint(validator5, tokenId);
@@ -165,7 +165,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             )
         );
         vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](activeValidators.length));
+        consensusRegistry.concludeEpoch(_createTokenIdCommittee(activeValidators.length));
         vm.stopPrank();
 
         // Check validator information
@@ -210,7 +210,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         uint256 numActiveBefore = consensusRegistry.getValidators(ValidatorStatus.Active).length;
 
         vm.prank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](numActiveBefore));
+        consensusRegistry.concludeEpoch(_createTokenIdCommittee(numActiveBefore));
 
         assertEq(consensusRegistry.getValidators(ValidatorStatus.PendingExit).length, 0);
 
@@ -240,8 +240,8 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
         // Finalize epoch twice to reach exit epoch
         vm.startPrank(sysAddress);
-        consensusRegistry.concludeEpoch(new address[](4));
-        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(_createTokenIdCommittee(4));
+        consensusRegistry.concludeEpoch(_createTokenIdCommittee(4));
         vm.stopPrank();
 
         assertEq(consensusRegistry.getValidators(ValidatorStatus.PendingExit).length, 0);
@@ -291,13 +291,14 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
         // validators pending exit are only exited after elapsing 3 epochs without committee service
         vm.startPrank(sysAddress);
-        address[] memory makeValidator1Wait = new address[](numActive);
-        makeValidator1Wait[0] = validator1;
+        address[] memory makeValidator1Wait = _createTokenIdCommittee(numActive);
+        makeValidator1Wait[makeValidator1Wait.length - 1] = validator1;
         consensusRegistry.concludeEpoch(makeValidator1Wait);
-        // conclude epoch twice with empty committee to simulate protocol-determined exit
-        address[] memory zeroCommittee = new address[](numActive);
-        consensusRegistry.concludeEpoch(zeroCommittee);
-        consensusRegistry.concludeEpoch(zeroCommittee);
+
+        // conclude epoch twice with placeholder committee to simulate protocol-determined exit
+        address[] memory tokenIdCommittee = _createTokenIdCommittee(numActive);
+        consensusRegistry.concludeEpoch(tokenIdCommittee);
+        consensusRegistry.concludeEpoch(tokenIdCommittee);
 
         // exit occurs on third epoch without validator5 in committee
         uint32 expectedExitEpoch = uint32(consensusRegistry.getCurrentEpoch() + 1);
@@ -315,7 +316,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             )
         );
         uint256 activeAfterExit = numActive - 1;
-        consensusRegistry.concludeEpoch(new address[](activeAfterExit));
+        consensusRegistry.concludeEpoch(_createTokenIdCommittee(activeAfterExit));
         vm.stopPrank();
 
         uint256 initialBalance = validator1.balance;
@@ -437,6 +438,6 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
     // Attempt to call without sysAddress should revert
     function testRevert_concludeEpoch_OnlySystemCall() public {
         vm.expectRevert(abi.encodeWithSelector(SystemCallable.OnlySystemCall.selector, address(this)));
-        consensusRegistry.concludeEpoch(new address[](4));
+        consensusRegistry.concludeEpoch(_createTokenIdCommittee(4));
     }
 }

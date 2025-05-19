@@ -43,7 +43,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
             uint256 tokenId = burnedIds[i];
 
             // recreate validator
-            address burned = _createRandomAddress(tokenId);
+            address burned = _addressFromSeed(tokenId);
 
             assertTrue(consensusRegistry.isRetired(tokenId));
             assertEq(consensusRegistry.balanceOf(burned), 0);
@@ -58,14 +58,14 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
 
         // remint can't be done with same addresses
         vm.expectRevert();
-        consensusRegistry.mint(_createRandomAddress(1), 1);
+        consensusRegistry.mint(_addressFromSeed(1), 1);
 
         // remint with new addresses
         for (uint256 i; i < numValidators; ++i) {
             // account for initial validators
             uint256 tokenId = i + 5;
             uint256 uniqueSeed = tokenId + numValidators;
-            address newValidator = _createRandomAddress(uniqueSeed);
+            address newValidator = _addressFromSeed(uniqueSeed);
 
             // deal `stakeAmount` funds and prank governance NFT mint to `newValidator`
             vm.deal(newValidator, stakeAmount_);
@@ -87,8 +87,8 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         uint256 committeeSize = _fuzz_computeCommitteeSize(numActive, numValidators);
         // conclude epoch to reach activationEpoch for validators entered in stake & activate loop
         vm.startPrank(sysAddress);
-        address[] memory zeroCommittee = new address[](committeeSize);
-        consensusRegistry.concludeEpoch(zeroCommittee);
+        address[] memory tokenIdCommittee = _createTokenIdCommittee(committeeSize);
+        consensusRegistry.concludeEpoch(tokenIdCommittee);
         address[] memory futureCommittee = _fuzz_createFutureCommittee(numActive, committeeSize);
 
         // set the subsequent epoch committee by concluding epoch
@@ -110,7 +110,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         }
         address[] memory nextCommittee = consensusRegistry.getEpochInfo(newEpoch + 1).committee;
         for (uint256 i; i < nextCommittee.length; ++i) {
-            assertEq(nextCommittee[i], zeroCommittee[i]);
+            assertEq(nextCommittee[i], tokenIdCommittee[i]);
         }
         address[] memory subsequentCommittee = consensusRegistry.getEpochInfo(newEpoch + 2).committee;
         for (uint256 i; i < subsequentCommittee.length; ++i) {
