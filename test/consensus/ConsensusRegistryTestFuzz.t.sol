@@ -92,11 +92,15 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         address[] memory futureCommittee = _fuzz_createFutureCommittee(numActive, committeeSize);
 
         // set the subsequent epoch committee by concluding epoch
-        uint32 duration = consensusRegistry.getCurrentEpochInfo().epochDuration;
+        EpochInfo memory epochInfo = consensusRegistry.getCurrentEpochInfo();
         uint32 newEpoch = consensusRegistry.getCurrentEpoch() + 1;
         address[] memory newCommittee = consensusRegistry.getEpochInfo(newEpoch).committee;
         vm.expectEmit(true, true, true, true);
-        emit IConsensusRegistry.NewEpoch(IConsensusRegistry.EpochInfo(newCommittee, uint64(block.number + 1), duration));
+        emit IConsensusRegistry.NewEpoch(
+            IConsensusRegistry.EpochInfo(
+                newCommittee, uint64(block.number + 1), epochInfo.epochIssuance, epochInfo.epochDuration
+            )
+        );
         consensusRegistry.concludeEpoch(futureCommittee);
 
         // asserts

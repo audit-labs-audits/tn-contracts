@@ -29,6 +29,7 @@ interface IConsensusRegistry {
     struct EpochInfo {
         address[] committee;
         uint64 blockHeight;
+        uint232 epochIssuance;
         uint32 epochDuration;
     }
 

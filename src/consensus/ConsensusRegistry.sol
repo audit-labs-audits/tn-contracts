@@ -45,14 +45,15 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         _enforceSorting(futureCommittee);
 
         // update epoch ring buffer info, validator queue
-        (uint32 newEpoch, uint32 duration, address[] memory newCommittee) = _updateEpochInfo(futureCommittee);
+        (uint32 newEpoch, uint232 issuance, uint32 duration, address[] memory newCommittee) =
+            _updateEpochInfo(futureCommittee);
         _updateValidatorQueue(futureCommittee, newEpoch);
 
         // assert future epoch committee is valid against total now eligible
         ValidatorInfo[] memory newActive = _getValidators(ValidatorStatus.Active);
         _checkCommitteeSize(newActive.length, futureCommittee.length);
 
-        emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), duration));
+        emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), issuance, duration));
     }
 
     function _enforceSorting(address[] calldata futureCommittee) internal pure {
@@ -85,7 +86,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         }
 
         // derive and apply validator's weighted share of epoch issuance
-        uint232 epochIssuance = getCurrentStakeConfig().epochIssuance;
+        uint232 epochIssuance = getCurrentEpochInfo().epochIssuance;
         for (uint256 i; i < rewardInfos.length; ++i) {
             if (totalWeight == 0) break;
 
@@ -515,15 +516,20 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     }
 
     /// @dev Stores the number of blocks finalized in previous epoch and the voter committee for the new epoch
-    function _updateEpochInfo(address[] memory futureCommittee) internal returns (uint32, uint32, address[] memory) {
+    function _updateEpochInfo(address[] memory futureCommittee)
+        internal
+        returns (uint32, uint232, uint32, address[] memory)
+    {
         // cache epoch ring buffer's pointers in memory
         uint8 prevEpochPointer = epochPointer;
         uint8 newEpochPointer = (prevEpochPointer + 1) % 4;
 
         // update new current epoch info
         address[] storage newCommittee = futureEpochInfo[newEpochPointer].committee;
-        uint32 newDuration = getCurrentStakeConfig().epochDuration;
-        epochInfo[newEpochPointer] = EpochInfo(newCommittee, uint64(block.number) + 1, newDuration);
+        StakeConfig memory newStakeConfig = getCurrentStakeConfig();
+        epochInfo[newEpochPointer] = EpochInfo(
+            newCommittee, uint64(block.number) + 1, newStakeConfig.epochIssuance, newStakeConfig.epochDuration
+        );
         epochPointer = newEpochPointer;
         uint32 newEpoch = ++currentEpoch;
 
@@ -531,7 +537,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         uint8 twoEpochsInFuturePointer = (newEpochPointer + 2) % 4;
         futureEpochInfo[twoEpochsInFuturePointer].committee = futureCommittee;
 
-        return (newEpoch, newDuration, newCommittee);
+        return (newEpoch, newStakeConfig.epochIssuance, newStakeConfig.epochDuration, newCommittee);
     }
 
     /// @dev Fetch info for a future epoch; two epochs into future are stored
@@ -719,6 +725,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
                 EpochInfo storage epochZero = epochInfo[j];
                 epochZero.committee.push(currentValidator.validatorAddress);
                 epochZero.epochDuration = genesisConfig_.epochDuration;
+                epochZero.epochIssuance = genesisConfig_.epochIssuance;
                 futureEpochInfo[j].committee.push(currentValidator.validatorAddress);
             }
 
