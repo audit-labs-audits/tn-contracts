@@ -497,31 +497,35 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         uint32 current = currentEpoch;
         uint8 currentEpochPointer = epochPointer;
         address[] storage currentCommittee = _getRecentEpochInfo(current, current, currentEpochPointer).committee;
-        _checkCommitteeSize(numEligible, currentCommittee.length - 1);
-        _eject(currentCommittee, validatorAddress);
+        bool ejected = _eject(currentCommittee, validatorAddress);
+        uint256 committeeSize = ejected ? currentCommittee.length - 1 : currentCommittee.length;
+        _checkCommitteeSize(numEligible, committeeSize);
 
         uint32 nextEpoch = current + 1;
         address[] storage nextCommittee = _getFutureEpochInfo(nextEpoch, current, currentEpochPointer).committee;
-        _checkCommitteeSize(numEligible, nextCommittee.length - 1);
-        _eject(nextCommittee, validatorAddress);
+        ejected = _eject(nextCommittee, validatorAddress);
+        committeeSize = ejected ? nextCommittee.length - 1 : nextCommittee.length;
+        _checkCommitteeSize(numEligible, committeeSize);
 
         uint32 subsequentEpoch = current + 2;
         address[] storage subsequentCommittee =
             _getFutureEpochInfo(subsequentEpoch, current, currentEpochPointer).committee;
-        _checkCommitteeSize(numEligible, subsequentCommittee.length - 1);
-        _eject(subsequentCommittee, validatorAddress);
+        ejected = _eject(subsequentCommittee, validatorAddress);
+        committeeSize = ejected ? subsequentCommittee.length - 1 : subsequentCommittee.length;
+        _checkCommitteeSize(numEligible, committeeSize);
     }
 
-    function _eject(address[] storage committee, address validatorAddress) internal {
+    function _eject(address[] storage committee, address validatorAddress) internal returns (bool) {
         uint256 len = committee.length;
         for (uint256 i; i < len; ++i) {
             if (committee[i] == validatorAddress) {
                 committee[i] = committee[len - 1];
                 committee.pop();
 
-                break;
+                return true;
             }
         }
+        return false;
     }
 
     function _consensusBurn(uint24 tokenId, address validatorAddress) internal {
@@ -633,7 +637,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     }
 
     /// @dev Active and pending activation/exit validators are eligible for committee service in next epoch
-    function _eligibleForCommitteeNextEpoch(ValidatorStatus status) internal view returns (bool) {
+    function _eligibleForCommitteeNextEpoch(ValidatorStatus status) internal pure returns (bool) {
         return (
             status == ValidatorStatus.Active || status == ValidatorStatus.PendingExit
                 || status == ValidatorStatus.PendingActivation
