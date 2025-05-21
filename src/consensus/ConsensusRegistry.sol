@@ -613,7 +613,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     /// @dev Checks current committee size against total eligible for committee service in next epoch
     /// @notice Prevents the network from reaching invalid committee state
     function _checkCommitteeSize(uint256 activeOrPending, uint256 committeeSize) internal pure {
-        if (activeOrPending == 0 || committeeSize > activeOrPending) {
+        if (activeOrPending == 0 || committeeSize == 0 || committeeSize > activeOrPending) {
             revert InvalidCommitteeSize(activeOrPending, committeeSize);
         }
     }
