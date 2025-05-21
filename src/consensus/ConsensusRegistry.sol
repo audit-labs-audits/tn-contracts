@@ -53,7 +53,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         ValidatorInfo[] memory newActive = _getValidators(ValidatorStatus.Active);
         _checkCommitteeSize(newActive.length, futureCommittee.length);
 
-        emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), issuance, duration));
+        emit NewEpoch(EpochInfo(newCommittee, uint64(block.number + 1), issuance, duration, stakeVersion));
     }
 
     function _enforceSorting(address[] calldata futureCommittee) internal pure {
@@ -118,6 +118,11 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         }
     }
 
+    /// @inheritdoc IStakeManager
+    function getCurrentStakeVersion() public view override returns (uint8) {
+        return getCurrentEpochInfo().stakeVersion;
+    }
+
     /// @inheritdoc IConsensusRegistry
     function getCurrentEpoch() public view returns (uint32) {
         return currentEpoch;
@@ -180,6 +185,27 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         return _getRewards(validatorAddress, initialStake);
     }
 
+    /// @inheritdoc IStakeManager
+    function delegationDigest(
+        bytes memory blsPubkey,
+        address validatorAddress,
+        address delegator
+    )
+        external
+        view
+        override
+        returns (bytes32)
+    {
+        uint24 tokenId = _checkConsensusNFTOwner(validatorAddress);
+        uint8 stakeVersion = getCurrentEpochInfo().stakeVersion;
+        uint64 nonce = delegations[validatorAddress].nonce;
+        bytes32 blsPubkeyHash = keccak256(blsPubkey);
+        bytes32 structHash =
+            keccak256(abi.encode(DELEGATION_TYPEHASH, blsPubkeyHash, delegator, tokenId, stakeVersion, nonce));
+
+        return _hashTypedData(structHash);
+    }
+
     /**
      *
      *   validators
@@ -191,7 +217,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         if (blsPubkey.length != 96) revert InvalidBLSPubkey();
 
         // require caller is known & whitelisted, having been issued a ConsensusNFT by governance
-        uint8 validatorVersion = stakeVersion;
+        uint8 validatorVersion = getCurrentEpochInfo().stakeVersion;
         uint232 stakeAmt = _checkStakeValue(msg.value, validatorVersion);
         uint24 tokenId = _checkConsensusNFTOwner(msg.sender);
         // require validator has not yet staked
@@ -215,7 +241,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         if (blsPubkey.length != 96) revert InvalidBLSPubkey();
 
         // require caller is known & whitelisted, having been issued a ConsensusNFT by governance
-        uint8 validatorVersion = stakeVersion;
+        uint8 validatorVersion = getCurrentEpochInfo().stakeVersion;
         uint232 stakeAmt = _checkStakeValue(msg.value, validatorVersion);
         uint24 tokenId = _checkConsensusNFTOwner(validatorAddress);
 
@@ -528,7 +554,11 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         address[] storage newCommittee = futureEpochInfo[newEpochPointer].committee;
         StakeConfig memory newStakeConfig = getCurrentStakeConfig();
         epochInfo[newEpochPointer] = EpochInfo(
-            newCommittee, uint64(block.number) + 1, newStakeConfig.epochIssuance, newStakeConfig.epochDuration
+            newCommittee,
+            uint64(block.number) + 1,
+            newStakeConfig.epochIssuance,
+            newStakeConfig.epochDuration,
+            stakeVersion
         );
         epochPointer = newEpochPointer;
         uint32 newEpoch = ++currentEpoch;

@@ -31,6 +31,7 @@ interface IConsensusRegistry {
         uint64 blockHeight;
         uint232 epochIssuance;
         uint32 epochDuration;
+        uint8 stakeVersion;
     }
 
     error LowLevelCallFailure();

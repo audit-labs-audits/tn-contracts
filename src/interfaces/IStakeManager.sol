@@ -106,7 +106,7 @@ interface IStakeManager {
     function getStakeInfo(address validatorAddress) external view returns (StakeInfo memory);
 
     /// @dev Returns the current version
-    function stakeVersion() external view returns (uint8);
+    function getCurrentStakeVersion() external view returns (uint8);
 
     /// @dev Returns the queried stake configuration
     function stakeConfig(uint8 version) external view returns (StakeConfig memory);

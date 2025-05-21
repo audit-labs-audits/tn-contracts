@@ -98,7 +98,11 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         vm.expectEmit(true, true, true, true);
         emit IConsensusRegistry.NewEpoch(
             IConsensusRegistry.EpochInfo(
-                newCommittee, uint64(block.number + 1), epochInfo.epochIssuance, epochInfo.epochDuration
+                newCommittee,
+                uint64(block.number + 1),
+                epochInfo.epochIssuance,
+                epochInfo.epochDuration,
+                epochInfo.stakeVersion
             )
         );
         consensusRegistry.concludeEpoch(futureCommittee);

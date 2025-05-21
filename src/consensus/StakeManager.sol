@@ -17,7 +17,7 @@ import { Issuance } from "./Issuance.sol";
 abstract contract StakeManager is ERC721, EIP712, IStakeManager {
     address payable public issuance;
     uint24 public totalSupply;
-    uint8 public stakeVersion;
+    uint8 internal stakeVersion;
     mapping(uint8 => StakeConfig) internal versions;
     mapping(address => StakeInfo) internal stakeInfo;
     mapping(address => Delegation) internal delegations;
@@ -75,26 +75,6 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
 
     /// @inheritdoc IStakeManager
     function allocateIssuance() external payable virtual override;
-
-    /// @inheritdoc IStakeManager
-    function delegationDigest(
-        bytes memory blsPubkey,
-        address validatorAddress,
-        address delegator
-    )
-        external
-        view
-        override
-        returns (bytes32)
-    {
-        uint24 tokenId = _checkConsensusNFTOwner(validatorAddress);
-        uint64 nonce = delegations[validatorAddress].nonce;
-        bytes32 blsPubkeyHash = keccak256(blsPubkey);
-        bytes32 structHash =
-            keccak256(abi.encode(DELEGATION_TYPEHASH, blsPubkeyHash, delegator, tokenId, stakeVersion, nonce));
-
-        return _hashTypedData(structHash);
-    }
 
     /**
      *

@@ -45,7 +45,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
             }
         }
         assertEq(consensusRegistry.totalSupply(), 4);
-        assertEq(consensusRegistry.stakeVersion(), 0);
+        assertEq(consensusRegistry.getCurrentStakeVersion(), 0);
         assertEq(consensusRegistry.stakeConfig(0).stakeAmount, stakeAmount_);
         assertEq(consensusRegistry.stakeConfig(0).minWithdrawAmount, minWithdrawAmount_);
     }
