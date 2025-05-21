@@ -529,12 +529,17 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         stakeInfo[validatorAddress].tokenId = UNSTAKED;
         stakeInfo[validatorAddress].balance = 0;
 
+        ValidatorInfo storage validator = validators[tokenId];
+        ValidatorStatus status = validator.currentStatus;
         // reverts if decremented committee size after ejection reaches 0, preventing network halt
         uint256 numEligible = _getValidators(ValidatorStatus.Active).length;
+        // if validator being ejected is committee-eligible, ejection will decrement `numEligible`
+        if (_eligibleForCommitteeNextEpoch(status)) {
+            numEligible = numEligible - 1;
+        }
         _ejectFromCommittees(validatorAddress, numEligible);
 
         // exit, retire, and unstake + burn validator immediately
-        ValidatorInfo storage validator = validators[tokenId];
         _exit(validator, currentEpoch);
         _retire(validator);
         address recipient = _getRecipient(validatorAddress);
@@ -627,6 +632,14 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         return false;
     }
 
+    /// @dev Active and pending activation/exit validators are eligible for committee service in next epoch
+    function _eligibleForCommitteeNextEpoch(ValidatorStatus status) internal view returns (bool) {
+        return (
+            status == ValidatorStatus.Active || status == ValidatorStatus.PendingExit
+                || status == ValidatorStatus.PendingActivation
+        );
+    }
+
     /// @notice `Active` queries also include validators pending activation or exit
     /// Because they are eligible for voter committee service in the next epoch
     /// @dev There are ~1000 total MNOs in the world so `SLOAD` loops should not run out of gas
@@ -647,10 +660,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
 
                 // include pending activation/exit due to committee service eligibility in next epoch
                 if (status == ValidatorStatus.Active) {
-                    matchFound = (
-                        currentStatus == ValidatorStatus.Active || currentStatus == ValidatorStatus.PendingExit
-                            || currentStatus == ValidatorStatus.PendingActivation
-                    );
+                    matchFound = _eligibleForCommitteeNextEpoch(currentStatus);
                 } else {
                     // all other queries return only exact matches
                     matchFound = currentStatus == status;
