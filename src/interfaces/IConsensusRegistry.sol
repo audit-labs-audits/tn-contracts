@@ -46,6 +46,7 @@ interface IConsensusRegistry {
     error AlreadyDefined(address validatorAddress);
     error InvalidStatus(ValidatorStatus status);
     error InvalidEpoch(uint32 epoch);
+    error InvalidDuration(uint32 duration);
 
     event ValidatorStaked(ValidatorInfo validator);
     event ValidatorPendingActivation(ValidatorInfo validator);

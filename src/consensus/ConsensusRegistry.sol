@@ -438,9 +438,9 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         emit ValidatorExited(validator);
     }
 
-    /// @notice Permanently retires validator from the network by setting invalid status and index
+    /// @notice Permanently retires validator from the network
     /// @dev Ensures an validator cannot rejoin after exiting + unstaking or after governance ejection
-    /// @dev Rejoining must be done by restarting validator onboarding process
+    /// @dev Rejoining must be done by restarting validator onboarding process with new keys and tokenId
     function _retire(ValidatorInfo storage validator) internal {
         validator.currentStatus = ValidatorStatus.Any;
         validator.isRetired = true;
@@ -706,7 +706,8 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
 
     /// @param initialValidators_ The initial validator set running Telcoin Network; these validators will
     /// comprise the voter committee for the first three epochs, ie `epochInfo[0:2]`
-    /// @dev ConsensusRegistry contract must be instantiated at genesis with stake for `initialValidators_`
+    /// @dev Stake for `initialValidators_` is allocated directly to the ConsensusRegistry balance and
+    /// decremented directly from InterchainTEL within the protocol on the rust side
     /// @dev Only governance delegation is enabled at genesis
     constructor(
         StakeConfig memory genesisConfig_,
@@ -788,6 +789,8 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         whenNotPaused
         returns (uint8)
     {
+        if (newConfig.epochDuration == 0) revert InvalidDuration(newConfig.epochDuration);
+
         uint8 newVersion = ++stakeVersion;
         versions[newVersion] = newConfig;
 
