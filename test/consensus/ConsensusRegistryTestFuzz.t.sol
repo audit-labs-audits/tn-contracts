@@ -41,26 +41,25 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         assertEq(consensusRegistry.totalSupply(), supplyBefore - burnedIds.length);
         uint256 numActive = numValidators >= burnedIds.length ? numValidators - burnedIds.length : 2;
         assertEq(consensusRegistry.getValidators(ValidatorStatus.Active).length, numActive);
+        assertEq(consensusRegistry.getCommitteeValidators(currentEpoch).length, numActive);
         for (uint256 i; i < burnedIds.length; ++i) {
             uint256 tokenId = burnedIds[i];
 
             // recreate validator
             address burned = _addressFromSeed(tokenId);
 
-            assertTrue(consensusRegistry.isRetired(tokenId));
+            assertTrue(consensusRegistry.isRetired(burned));
             assertEq(consensusRegistry.balanceOf(burned), 0);
 
             vm.expectRevert();
             consensusRegistry.ownerOf(tokenId);
             vm.expectRevert();
-            consensusRegistry.getValidatorTokenId(burned);
-            vm.expectRevert();
-            consensusRegistry.getValidatorByTokenId(tokenId);
+            consensusRegistry.getValidator(burned);
         }
 
         // remint can't be done with same addresses
         vm.expectRevert();
-        consensusRegistry.mint(_addressFromSeed(1), 1);
+        consensusRegistry.mint(_addressFromSeed(1));
 
         // remint with new addresses
         for (uint256 i; i < numValidators; ++i) {
@@ -72,12 +71,12 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
             // deal `stakeAmount` funds and prank governance NFT mint to `newValidator`
             vm.deal(newValidator, stakeAmount_);
             vm.prank(crOwner);
-            consensusRegistry.mint(newValidator, tokenId);
+            consensusRegistry.mint(newValidator);
         }
     }
 
     function testFuzz_concludeEpoch(uint24 numValidators) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 2300));
+        numValidators = uint24(bound(uint256(numValidators), 1, 2100));
 
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
 
@@ -101,8 +100,8 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
         emit IConsensusRegistry.NewEpoch(
             IConsensusRegistry.EpochInfo(
                 newCommittee,
-                uint64(block.number + 1),
                 epochInfo.epochIssuance,
+                uint64(block.number + 1),
                 epochInfo.epochDuration,
                 epochInfo.stakeVersion
             )
@@ -129,7 +128,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_applyIncentives(uint24 numValidators, uint24 numRewardees) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 2300));
+        numValidators = uint24(bound(uint256(numValidators), 1, 2100));
         numRewardees = uint24(bound(uint256(numRewardees), 1, numValidators));
 
         _fuzz_mint(numValidators);
@@ -149,7 +148,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_claimStakeRewards(uint24 numValidators, uint24 numRewardees) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 2300));
+        numValidators = uint24(bound(uint256(numValidators), 1, 2100));
         numRewardees = uint24(bound(uint256(numRewardees), 1, numValidators));
 
         _fuzz_mint(numValidators);

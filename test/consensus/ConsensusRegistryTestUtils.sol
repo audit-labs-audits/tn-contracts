@@ -28,10 +28,10 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
     bytes public validator5BlsPubkey = _createRandomBlsPubkey(5);
 
     uint256 public telMaxSupply = 100_000_000_000 ether;
-    uint232 public stakeAmount_ = 1_000_000 ether;
-    uint232 public minWithdrawAmount_ = 1000 ether;
-    uint232 public epochIssuance_ = 714_285_714_285_714_285_714_285;
-    uint32 public epochDuration_ = 24 hours;
+    uint256 public stakeAmount_ = 1_000_000 ether;
+    uint256 public minWithdrawAmount_ = 1000 ether;
+    uint256 public epochIssuance_ = 714_285_714_285_714_285_714_285;
+    uint32 public epochDuration_ = 25 hours;
     // `OZ::ERC721Upgradeable::mint()` supports up to ~14_300 fuzzed mint iterations
     uint256 public MAX_MINTABLE = 14_000;
 
@@ -96,7 +96,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
             // deal `stakeAmount` funds and prank governance NFT mint to `newValidator`
             vm.deal(newValidator, stakeAmount_);
             vm.prank(crOwner);
-            consensusRegistry.mint(newValidator, tokenId);
+            consensusRegistry.mint(newValidator);
         }
     }
 
@@ -246,7 +246,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
             address rewardee = _addressFromSeed(i + 1);
             // 0-10000 is reasonable range of consensus blocks leaders can authorize per epoch
             uint256 uniqueSeed = i + numRewardees;
-            uint232 consensusHeaderCount = uint232(uint256(keccak256(abi.encode(uniqueSeed))) % 10_000);
+            uint256 consensusHeaderCount = uint256(uint256(keccak256(abi.encode(uniqueSeed))) % 10_000);
 
             rewardInfos[i] = RewardInfo(rewardee, consensusHeaderCount);
             totalWeight += stakeAmount_ * consensusHeaderCount;

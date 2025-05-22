@@ -7,7 +7,7 @@ import { LibString } from "solady/utils/LibString.sol";
 import { ConsensusRegistry } from "src/consensus/ConsensusRegistry.sol";
 import { SystemCallable } from "src/consensus/SystemCallable.sol";
 import { StakeManager } from "src/consensus/StakeManager.sol";
-import { StakeInfo, Slash, IStakeManager } from "src/interfaces/IStakeManager.sol";
+import { Slash, IStakeManager } from "src/interfaces/IStakeManager.sol";
 import { InterchainTEL } from "src/InterchainTEL.sol";
 import { ConsensusRegistryTestUtils } from "./ConsensusRegistryTestUtils.sol";
 
@@ -26,23 +26,27 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         consensusRegistry.allocateIssuance{ value: epochIssuance_ }();
     }
 
-    function test_setUp() public {
+    function test_setUp() public view {
         assertEq(consensusRegistry.getCurrentEpoch(), 0);
         ValidatorInfo[] memory active = consensusRegistry.getValidators(ValidatorStatus.Active);
         for (uint256 i; i < 3; ++i) {
             assertEq(active[i].validatorAddress, initialValidators[i].validatorAddress);
-            assertEq(consensusRegistry.getValidatorTokenId(initialValidators[i].validatorAddress), i + 1);
             assertEq(
-                consensusRegistry.getValidatorByTokenId(i + 1).validatorAddress, initialValidators[i].validatorAddress
+                consensusRegistry.getValidator(initialValidators[i].validatorAddress).validatorAddress,
+                active[i].validatorAddress
             );
-            vm.expectRevert();
-            consensusRegistry.isRetired(i + 1);
+            assertFalse(consensusRegistry.isRetired(initialValidators[i].validatorAddress));
 
             EpochInfo memory info = consensusRegistry.getEpochInfo(uint32(i));
             for (uint256 j; j < 4; ++j) {
                 assertEq(info.committee[j], initialValidators[j].validatorAddress);
-                assertEq(consensusRegistry.getStakeInfo(initialValidators[j].validatorAddress).tokenId, j + 1);
+                assertEq(consensusRegistry.getBalance(initialValidators[j].validatorAddress), stakeAmount_);
             }
+        }
+
+        ValidatorInfo[] memory committee = consensusRegistry.getCommitteeValidators(0);
+        for (uint256 i; i < committee.length; ++i) {
+            assertEq(committee[i].validatorAddress, initialValidators[i].validatorAddress);
         }
         assertEq(consensusRegistry.totalSupply(), 4);
         assertEq(consensusRegistry.getCurrentStakeVersion(), 0);
@@ -53,8 +57,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
     // Test for successful staking
     function test_stake() public {
         vm.prank(crOwner);
-        uint256 tokenId = 5;
-        consensusRegistry.mint(validator5, tokenId);
+        consensusRegistry.mint(validator5);
 
         assertEq(consensusRegistry.getValidators(ValidatorStatus.Staked).length, 0);
 
@@ -90,13 +93,12 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
     function test_delegateStake() public {
         vm.prank(crOwner);
-        uint256 tokenId = 5;
         uint256 validator5PrivateKey = 5;
         validator5 = vm.addr(validator5PrivateKey);
         address delegator = _addressFromSeed(42);
         vm.deal(delegator, stakeAmount_);
 
-        consensusRegistry.mint(validator5, tokenId);
+        consensusRegistry.mint(validator5);
 
         // validator signs delegation
         bytes32 structHash = consensusRegistry.delegationDigest(validator5BlsPubkey, validator5, delegator);
@@ -136,8 +138,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
     function test_activate() public {
         vm.prank(crOwner);
-        uint256 tokenId = 5;
-        consensusRegistry.mint(validator5, tokenId);
+        consensusRegistry.mint(validator5);
 
         vm.prank(validator5);
         consensusRegistry.stake{ value: stakeAmount_ }(validator5BlsPubkey);
@@ -195,8 +196,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
     function test_beginExit() public {
         vm.prank(crOwner);
-        uint256 tokenId = 5;
-        consensusRegistry.mint(validator5, tokenId);
+        consensusRegistry.mint(validator5);
 
         // First stake
         vm.prank(validator5);
@@ -259,15 +259,14 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         address nonValidator = address(0x3);
 
         vm.prank(nonValidator);
-        vm.expectRevert(abi.encodeWithSelector(InvalidTokenId.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(InvalidTokenId.selector, _getTokenId(nonValidator)));
         consensusRegistry.beginExit();
     }
 
     // Test for exit by a validator who is not active
     function testRevert_beginExit_notActive() public {
         vm.prank(crOwner);
-        uint256 tokenId = 5;
-        consensusRegistry.mint(validator5, tokenId);
+        consensusRegistry.mint(validator5);
 
         // First stake
         vm.prank(validator5);
@@ -336,8 +335,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
 
     function test_unstake_staked() public {
         vm.prank(crOwner);
-        uint256 tokenId = 5;
-        consensusRegistry.mint(validator5, tokenId);
+        consensusRegistry.mint(validator5);
 
         // stake stake but never activate
         vm.startPrank(validator5);
@@ -363,7 +361,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         address nonValidator = address(0x3);
 
         vm.prank(crOwner);
-        consensusRegistry.mint(nonValidator, 5);
+        consensusRegistry.mint(nonValidator);
 
         vm.prank(nonValidator);
         vm.expectRevert();
@@ -373,8 +371,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
     // Test for unstake by a validator who has not exited
     function testRevert_unstake_notStakedOrExited() public {
         vm.prank(crOwner);
-        uint256 tokenId = 5;
-        consensusRegistry.mint(validator5, tokenId);
+        consensusRegistry.mint(validator5);
 
         // stake and activate
         vm.startPrank(validator5);
@@ -394,7 +391,7 @@ contract ConsensusRegistryTest is ConsensusRegistryTestUtils {
         vm.deal(nonValidator, 10 ether);
 
         vm.prank(nonValidator);
-        vm.expectRevert(abi.encodeWithSelector(InvalidTokenId.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(InvalidTokenId.selector, _getTokenId(nonValidator)));
         consensusRegistry.claimStakeRewards(nonValidator);
     }
 

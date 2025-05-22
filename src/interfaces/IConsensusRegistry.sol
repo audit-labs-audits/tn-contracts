@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity 0.8.26;
 
-import { StakeInfo, RewardInfo, Slash } from "./IStakeManager.sol";
+import { RewardInfo, Slash } from "./IStakeManager.sol";
 
 /**
  * @title ConsensusRegistry Interface
@@ -28,8 +28,8 @@ interface IConsensusRegistry {
     /// @dev Used in two parallel ring buffers offset 2 to store past & future epochs
     struct EpochInfo {
         address[] committee;
+        uint256 epochIssuance;
         uint64 blockHeight;
-        uint232 epochIssuance;
         uint32 epochDuration;
         uint8 stakeVersion;
     }
@@ -122,14 +122,13 @@ interface IConsensusRegistry {
     /// remain eligible for committee service in the next epoch
     function getValidators(ValidatorStatus status) external view returns (ValidatorInfo[] memory);
 
-    /// @dev Fetches the `tokenId` for a given validator validatorAddress
-    function getValidatorTokenId(address validatorAddress) external view returns (uint256);
+    /// @dev Fetches the committee for a given epoch
+    function getCommitteeValidators(uint32 epoch) external view returns (ValidatorInfo[] memory);
 
-    /// @dev Fetches the `ValidatorInfo` for a given ConsensusNFT tokenId
-    /// @notice To enable checks against storage slots initialized to zero by the EVM, `tokenId` cannot be `0`
-    function getValidatorByTokenId(uint256 tokenId) external view returns (ValidatorInfo memory);
+    /// @dev Fetches the `ValidatorInfo` for a given `validatorAddress == ConsensusNFT tokenId`
+    function getValidator(address validatorAddress) external view returns (ValidatorInfo memory);
 
-    /// @dev Returns whether validator associated with `tokenId` is exited && unstaked, ie "retired"
-    /// @notice Retired validators' ConsensusNFTs are burned, so existing tokenIds are invalid
-    function isRetired(uint256 tokenId) external view returns (bool);
+    /// @dev Returns whether a validator is exited && unstaked, ie "retired"
+    /// @notice After retiring, a validator's `tokenId == validatorAddress` cannot be reused
+    function isRetired(address validatorAddress) external view returns (bool);
 }

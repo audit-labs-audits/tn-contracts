@@ -17,7 +17,6 @@
 
 **stake**
 
-- stake balances and rewards can never overflow uint232, even with significant inflation or use of the precision factor
 - the only way to withdraw funds from the ConsensusRegistry and Issuance contract are during reward claim or full validator retirement (stake + rewards)
 - stake configs must take effect in the next epoch, not current
 - consensus burns must never push committees or validator set to invalid state
