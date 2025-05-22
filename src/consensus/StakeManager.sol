@@ -117,6 +117,11 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
         revert NotTransferable();
     }
 
+    /// @notice Wouldn't do anything because transfers are disabled but explicitly disallow anyway
+    function setApprovalForAll(address, /*operator*/ bool /*approved*/ ) public virtual override {
+        revert NotTransferable();
+    }
+
     /// @notice Read-only mechanism, not yet live
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         _requireOwned(tokenId);
@@ -125,7 +130,7 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
-        return ""; // TEL svg
+        return "";
     }
 
     /**
@@ -142,7 +147,7 @@ abstract contract StakeManager is ERC721, EIP712, IStakeManager {
         virtual
         returns (uint232)
     {
-        // check rewards are claimable and send via the InterchainTEL contract
+        // check rewards are claimable and send via the Issuance contract
         uint232 rewards = _checkRewards(validatorAddress, validatorVersion);
         stakeInfo[validatorAddress].balance -= rewards;
         Issuance(issuance).distributeStakeReward(recipient, rewards);

@@ -30,9 +30,6 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
     /// @dev Signals a validator's pending status until activation/exit to correctly apply incentives
     uint32 internal constant PENDING_EPOCH = type(uint32).max;
 
-    /// @dev Addresses precision loss for incentives calculations
-    uint232 internal constant PRECISION_FACTOR = 1e32;
-
     /**
      *
      *   consensus
@@ -85,14 +82,12 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
             weights[i] = weight;
         }
 
+        if (totalWeight == 0) return;
+
         // derive and apply validator's weighted share of epoch issuance
         uint232 epochIssuance = getCurrentEpochInfo().epochIssuance;
         for (uint256 i; i < rewardInfos.length; ++i) {
-            if (totalWeight == 0) break;
-
-            uint232 weight = PRECISION_FACTOR * weights[i] / totalWeight;
-            uint232 rewardAmount = (epochIssuance * weight) / PRECISION_FACTOR;
-
+            uint232 rewardAmount = (epochIssuance * weights[i]) / totalWeight;
             stakeInfo[rewardInfos[i].validatorAddress].balance += rewardAmount;
         }
     }
@@ -472,12 +467,12 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         }
 
         ValidatorInfo[] memory pendingExit = _getValidators(ValidatorStatus.PendingExit);
+        uint8 currentEpochPointer = epochPointer;
+        uint8 nextEpochPointer = (currentEpochPointer + 1) % 4;
+        address[] memory currentCommittee = epochInfo[currentEpochPointer].committee;
+        address[] memory nextCommittee = futureEpochInfo[nextEpochPointer].committee;
         for (uint256 i; i < pendingExit.length; ++i) {
             // skip if validator is in current or either future committee
-            uint8 currentEpochPointer = epochPointer;
-            uint8 nextEpochPointer = (currentEpochPointer + 1) % 4;
-            address[] memory currentCommittee = epochInfo[currentEpochPointer].committee;
-            address[] memory nextCommittee = futureEpochInfo[nextEpochPointer].committee;
             address validatorAddress = pendingExit[i].validatorAddress;
             if (
                 _isCommitteeMember(validatorAddress, currentCommittee)
@@ -678,8 +673,9 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
 
         // trim and return final array
         ValidatorInfo[] memory validatorsMatched = new ValidatorInfo[](numMatches);
-        for (uint256 i; i < numMatches; ++i) {
-            validatorsMatched[i] = untrimmed[i];
+        assembly {
+            mstore(untrimmed, numMatches)
+            validatorsMatched := untrimmed
         }
 
         return validatorsMatched;
@@ -729,6 +725,12 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
         issuance = payable(new Issuance(address(this)));
         versions[0] = genesisConfig_;
 
+        for (uint256 j; j <= 2; ++j) {
+            EpochInfo storage epoch = epochInfo[j];
+            epoch.epochDuration = genesisConfig_.epochDuration;
+            epoch.epochIssuance = genesisConfig_.epochIssuance;
+        }
+
         // set 0th validator placeholder with invalid values for future checks
         validators[0] =
             ValidatorInfo(hex"ff", address(0xff), uint32(0xff), uint32(0xff), ValidatorStatus.Any, true, true, 0xff);
@@ -766,10 +768,7 @@ contract ConsensusRegistry is StakeManager, Pausable, Ownable, ReentrancyGuard, 
 
             // first three epochs use initial validators as committee
             for (uint256 j; j <= 2; ++j) {
-                EpochInfo storage epochZero = epochInfo[j];
-                epochZero.committee.push(currentValidator.validatorAddress);
-                epochZero.epochDuration = genesisConfig_.epochDuration;
-                epochZero.epochIssuance = genesisConfig_.epochIssuance;
+                epochInfo[j].committee.push(currentValidator.validatorAddress);
                 futureEpochInfo[j].committee.push(currentValidator.validatorAddress);
             }
 

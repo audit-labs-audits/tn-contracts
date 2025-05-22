@@ -26,7 +26,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_mintBurn(uint24 numValidators) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 645));
+        numValidators = uint24(bound(uint256(numValidators), 1, 700));
 
         _fuzz_mint(numValidators);
         vm.deal(address(consensusRegistry), stakeAmount_ * (numValidators + 5)); // provide funds
@@ -39,6 +39,8 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
 
         // asserts
         assertEq(consensusRegistry.totalSupply(), supplyBefore - burnedIds.length);
+        uint256 numActive = numValidators >= burnedIds.length ? numValidators - burnedIds.length : 2;
+        assertEq(consensusRegistry.getValidators(ValidatorStatus.Active).length, numActive);
         for (uint256 i; i < burnedIds.length; ++i) {
             uint256 tokenId = burnedIds[i];
 
@@ -75,7 +77,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_concludeEpoch(uint24 numValidators) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 2000));
+        numValidators = uint24(bound(uint256(numValidators), 1, 2300));
 
         uint256 numActive = consensusRegistry.getValidators(ValidatorStatus.Active).length + numValidators;
 
@@ -127,7 +129,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_applyIncentives(uint24 numValidators, uint24 numRewardees) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 1050));
+        numValidators = uint24(bound(uint256(numValidators), 1, 2300));
         numRewardees = uint24(bound(uint256(numRewardees), 1, numValidators));
 
         _fuzz_mint(numValidators);
@@ -147,7 +149,7 @@ contract ConsensusRegistryTestFuzz is ConsensusRegistryTestUtils {
     }
 
     function testFuzz_claimStakeRewards(uint24 numValidators, uint24 numRewardees) public {
-        numValidators = uint24(bound(uint256(numValidators), 1, 2000));
+        numValidators = uint24(bound(uint256(numValidators), 1, 2300));
         numRewardees = uint24(bound(uint256(numRewardees), 1, numValidators));
 
         _fuzz_mint(numValidators);

@@ -188,7 +188,7 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
             // 4 initial and 6 new validators would be under the 10 committee size
             committeeSize = numActive;
         } else {
-            committeeSize = (numActive * PRECISION_FACTOR) / 3 / PRECISION_FACTOR + 1;
+            committeeSize = (numActive * 1e32) / 3 / 1e32 + 1;
         }
 
         return committeeSize;
@@ -257,8 +257,8 @@ contract ConsensusRegistryTestUtils is ConsensusRegistry, Test {
                 expectedRewards[i] = 0;
                 continue;
             }
-            uint256 scaledWeight = PRECISION_FACTOR * stakeAmount_ * rewardInfos[i].consensusHeaderCount;
-            expectedRewards[i] = scaledWeight / totalWeight * epochIssuance_ / PRECISION_FACTOR;
+            uint256 weight = stakeAmount_ * rewardInfos[i].consensusHeaderCount;
+            expectedRewards[i] = epochIssuance_ * weight / totalWeight;
         }
 
         return (rewardInfos, expectedRewards);
