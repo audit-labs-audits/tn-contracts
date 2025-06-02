@@ -1,5 +1,7 @@
-import { exec } from "child_process";
+import { spawn } from "child_process";
 import { GMPMessage } from "../utils.js";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 /**
  * @dev Can be used via CLI or within typescript runtime when imported by another typescript file
@@ -16,7 +18,7 @@ let rpc: string = "http://devnet-amplifier.axelar.dev:26657";
 let axelarWallet: string = "axelard-test-wallet";
 let axelarChainId: string = "devnet-amplifier";
 let axelarInternalGateway: string =
-  "axelar1ecyaz6vr4hj6qwnza8vh0xuer04jmwxnd4vpewtuju3404hvwv7sdj30zz";
+  "axelar1r2s8ye304vtyhfgajljdjj6pcpeya7jwdn9tgw8wful83uy2stnqk4x7ya";
 
 export async function verify({
   txHash,
@@ -36,42 +38,103 @@ export async function verify({
     ? payloadHash!.slice(2)
     : payloadHash;
 
-  // construct and exec axelard binary cmd
-  const axelardCommand = `axelard tx wasm execute ${axelarInternalGateway} \
-    '{
-        "verify_messages":
-          [
-            {
-              "cc_id":
-                {
-                  "source_chain":"${sourceChain}",
-                  "message_id":"${txHash}-${logIndex}"
-                },
-              "destination_chain":"${destinationChain}",
-              "destination_address":"${destinationAddress}",
-              "source_address":"${sourceAddress}",
-              "payload_hash":"${trimmedPayloadHash}"
-            }
-          ]
-    }' \
-    --from ${axelarWallet} \
-    --keyring-backend file \
-    --node ${rpc} \
-    --chain-id ${axelarChainId} \
-    --gas-prices 0.00005uamplifier \
-    --gas auto --gas-adjustment 1.5`;
-
-  exec(axelardCommand, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error executing command: ${error.message}`);
-      return;
-    }
-    if (stderr) {
-      console.error(`Error in command output: ${stderr}`);
-      return;
-    }
-    console.log(`Command output: ${stdout}`);
+  const jsonPayload = JSON.stringify({
+    verify_messages: [
+      {
+        cc_id: {
+          source_chain: `${sourceChain}`,
+          message_id: `${txHash}-${logIndex}`,
+        },
+        destination_chain: `${destinationChain}`,
+        destination_address: `${destinationAddress}`,
+        source_address: `${sourceAddress}`,
+        payload_hash: `${trimmedPayloadHash}`,
+      },
+    ],
   });
+
+  const axelardArgs = [
+    "tx",
+    "wasm",
+    "execute",
+    axelarInternalGateway,
+    jsonPayload,
+    "--from",
+    axelarWallet,
+    "--keyring-backend",
+    "file",
+    "--node",
+    rpc,
+    "--chain-id",
+    axelarChainId,
+    "--gas-prices",
+    "0.00005uamplifier",
+    "--gas",
+    "auto",
+    "--gas-adjustment",
+    "1.5",
+  ];
+
+  const axelardProcess = spawn("axelard", axelardArgs);
+  if (process.env.PASSPHRASE) {
+    axelardProcess.stdin.write(`${process.env.PASSPHRASE}\n`);
+  } else {
+    console.error("Must set PASSPHRASE in .env");
+    axelardProcess.kill();
+    return;
+  }
+
+  axelardProcess.stdout.on("data", (stdOut) => {
+    console.log(`StdOut: ${stdOut}`);
+  });
+  axelardProcess.stderr.on("data", (stdErr) => {
+    console.error(`StdErr: ${stdErr}`);
+  });
+  axelardProcess.on("close", (code) => {
+    console.log(`Process exited with code ${code}`);
+  });
+
+  // construct and exec axelard binary cmd
+  // const axelardCommand = `axelard tx wasm execute ${axelarInternalGateway} \
+  //   '{
+  //       "verify_messages":
+  //         [
+  //           {
+  //             "cc_id":
+  //               {
+  //                 "source_chain":"${sourceChain}",
+  //                 "message_id":"${txHash}-${logIndex}"
+  //               },
+  //             "destination_chain":"${destinationChain}",
+  //             "destination_address":"${destinationAddress}",
+  //             "source_address":"${sourceAddress}",
+  //             "payload_hash":"${trimmedPayloadHash}"
+  //           }
+  //         ]
+  //   }' \
+  //   --from ${axelarWallet} \
+  //   --keyring-backend file \
+  //   --node ${rpc} \
+  //   --chain-id ${axelarChainId} \
+  //   --gas-prices 0.00005uamplifier \
+  //   --gas auto --gas-adjustment 1.5`;
+
+  // exec(
+  //   axelardCommand,
+  //   {
+  //     env: {
+  //       ...process.env,
+  //     },
+  //   },
+  //   (error, stdout, stderr) => {
+  //     if (error) {
+  //       console.error(`Execution error: ${error.message}`);
+  //       return;
+  //     }
+  //     console.log(`Standard Output: ${stdout}`);
+  //     console.error(`Standard Error: ${stderr}`);
+  //   }
+  // );
 }
 
 // returns values for `verify()`; only used if invoked via command line
@@ -141,6 +204,6 @@ function main() {
   verify(processInternalGatewayCLIArgs(args));
 }
 // supports CLI invocation by checking if being run directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
