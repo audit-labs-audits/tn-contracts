@@ -1,5 +1,4 @@
-import { spawn } from "child_process";
-import { GMPMessage } from "../utils.js";
+import { axelardTxExecute, GMPMessage } from "../utils.js";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -53,88 +52,13 @@ export async function verify({
     ],
   });
 
-  const axelardArgs = [
-    "tx",
-    "wasm",
-    "execute",
+  await axelardTxExecute(
     axelarInternalGateway,
     jsonPayload,
-    "--from",
-    axelarWallet,
-    "--keyring-backend",
-    "file",
-    "--node",
     rpc,
-    "--chain-id",
-    axelarChainId,
-    "--gas-prices",
-    "0.00005uamplifier",
-    "--gas",
-    "auto",
-    "--gas-adjustment",
-    "1.5",
-  ];
-
-  const axelardProcess = spawn("axelard", axelardArgs);
-  if (process.env.PASSPHRASE) {
-    axelardProcess.stdin.write(`${process.env.PASSPHRASE}\n`);
-  } else {
-    console.error("Must set PASSPHRASE in .env");
-    axelardProcess.kill();
-    return;
-  }
-
-  axelardProcess.stdout.on("data", (stdOut) => {
-    console.log(`StdOut: ${stdOut}`);
-  });
-  axelardProcess.stderr.on("data", (stdErr) => {
-    console.error(`StdErr: ${stdErr}`);
-  });
-  axelardProcess.on("close", (code) => {
-    console.log(`Process exited with code ${code}`);
-  });
-
-  // construct and exec axelard binary cmd
-  // const axelardCommand = `axelard tx wasm execute ${axelarInternalGateway} \
-  //   '{
-  //       "verify_messages":
-  //         [
-  //           {
-  //             "cc_id":
-  //               {
-  //                 "source_chain":"${sourceChain}",
-  //                 "message_id":"${txHash}-${logIndex}"
-  //               },
-  //             "destination_chain":"${destinationChain}",
-  //             "destination_address":"${destinationAddress}",
-  //             "source_address":"${sourceAddress}",
-  //             "payload_hash":"${trimmedPayloadHash}"
-  //           }
-  //         ]
-  //   }' \
-  //   --from ${axelarWallet} \
-  //   --keyring-backend file \
-  //   --node ${rpc} \
-  //   --chain-id ${axelarChainId} \
-  //   --gas-prices 0.00005uamplifier \
-  //   --gas auto --gas-adjustment 1.5`;
-
-  // exec(
-  //   axelardCommand,
-  //   {
-  //     env: {
-  //       ...process.env,
-  //     },
-  //   },
-  //   (error, stdout, stderr) => {
-  //     if (error) {
-  //       console.error(`Execution error: ${error.message}`);
-  //       return;
-  //     }
-  //     console.log(`Standard Output: ${stdout}`);
-  //     console.error(`Standard Error: ${stderr}`);
-  //   }
-  // );
+    axelarWallet,
+    axelarChainId
+  );
 }
 
 // returns values for `verify()`; only used if invoked via command line

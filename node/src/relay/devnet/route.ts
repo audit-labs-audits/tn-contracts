@@ -1,6 +1,7 @@
-import { exec } from "child_process";
-import { GMPMessage } from "../utils.js";
+import { axelardTxExecute, GMPMessage } from "../utils.js";
 import { processInternalGatewayCLIArgs } from "./verify.js";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 /**
  * @dev Can be used via CLI or within the TypeScript runtime when imported by another TypeScript file.
@@ -37,42 +38,28 @@ export async function route({
     ? payloadHash!.slice(2)
     : payloadHash;
 
-  // construct and exec axelard binary cmd
-  const axelardCommand = `axelard tx wasm execute ${sourceChainGateway} \
-    '{
-        "route_messages":
-          [
-            {
-              "cc_id":
-                {
-                  "source_chain":"${sourceChain}",
-                  "message_id":"${txHash}-${logIndex}"
-                },
-              "destination_chain":"${destinationChain}",
-              "destination_address":"${destinationAddress}",
-              "source_address":"${sourceAddress}",
-              "payload_hash":"${trimmedPayloadHash}"
-            }
-          ]
-    }' \
-    --from ${axelarWallet} \
-    --keyring-backend file \
-    --node ${rpc} \
-    --chain-id ${axelarChainId} \
-    --gas-prices 0.00005uamplifier \
-    --gas auto --gas-adjustment 1.5`;
-
-  exec(axelardCommand, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error executing command: ${error.message}`);
-      return;
-    }
-    if (stderr) {
-      console.error(`Error in command output: ${stderr}`);
-      return;
-    }
-    console.log(`Command output: ${stdout}`);
+  const jsonPayload = JSON.stringify({
+    route_messages: [
+      {
+        cc_id: {
+          source_chain: `${sourceChain}`,
+          message_id: `${txHash}-${logIndex}`,
+        },
+        destination_chain: `${destinationChain}`,
+        destination_address: `${destinationAddress}`,
+        source_address: `${sourceAddress}`,
+        payload_hash: `${trimmedPayloadHash}`,
+      },
+    ],
   });
+
+  await axelardTxExecute(
+    sourceChainGateway,
+    jsonPayload,
+    rpc,
+    axelarWallet,
+    axelarChainId
+  );
 }
 
 function main() {

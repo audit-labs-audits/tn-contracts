@@ -1,11 +1,45 @@
-From the telcoin-network root directory, start a local testnet, eg:
+From the telcoin-network root directory, start a local testnet (change chain-id to 0x7e1 to match Viem's `telcoinTestnet` record), eg:
 
-`./etc/local-testnet.sh --dev-funds 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23`
+`./etc/local-testnet.sh --start --dev-funds 0xc1612C97537c2CC62a11FC4516367AB6F62d4B23`
 
-Once the local testnet is running, from the tn-contracts root directory initiate a GMP message on the gateway, eg:
+Initiate tofnd and ampd processes so that the verifier key is ready for signing and starts watching the localhost testnet node rpc (port 8545):
 
-`npm run initiate -- --target-chain telcoin --target-contract 0xF128c84c3326727c3e155168daAa4C0156B87AD1 --amount 0 --destination-chain sepolia --destination-contract 0xF128c84c3326727c3e155168daAa4C0156B87AD1 --payload 0x68656c6c6f20776f726c64`
+`tofnd && ampd`
 
-After the transaction is confirmed, grab the tx hash, log index, and payload hash which will be used to verify execution on the source chain.
+Once the local testnet is running set the GMP message's config in memory:
 
-`npm run verify -- --source-chain telcoin-network --source-address 0xF128c84c3326727c3e155168daAa4C0156B87AD1 --destination-chain sepolia --destination-address 0xF128c84c3326727c3e155168daAa4C0156B87AD1 --tx-hash 0x962b4f88aebae63000e59256fa85bde67d085db45bf491dd6a1b1c9c8884fc63 --log-index 0 --payload-hash 0x47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad`
+```bash
+export SRC="telcoin"
+export SRC_ADDR=0xF128c84c3326727c3e155168daAa4C0156B87AD1 # devnet gateway
+export DEST="eth-sepolia"
+export DEST_ADDR=0xF128c84c3326727c3e155168daAa4C0156B87AD1 # devnet gateway
+export PAYLOAD=0x68656c6c6f20776f726c64 # "hello world"
+```
+
+Then, from the tn-contracts root directory, initiate a GMP message on the external source gateway, eg:
+
+`npm run initiate -- --target-chain $SRC --target-contract $SRC_ADDR --amount 0 --destination-chain $DEST --destination-contract $DEST_ADDR --payload $PAYLOAD`
+
+After the transaction is confirmed, write the tx hash, log index, and payload hash to memory:
+
+```bash
+export HASH=0xe13d7c9621c777a638a677e1a702c88e249b8e6d9af83e0a6cc1f7fa91e70d98
+export LOGINDEX=0
+export PAYLOADHASH=0x47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad
+```
+
+This values will be used when submitting a `verify_messages` transaction, upon which the tofnd & ampd processes will examine using the RPC configured in `~/.ampd/config.toml`. If deemed valid, the ampd verifier will submit a `batch` transaction which confirms the message validity.
+
+`npm run verify -- --source-chain $SRC --source-address $SRC_ADDR --destination-chain $DEST --destination-address $DEST_ADDR --tx-hash $HASH --log-index $LOGINDEX --payload-hash $PAYLOADHASH`
+
+Once the above actions have settled, progress the GMP message to the next step by routing it to the destination chain's prover contract:
+
+`npm run route -- --source-chain $SRC --source-address $SRC_ADDR --destination-chain $DEST --destination-address $DEST_ADDR --payload-hash $PAYLOADHASH --tx-hash $HASH --log-index $LOGINDEX`
+
+Next, the destination chain's multisig prover must be instructed to construct a proof for the verified & routed GMP message. This proof is what the relayer will deliver to the destination chain.
+
+```bash
+# devnet multisig prover for eth-sepolia
+export DEST_PROVER=axelar15ra7d5uvnmc6ety6sqxsvsfz4t34ud6lc5gmt39res0c5thkqp2qdwj4af
+npm run construct-proof -- --source-chain $SRC --tx-hash $HASH --log-index $LOGINDEX --destination-chain-multisig-prover $DEST_PROVER
+```

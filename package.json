@@ -16,7 +16,7 @@
     "initiate": "npm run build && node node/dist/relay/devnet/initiate.js",
     "verify": "npm run build && node node/dist/relay/devnet/verify.js",
     "route": "npm run build && node node/dist/relay/devnet/route.js",
-    "proof": "npm run build && node node/dist/relay/devnet/proof.js",
+    "construct-proof": "npm run build && node node/dist/relay/devnet/proof.js",
     "approve": "npm run build && node node/dist/relay/devnet/approve.js",
     "build-and-start": "npm run build && npm run start",
     "clean": "rm -rf node/dist",

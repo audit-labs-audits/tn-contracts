@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import { readFileSync } from "fs";
 import {
   Address,
@@ -31,13 +31,21 @@ export function processTargetCLIArgs(args: string[]) {
     // Parse chain and set RPC URL
     if (arg === "--target-chain" && args[valueIndex]) {
       switch (args[valueIndex]) {
-        case "sepolia":
+        case "eth-sepolia": // devnet
+          targetConfig.chain = sepolia;
+          setRpcUrl("SEPOLIA_RPC_URL");
+          break;
+        case "ethereum-sepolia": // testnet
           targetConfig.chain = sepolia;
           setRpcUrl("SEPOLIA_RPC_URL");
           break;
         case "ethereum":
           targetConfig.chain = mainnet;
           setRpcUrl("MAINNET_RPC_URL");
+          break;
+        case "telcoin": // devnet
+          targetConfig.chain = telcoinTestnet;
+          setRpcUrl("LOCAL_RPC_URL");
           break;
         case "telcoin-network":
           targetConfig.chain = telcoinTestnet;
@@ -101,6 +109,59 @@ export function createHttpsAgent(
   const cert = readFileSync(crtPath);
   const key = readFileSync(keyPath);
   return new https.Agent({ cert, key });
+}
+
+export async function axelardTxExecute(
+  targetWasmContract: string,
+  jsonPayload: string,
+  rpc: string,
+  axelarWallet: string,
+  axelarChainId: string
+): Promise<void> {
+  const axelardArgs = [
+    "tx",
+    "wasm",
+    "execute",
+    targetWasmContract,
+    jsonPayload,
+    "--from",
+    axelarWallet,
+    "--keyring-backend",
+    "file",
+    "--node",
+    rpc,
+    "--chain-id",
+    axelarChainId,
+    "--gas-prices",
+    "0.00005uamplifier",
+    "--gas",
+    "auto",
+    "--gas-adjustment",
+    "1.5",
+  ];
+  console.log(`${axelardArgs.join(" ")}`);
+
+  const axelardProcess = spawn("axelard", axelardArgs);
+
+  if (process.env.PASSPHRASE) {
+    axelardProcess.stdin.write(`${process.env.PASSPHRASE}\n`);
+  } else {
+    console.error("Must set PASSPHRASE in .env");
+    axelardProcess.kill();
+    return;
+  }
+
+  axelardProcess.stdout.on("data", (stdOut) => {
+    console.log(`StdOut: ${stdOut}`);
+  });
+
+  axelardProcess.stderr.on("data", (stdErr) => {
+    console.error(`StdErr: ${stdErr}`);
+  });
+
+  axelardProcess.on("close", (code) => {
+    console.log(`Process exited with code ${code}`);
+  });
 }
 
 /// TX utils
