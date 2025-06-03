@@ -139,7 +139,7 @@ export async function axelardTxExecute(
     "--gas-adjustment",
     "1.5",
   ];
-  console.log(`${axelardArgs.join(" ")}`);
+  console.log(`Running bash: \naxelard ${axelardArgs.join(" ")}`);
 
   const axelardProcess = spawn("axelard", axelardArgs);
 
