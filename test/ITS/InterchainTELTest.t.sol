@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import { Test, console2 } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { IRecoverableWrapper } from "recoverable-wrapper/contracts/interfaces/IRecoverableWrapper.sol";
 import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
 import { WTEL } from "../../src/WTEL.sol";
@@ -198,7 +199,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
 
         uint256 zeroPK = uint256(keccak256("zero"));
         user = vm.addr(zeroPK);
-        bytes memory expectedErr = "Pausable: paused";
+        bytes memory expectedErr = abi.encodeWithSelector(Pausable.EnforcedPause.selector);
         uint256 amt = 1e16;
 
         vm.startPrank(iTEL.tokenManagerAddress());

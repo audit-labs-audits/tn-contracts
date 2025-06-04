@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity ^0.8.20;
 
-import { Record } from "recoverable-wrapper/contracts/util/RecordUtil.sol";
+import { Record } from "../recoverable-wrapper/RecordUtil.sol";
 
 interface IInterchainTEL {
     event Minted(address indexed to, uint256 indexed nativeAmount);

@@ -4,15 +4,13 @@ pragma solidity ^0.8.20;
 import { InterchainTokenStandard } from
     "@axelar-network/interchain-token-service/contracts/interchain-token/InterchainTokenStandard.sol";
 import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
-
-import { RecoverableWrapper } from "recoverable-wrapper/contracts/rwt/RecoverableWrapper.sol";
-import { RecordsDeque, RecordsDequeLib, Record } from "recoverable-wrapper/contracts/util/RecordUtil.sol";
-import { Pausable } from "@openzeppelin-contracts/security/Pausable.sol";
-import { ERC20 } from "@openzeppelin-contracts/token/ERC20/ERC20.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 import { WETH } from "solady/tokens/WETH.sol";
-
+import { RecoverableWrapper } from "./recoverable-wrapper/RecoverableWrapper.sol";
+import { RecordsDeque, RecordsDequeLib, Record } from "./recoverable-wrapper/RecordUtil.sol";
 import { SystemCallable } from "./consensus/SystemCallable.sol";
 import { IInterchainTEL } from "./interfaces/IInterchainTEL.sol";
 
@@ -98,7 +96,7 @@ contract InterchainTEL is
         WETH wTEL = WETH(payable(address(baseERC20)));
         wTEL.deposit{ value: amount }();
 
-        _mint(caller, amount);
+        _mintUnsettled(caller, amount);
         emit Wrap(caller, amount);
     }
 
@@ -122,32 +120,18 @@ contract InterchainTEL is
         bool success = wTEL.transferFrom(owner, address(this), amount);
         if (!success) revert PermitWrapFailed(owner, amount);
 
-        _mint(owner, amount);
+        _mintUnsettled(owner, amount);
         emit Wrap(owner, amount);
     }
 
-    /// @dev Includes pausability for wrapping
-    /// @notice Named by inheritance: has no relationship to `mint()`
-    function _mint(address account, uint256 amount) internal virtual override whenNotPaused {
-        if (account == address(0)) revert ZeroAddressNotAllowed();
-        _clean(account);
-
-        // 10e12 TEL supply can never overflow w/out inflating 27 orders of magnitude
-        uint128 bytes16Amount = SafeCastLib.toUint128(amount);
-        _unsettledRecords[account].enqueue(bytes16Amount, block.timestamp + recoverableWindow);
-
-        _totalSupply += amount;
-        _accountState[account].nonce++;
-        _accountState[account].balance += bytes16Amount;
-
-        emit Transfer(address(0), account, amount);
+    /// @dev Includes pausability for mints, wraps, and ITS bridging
+    function _mintUnsettled(address account, uint256 amount) internal virtual override whenNotPaused {
+        super._mintUnsettled(account, amount);
     }
 
-    /// @dev Includes pausability for unwrapping, incl outbound bridging
-    function _burn(address account, uint256 amount) internal virtual override whenNotPaused {
-        super._burn(account, amount);
-
-        emit Transfer(account, address(0), amount);
+    /// @dev Includes pausability for burns, unwraps, and ITS bridging
+    function _burnSettled(address account, uint256 amount) internal virtual override whenNotPaused {
+        super._burnSettled(account, amount);
     }
 
     /// @inheritdoc IInterchainTEL
@@ -197,7 +181,7 @@ contract InterchainTEL is
         // cannot bridge an amount that will be less than 0 TEL on remote chains
         if (nativeAmount < DECIMALS_CONVERTER) revert InvalidAmount(nativeAmount);
         // burn from settled balance only, reverts if paused
-        _burn(from, nativeAmount);
+        _burnSettled(from, nativeAmount);
         // reclaim native TEL to maintain integrity of iTEL <> wTEL <> TEL ledgers
         WETH(payable(address(baseERC20))).withdraw(nativeAmount);
 
@@ -269,6 +253,9 @@ contract InterchainTEL is
     {
         ERC20._spendAllowance(sender, spender, amount);
     }
+
+    /// @dev Invoked before any transfer, mint, or burn to enforce paused state
+    function _rwHook() internal virtual override whenNotPaused { }
 
     /**
      *
