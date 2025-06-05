@@ -169,7 +169,7 @@ contract InterchainTokenServiceTest is ITSTestHelper {
         assertEq(iTEL.name(), name_);
         assertEq(iTEL.symbol(), symbol_);
         assertEq(iTEL.recoverableWindow(), recoverableWindow_);
-        assertEq(iTEL.governanceAddress(), governanceAddress_);
+        assertEq(iTEL.owner(), governanceAddress_);
         assertEq(iTEL.baseToken(), address(wTEL));
         assertEq(iTEL.decimals(), wTEL.decimals());
         // note that iTEL ITS salt and tokenId are based on originTEL
