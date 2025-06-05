@@ -45,9 +45,6 @@ contract InterchainTEL is
     address private constant TOKEN_FACTORY_DEPLOYER = address(0x0);
     uint256 private constant DECIMALS_CONVERTER = 1e16;
 
-    /// @notice Extends RecoverableWrapper with `OZ::Ownable2Step` for governance rotation without forking
-    address private _pendingGovernance;
-
     modifier onlyTokenManager() {
         if (msg.sender != tokenManager) revert OnlyTokenManager(tokenManager);
         _;
@@ -65,11 +62,11 @@ contract InterchainTEL is
         string memory name_,
         string memory symbol_,
         uint256 recoverableWindow_,
-        address governanceAddress_,
+        address owner_,
         address baseERC20_,
         uint16 maxToClean
     )
-        RecoverableWrapper(name_, symbol_, recoverableWindow_, governanceAddress_, baseERC20_, maxToClean)
+        RecoverableWrapper(name_, symbol_, recoverableWindow_, owner_, baseERC20_, maxToClean)
     {
         _interchainTokenService = interchainTokenService_;
         originTEL = originTEL_;
@@ -149,7 +146,7 @@ contract InterchainTEL is
         uint256 remainder = nativeAmount % DECIMALS_CONVERTER;
         if (remainder != 0) {
             // do not revert bridging if forwarding truncated unbridgeable amount fails
-            (bool r,) = governanceAddress.call{ value: remainder }("");
+            (bool r,) = owner().call{ value: remainder }("");
             if (!r) emit RemainderTransferFailed(from, remainder);
         }
 
@@ -222,29 +219,12 @@ contract InterchainTEL is
      *   permissioned
      *
      */
-    function pause() public whenNotPaused governanceOnly {
+    function pause() public whenNotPaused onlyOwner {
         _pause();
     }
 
-    function unpause() public whenPaused governanceOnly {
+    function unpause() public whenPaused onlyOwner {
         _unpause();
-    }
-
-    /// @inheritdoc IInterchainTEL
-    function transferGovernance(address newGovernance) external virtual override governanceOnly {
-        _pendingGovernance = newGovernance;
-        emit GovernanceTransferStarted(governanceAddress, newGovernance);
-    }
-
-    /// @inheritdoc IInterchainTEL
-    function acceptGovernance() external virtual override {
-        if (msg.sender != _pendingGovernance) revert CallerMustBeGovernance(msg.sender);
-
-        delete _pendingGovernance;
-        address oldGovernance = governanceAddress;
-        governanceAddress = msg.sender;
-
-        emit GovernanceTransferred(oldGovernance, msg.sender);
     }
 
     receive() external payable {

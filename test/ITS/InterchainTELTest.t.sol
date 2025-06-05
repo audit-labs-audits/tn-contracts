@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import { Test, console2 } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IRecoverableWrapper } from "../../src/interfaces/IRecoverableWrapper.sol";
 import { RecoverableWrapper } from "../../src/recoverable-wrapper/RecoverableWrapper.sol";
 import { WTEL } from "../../src/WTEL.sol";
@@ -38,7 +39,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         assertEq(rwSymbol, "iTEL");
         uint256 recoverableWindow = iTEL.recoverableWindow();
         assertEq(recoverableWindow, recoverableWindow_);
-        address governanceAddress = iTEL.governanceAddress();
+        address governanceAddress = iTEL.owner();
         assertEq(governanceAddress, governanceAddress_);
     }
 
@@ -148,7 +149,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         assertEq(initialBal, nativeAmount);
         uint256 itelBal = address(iTEL).balance;
         assertEq(itelBal, telTotalSupply);
-        uint256 governanceBal = iTEL.governanceAddress().balance;
+        uint256 governanceBal = iTEL.owner().balance;
 
         vm.startPrank(iTEL.tokenManagerAddress());
 
@@ -169,7 +170,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         if (!willRevert) {
             assertEq(iTEL.balanceOf(user), 0);
             assertEq(address(iTEL).balance, itelBal + nativeAmount - remainder);
-            assertEq(iTEL.governanceAddress().balance, governanceBal + remainder);
+            assertEq(iTEL.owner().balance, governanceBal + remainder);
         }
     }
 
@@ -239,8 +240,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
     }
 
     function testRevert_pause_governanceOnly() public {
-        bytes memory expectedErr =
-            abi.encodeWithSelector(RecoverableWrapper.CallerMustBeGovernance.selector, address(this));
+        bytes memory expectedErr = abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this));
         vm.expectRevert(expectedErr);
         iTEL.pause();
 
@@ -267,8 +267,7 @@ contract InterchainTELTest is Test, ITSTestHelper {
         vm.prank(governanceAddress_);
         iTEL.pause();
 
-        bytes memory expectedErr =
-            abi.encodeWithSelector(RecoverableWrapper.CallerMustBeGovernance.selector, address(this));
+        bytes memory expectedErr = abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this));
         vm.expectRevert(expectedErr);
         iTEL.unpause();
 

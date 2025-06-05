@@ -18,12 +18,13 @@ pragma solidity ^0.8.20;
 import { IRecoverableWrapper } from "../interfaces/IRecoverableWrapper.sol";
 import { RecordsDeque, RecordsDequeLib, Record, Suspension } from "./RecordUtil.sol";
 
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
+contract RecoverableWrapper is IRecoverableWrapper, ERC20, Ownable2Step {
     using RecordsDequeLib for RecordsDeque;
     using SafeCast for uint256;
 
@@ -41,13 +42,6 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
     mapping(address => RecordsDeque) internal _unsettledRecords;
     mapping(address => bool) public unwrapDisabled;
 
-    modifier governanceOnly() {
-        if (msg.sender != governanceAddress) {
-            revert CallerMustBeGovernance(msg.sender);
-        }
-        _;
-    }
-
     IERC20Metadata internal immutable baseERC20;
     uint256 internal _totalSupply; // includes settled and unsettled.
 
@@ -55,11 +49,6 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
      * Length of recoverable window after each transaction, in seconds
      */
     uint256 public immutable recoverableWindow;
-
-    /**
-     * Address of the governance that is allowed to call freeze and closeCase
-     */
-    address public governanceAddress;
 
     /**
      * @dev emitted after an unsettled record is spent during a transfer to help trace stolen funds.
@@ -87,7 +76,6 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
     error InsufficientSpendableFunds(
         address account, uint256 spendableFunds, uint256 attemptedAmount, bool unsettledIncluded
     );
-    error CallerMustBeGovernance(address caller);
     error RecordNotFound(address account, uint256 rawIndex);
     error RecordAlreadySettled(address account, uint256 rawIndex);
     error SelfTransferNotAllowed();
@@ -96,14 +84,14 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
         string memory name_,
         string memory symbol_,
         uint256 recoverableWindow_,
-        address governanceAddress_,
+        address owner_,
         address baseERC20_,
         uint16 maxToClean
     )
+        Ownable(owner_)
         ERC20(name_, symbol_)
     {
         recoverableWindow = recoverableWindow_;
-        governanceAddress = governanceAddress_;
         baseERC20 = IERC20Metadata(baseERC20_);
         MAX_TO_CLEAN = maxToClean;
     }
@@ -553,7 +541,7 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
      * @dev Example of a freeze function, but this can be implemented in other however way the dev would like.
      * @param freezes - contains the info of all the accounts and amounts that need to be frozen.
      */
-    function freeze(Suspension[] memory freezes) external virtual governanceOnly returns (bool) {
+    function freeze(Suspension[] memory freezes) external virtual onlyOwner returns (bool) {
         for (uint256 i = 0; i < freezes.length; i++) {
             uint256 rawIndex = freezes[i].rawIndex;
             address account = freezes[i].account;
@@ -594,7 +582,7 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
     )
         external
         virtual
-        governanceOnly
+        onlyOwner
         returns (bool)
     {
         for (uint256 i = 0; i < freezes.length; i++) {
