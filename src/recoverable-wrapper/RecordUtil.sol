@@ -1,7 +1,7 @@
 /**
  * SPDX-License-Identifier: MIT or Apache-2.0
  *
- * Minimally fork of the RecordsDeque developed in 2023 by Circle Internet Financial, LTD.
+ * Minimal fork of the RecordsDeque developed in 2023 by Circle Internet Financial, LTD.
  * Modifications have been made to the original codebase, primarily removal of unused features.
  *
  * Original information:
@@ -13,9 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See LICENSE files for specific language, permissions & limitations.
  */
-
-/// @notice Unchanged from the original, save for removal of unused `nextRawIndex` fn
-
 pragma solidity ^0.8.20;
 
 struct RecordsDeque {

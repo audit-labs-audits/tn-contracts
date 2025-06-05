@@ -33,8 +33,7 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
         uint128 balance; // total balance including both settled and unsettled or frozen
         uint128 nonce; // incremented every send or receive
         uint128 cachedUnsettled; // cached amount of unsettled funds (includes frozen unsettled)
-        uint128 cachedUnsettledFrozen; // cached amount of frozen funds that have not reached their original settlement
-            // time
+        uint128 cachedUnsettledFrozen; // cached amount of frozen funds that haven't reached their settlement time
     }
 
     mapping(address => AccountState) internal _accountState;
@@ -177,6 +176,36 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
     /**
      * @inheritdoc IRecoverableWrapper
      */
+    function unsettledRecords(address account) public view returns (Record[] memory) {
+        RecordsDeque storage rd = _unsettledRecords[account];
+        if (rd.isEmpty()) return new Record[](0);
+
+        Record[] memory temp = new Record[](rd.tail - rd.head + 1);
+        uint256 count = 0;
+
+        uint256 currentIndex = rd.tail;
+        while (currentIndex != 0) {
+            Record storage currentRecord = rd.queue[currentIndex];
+
+            if (currentRecord.settlementTime > block.timestamp) {
+                temp[count] = currentRecord;
+                count++;
+            }
+
+            currentIndex = currentRecord.prev;
+        }
+
+        Record[] memory unsettled = new Record[](count);
+        for (uint256 i = 0; i < count; ++i) {
+            unsettled[i] = temp[i];
+        }
+
+        return unsettled;
+    }
+
+    /**
+     * @inheritdoc IRecoverableWrapper
+     */
     function nonce(address account) external view override returns (uint128) {
         return _accountState[account].nonce;
     }
@@ -187,7 +216,7 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
     function wrap(uint256 amount) external override {
         // Caller must have already approved account
         SafeERC20.safeTransferFrom(baseERC20, msg.sender, address(this), amount);
-        _mintSettled(msg.sender, amount);
+        _mintUnsettled(msg.sender, amount);
         emit Wrap(msg.sender, amount);
     }
 
@@ -623,7 +652,7 @@ contract RecoverableWrapper is IRecoverableWrapper, ERC20 {
     }
 
     /**
-     * @dev hook for custom override mint, burn, and transfer logic, such as pausability
+     * @dev Hook for custom override mint, burn, and transfer logic, such as pausability
      */
     function _rwHook() internal virtual { }
 }

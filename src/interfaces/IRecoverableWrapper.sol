@@ -1,7 +1,7 @@
 /**
  * SPDX-License-Identifier: MIT or Apache-2.0
  *
- * Minimally fork of the IRecoverableWrapper developed in 2023 by Circle Internet Financial, LTD.
+ * Minimal fork of the IRecoverableWrapper developed in 2023 by Circle Internet Financial, LTD.
  * Modifications have been made to the original codebase, primarily removal of unused features.
  *
  * Original information:
@@ -13,10 +13,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See LICENSE files for specific language, permissions & limitations.
  */
-
-/// @notice Unchanged from the original, save for removal of extraneous `disableUnwrap` fn
-
 pragma solidity ^0.8.20;
+
+import { Record } from "../recoverable-wrapper/RecordUtil.sol";
 
 /**
  * @dev Interface of the ERC20R standard.
@@ -78,6 +77,13 @@ interface IRecoverableWrapper {
      * is false, then it returns the settled balance.
      */
     function balanceOf(address account, bool includeUnsettled) external view returns (uint256);
+
+    /**
+     * @notice Fetches the account's outstanding unsettled records
+     * @dev Intended as a convenience function only, eg for frontends. Does not prevent
+     * reverts arising from unbounded storage access
+     */
+    function unsettledRecords(address account) external view returns (Record[] memory);
 
     /**
      * Each time an account receives ERC20R tokens, this nonce increments. This may be

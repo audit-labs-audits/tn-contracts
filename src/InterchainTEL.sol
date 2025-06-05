@@ -6,11 +6,9 @@ import { InterchainTokenStandard } from
 import { Create3AddressFixed } from "@axelar-network/interchain-token-service/contracts/utils/Create3AddressFixed.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 import { WETH } from "solady/tokens/WETH.sol";
 import { RecoverableWrapper } from "./recoverable-wrapper/RecoverableWrapper.sol";
-import { RecordsDeque, RecordsDequeLib, Record } from "./recoverable-wrapper/RecordUtil.sol";
+import { RecordsDeque, RecordsDequeLib } from "./recoverable-wrapper/RecordUtil.sol";
 import { SystemCallable } from "./consensus/SystemCallable.sol";
 import { IInterchainTEL } from "./interfaces/IInterchainTEL.sol";
 
@@ -124,44 +122,6 @@ contract InterchainTEL is
         emit Wrap(owner, amount);
     }
 
-    /// @dev Includes pausability for mints, wraps, and ITS bridging
-    function _mintUnsettled(address account, uint256 amount) internal virtual override whenNotPaused {
-        super._mintUnsettled(account, amount);
-    }
-
-    /// @dev Includes pausability for burns, unwraps, and ITS bridging
-    function _burnSettled(address account, uint256 amount) internal virtual override whenNotPaused {
-        super._burnSettled(account, amount);
-    }
-
-    /// @inheritdoc IInterchainTEL
-    function unsettledRecords(address account) public view returns (Record[] memory) {
-        RecordsDeque storage rd = _unsettledRecords[account];
-        if (rd.isEmpty()) return new Record[](0);
-
-        Record[] memory temp = new Record[](rd.tail - rd.head + 1);
-        uint256 count = 0;
-
-        uint256 currentIndex = rd.tail;
-        while (currentIndex != 0) {
-            Record storage currentRecord = rd.queue[currentIndex];
-
-            if (currentRecord.settlementTime > block.timestamp) {
-                temp[count] = currentRecord;
-                count++;
-            }
-
-            currentIndex = currentRecord.prev;
-        }
-
-        Record[] memory unsettled = new Record[](count);
-        for (uint256 i = 0; i < count; ++i) {
-            unsettled[i] = temp[i];
-        }
-
-        return unsettled;
-    }
-
     /**
      *
      *   Axelar Interchain Token Service
@@ -241,7 +201,7 @@ contract InterchainTEL is
         return _interchainTokenService;
     }
 
-    /// @dev OZ 4.9 ERC20 required by RecoverableWrapper
+    /// @dev Required by InterchainTokenStandard
     function _spendAllowance(
         address sender,
         address spender,

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT or Apache-2.0
 pragma solidity ^0.8.20;
 
-import { Record } from "../recoverable-wrapper/RecordUtil.sol";
-
 interface IInterchainTEL {
     event Minted(address indexed to, uint256 indexed nativeAmount);
     event Burned(address indexed from, uint256 indexed nativeAmount);
@@ -25,11 +23,6 @@ interface IInterchainTEL {
     /// @dev Explicitly allows malleable signatures for optionality. Malleability is handled
     /// by abstracting signature reusability away via stateful nonce within the EIP-712 structhash
     function permitWrap(address owner, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
-
-    /// @notice Fetches the account's outstanding unsettled records
-    /// @dev Intended as a convenience function only, eg for frontends. Does not prevent
-    /// reverts arising from unbounded storage access
-    function unsettledRecords(address account) external view returns (Record[] memory);
 
     /// @notice Returns the create3 salt used by ITS for TokenManager deployment
     /// @dev This salt is used to deploy/derive TokenManagers for both Ethereum and TN
