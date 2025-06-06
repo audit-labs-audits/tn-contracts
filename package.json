@@ -51,12 +51,14 @@
     "axios": "^1.7.7",
     "dotenv": "^16.4.5",
     "forge-std": "github:foundry-rs/forge-std",
+    "js-yaml": "^4.1.0",
     "recoverable-wrapper": "git@github.com:Telcoin-Association/recoverable-wrapper.git",
     "solady": "^0.0.227",
     "telcoin-contracts": "1.0.0",
     "viem": "^2.21.43"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.14.11",
     "mermaid": "^11.4.0",
     "ts-node": "^10.9.2",

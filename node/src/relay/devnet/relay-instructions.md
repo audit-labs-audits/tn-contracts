@@ -10,7 +10,7 @@ Once the local testnet is running set the GMP message's config in memory:
 
 ```bash
 export SRC="telcoin"
-export SRC_ADDR=0xF128c84c3326727c3e155168daAa4C0156B87AD1 # devnet gateway
+export SRC_ADDR=0xc1612C97537c2CC62a11FC4516367AB6F62d4B23 # msg.sender of IAxelarGateway::CallContract
 export DEST="eth-sepolia"
 export DEST_ADDR=0xF128c84c3326727c3e155168daAa4C0156B87AD1 # devnet gateway
 export PAYLOAD=0x68656c6c6f20776f726c64 # "hello world"
@@ -42,4 +42,13 @@ Next, the destination chain's multisig prover must be instructed to construct a 
 # devnet multisig prover for eth-sepolia
 export DEST_PROVER=axelar15ra7d5uvnmc6ety6sqxsvsfz4t34ud6lc5gmt39res0c5thkqp2qdwj4af
 npm run construct-proof -- --source-chain $SRC --tx-hash $HASH --log-index $LOGINDEX --destination-chain-multisig-prover $DEST_PROVER
+```
+
+Grab the `multisig_session_id` from the utility's output for use in the next step.
+
+Once the proof has been constructed and the destination chain's verifiers have voted on it, the proof can be fetched and settled to the destination chain in an approval tx to complete the GMP flow:
+
+```bash
+export SESSIONID=20181
+npm run approve -- --target-chain $DEST --target-contract $DEST_ADDR --multisig-session-id $SESSIONID --destination-chain-multisig-prover $DEST_PROVER
 ```

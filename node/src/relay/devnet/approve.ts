@@ -4,17 +4,23 @@ import {
   GMPMessage,
   keystoreAccount,
   processTargetCLIArgs,
+  Proof,
   targetConfig,
   transactViaEncryptedKeystore,
 } from "../utils.js";
 import { promisify } from "util";
+import yaml from "js-yaml";
+import * as dotenv from "dotenv";
+import { parse } from "path";
+dotenv.config();
 
 /**
  * @dev Can be used via CLI or within the TypeScript runtime when imported by another TypeScript file.
  * @dev Usage example for fetching and settling proofs from a destination chain's multisig prover
  *
- * `npm run get-proof -- \
- *    --multisig-session-id <multisig_session_id>`
+ * `npm run approve -- \
+ * --target-chain <target_chain> --target-contract <target_contract> \
+ * --multisig-session-id <multisig_session_id> --destination-chain-multisig-prover <dest_prover> \`
  */
 
 // when migrating beyond devnet these can be initialized via CLI flag
@@ -29,10 +35,14 @@ export async function approve({
 }: GMPMessage) {
   getKeystoreAccount();
 
-  const gmpMessage = await getProofAsync({
+  const output = await getProofAsync({
     multisigSessionId,
     destinationChainMultisigProver,
   });
+  // console.log(`output: ${output}`);
+  const parsedOutput = yaml.load(output) as Proof;
+  const gmpMessage = parsedOutput.data.status.completed
+    .execute_data as `0x${string}`;
   // deliver proof data as GMP message in an EVM transaction
   await transactViaEncryptedKeystore(
     targetConfig.chain!,
@@ -40,7 +50,7 @@ export async function approve({
     keystoreAccount.account!,
     targetConfig.contract!,
     amount!,
-    gmpMessage,
+    `0x${gmpMessage}`,
     keystoreAccount.ksPath!,
     keystoreAccount.ksPw!
   );
@@ -60,7 +70,7 @@ export async function getProofAsync({
     const { stdout } =
       await execAsync(`axelard q wasm contract-state smart ${destinationChainMultisigProver} \
           '{
-              "get_proof":{
+              "proof":{
                   "multisig_session_id":"${multisigSessionId}"
               }
           }' \
@@ -89,7 +99,7 @@ export async function getProof({
   // Construct the axelard command
   const axelardCommand = `axelard q wasm contract-state smart ${destinationChainMultisigProver} \
       '{
-          "get_proof":{
+          "proof":{
               "multisig_session_id":"${multisigSessionId}"
           }
       }' \

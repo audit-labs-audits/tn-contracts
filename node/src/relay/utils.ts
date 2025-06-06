@@ -67,6 +67,16 @@ export function processTargetCLIArgs(args: string[]) {
 
 /// GMP utils
 
+export interface Proof {
+  data: {
+    status: {
+      completed: {
+        execute_data: string;
+      };
+    };
+  };
+}
+
 export interface GMPMessage {
   txHash?: `0x${string}`;
   logIndex?: number;
@@ -139,7 +149,7 @@ export async function axelardTxExecute(
     "--gas-adjustment",
     "1.5",
   ];
-  console.log(`Running bash: \naxelard ${axelardArgs.join(" ")}`);
+  console.log(`Running bash: \naxelard ${axelardArgs.join(" \\\n  ")}`);
 
   const axelardProcess = spawn("axelard", axelardArgs);
 
@@ -152,7 +162,28 @@ export async function axelardTxExecute(
   }
 
   axelardProcess.stdout.on("data", (stdOut) => {
-    console.log(`StdOut: ${stdOut}`);
+    // extract tx hash from the output
+    const output = JSON.parse(stdOut.toString());
+    const { txhash } = output;
+    console.log(`Transaction hash: ${txhash}\n`);
+
+    try {
+      // if "multisig_session_id" is in the raw log, log it
+      if (output.raw_log) {
+        const rawLogObject = JSON.parse(output.raw_log);
+        rawLogObject.forEach((logEntry: any) => {
+          logEntry.events.forEach((event: any) => {
+            event.attributes.forEach((attribute: any) => {
+              if (attribute.key === "multisig_session_id") {
+                console.log(`Multisig Session ID: ${attribute.value}`);
+              }
+            });
+          });
+        });
+      }
+    } catch (error) {
+      console.error("Error parsing output, check explorer for details:", error);
+    }
   });
 
   axelardProcess.stderr.on("data", (stdErr) => {
