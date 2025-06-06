@@ -39,10 +39,10 @@ export async function approve({
     multisigSessionId,
     destinationChainMultisigProver,
   });
-  // console.log(`output: ${output}`);
   const parsedOutput = yaml.load(output) as Proof;
   const gmpMessage = parsedOutput.data.status.completed
     .execute_data as `0x${string}`;
+
   // deliver proof data as GMP message in an EVM transaction
   await transactViaEncryptedKeystore(
     targetConfig.chain!,

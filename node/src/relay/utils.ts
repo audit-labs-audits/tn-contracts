@@ -222,12 +222,13 @@ export function getKeystoreAccount() {
 /// a context switch dipping into Foundry is required
 export async function signViaEncryptedKeystore(
   txRequest: TransactionRequest,
+  chainId: number,
   ksPath: string,
   ksPw: string
 ) {
   // convert tx to serializable format
   const txSerializable: TransactionSerializable = {
-    chainId: 2017,
+    chainId: chainId,
     gas: txRequest.gas,
     maxFeePerGas: txRequest.maxFeePerGas,
     maxPriorityFeePerGas: txRequest.maxPriorityFeePerGas,
@@ -285,6 +286,7 @@ export async function transactViaEncryptedKeystore(
     // sign tx using encrypted keystore
     const txSerializable = await signViaEncryptedKeystore(
       txRequest,
+      chain.id,
       ksPath!,
       ksPw!
     );
