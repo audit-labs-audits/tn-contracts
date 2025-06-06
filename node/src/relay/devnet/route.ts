@@ -1,5 +1,9 @@
-import { axelardTxExecute, GMPMessage } from "../utils.js";
-import { processInternalGatewayCLIArgs } from "./verify.js";
+import { keccak256 } from "viem";
+import {
+  axelardTxExecute,
+  GMPMessage,
+  processGatewayCLIArgs,
+} from "../utils.js";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -27,13 +31,14 @@ export async function route({
   sourceAddress,
   destinationChain,
   destinationAddress,
-  payloadHash,
+  payload,
 }: GMPMessage): Promise<void> {
   console.log(
     `Instructing ${sourceChain}'s internal gateway to route verified GMP message to ${destinationChain}'s multisig prover`
   );
 
   // axelard payloadHash must not be 0x prefixed
+  const payloadHash = keccak256(payload!);
   const trimmedPayloadHash = payloadHash!.startsWith("0x")
     ? payloadHash!.slice(2)
     : payloadHash;
@@ -64,7 +69,7 @@ export async function route({
 
 function main() {
   const args = process.argv.slice(2);
-  route(processInternalGatewayCLIArgs(args));
+  route(processGatewayCLIArgs(args));
 }
 
 // supports CLI invocation by checking if being run directly

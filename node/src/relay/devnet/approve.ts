@@ -11,7 +11,6 @@ import {
 import { promisify } from "util";
 import yaml from "js-yaml";
 import * as dotenv from "dotenv";
-import { parse } from "path";
 dotenv.config();
 
 /**

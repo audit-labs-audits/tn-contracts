@@ -65,6 +65,67 @@ export function processTargetCLIArgs(args: string[]) {
   }
 }
 
+export function processGatewayCLIArgs(args: string[]) {
+  let sourceChain: string | undefined;
+  let sourceAddress: `0x${string}` | undefined;
+  let destinationChain: string | undefined;
+  let destinationAddress: `0x${string}` | undefined;
+  let payload: `0x${string}` | undefined;
+  let txHash: `0x${string}` | undefined;
+  let logIndex: number | undefined;
+
+  args.forEach((arg, index) => {
+    const valueIndex = index + 1;
+    switch (arg) {
+      case "--source-chain":
+        sourceChain = args[valueIndex];
+        break;
+      case "--source-address":
+        sourceAddress = args[valueIndex] as `0x${string}`;
+        break;
+      case "--destination-chain":
+        destinationChain = args[valueIndex];
+        break;
+      case "--destination-address":
+        destinationAddress = args[valueIndex] as `0x${string}`;
+        break;
+      case "--payload":
+        payload = args[valueIndex] as `0x${string}`;
+        break;
+      case "--tx-hash":
+        txHash = args[valueIndex] as `0x${string}`;
+        break;
+      case "--log-index":
+        logIndex = parseInt(args[valueIndex], 10);
+        break;
+    }
+  });
+
+  if (
+    !sourceChain ||
+    !sourceAddress ||
+    !destinationChain ||
+    !destinationAddress ||
+    !payload ||
+    !txHash ||
+    logIndex === undefined
+  ) {
+    throw new Error(
+      "Must set --source-chain, --source-address, --destination-chain, --destination-address, --payload, --tx-hash, and --log-index"
+    );
+  }
+
+  return {
+    txHash,
+    logIndex,
+    sourceChain,
+    sourceAddress,
+    destinationChain,
+    destinationAddress,
+    payload,
+  };
+}
+
 /// GMP utils
 
 export interface Proof {
@@ -84,7 +145,6 @@ export interface GMPMessage {
   sourceAddress?: `0x${string}`;
   destinationChain?: string;
   destinationAddress?: `0x${string}`;
-  payloadHash?: `0x${string}`;
   amount?: bigint;
   payload?: `0x${string}`;
   destinationChainMultisigProver?: string;
