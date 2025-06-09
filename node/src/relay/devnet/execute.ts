@@ -3,25 +3,19 @@ import {
   getKeystoreAccount,
   GMPMessage,
   keystoreAccount,
-  processGatewayCLIArgs,
-  processTargetCLIArgs,
-  Proof,
+  processGmpCLIArgs,
   targetConfig,
   transactViaEncryptedKeystore,
 } from "../utils.js";
-import { promisify } from "util";
-import yaml from "js-yaml";
-import * as dotenv from "dotenv";
 import {
+  Chain,
   createPublicClient,
-  createWalletClient,
   encodeFunctionData,
   http,
   parseAbi,
-  publicActions,
   PublicClient,
-  toHex,
 } from "viem";
+import * as dotenv from "dotenv";
 dotenv.config();
 
 /**
@@ -30,7 +24,7 @@ dotenv.config();
  * @notice InterchainTokenService should be the target contract and the gateway should be `destinationAddress`
  *
  * `npm run execute -- \
- * --target-chain $DEST --target-contract $DEST_ADDR --message-id $MESSAGEID \
+ * --target-chain $DEST --target-contract $ITS --tx-hash $HASH --log-index $LOGINDEX \
  * --source-chain $SRC --source-address $SRC_ADDR --payload $PAYLOAD
  */
 
@@ -45,8 +39,10 @@ export async function execute({
   console.log("Executing ITS message on target chain");
 
   getKeystoreAccount();
+  const targetChain = targetConfig.chain as Chain;
+  const targetContract = targetConfig.contract as `0x${string}`;
   const client = createPublicClient({
-    chain: targetConfig.chain,
+    chain: targetChain,
     transport: http(targetConfig.rpcUrl),
   });
   const commandId = await getCommandId(client, {
@@ -60,10 +56,10 @@ export async function execute({
     args: [commandId, sourceChain, sourceAddress, payload],
   });
   await transactViaEncryptedKeystore(
-    targetConfig.chain!,
+    targetChain,
     targetConfig.rpcUrl!,
     keystoreAccount.account!,
-    targetConfig.contract!,
+    targetContract!,
     0n,
     calldata,
     keystoreAccount.ksPath!,
@@ -96,7 +92,7 @@ export async function getCommandId(
 
 async function main() {
   const args = process.argv.slice(2);
-  await execute(processGatewayCLIArgs(args));
+  await execute(processGmpCLIArgs(args));
 }
 
 // supports CLI invocation by checking if being run directly

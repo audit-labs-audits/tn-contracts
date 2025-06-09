@@ -18,6 +18,7 @@
     "route": "npm run build && node node/dist/relay/devnet/route.js",
     "construct-proof": "npm run build && node node/dist/relay/devnet/proof.js",
     "approve": "npm run build && node node/dist/relay/devnet/approve.js",
+    "execute": "npm run build && node node/dist/relay/devnet/execute.js",
     "build-and-start": "npm run build && npm run start",
     "clean": "rm -rf node/dist",
     "watch": "tsc --watch",

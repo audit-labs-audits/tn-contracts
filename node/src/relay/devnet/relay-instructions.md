@@ -11,14 +11,15 @@ Once the local testnet is running set the GMP message's config in memory:
 ```bash
 export SRC="telcoin"
 export SRC_ADDR=0xc1612C97537c2CC62a11FC4516367AB6F62d4B23 # msg.sender of IAxelarGateway::CallContract
+export SRC_GATEWAY=0xF128c84c3326727c3e155168daAa4C0156B87AD1 # TN devnet gateway
 export DEST="eth-sepolia"
-export DEST_ADDR=0xF128c84c3326727c3e155168daAa4C0156B87AD1 # devnet gateway
+export DEST_ADDR=0xF128c84c3326727c3e155168daAa4C0156B87AD1 # Sepolia devnet gateway
 export PAYLOAD=0x68656c6c6f20776f726c64 # "hello world"
 ```
 
 Then, from the tn-contracts root directory, initiate a GMP message on the external source gateway, eg:
 
-`npm run initiate -- --target-chain $SRC --target-contract $SRC_ADDR --amount 0 --destination-chain $DEST --destination-contract $DEST_ADDR --payload $PAYLOAD`
+`npm run initiate -- --target-chain $SRC --target-contract $SRC_GATEWAY --amount 0 --destination-chain $DEST --destination-contract $DEST_ADDR --payload $PAYLOAD`
 
 After the transaction is confirmed, write the tx hash, log index to memory:
 
@@ -56,5 +57,5 @@ If the GMP message is an ITS message, it can be executed once approved:
 
 ```bash
 export ITS=0x2269B93c8D8D4AfcE9786d2940F5Fcd4386Db7ff
-npm run execute -- --target-chain $DEST --target-contract $ITS --message-id $MESSAGEID --source-chain $SRC --source-address $SRC_ADDR --payload $PAYLOAD
+npm run execute -- --destination-chain $DEST --destination-address $ITS --tx-hash $HASH --log-index $LOGINDEX --source-chain $SRC --source-address $SRC_ADDR --payload $PAYLOAD
 ```

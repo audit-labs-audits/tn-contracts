@@ -15,14 +15,15 @@ import {
 import { mainnet, sepolia, telcoinTestnet, Chain } from "viem/chains";
 import * as https from "https";
 
-/// Utils suited for single-chain components
+/// Utils suited for single-chain components, supports Cosmos IBC
 export interface TargetConfig {
-  chain?: Chain;
-  contract?: Address;
+  chain?: Chain | string;
+  contract?: Address | string;
   rpcUrl?: string;
 }
 
 export const targetConfig: TargetConfig = {};
+export const axelarConfig: TargetConfig = {};
 
 export function processTargetCLIArgs(args: string[]) {
   args.forEach((arg, index) => {
@@ -51,12 +52,30 @@ export function processTargetCLIArgs(args: string[]) {
           targetConfig.chain = telcoinTestnet;
           setRpcUrl("TN_RPC_URL");
           break;
+        case "axelar-devnet":
+          targetConfig.chain = "devnet-amplifier";
+          setRpcUrl("AXELAR_DEVNET_RPC_URL");
+          break;
+        case "axelar-testnet":
+          targetConfig.chain = "axelar-testnet";
+          setRpcUrl("AXELAR_TESTNET_RPC_URL");
+          break;
+        case "axelar-network":
+          targetConfig.chain = "axelar-network";
+          setRpcUrl("AXELAR_NETWORK_RPC_URL");
+          break;
       }
     }
 
     // Parse target contract
     if (arg === "--target-contract" && args[valueIndex]) {
-      targetConfig.contract = getAddress(args[valueIndex]);
+      // if EVM address, validate and checksum it
+      if (args[valueIndex].startsWith("0x")) {
+        targetConfig.contract = getAddress(args[valueIndex]);
+      } else {
+        // otherwise, treat it as a Cosmos contract address
+        targetConfig.contract = args[valueIndex];
+      }
     }
   });
 
@@ -65,11 +84,11 @@ export function processTargetCLIArgs(args: string[]) {
   }
 }
 
-export function processGatewayCLIArgs(args: string[]) {
+export function processGmpCLIArgs(args: string[]) {
   let sourceChain: string | undefined;
   let sourceAddress: `0x${string}` | undefined;
   let destinationChain: string | undefined;
-  let destinationAddress: `0x${string}` | undefined;
+  let destinationAddress: `0x${string}` | string | undefined;
   let payload: `0x${string}` | undefined;
   let txHash: `0x${string}` | undefined;
   let logIndex: number | undefined;
@@ -98,8 +117,21 @@ export function processGatewayCLIArgs(args: string[]) {
       case "--log-index":
         logIndex = parseInt(args[valueIndex], 10);
         break;
+      case "--env":
+        setAxelarEnv(args[valueIndex]);
+        break;
     }
   });
+
+  if (!destinationChain) {
+    destinationChain =
+      typeof targetConfig.chain == "string"
+        ? targetConfig.chain
+        : targetConfig.chain?.name;
+  }
+  if (!destinationAddress) {
+    destinationAddress = targetConfig.contract;
+  }
 
   if (
     !sourceChain ||
@@ -384,3 +416,37 @@ export function validateEnvVar(envVarName: string): string {
 
   return envVar;
 }
+
+/// misc axelar env helpers
+export function setAxelarEnv(env: string) {
+  switch (env) {
+    case "devnet":
+      axelarConfig.chain = "devnet-amplifier";
+      axelarConfig.rpcUrl = validateEnvVar("AXELAR_DEVNET_RPC_URL");
+      // axelarConfig.contract = validateEnvVar("AXELAR_DEVNET_GATEWAY");
+      break;
+    case "testnet":
+      axelarConfig.chain = "axelar-testnet";
+      axelarConfig.rpcUrl = validateEnvVar("AXELAR_TESTNET_RPC_URL");
+      // axelarConfig.contract = validateEnvVar("AXELAR_TESTNET_GATEWAY");
+      break;
+    case "mainnet":
+      axelarConfig.chain = "axelar-network";
+      axelarConfig.rpcUrl = validateEnvVar("AXELAR_NETWORK_RPC_URL");
+      // axelarConfig.contract = validateEnvVar("AXELAR_NETWORK_GATEWAY");
+      break;
+    default:
+      throw new Error(`Unknown Axelar environment: ${env}`);
+  }
+}
+
+export const axelarDevnetWallet: string = "axelard-test-wallet";
+export const axelarDevnetChainId: string = "devnet-amplifier";
+export const axelarDevnetInternalGateway: string =
+  "axelar1r2s8ye304vtyhfgajljdjj6pcpeya7jwdn9tgw8wful83uy2stnqk4x7ya";
+export const axelarTestnetWallet: string = "axelard-test-wallet";
+export const axelarTestnetChainId: string = "axelar-testnet";
+export const axelarTestnetInternalGateway: string = "";
+export const axelarMainnetWallet: string = "axelard-wallet";
+export const axelarMainnetChainId: string = "axelar-network";
+export const axelarMainnetInternalGateway: string = "";

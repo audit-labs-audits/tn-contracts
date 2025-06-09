@@ -11,6 +11,7 @@ import {
 import { promisify } from "util";
 import yaml from "js-yaml";
 import * as dotenv from "dotenv";
+import { Chain } from "viem";
 dotenv.config();
 
 /**
@@ -22,8 +23,7 @@ dotenv.config();
  * --multisig-session-id <multisig_session_id> --destination-chain-multisig-prover <dest_prover> \`
  */
 
-// when migrating beyond devnet these can be initialized via CLI flag
-let rpc: string = "http://devnet-amplifier.axelar.dev:26657";
+let axelarRPC: string | undefined;
 
 const execAsync = promisify(exec);
 
@@ -43,11 +43,13 @@ export async function approve({
     .execute_data as `0x${string}`;
 
   // deliver proof data as GMP message in an EVM transaction
+  const targetChain = targetConfig.chain as Chain;
+  const targetContract = targetConfig.contract as `0x${string}`;
   await transactViaEncryptedKeystore(
-    targetConfig.chain!,
+    targetChain,
     targetConfig.rpcUrl!,
     keystoreAccount.account!,
-    targetConfig.contract!,
+    targetContract,
     amount!,
     `0x${gmpMessage}`,
     keystoreAccount.ksPath!,
@@ -73,7 +75,7 @@ export async function getProofAsync({
                   "multisig_session_id":"${multisigSessionId}"
               }
           }' \
-          --node ${rpc}`);
+          --node ${axelarRPC}`);
 
     console.log(`Proof data retrieved: ${stdout}`);
 
@@ -102,7 +104,7 @@ export async function getProof({
               "multisig_session_id":"${multisigSessionId}"
           }
       }' \
-      --node ${rpc}`;
+      --node ${axelarRPC}`;
 
   exec(axelardCommand, (error, stdout, stderr) => {
     if (error) {
@@ -133,12 +135,21 @@ function processApproveCLIArgs(args: string[]): GMPMessage {
       case "--destination-chain-multisig-prover":
         destinationChainMultisigProver = args[valueIndex];
         break;
+      case "--env":
+        if (args[valueIndex] == "devnet") {
+          axelarRPC = process.env.AXELAR_DEVNET_RPC_URL;
+        } else if (args[valueIndex] == "testnet") {
+          axelarRPC = process.env.AXELAR_TESTNET_RPC_URL;
+        } else if (args[valueIndex] == "mainnet") {
+          axelarRPC = process.env.AXELAR_MAINNET_RPC_URL;
+        }
+        break;
     }
   });
 
-  if (!multisigSessionId || !destinationChainMultisigProver) {
+  if (!multisigSessionId || !destinationChainMultisigProver || !axelarRPC) {
     throw new Error(
-      "Must set --multisig-session-id and --destination-chain-multisig-prover"
+      "Must set --multisig-session-id and --destination-chain-multisig-prover and --env"
     );
   }
 
