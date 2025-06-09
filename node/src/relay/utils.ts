@@ -221,16 +221,22 @@ export async function axelardTxExecute(
     return;
   }
 
-  axelardProcess.stdout.on("data", (stdOut) => {
+  let stdoutData = "";
+
+  axelardProcess.stdout.on("data", (chunk) => {
+    stdoutData += chunk.toString();
+  });
+
+  axelardProcess.stdout.on("end", () => {
     // extract tx hash from the output
-    const output = JSON.parse(stdOut.toString());
-    const { txhash } = output;
+    const output = JSON.parse(stdoutData.toString());
+    const { txhash, raw_log } = output;
     console.log(`Transaction hash: ${txhash}\n`);
 
     try {
       // if "multisig_session_id" is in the raw log, log it
-      if (output.raw_log) {
-        const rawLogObject = JSON.parse(output.raw_log);
+      if (raw_log) {
+        const rawLogObject = JSON.parse(raw_log);
         rawLogObject.forEach((logEntry: any) => {
           logEntry.events.forEach((event: any) => {
             event.attributes.forEach((attribute: any) => {
