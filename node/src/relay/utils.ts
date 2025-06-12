@@ -17,13 +17,21 @@ import * as https from "https";
 
 /// Utils suited for single-chain components, supports Cosmos IBC
 export interface TargetConfig {
-  chain?: Chain | string;
-  contract?: Address | string;
+  chain?: Chain;
+  contract?: Address;
   rpcUrl?: string;
 }
 
 export const targetConfig: TargetConfig = {};
-export const axelarConfig: TargetConfig = {};
+
+export interface AxelarConfig {
+  chain?: string;
+  contract?: string;
+  rpcUrl?: string;
+  walletName?: string;
+}
+
+export const axelarConfig: AxelarConfig = {};
 
 export function processTargetCLIArgs(args: string[]) {
   args.forEach((arg, index) => {
@@ -52,18 +60,6 @@ export function processTargetCLIArgs(args: string[]) {
           targetConfig.chain = telcoinTestnet;
           setRpcUrl("TN_RPC_URL");
           break;
-        case "axelar-devnet":
-          targetConfig.chain = "devnet-amplifier";
-          setRpcUrl("AXELAR_DEVNET_RPC_URL");
-          break;
-        case "axelar-testnet":
-          targetConfig.chain = "axelar-testnet";
-          setRpcUrl("AXELAR_TESTNET_RPC_URL");
-          break;
-        case "axelar-network":
-          targetConfig.chain = "axelar-network";
-          setRpcUrl("AXELAR_NETWORK_RPC_URL");
-          break;
       }
     }
 
@@ -73,8 +69,7 @@ export function processTargetCLIArgs(args: string[]) {
       if (args[valueIndex].startsWith("0x")) {
         targetConfig.contract = getAddress(args[valueIndex]);
       } else {
-        // otherwise, treat it as a Cosmos contract address
-        targetConfig.contract = args[valueIndex];
+        throw new Error(`Invalid target contract address: ${args[valueIndex]}`);
       }
     }
   });
@@ -84,11 +79,14 @@ export function processTargetCLIArgs(args: string[]) {
   }
 }
 
-export function processGmpCLIArgs(args: string[]) {
+export function processGmpCLIArgs(
+  args: string[],
+  axelarTarget?: string
+): GMPMessage {
   let sourceChain: string | undefined;
   let sourceAddress: `0x${string}` | undefined;
   let destinationChain: string | undefined;
-  let destinationAddress: `0x${string}` | string | undefined;
+  let destinationAddress: `0x${string}` | undefined;
   let payload: `0x${string}` | undefined;
   let txHash: `0x${string}` | undefined;
   let logIndex: number | undefined;
@@ -118,22 +116,13 @@ export function processGmpCLIArgs(args: string[]) {
         logIndex = parseInt(args[valueIndex], 10);
         break;
       case "--env":
-        setAxelarEnv(args[valueIndex]);
+        setAxelarEnv(args[valueIndex], axelarTarget!);
         break;
     }
   });
 
-  if (!destinationChain) {
-    destinationChain =
-      typeof targetConfig.chain == "string"
-        ? targetConfig.chain
-        : targetConfig.chain?.name;
-  }
-  if (!destinationAddress) {
-    destinationAddress = targetConfig.contract;
-  }
-
   if (
+    !axelarConfig.rpcUrl ||
     !sourceChain ||
     !sourceAddress ||
     !destinationChain ||
@@ -367,8 +356,6 @@ export async function transactViaEncryptedKeystore(
   ksPath: string,
   ksPw: string
 ): Promise<void> {
-  console.log("Submitting gateway approval as EVM transaction with proof data");
-
   // fetch tx params (gas, nonce, etc)
   const walletClient = createWalletClient({
     account: from,
@@ -418,25 +405,43 @@ export function validateEnvVar(envVarName: string): string {
 }
 
 /// misc axelar env helpers
-export function setAxelarEnv(env: string) {
+export function setAxelarEnv(env: string, targetIdentifier: string) {
   switch (env) {
     case "devnet":
       axelarConfig.chain = "devnet-amplifier";
       axelarConfig.rpcUrl = validateEnvVar("AXELAR_DEVNET_RPC_URL");
-      // axelarConfig.contract = validateEnvVar("AXELAR_DEVNET_GATEWAY");
+      axelarConfig.walletName = axelarDevnetWallet;
+      setAxelarTarget(targetIdentifier);
       break;
     case "testnet":
       axelarConfig.chain = "axelar-testnet";
       axelarConfig.rpcUrl = validateEnvVar("AXELAR_TESTNET_RPC_URL");
-      // axelarConfig.contract = validateEnvVar("AXELAR_TESTNET_GATEWAY");
+      axelarConfig.walletName = axelarTestnetWallet;
+      setAxelarTarget(targetIdentifier);
       break;
     case "mainnet":
       axelarConfig.chain = "axelar-network";
       axelarConfig.rpcUrl = validateEnvVar("AXELAR_NETWORK_RPC_URL");
-      // axelarConfig.contract = validateEnvVar("AXELAR_NETWORK_GATEWAY");
+      axelarConfig.walletName = axelarMainnetWallet;
+      setAxelarTarget(targetIdentifier);
       break;
     default:
       throw new Error(`Unknown Axelar environment: ${env}`);
+  }
+}
+
+export function setAxelarTarget(targetIdentifier: string) {
+  switch (targetIdentifier) {
+    case "gateway":
+      axelarConfig.contract = axelarDevnetInternalGateway;
+      break;
+    case "prover":
+      axelarConfig.contract = axelarDevnetMultisigProver;
+      break;
+  }
+
+  if (!targetIdentifier) {
+    throw new Error("Target axelar contract identifier is required");
   }
 }
 
@@ -444,9 +449,13 @@ export const axelarDevnetWallet: string = "axelard-test-wallet";
 export const axelarDevnetChainId: string = "devnet-amplifier";
 export const axelarDevnetInternalGateway: string =
   "axelar1r2s8ye304vtyhfgajljdjj6pcpeya7jwdn9tgw8wful83uy2stnqk4x7ya";
+export const axelarDevnetMultisigProver: string =
+  "axelar15ra7d5uvnmc6ety6sqxsvsfz4t34ud6lc5gmt39res0c5thkqp2qdwj4af";
 export const axelarTestnetWallet: string = "axelard-test-wallet";
 export const axelarTestnetChainId: string = "axelar-testnet";
 export const axelarTestnetInternalGateway: string = "";
+export const axelarTestnetMultisigProver: string = "";
 export const axelarMainnetWallet: string = "axelard-wallet";
 export const axelarMainnetChainId: string = "axelar-network";
 export const axelarMainnetInternalGateway: string = "";
+export const axelarMainnetMultisigProver: string = "";

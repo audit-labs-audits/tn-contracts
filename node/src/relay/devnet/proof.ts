@@ -1,4 +1,9 @@
-import { axelardTxExecute, GMPMessage } from "../utils.js";
+import {
+  axelarConfig,
+  axelardTxExecute,
+  GMPMessage,
+  setAxelarEnv,
+} from "../utils.js";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -7,7 +12,7 @@ dotenv.config();
  * @dev Usage example for constructing proofs on a destination chain's multisig prover:
  *
  * `npm run construct-proof -- \
- *    --source-chain <source_chain> --tx-hash <tx_hash> --log-index <log_index>
+ *    --env <env> --source-chain <source_chain> --tx-hash <tx_hash> --log-index <log_index>
  *    --destination-chain-multisig-prover <destination_chain_multisig_prover>`
  */
 
@@ -49,7 +54,6 @@ function processConstructProofCLIArgs(args: string[]) {
   let sourceChain: string | undefined;
   let txHash: `0x${string}` | undefined;
   let logIndex: number | undefined;
-  let destinationChainMultisigProver: string | undefined;
 
   args.forEach((arg, index) => {
     const valueIndex = index + 1;
@@ -63,21 +67,20 @@ function processConstructProofCLIArgs(args: string[]) {
       case "--log-index":
         logIndex = parseInt(args[valueIndex], 10);
         break;
-      case "--destination-chain-multisig-prover":
-        destinationChainMultisigProver = args[valueIndex];
+      case "--env":
+        setAxelarEnv(args[valueIndex], "prover");
         break;
     }
   });
 
+  const destinationChainMultisigProver = axelarConfig.contract;
   if (
     !sourceChain ||
     !txHash ||
     logIndex === undefined ||
     !destinationChainMultisigProver
   ) {
-    throw new Error(
-      "Must set --source-chain, --tx-hash, --log-index --destination-chain-multisig-prover"
-    );
+    throw new Error("Must set --source-chain, --tx-hash, --log-index --env");
   }
 
   return {

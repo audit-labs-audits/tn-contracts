@@ -65,7 +65,7 @@ async function initiate({
     const txHash = await walletClient.sendTransaction({
       account: account,
       chain: targetConfig.chain,
-      to: targetConfig.contract!,
+      to: targetConfig.contract,
       value: amount,
       data: calldata,
     });

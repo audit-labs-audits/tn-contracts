@@ -1,9 +1,9 @@
 import { keccak256 } from "viem";
 import {
+  axelarConfig,
   axelardTxExecute,
   GMPMessage,
   processGmpCLIArgs,
-  processTargetCLIArgs,
 } from "../utils.js";
 import * as dotenv from "dotenv";
 dotenv.config();
@@ -13,7 +13,7 @@ dotenv.config();
  * @dev CLI Usage example for verifying GMP messages on an Axelar internal gateway:
  *
  * `npm run verify -- \
- *    --source-chain <source_chain> --source-address <source_address> \
+ *    --env <env> --source-chain <source_chain> --source-address <source_address> \
  *    --destination-chain <destination_chain> --destination-address <destination_address> \
  *    --payload <payload> --tx-hash <tx_hash> --log-index <log_index>`
  */
@@ -30,13 +30,6 @@ export async function verify({
   console.log(
     `Instructing ${sourceChain}'s internal gateway to commence verification on its paired voting verifier`
   );
-
-  processTargetCLIArgs([
-    "--target-chain",
-    "axelar-devnet",
-    "--target-contract",
-    "telcoin gateway",
-  ]);
 
   // axelard payloadHash must not be 0x prefixed
   const payloadHash = keccak256(payload!);
@@ -60,17 +53,17 @@ export async function verify({
   });
 
   await axelardTxExecute(
-    axelarInternalGateway,
+    axelarConfig.contract!,
     jsonPayload,
-    rpc,
-    axelarWallet,
-    axelarChainId
+    axelarConfig.rpcUrl!,
+    axelarConfig.walletName!,
+    axelarConfig.chain! as string
   );
 }
 
 function main() {
   const args = process.argv.slice(2);
-  verify(processGmpCLIArgs(args));
+  verify(processGmpCLIArgs(args, "gateway"));
 }
 // supports CLI invocation by checking if being run directly
 if (import.meta.url === `file://${process.argv[1]}`) {

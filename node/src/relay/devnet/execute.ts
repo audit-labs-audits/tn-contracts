@@ -1,4 +1,3 @@
-import { exec } from "child_process";
 import {
   getKeystoreAccount,
   GMPMessage,

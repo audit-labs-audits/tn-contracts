@@ -1,9 +1,9 @@
 import { keccak256 } from "viem";
 import {
+  axelarConfig,
   axelardTxExecute,
   GMPMessage,
   processGmpCLIArgs,
-  processTargetCLIArgs,
 } from "../utils.js";
 import * as dotenv from "dotenv";
 dotenv.config();
@@ -13,7 +13,7 @@ dotenv.config();
  * @dev CLI Usage example for routing GMP messages on an Axelar internal gateway to its multisig prover
  *
  * `npm run route -- \
- *    --source-chain <source_chain> --source-address <source_address> \
+ *    --env <env> --source-chain <source_chain> --source-address <source_address> \
  *    --destination-chain <destination_chain> --destination-address <destination_address> \
  *    --payload-hash <payload_hash> --tx-hash <tx_hash> --log-index <log_index>`
  */
@@ -30,13 +30,6 @@ export async function route({
   console.log(
     `Instructing ${sourceChain}'s internal gateway to route verified GMP message to ${destinationChain}'s multisig prover`
   );
-
-  processTargetCLIArgs([
-    "--target-chain",
-    "axelar-devnet",
-    "--target-contract",
-    sourceChainGateway,
-  ]);
 
   // axelard payloadHash must not be 0x prefixed
   const payloadHash = keccak256(payload!);
@@ -60,17 +53,17 @@ export async function route({
   });
 
   await axelardTxExecute(
-    sourceChainGateway,
+    axelarConfig.contract!,
     jsonPayload,
-    rpc,
-    axelarWallet,
-    axelarChainId
+    axelarConfig.rpcUrl!,
+    axelarConfig.walletName!,
+    axelarConfig.chain!
   );
 }
 
 function main() {
   const args = process.argv.slice(2);
-  route(processGmpCLIArgs(args));
+  route(processGmpCLIArgs(args, "gateway"));
 }
 
 // supports CLI invocation by checking if being run directly
