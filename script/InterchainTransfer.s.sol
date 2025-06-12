@@ -12,15 +12,14 @@ import { InterchainTEL } from "../src/InterchainTEL.sol";
 import { Deployments, ITS } from "../deployments/Deployments.sol";
 import { ITSConfig } from "../deployments/utils/ITSConfig.sol";
 
-/// @dev Usage: `forge script script/LinkToken.s.sol -vvvv`
-contract LinkToken is ITSConfig, Script {
+/// @dev Usage: `forge script script/InterchainTransfer.s.sol -vvvv`
+contract InterchainTransfer is ITSConfig, Script {
     Deployments deployments;
 
     InterchainTokenService service;
-    InterchainTokenFactory factory;
-    string sourceChain;
     string destinationChain;
     address destinationAddress;
+    uint256 interchainAmount;
 
     function setUp() public {
         string memory path = string.concat(vm.projectRoot(), "/deployments/deployments.json");
@@ -29,36 +28,24 @@ contract LinkToken is ITSConfig, Script {
         deployments = abi.decode(data, (Deployments));
 
         service = InterchainTokenService(deployments.its.InterchainTokenService);
-        factory = InterchainTokenFactory(deployments.its.InterchainTokenFactory);
-        sourceChain = DEVNET_SEPOLIA_CHAIN_NAME;
         destinationChain = "telcoin";
         destinationAddress = governanceAddress_;
+        interchainAmount = 100; // 1 TEL
 
         /// @dev For testnet and mainnet genesis configs, use corresponding function
         _setUpDevnetConfig(deployments.admin, deployments.sepoliaTEL, deployments.wTEL, deployments.its.InterchainTEL);
     }
 
     function run() public {
-        vm.startBroadcast(service.owner());
+        vm.startBroadcast();
 
-        service.setTrustedAddress(destinationChain, ITS_HUB_ROUTING_IDENTIFIER);
-
-        (bytes32 linkedTokenSalt, bytes32 linkedTokenId, TokenManager telTokenManager) =
-        eth_registerCustomTokenAndLinkToken(
-            originTEL,
-            linker,
+        service.interchainTransfer{ value: gasValue }(
+            DEVNET_INTERCHAIN_TOKENID,
             destinationChain,
-            deployments.its.InterchainTEL,
-            originTMType,
-            AddressBytes.toAddress(tmOperator),
-            gasValue,
-            factory
-        );
-
-        console2.logString(string.concat("linkedTokenSalt", LibString.toHexString(uint256(linkedTokenSalt), 32)));
-        console2.logString(string.concat("linkedTokenId", LibString.toHexString(uint256(linkedTokenId), 32)));
-        console2.logString(
-            string.concat("tokenManager", LibString.toHexString(uint256(uint160(address(telTokenManager))), 20))
+            AddressBytes.toBytes(destinationAddress),
+            interchainAmount,
+            "",
+            gasValue
         );
 
         vm.stopBroadcast();
