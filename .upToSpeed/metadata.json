@@ -1,0 +1,31 @@
+{
+  "packageName": "tn-contracts",
+  "packageVersion": 1,
+  "hash": "5a5687208634f8bfb3f823e9656b3a7f37a73dd7",
+  "numberOfTours": 4,
+  "titleOfTours": [
+    "1.1: Codebase Overview",
+    "2.1: Consensus: Overview",
+    "3.1: CI: Overview",
+    "4.1: Want to learn more?"
+  ],
+  "totalNumberOfSteps": 34,
+  "filesCovered": [
+    "README.md",
+    "src/consensus/design.md",
+    "src/design.md",
+    "src/consensus/SystemCallable.sol",
+    "src/interfaces/IStakeManager.sol",
+    "src/recoverable-wrapper/RecoverableWrapper.sol",
+    "src/InterchainTEL.sol",
+    "src/WTEL.sol",
+    "src/faucet/TNFaucet.sol",
+    "src/faucet/StablecoinManager.sol",
+    "src/CI/GitAttestationRegistry.sol",
+    "src/consensus/StakeManager.sol",
+    "src/interfaces/IConsensusRegistry.sol",
+    "src/consensus/ConsensusRegistry.sol",
+    "src/consensus/Issuance.sol"
+  ],
+  "numberOfFilesCovered": 15
+}

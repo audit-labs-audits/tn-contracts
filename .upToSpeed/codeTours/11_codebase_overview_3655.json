@@ -1,0 +1,189 @@
+{
+  "title": "1.1: Codebase Overview",
+  "id": "kyOOp5Mm0rTJevkjxAWFuxjV6Do+2fPmYWa2lqJogmg=",
+  "originalId": 3655,
+  "position": 1,
+  "steps": [
+    {
+      "type": "textOnly",
+      "description": "Welcome to a high-level tour of the `Telcoin Network smart contracts`. We’ll map out the four main domains—`Consensus`, `Interchain Bridging`, `CI`, and `Faucet`—by surfacing key design docs, file layouts, and contract responsibilities.",
+      "title": "",
+      "id": "43061"
+    },
+    {
+      "type": "highlight",
+      "description": "The **Overview** section shows the repository’s four core parts: `consensus system`, `InterchainTEL bridging`, `CI attestations`, and a `testnet faucet`.",
+      "file": "README.md",
+      "highlight": [
+        {
+          "start": 3,
+          "end": 8
+        }
+      ],
+      "title": "",
+      "id": "43062"
+    },
+    {
+      "type": "highlight",
+      "description": "Validators join via governance-issued, non-transferable `ERC-721` NFTs minted through `ConsensusRegistry::mint()`, forming the permissioned whitelist.",
+      "file": "src/consensus/design.md",
+      "highlight": [
+        {
+          "start": 3,
+          "end": 7
+        }
+      ],
+      "title": "",
+      "id": "43063"
+    },
+    {
+      "type": "highlight",
+      "description": "Gasless system calls (`concludeEpoch()`, `applyIncentives()`, `applySlashes()`) are routed through the `SystemCallable` module to update epochs, committees, and rewards/slashing hooks.",
+      "file": "src/consensus/design.md",
+      "highlight": [
+        {
+          "start": 27,
+          "end": 31
+        }
+      ],
+      "title": "",
+      "id": "43064"
+    },
+    {
+      "type": "highlight",
+      "description": "`InterchainTEL` inherits `InterchainTokenStandard` and is deployed as a custom-linked **ITS** token to bridge `ERC-20` `TEL` and native `TEL`.",
+      "file": "src/design.md",
+      "highlight": [
+        {
+          "start": 12,
+          "end": 15
+        }
+      ],
+      "title": "",
+      "id": "43065"
+    },
+    {
+      "type": "highlight",
+      "description": "A `RecoverableWrapper` enforces a timelock on outbound bridging, ensuring only settled token balances can be burned across chains.",
+      "file": "src/design.md",
+      "highlight": [
+        {
+          "start": 17,
+          "end": 20
+        }
+      ],
+      "title": "",
+      "id": "43066"
+    },
+    {
+      "type": "highlight",
+      "description": "The `src/consensus` folder includes **SystemCallable.sol**, **StakeManager.sol**, **ConsensusRegistry.sol**, and **Issuance.sol** for epoch logic, staking, registry, and issuance.",
+      "file": "src/consensus/SystemCallable.sol",
+      "highlight": [
+        {
+          "start": 1,
+          "end": 4
+        }
+      ],
+      "title": "",
+      "id": "43067"
+    },
+    {
+      "type": "highlight",
+      "description": "The `src/interfaces` folder defines the **public APIs**: `IStakeManager.sol`, `IConsensusRegistry.sol`, `IInterchainTEL.sol`, and `IRecoverableWrapper.sol`.",
+      "file": "src/interfaces/IStakeManager.sol",
+      "highlight": [
+        {
+          "start": 1,
+          "end": 4
+        }
+      ],
+      "title": "",
+      "id": "43068"
+    },
+    {
+      "type": "highlight",
+      "description": "The `src/recoverable-wrapper` folder implements the generic timelock/deque pattern via `RecoverableWrapper.sol` and `RecordUtil.sol`.",
+      "file": "src/recoverable-wrapper/RecoverableWrapper.sol",
+      "highlight": [
+        {
+          "start": 1,
+          "end": 4
+        }
+      ],
+      "title": "",
+      "id": "43069"
+    },
+    {
+      "type": "highlight",
+      "description": "`InterchainTEL` ties together bridging and governance logic, inheriting `RecoverableWrapper`, `InterchainTokenStandard`, `Create3AddressFixed`, `SystemCallable`, and `Pausable`.",
+      "file": "src/InterchainTEL.sol",
+      "highlight": [
+        {
+          "start": 21,
+          "end": 28
+        }
+      ],
+      "title": "",
+      "id": "43070"
+    },
+    {
+      "type": "highlight",
+      "description": "`WTEL` is a minimal WETH-style wrapper naming the wrapped Telcoin token `Wrapped Telcoin (wTEL)`.",
+      "file": "src/WTEL.sol",
+      "highlight": [
+        {
+          "start": 6,
+          "end": 14
+        }
+      ],
+      "title": "",
+      "id": "43071"
+    },
+    {
+      "type": "highlight",
+      "description": "`TNFaucet.sol` provides abstract scaffolding for rate-limited drips, handling native and ERC-20 tokens.",
+      "file": "src/faucet/TNFaucet.sol",
+      "highlight": [
+        {
+          "start": 8,
+          "end": 15
+        }
+      ],
+      "title": "",
+      "id": "43072"
+    },
+    {
+      "type": "highlight",
+      "description": "`StablecoinManager` extends `StablecoinHandler` and `TNFaucet`, configuring role-based minting of **TEL** and **stablecoins**.",
+      "file": "src/faucet/StablecoinManager.sol",
+      "highlight": [
+        {
+          "start": 18,
+          "end": 25
+        }
+      ],
+      "title": "",
+      "id": "43073"
+    },
+    {
+      "type": "highlight",
+      "description": "`GitAttestationRegistry` uses a ring buffer to store Git commit hashes and emits `GitHashAttested` and `BufferSizeChanged` events for CI attestations.",
+      "file": "src/CI/GitAttestationRegistry.sol",
+      "highlight": [
+        {
+          "start": 6,
+          "end": 13
+        }
+      ],
+      "title": "",
+      "id": "43074"
+    },
+    {
+      "type": "textOnly",
+      "description": "Summary:\n\n- Consensus: `Validator NFTs`, `epochs`, `rewards/slashing` via `SystemCallable`\n- Bridging: `InterchainTEL` + `RecoverableWrapper` + `Create3`\n- CI: On-chain `Git` attestations\n- Faucet: Rate-limited `TEL` & stablecoin drips\n\nUpcoming tours will dive deeper into each area.",
+      "title": "",
+      "id": "43075"
+    }
+  ]
+}

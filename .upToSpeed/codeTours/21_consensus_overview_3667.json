@@ -1,0 +1,105 @@
+{
+  "title": "2.1: Consensus: Overview",
+  "id": "ZeRODG0hjkGD7VOb83yLKkBB4m1NpBxnRVvJYe2R02c=",
+  "originalId": 3667,
+  "position": 2,
+  "steps": [
+    {
+      "type": "textOnly",
+      "description": "This walkthrough gives a high-level map of the **Consensus** component in the Telcoin codebase, covering the core contracts and how they relate without diving into implementation details.",
+      "title": "",
+      "id": "43083"
+    },
+    {
+      "type": "highlight",
+      "description": "`SystemCallable.sol` defines an abstract contract with a single modifier `onlySystemCall` and a constant `SYSTEM_ADDRESS`, enforcing that certain functions can only be invoked by the protocol.",
+      "file": "src/consensus/SystemCallable.sol",
+      "highlight": [
+        {
+          "start": 1,
+          "end": 12
+        }
+      ],
+      "title": "",
+      "id": "43084"
+    },
+    {
+      "type": "highlight",
+      "description": "`IStakeManager.sol` declares the core staking API: `stake`, `delegateStake`, `claimStakeRewards`, and `unstake`, covering validator self-staking, delegation, reward claiming, and withdrawals.",
+      "file": "src/interfaces/IStakeManager.sol",
+      "highlight": [
+        {
+          "start": 54,
+          "end": 75
+        }
+      ],
+      "title": "",
+      "id": "43085"
+    },
+    {
+      "type": "highlight",
+      "description": "`StakeManager.sol` implements `IStakeManager` and inherits `ERC721Enumerable` and `EIP712`. It represents validator stake as a non-transferable `ERC-721` NFT (**ConsensusNFT**).",
+      "file": "src/consensus/StakeManager.sol",
+      "highlight": [
+        {
+          "start": 21,
+          "end": 27
+        }
+      ],
+      "title": "",
+      "id": "43086"
+    },
+    {
+      "type": "highlight",
+      "description": "`IConsensusRegistry.sol` defines the key consensus lifecycle hooks: `concludeEpoch` for updating committees and epochs, `applyIncentives` for reward distribution, and `applySlashes` for penalization.",
+      "file": "src/interfaces/IConsensusRegistry.sol",
+      "highlight": [
+        {
+          "start": 82,
+          "end": 99
+        }
+      ],
+      "title": "",
+      "id": "43087"
+    },
+    {
+      "type": "highlight",
+      "description": "`ConsensusRegistry.sol` is the heart of the consensus system. It inherits `StakeManager` for staking, `Pausable` for emergencies, `Ownable` for governance, `ReentrancyGuard` for safety, `SystemCallable` for system calls, and implements `IConsensusRegistry` to orchestrate epochs, committees, validator lifecycles, slashing, and rewards.",
+      "file": "src/consensus/ConsensusRegistry.sol",
+      "highlight": [
+        {
+          "start": 14,
+          "end": 22
+        }
+      ],
+      "title": "",
+      "id": "43088"
+    },
+    {
+      "type": "highlight",
+      "description": "`Issuance.sol` declares a simple vault contract that holds TEL for staking issuance. Only the **StakeManager** can call `distributeStakeReward` to send rewards to validators.",
+      "file": "src/consensus/Issuance.sol",
+      "highlight": [
+        {
+          "start": 1,
+          "end": 12
+        }
+      ],
+      "title": "",
+      "id": "43089"
+    },
+    {
+      "type": "highlight",
+      "description": "Inheritance tree of `ConsensusRegistry`: `StakeManager` → `Pausable` → `Ownable` → `ReentrancyGuard` → `SystemCallable` → `IConsensusRegistry`\n\nEnd-to-end validator flow:\n`SystemCallable` → `StakeManager` → `ConsensusRegistry` → `Issuance`",
+      "file": "src/consensus/ConsensusRegistry.sol",
+      "highlight": [
+        {
+          "start": 22,
+          "end": 22
+        }
+      ],
+      "title": "",
+      "id": "43090"
+    }
+  ]
+}

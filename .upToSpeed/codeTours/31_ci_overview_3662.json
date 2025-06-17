@@ -1,0 +1,117 @@
+{
+  "title": "3.1: CI: Overview",
+  "id": "wmpNj7E1VKu+uO/uFf0CzdYvdMbFuiaBQZsOj0qx0xM=",
+  "originalId": 3662,
+  "position": 11,
+  "steps": [
+    {
+      "type": "textOnly",
+      "description": "Let's tour the on-chain Git attestation mechanism by examining its main interface in `GitAttestationRegistry.sol`.",
+      "title": "",
+      "id": "43028"
+    },
+    {
+      "type": "highlight",
+      "description": "These `NatSpec` comments describe the contract’s purpose: bypass slow **GitHub CI** by letting a small set of keyholders attest local CI results on-chain, creating a single source of truth.",
+      "file": "src/CI/GitAttestationRegistry.sol",
+      "highlight": [
+        {
+          "start": 6,
+          "end": 11
+        }
+      ],
+      "title": "",
+      "id": "43029"
+    },
+    {
+      "type": "highlight",
+      "description": "The `GitCommitHashRecord` struct pairs a `bytes20 gitCommitHash` with a `bool ciPassed`, capturing whether that commit passed CI.",
+      "file": "src/CI/GitAttestationRegistry.sol",
+      "highlight": [
+        {
+          "start": 12,
+          "end": 15
+        }
+      ],
+      "title": "",
+      "id": "43030"
+    },
+    {
+      "type": "highlight",
+      "description": "Two events signal important on-chain changes. `GitHashAttested` is emitted when a new attestation is recorded, while `BufferSizeChanged` signals that the storage capacity has been modified.",
+      "file": "src/CI/GitAttestationRegistry.sol",
+      "highlight": [
+        {
+          "start": 17,
+          "end": 18
+        }
+      ],
+      "title": "",
+      "id": "43031"
+    },
+    {
+      "type": "highlight",
+      "description": "The main public state variables manage the attestation storage: `ringBuffer` is the circular buffer, `bufferSize` and `head` track its state, and `MAINTAINER_ROLE` controls who can write to it.",
+      "file": "src/CI/GitAttestationRegistry.sol",
+      "highlight": [
+        {
+          "start": 20,
+          "end": 23
+        }
+      ],
+      "title": "",
+      "id": "43032"
+    },
+    {
+      "type": "textOnly",
+      "description": "Here are the three public `functions`’ interfaces. Only their **signatures** are shown for a high-level view.",
+      "title": "",
+      "id": "43033"
+    },
+    {
+      "type": "highlight",
+      "description": "`function attestGitCommitHash(bytes20 gitCommitHash, bool ciPassed) external onlyRole(MAINTAINER_ROLE);` — submit a commit hash and CI status.",
+      "file": "src/CI/GitAttestationRegistry.sol",
+      "highlight": [
+        {
+          "start": 39,
+          "end": 39
+        }
+      ],
+      "title": "",
+      "id": "43034"
+    },
+    {
+      "type": "highlight",
+      "description": "`function gitCommitHashAttested(bytes20 gitCommitHash) external view returns (bool);` — check if a given commit hash was attested as passing CI.",
+      "file": "src/CI/GitAttestationRegistry.sol",
+      "highlight": [
+        {
+          "start": 46,
+          "end": 46
+        }
+      ],
+      "title": "",
+      "id": "43035"
+    },
+    {
+      "type": "highlight",
+      "description": "`function setBufferSize(uint8 newSize) external onlyRole(DEFAULT_ADMIN_ROLE);` — adjust how many attestations the ring buffer can hold.",
+      "file": "src/CI/GitAttestationRegistry.sol",
+      "highlight": [
+        {
+          "start": 55,
+          "end": 55
+        }
+      ],
+      "title": "",
+      "id": "43036"
+    },
+    {
+      "type": "textOnly",
+      "description": "That completes our light overview. You now know the `contract`’s purpose, data structures, events, key variables, and public interfaces for on-chain `Git` attestations.",
+      "title": "",
+      "id": "43037"
+    }
+  ]
+}
